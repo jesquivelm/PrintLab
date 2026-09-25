@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Incidencia de Calidad - PrintLab</title>
+<link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+<link rel="stylesheet" href="/orden-produccion.css">
+<link rel="stylesheet" href="/calidad/styles.css?v=20260905-sellos">
+<script src="/theme.js"></script>
+<script src="/desplegable.js?v=20260924-desplegable-v5"></script>
+<style>
+body { margin:0; background:transparent; padding:24px 24px 60px; }
+.calidad-form-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px 16px; }
+.calidad-form-grid label.production-summary-item { display:flex; flex-direction:column; gap:5px; min-width:0; }
+.calidad-form-grid input, .calidad-form-grid select, .calidad-form-grid textarea {
+    border:1px solid var(--order-panel-border,#d4e1ea); border-radius:10px; background:var(--order-panel-soft,#fbfdff);
+    color:var(--ink,#203746); font-size:13px; padding:0 10px; min-height:34px; font-family:inherit;
+}
+.calidad-form-grid textarea { grid-column:1 / -1; min-height:60px; padding:8px 10px; resize:vertical; }
+.calidad-form-grid .display-input-wrap { display:block; }
+.calidad-actions { display:flex; gap:10px; align-items:center; margin-top:20px; flex-wrap:wrap; }
+.calidad-actions select {
+    border:1px solid var(--order-panel-border,#d4e1ea); border-radius:10px; background:var(--order-panel-soft,#fff); color:var(--ink,#203746);
+    font-size:13px; min-height:38px; padding:0 10px; font-family:inherit;
+}
+.calidad-adjuntos-list { display:flex; flex-direction:column; gap:6px; margin:0 0 12px; }
+.calidad-adjunto-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 12px; border:1px solid var(--order-panel-border,#d4e1ea); border-radius:10px; background:var(--order-panel-soft,#fbfdff); font-size:13px; }
+.calidad-adjunto-row a { color:var(--app-primary); text-decoration:none; font-weight:600; }
+.calidad-costo-total { font-size:13px; font-weight:700; color:#577086; margin-top:8px; }
+</style>
+</head>
+<body>
+<main class="workspace workspace-quote">
+    <section class="quote-card quote-card-clean production-order-card">
+        <section class="socios-section">
+            <div class="production-tracking-body">
+                <div class="production-tracking-left">
+                    <div class="production-tracking-head-row">
+                        <strong id="incTitulo" class="production-jobname">Nueva Incidencia de Calidad</strong>
+                        <div class="production-tracking-state-row">
+                            <strong id="incEstadoPill" class="production-order-state production-state-pill production-state-pill-inline" hidden></strong>
+                            <strong id="incPrioridadPill" class="production-order-state production-state-pill production-state-pill-inline" hidden></strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="socios-section">
+            <div class="section-caption">Datos Generales</div>
+            <div class="calidad-form-grid">
+                <label class="production-summary-item"><span class="production-summary-label">Origen</span>
+                    <select id="incOrigen"></select>
+                </label>
+                <label class="production-summary-item"><span class="production-summary-label">Medio de Recepción</span>
+                    <select id="incMedioRecepcion"><option value="">—</option></select>
+                </label>
+                <label class="production-summary-item"><span class="production-summary-label">Prioridad</span>
+                    <select id="incPrioridad">
+                        <option value="baja">Baja</option>
+                        <option value="media" selected>Media</option>
+                        <option value="alta">Alta</option>
+                        <option value="critica">Crítica</option>
+                    </select>
+                </label>
+                <label class="production-summary-item"><span class="production-summary-label">Departamento de Origen</span><input type="text" id="incDepartamentoOrigen"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Fecha del Evento</span><input type="datetime-local" id="incFechaEvento"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Reportado Por</span><input type="text" id="incCreadoPorNombre"></label>
+                <label class="production-summary-item" style="grid-column:1 / -1"><span class="production-summary-label">Descripción del Problema</span><textarea id="incDescripcion"></textarea></label>
+                <label class="production-summary-item" style="grid-column:1 / -1"><span class="production-summary-label">Observaciones Iniciales</span><textarea id="incObservacionesIniciales"></textarea></label>
+            </div>
+        </section>
+
+        <section class="socios-section">
+            <div class="section-caption">Relación con Cliente, Producción y Producto</div>
+            <div class="calidad-form-grid">
+                <label class="production-summary-item"><span class="production-summary-label">Código de Cliente</span><input type="text" id="incClienteCodigo"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Nombre de Cliente</span><input type="text" id="incClienteNombre"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Contacto del Cliente</span><input type="text" id="incContactoCliente"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Cotización</span><input type="text" id="incCotizacionCodigo" placeholder="C-000019"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Línea de Cotización</span><input type="text" id="incLineaCotizacionCodigo"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Producto</span><input type="text" id="incProductoCodigo" placeholder="P-000005"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Orden de Producción</span><input type="text" id="incOrdenProduccionCodigo" placeholder="OP-000009"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Máquina</span><input type="text" id="incMaquina"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Proceso</span><input type="text" id="incProceso"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Operador</span><input type="text" id="incOperador"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Referencia de Materia Prima</span><input type="text" id="incMateriaPrimaRef" placeholder="Pendiente de módulo de materia prima"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Referencia de Proveedor</span><input type="text" id="incProveedorRef" placeholder="Pendiente de módulo de proveedores"></label>
+            </div>
+        </section>
+
+        <section class="socios-section" id="incCostosBlock">
+            <div class="section-caption">Costos de Calidad</div>
+            <div class="calidad-form-grid">
+                <label class="production-summary-item"><span class="production-summary-label">Material Desperdiciado</span>
+                    <span class="display-input-wrap"><input id="incCostoMaterialDesperdiciado" class="display-input" type="number" step="0.01" value="0"><span id="incCostoMaterialDesperdiciadoDisplay" class="display-input-mask"></span></span>
+                </label>
+                <label class="production-summary-item"><span class="production-summary-label">Reproceso</span>
+                    <span class="display-input-wrap"><input id="incCostoReproceso" class="display-input" type="number" step="0.01" value="0"><span id="incCostoReprocesoDisplay" class="display-input-mask"></span></span>
+                </label>
+                <label class="production-summary-item"><span class="production-summary-label">Horas de Máquina</span>
+                    <span class="display-input-wrap"><input id="incCostoHorasMaquina" class="display-input" type="number" step="0.01" value="0"><span id="incCostoHorasMaquinaDisplay" class="display-input-mask"></span></span>
+                </label>
+                <label class="production-summary-item"><span class="production-summary-label">Mano de Obra</span>
+                    <span class="display-input-wrap"><input id="incCostoManoObra" class="display-input" type="number" step="0.01" value="0"><span id="incCostoManoObraDisplay" class="display-input-mask"></span></span>
+                </label>
+                <label class="production-summary-item"><span class="production-summary-label">Materia Prima Adicional</span>
+                    <span class="display-input-wrap"><input id="incCostoMateriaPrimaAdicional" class="display-input" type="number" step="0.01" value="0"><span id="incCostoMateriaPrimaAdicionalDisplay" class="display-input-mask"></span></span>
+                </label>
+                <label class="production-summary-item"><span class="production-summary-label">Reposición</span>
+                    <span class="display-input-wrap"><input id="incCostoReposicion" class="display-input" type="number" step="0.01" value="0"><span id="incCostoReposicionDisplay" class="display-input-mask"></span></span>
+                </label>
+                <label class="production-summary-item"><span class="production-summary-label">Transporte</span>
+                    <span class="display-input-wrap"><input id="incCostoTransporte" class="display-input" type="number" step="0.01" value="0"><span id="incCostoTransporteDisplay" class="display-input-mask"></span></span>
+                </label>
+                <label class="production-summary-item"><span class="production-summary-label">Devolución</span>
+                    <span class="display-input-wrap"><input id="incCostoDevolucion" class="display-input" type="number" step="0.01" value="0"><span id="incCostoDevolucionDisplay" class="display-input-mask"></span></span>
+                </label>
+                <label class="production-summary-item"><span class="production-summary-label">Nota de Crédito / Descuento</span>
+                    <span class="display-input-wrap"><input id="incCostoNotaCredito" class="display-input" type="number" step="0.01" value="0"><span id="incCostoNotaCreditoDisplay" class="display-input-mask"></span></span>
+                </label>
+                <label class="production-summary-item"><span class="production-summary-label">Otros Costos</span>
+                    <span class="display-input-wrap"><input id="incCostoOtros" class="display-input" type="number" step="0.01" value="0"><span id="incCostoOtrosDisplay" class="display-input-mask"></span></span>
+                </label>
+            </div>
+            <div class="calidad-costo-total">Costo Total: <span id="incCostoTotalTexto">$ 0.00</span></div>
+        </section>
+
+        <section class="socios-section">
+            <div class="section-caption">Caso Crítico</div>
+            <div class="calidad-form-grid">
+                <label class="production-summary-item costs-process-default-check">
+                    <span class="production-summary-label">Marcar como Caso Crítico</span>
+                    <input type="checkbox" id="incCasoCritico">
+                </label>
+                <label class="production-summary-item" style="grid-column:span 2"><span class="production-summary-label">Criterio de Criticidad</span><input type="text" id="incCriterioCritico" placeholder="Cliente estratégico, riesgo de devolución, etc."></label>
+            </div>
+        </section>
+
+        <section class="socios-section" id="incClasificacionBlock" hidden>
+            <div class="section-caption">Revisión y Clasificación de Calidad</div>
+            <div class="calidad-form-grid">
+                <label class="production-summary-item"><span class="production-summary-label">Clasificación</span>
+                    <select id="incClasificacion">
+                        <option value="">Sin clasificar</option>
+                        <option value="no_procede">No Procede</option>
+                        <option value="observacion">Observación</option>
+                        <option value="correccion">Corrección</option>
+                        <option value="no_conformidad">No Conformidad</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </label>
+                <label class="production-summary-item" style="grid-column:2 / -1"><span class="production-summary-label">Comentario / Justificación</span><input type="text" id="incComentarioClasificacion"></label>
+            </div>
+        </section>
+
+        <section class="socios-section" id="incAdjuntosBlock" hidden>
+            <div class="section-caption">Evidencia / Adjuntos</div>
+            <div class="calidad-adjuntos-list" id="incAdjuntosList"></div>
+            <label class="production-summary-item"><span class="production-summary-label">Tipo de Evidencia</span>
+                <select id="incTipoEvidencia">
+                    <option value="foto">Foto</option>
+                    <option value="video">Video</option>
+                    <option value="pdf">PDF</option>
+                    <option value="correo">Correo</option>
+                    <option value="captura">Captura de Pantalla</option>
+                    <option value="documento">Documento</option>
+                    <option value="audio">Audio</option>
+                    <option value="otro">Otro</option>
+                </select>
+            </label>
+            <input type="file" id="incArchivoAdjunto" style="margin-top:8px;">
+            <button type="button" class="action-btn" id="incSubirAdjunto" style="margin-top:8px;">+ Adjuntar Evidencia</button>
+        </section>
+
+        <div class="calidad-actions">
+            <button type="button" class="action-btn action-btn-primary" id="incGuardar">Guardar Incidencia</button>
+            <select id="incCambiarEstado" style="display:none;">
+                <option value="">Cambiar Estado...</option>
+                <option value="en_revision">En Revisión</option>
+                <option value="cerrada">Cerrada</option>
+            </select>
+        </div>
+    </section>
+</main>
+
+<script>
+const ESTADO_INFO_INCIDENCIA = {
+    nueva: { etiqueta: 'Nueva', clase: 'is-alert' },
+    pendiente_revision: { etiqueta: 'Pendiente de Revisión', clase: 'is-alert' },
+    en_revision: { etiqueta: 'En Revisión', clase: 'is-pending' },
+    cerrada: { etiqueta: 'Cerrada', clase: 'is-complete' },
+    convertida_nc: { etiqueta: 'Convertida en No Conformidad', clase: 'is-progress' }
+};
+const PRIORIDAD_INFO = {
+    baja: { etiqueta: 'Prioridad Baja', clase: 'is-complete' },
+    media: { etiqueta: 'Prioridad Media', clase: 'is-pending' },
+    alta: { etiqueta: 'Prioridad Alta', clase: 'is-alert' },
+    critica: { etiqueta: 'Prioridad Crítica', clase: 'is-alert' }
+};
+const CAMPOS_COSTO = [
+    'incCostoMaterialDesperdiciado', 'incCostoReproceso', 'incCostoHorasMaquina', 'incCostoManoObra',
+    'incCostoMateriaPrimaAdicional', 'incCostoReposicion', 'incCostoTransporte', 'incCostoDevolucion',
+    'incCostoNotaCredito', 'incCostoOtros'
+];
+const codigoActual = window.location.pathname.split('/').pop();
+const esNueva = codigoActual === 'nueva';
+
+function incEscapar(text) {
+    const d = document.createElement('div');
+    d.textContent = text == null ? '' : String(text);
+    return d.innerHTML;
+}
+
+function incFormatearMoneda(valor) {
+    const numero = Number(valor || 0);
+    return '$ ' + numero.toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function incSyncDisplayInputMask(id) {
+    const input = document.getElementById(id);
+    const mask = document.getElementById(id + 'Display');
+    if (!input || !mask) return;
+    mask.textContent = incFormatearMoneda(input.value);
+}
+
+function incCalcularCostoTotal() {
+    let total = 0;
+    CAMPOS_COSTO.forEach(function(id) {
+        incSyncDisplayInputMask(id);
+        total += Number(document.getElementById(id).value || 0);
+    });
+    document.getElementById('incCostoTotalTexto').textContent = incFormatearMoneda(total);
+}
+
+CAMPOS_COSTO.forEach(function(id) {
+    document.getElementById(id).addEventListener('input', incCalcularCostoTotal);
+});
+
+async function incCargarCatalogos() {
+    const [origenesResp, mediosResp] = await Promise.all([
+        fetch('/api/calidad/incidencias/origenes'),
+        fetch('/api/calidad/incidencias/medios-recepcion')
+    ]);
+    const origenes = await origenesResp.json();
+    const medios = await mediosResp.json();
+    const selectOrigen = document.getElementById('incOrigen');
+    (origenes || []).forEach(function(o) {
+        const opt = document.createElement('option');
+        opt.value = o.codigo;
+        opt.textContent = o.nombre;
+        selectOrigen.appendChild(opt);
+    });
+    const selectMedio = document.getElementById('incMedioRecepcion');
+    (medios || []).forEach(function(m) {
+        const opt = document.createElement('option');
+        opt.value = m.codigo;
+        opt.textContent = m.nombre;
+        selectMedio.appendChild(opt);
+    });
+}
+
+function incMostrarEstado(estado) {
+    const pill = document.getElementById('incEstadoPill');
+    const info = ESTADO_INFO_INCIDENCIA[estado] || { etiqueta: estado, clase: 'is-pending' };
+    pill.textContent = info.etiqueta;
+    pill.className = 'production-order-state production-state-pill production-state-pill-inline ' + info.clase;
+    pill.hidden = false;
+}
+function incMostrarPrioridad(prioridad) {
+    const pill = document.getElementById('incPrioridadPill');
+    const info = PRIORIDAD_INFO[prioridad] || { etiqueta: prioridad, clase: 'is-pending' };
+    pill.textContent = info.etiqueta;
+    pill.className = 'production-order-state production-state-pill production-state-pill-inline ' + info.clase;
+    pill.hidden = false;
+}
+
+async function incCargarAdjuntos() {
+    const respuesta = await fetch('/api/calidad/incidencias/' + encodeURIComponent(codigoActual));
+    const incidencia = await respuesta.json();
+    const lista = document.getElementById('incAdjuntosList');
+    lista.innerHTML = (incidencia.adjuntos || []).map(function(a) {
+        return '<div class="calidad-adjunto-row"><span>' + incEscapar(a.file_name) + ' (' + incEscapar(a.tipo_evidencia || 'otro') + ')</span>' +
+            '<a href="/api/calidad/incidencias/adjuntos/' + a.id + '/download" target="_blank">Descargar</a></div>';
+    }).join('') || '<div class="calidad-adjunto-row">Sin evidencia adjunta.</div>';
+}
+
+document.getElementById('incSubirAdjunto').addEventListener('click', function() {
+    const input = document.getElementById('incArchivoAdjunto');
+    const archivo = input.files[0];
+    if (!archivo) { alert('Seleccione un archivo.'); return; }
+    const lector = new FileReader();
+    lector.onload = async function() {
+        const base64 = String(lector.result).split(',')[1] || '';
+        const respuesta = await fetch('/api/calidad/incidencias/' + encodeURIComponent(codigoActual) + '/adjuntos', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ file_name: archivo.name, content_base64: base64, tipo_evidencia: document.getElementById('incTipoEvidencia').value })
+        });
+        const resultado = await respuesta.json();
+        if (!respuesta.ok) { alert('Error: ' + resultado.error); return; }
+        input.value = '';
+        incCargarAdjuntos();
+    };
+    lector.readAsDataURL(archivo);
+});
+
+function incRecolectarPayload() {
+    return {
+        origen: document.getElementById('incOrigen').value,
+        medio_recepcion: document.getElementById('incMedioRecepcion').value || null,
+        prioridad: document.getElementById('incPrioridad').value,
+        departamento_origen: document.getElementById('incDepartamentoOrigen').value.trim() || null,
+        fecha_evento: document.getElementById('incFechaEvento').value || null,
+        creado_por_nombre: document.getElementById('incCreadoPorNombre').value.trim() || null,
+        descripcion: document.getElementById('incDescripcion').value.trim(),
+        observaciones_iniciales: document.getElementById('incObservacionesIniciales').value.trim() || null,
+        cliente_codigo: document.getElementById('incClienteCodigo').value.trim() || null,
+        cliente_nombre: document.getElementById('incClienteNombre').value.trim() || null,
+        contacto_cliente: document.getElementById('incContactoCliente').value.trim() || null,
+        cotizacion_codigo: document.getElementById('incCotizacionCodigo').value.trim() || null,
+        linea_cotizacion_codigo: document.getElementById('incLineaCotizacionCodigo').value.trim() || null,
+        producto_codigo: document.getElementById('incProductoCodigo').value.trim() || null,
+        orden_produccion_codigo: document.getElementById('incOrdenProduccionCodigo').value.trim() || null,
+        maquina: document.getElementById('incMaquina').value.trim() || null,
+        proceso: document.getElementById('incProceso').value.trim() || null,
+        operador: document.getElementById('incOperador').value.trim() || null,
+        materia_prima_ref: document.getElementById('incMateriaPrimaRef').value.trim() || null,
+        proveedor_ref: document.getElementById('incProveedorRef').value.trim() || null,
+        caso_critico: document.getElementById('incCasoCritico').checked,
+        criterio_critico: document.getElementById('incCriterioCritico').value.trim() || null,
+        costo_material_desperdiciado: Number(document.getElementById('incCostoMaterialDesperdiciado').value || 0),
+        costo_reproceso: Number(document.getElementById('incCostoReproceso').value || 0),
+        costo_horas_maquina: Number(document.getElementById('incCostoHorasMaquina').value || 0),
+        costo_mano_obra: Number(document.getElementById('incCostoManoObra').value || 0),
+        costo_materia_prima_adicional: Number(document.getElementById('incCostoMateriaPrimaAdicional').value || 0),
+        costo_reposicion: Number(document.getElementById('incCostoReposicion').value || 0),
+        costo_transporte: Number(document.getElementById('incCostoTransporte').value || 0),
+        costo_devolucion: Number(document.getElementById('incCostoDevolucion').value || 0),
+        costo_nota_credito: Number(document.getElementById('incCostoNotaCredito').value || 0),
+        costo_otros: Number(document.getElementById('incCostoOtros').value || 0),
+        clasificacion: document.getElementById('incClasificacion').value || null,
+        comentario_clasificacion: document.getElementById('incComentarioClasificacion').value.trim() || null
+    };
+}
+
+document.getElementById('incGuardar').addEventListener('click', async function() {
+    const payload = incRecolectarPayload();
+    if (!payload.origen) { alert('Seleccione el origen de la incidencia.'); return; }
+    if (!payload.descripcion) { alert('Describa el problema.'); return; }
+    if (esNueva) {
+        const respuesta = await fetch('/api/calidad/incidencias', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+        });
+        const resultado = await respuesta.json();
+        if (!respuesta.ok) { alert('Error: ' + resultado.error); return; }
+        window.location.href = '/calidad/incidencia/' + encodeURIComponent(resultado.codigo);
+    } else {
+        const respuesta = await fetch('/api/calidad/incidencias/' + encodeURIComponent(codigoActual), {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+        });
+        const resultado = await respuesta.json();
+        if (!respuesta.ok) { alert('Error: ' + resultado.error); return; }
+        window.location.reload();
+    }
+});
+
+document.getElementById('incCambiarEstado').addEventListener('change', async function() {
+    if (!this.value) return;
+    const respuesta = await fetch('/api/calidad/incidencias/' + encodeURIComponent(codigoActual), {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado: this.value })
+    });
+    if (!respuesta.ok) { const r = await respuesta.json(); alert('Error: ' + r.error); return; }
+    window.location.reload();
+});
+
+async function incCargarInicial() {
+    await incCargarCatalogos();
+    if (!esNueva) {
+        const respuesta = await fetch('/api/calidad/incidencias/' + encodeURIComponent(codigoActual));
+        const incidencia = await respuesta.json();
+        if (!respuesta.ok) { alert('Error: ' + incidencia.error); return; }
+        document.getElementById('incTitulo').textContent = 'Incidencia de Calidad ' + incidencia.codigo;
+        incMostrarEstado(incidencia.estado);
+        incMostrarPrioridad(incidencia.prioridad);
+        document.getElementById('incOrigen').value = incidencia.origen || '';
+        document.getElementById('incMedioRecepcion').value = incidencia.medio_recepcion || '';
+        document.getElementById('incPrioridad').value = incidencia.prioridad || 'media';
+        document.getElementById('incDepartamentoOrigen').value = incidencia.departamento_origen || '';
+        document.getElementById('incFechaEvento').value = incidencia.fecha_evento ? incidencia.fecha_evento.slice(0, 16) : '';
+        document.getElementById('incCreadoPorNombre').value = incidencia.creado_por_nombre || '';
+        document.getElementById('incDescripcion').value = incidencia.descripcion || '';
+        document.getElementById('incObservacionesIniciales').value = incidencia.observaciones_iniciales || '';
+        document.getElementById('incClienteCodigo').value = incidencia.cliente_codigo || '';
+        document.getElementById('incClienteNombre').value = incidencia.cliente_nombre || '';
+        document.getElementById('incContactoCliente').value = incidencia.contacto_cliente || '';
+        document.getElementById('incCotizacionCodigo').value = incidencia.cotizacion_codigo || '';
+        document.getElementById('incLineaCotizacionCodigo').value = incidencia.linea_cotizacion_codigo || '';
+        document.getElementById('incProductoCodigo').value = incidencia.producto_codigo || '';
+        document.getElementById('incOrdenProduccionCodigo').value = incidencia.orden_produccion_codigo || '';
+        document.getElementById('incMaquina').value = incidencia.maquina || '';
+        document.getElementById('incProceso').value = incidencia.proceso || '';
+        document.getElementById('incOperador').value = incidencia.operador || '';
+        document.getElementById('incMateriaPrimaRef').value = incidencia.materia_prima_ref || '';
+        document.getElementById('incProveedorRef').value = incidencia.proveedor_ref || '';
+        document.getElementById('incCasoCritico').checked = Boolean(incidencia.caso_critico);
+        document.getElementById('incCriterioCritico').value = incidencia.criterio_critico || '';
+        document.getElementById('incCostoMaterialDesperdiciado').value = incidencia.costo_material_desperdiciado || 0;
+        document.getElementById('incCostoReproceso').value = incidencia.costo_reproceso || 0;
+        document.getElementById('incCostoHorasMaquina').value = incidencia.costo_horas_maquina || 0;
+        document.getElementById('incCostoManoObra').value = incidencia.costo_mano_obra || 0;
+        document.getElementById('incCostoMateriaPrimaAdicional').value = incidencia.costo_materia_prima_adicional || 0;
+        document.getElementById('incCostoReposicion').value = incidencia.costo_reposicion || 0;
+        document.getElementById('incCostoTransporte').value = incidencia.costo_transporte || 0;
+        document.getElementById('incCostoDevolucion').value = incidencia.costo_devolucion || 0;
+        document.getElementById('incCostoNotaCredito').value = incidencia.costo_nota_credito || 0;
+        document.getElementById('incCostoOtros').value = incidencia.costo_otros || 0;
+        incCalcularCostoTotal();
+        document.getElementById('incClasificacion').value = incidencia.clasificacion || '';
+        document.getElementById('incComentarioClasificacion').value = incidencia.comentario_clasificacion || '';
+        document.getElementById('incClasificacionBlock').hidden = false;
+        document.getElementById('incAdjuntosBlock').hidden = false;
+        document.getElementById('incCambiarEstado').style.display = (incidencia.estado === 'cerrada' || incidencia.estado === 'convertida_nc') ? 'none' : 'inline-block';
+        if (incidencia.estado === 'convertida_nc') {
+            document.getElementById('incGuardar').style.display = 'none';
+            document.querySelectorAll('.calidad-form-grid input, .calidad-form-grid select, .calidad-form-grid textarea').forEach(function(el) { el.disabled = true; });
+        }
+        incCargarAdjuntos();
+    } else {
+        incCalcularCostoTotal();
+    }
+}
+incCargarInicial();
+</script>
+</body>
+</html>

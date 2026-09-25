@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Documentos de Calidad - PrintLab</title>
+<link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+<link rel="stylesheet" href="/orden-produccion.css">
+<link rel="stylesheet" href="/calidad/styles.css?v=20260905-sellos">
+<script src="/theme.js"></script>
+<script src="/desplegable.js?v=20260924-desplegable-v5"></script>
+<style>
+body { margin:0; background:transparent; padding:24px 24px 60px; }
+.calidad-form-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px 16px; }
+.calidad-form-grid label.production-summary-item { display:flex; flex-direction:column; gap:5px; min-width:0; }
+.calidad-form-grid input, .calidad-form-grid select {
+    border:1px solid var(--order-panel-border,#d4e1ea); border-radius:10px; background:var(--order-panel-soft,#fbfdff);
+    color:var(--ink,#203746); font-size:13px; padding:0 10px; min-height:34px; font-family:inherit;
+}
+.calidad-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+.calidad-doc-link { display:inline-flex; align-items:center; justify-content:center; padding:0 12px; min-height:28px; border-radius:8px; border:1px solid var(--order-panel-border,#d4e1ea); color:var(--app-primary,#0277a9); font-size:12px; font-weight:600; text-decoration:none; }
+.calidad-doc-link:hover { background:var(--app-primary-soft, rgba(2,119,169,0.08)); }
+</style>
+</head>
+<body>
+<main class="workspace workspace-quote">
+    <section class="quote-card quote-card-clean production-order-card">
+        <section class="socios-section">
+            <div class="section-caption">Generar Documento</div>
+            <div class="calidad-form-grid">
+                <label class="production-summary-item"><span class="production-summary-label">Orden de Producción</span><input type="text" id="calDocOrden" placeholder="OP-000009"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Producto (opcional)</span><input type="text" id="calDocProducto" placeholder="P-000005"></label>
+            </div>
+            <div class="calidad-actions">
+                <button type="button" class="action-btn" id="calDocCartilla">Generar Cartilla de Color</button>
+                <button type="button" class="action-btn" id="calDocFicha">Generar Ficha Técnica</button>
+                <button type="button" class="action-btn" id="calDocCertificado">Generar Certificado de Calidad</button>
+            </div>
+        </section>
+
+        <section class="socios-section" id="calDocCertificadoForm" hidden>
+            <div class="section-caption">Datos del Certificado</div>
+            <div class="calidad-form-grid">
+                <label class="production-summary-item"><span class="production-summary-label">Cantidad Aprobada</span><input type="number" id="calDocCantidadAprobada" min="0" step="0.0001"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Cantidad Rechazada</span><input type="number" id="calDocCantidadRechazada" min="0" step="0.0001"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Resultado</span><select id="calDocResultado"><option value="Aprobado">Aprobado</option><option value="Aprobado con Observaciones">Aprobado con Observaciones</option><option value="Rechazado">Rechazado</option></select></label>
+                <label class="production-summary-item"><span class="production-summary-label">Inspeccionado Por</span><input type="text" id="calDocInspeccionadoPor"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Fecha de Inspección</span><input type="date" id="calDocFechaInspeccion"></label>
+            </div>
+            <div class="calidad-actions">
+                <button type="button" class="action-btn action-btn-primary" id="calDocCertificadoConfirmar">Confirmar y Generar</button>
+            </div>
+        </section>
+
+        <section class="socios-section">
+            <div class="section-caption">Historial</div>
+            <div class="scroll-bottom-indicator-host">
+                <div class="copy-popover-table-wrap quote-browser-table-wrap">
+                    <table class="copy-popover-table quote-browser-table">
+                        <thead><tr><th>Tipo</th><th>Orden</th><th>Producto</th><th>Versión</th><th>Generado</th><th></th></tr></thead>
+                        <tbody id="calDocHistorialBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </section>
+</main>
+<script>
+const ETIQUETA_TIPO = { cartilla_color: 'Cartilla de Color', ficha_tecnica: 'Ficha Técnica', certificado_calidad: 'Certificado de Calidad' };
+const RUTA_TIPO = { cartilla_color: '/calidad/cartilla-color-impresion.html', ficha_tecnica: '/calidad/ficha-tecnica-impresion.html', certificado_calidad: '/calidad/certificado-calidad-impresion.html' };
+
+function calEscapar(text) {
+    const d = document.createElement('div');
+    d.textContent = text == null ? '' : String(text);
+    return d.innerHTML;
+}
+function calEscaparAtributo(text) {
+    return calEscapar(text).replace(/"/g, '&quot;');
+}
+function calFechaHora(value) {
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString('es-CR');
+}
+
+async function calCargarHistorial() {
+    const orden = document.getElementById('calDocOrden').value.trim();
+    const url = '/api/calidad/documentos' + (orden ? '?orden_produccion_codigo=' + encodeURIComponent(orden) : '');
+    const respuesta = await fetch(url);
+    const documentos = await respuesta.json();
+    document.getElementById('calDocHistorialBody').innerHTML = (documentos || []).map(function(d) {
+        return '<tr>' +
+            '<td>' + calEscapar(ETIQUETA_TIPO[d.tipo] || d.tipo) + '</td>' +
+            '<td>' + calEscapar(d.orden_produccion_codigo) + '</td>' +
+            '<td>' + calEscapar(d.producto_codigo || '—') + '</td>' +
+            '<td>v' + d.version + '</td>' +
+            '<td>' + calFechaHora(d.generado_en) + '</td>' +
+            '<td><a class="calidad-doc-link" href="' + calEscaparAtributo(RUTA_TIPO[d.tipo]) + '?id=' + encodeURIComponent(d.id) + '" target="_blank">Ver / Imprimir</a></td>' +
+        '</tr>';
+    }).join('') || '<tr><td colspan="6">Sin documentos generados.</td></tr>';
+}
+
+async function calGenerarDocumento(tipo, extra) {
+    const orden = document.getElementById('calDocOrden').value.trim();
+    if (!orden) { alert('Ingrese el código de la Orden de Producción.'); return; }
+    const payload = Object.assign({
+        tipo: tipo,
+        orden_produccion_codigo: orden,
+        producto_codigo: document.getElementById('calDocProducto').value.trim() || null
+    }, extra || {});
+    const respuesta = await fetch('/api/calidad/documentos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const resultado = await respuesta.json();
+    if (!respuesta.ok) { alert('Error: ' + resultado.error); return; }
+    window.open(RUTA_TIPO[tipo] + '?id=' + encodeURIComponent(resultado.id), '_blank');
+    calCargarHistorial();
+}
+
+document.getElementById('calDocCartilla').addEventListener('click', function() { calGenerarDocumento('cartilla_color'); });
+document.getElementById('calDocFicha').addEventListener('click', function() { calGenerarDocumento('ficha_tecnica'); });
+document.getElementById('calDocCertificado').addEventListener('click', function() {
+    document.getElementById('calDocCertificadoForm').hidden = false;
+});
+document.getElementById('calDocCertificadoConfirmar').addEventListener('click', function() {
+    calGenerarDocumento('certificado_calidad', {
+        cantidad_aprobada: Number(document.getElementById('calDocCantidadAprobada').value) || null,
+        cantidad_rechazada: Number(document.getElementById('calDocCantidadRechazada').value) || null,
+        resultado_inspeccion: document.getElementById('calDocResultado').value,
+        inspeccionado_por: document.getElementById('calDocInspeccionadoPor').value.trim() || null,
+        fecha_inspeccion: document.getElementById('calDocFechaInspeccion').value || null
+    });
+    document.getElementById('calDocCertificadoForm').hidden = true;
+});
+document.getElementById('calDocOrden').addEventListener('change', calCargarHistorial);
+calCargarHistorial();
+
+const ordenPrecargada = new URLSearchParams(window.location.search).get('orden');
+if (ordenPrecargada) { document.getElementById('calDocOrden').value = ordenPrecargada; calCargarHistorial(); }
+</script>
+</body>
+</html>

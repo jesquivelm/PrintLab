@@ -3,6 +3,11 @@
 # ==========================================
 .vs/
 .git/
+.claude/
+.freebuff/
+.codebuff/
+.remember/
+.scratch_sync/
 [Bb]in/
 [Oo]bj/
 node_modules/
@@ -17,6 +22,8 @@ storage/quote-line-attachments/
 # ==========================================
 # Archivos temporales y de entorno
 # ==========================================
+agents.md
+claude.md
 .env
 *.suo
 *.user

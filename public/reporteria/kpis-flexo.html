@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
+    <title>Reporter&iacute;a &mdash; KPIs Flexo Semanal</title>
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <link rel="stylesheet" href="/reporteria.css?v=20260908c3-kpis-flexo">
+    <link rel="stylesheet" href="/reporteria/kpis-flexo.css?v=20260908g-kpis-flexo">
+</head>
+<body class="report-body">
+    <main class="report-shell">
+        <header class="report-header">
+            <div>
+                <h1>KPIs Flexo Semanal</h1>
+                <p>Divisi&oacute;n Flexo &mdash; Etiquetas Adhesivas.</p>
+            </div>
+            <div class="report-filters">
+                <label class="report-field-label"><span>Semana</span>
+                    <select id="semanaSelect" class="report-field" style="min-width:340px"></select>
+                </label>
+                <div class="report-head-tools">
+                    <button type="button" class="report-iconbtn" id="btnPdf" title="Descargar PDF"></button>
+                    <button type="button" class="report-iconbtn" id="btnExcel" title="Descargar Excel"></button>
+                    <button type="button" class="report-iconbtn" id="btnAuto" title="Automatizaci&oacute;n de informes"></button>
+                </div>
+            </div>
+        </header>
+
+        <section id="reportStatus" class="report-status">Cargando tablero...</section>
+
+        <nav class="report-tabs" id="reportTabs">
+            <button type="button" class="report-tab is-active" data-tab="dashboard">Dashboard</button>
+            <button type="button" class="report-tab" data-tab="registro">Registro Semanal</button>
+            <button type="button" class="report-tab" data-tab="causas">Causas de Paro y Merma</button>
+            <button type="button" class="report-tab" data-tab="pareto">Pareto de Causas</button>
+        </nav>
+
+        <!-- ── DASHBOARD ─────────────────────────────────────────────── -->
+        <section data-panel="dashboard">
+            <div id="kpiGrid" class="report-kpis"></div>
+            <article class="report-panel report-panel-wide">
+                <div class="report-panel-head"><h2>Indicadores vs. Meta</h2><span id="dashSemanaTxt"></span></div>
+                <div id="dashTable" class="report-table"></div>
+            </article>
+            <article class="report-panel report-panel-wide" style="margin-top:14px">
+                <div class="report-panel-head"><h2>Tendencia</h2><span>&Uacute;ltimas 8 semanas</span></div>
+                <div id="tendTable" class="report-table"></div>
+            </article>
+        </section>
+
+        <!-- ── REGISTRO SEMANAL ──────────────────────────────────────── -->
+        <section data-panel="registro" hidden>
+            <article class="report-panel report-panel-wide">
+                <div class="report-panel-head"><h2>Registro de la Semana</h2><span id="registroEstado"></span></div>
+                <div id="registroBody" class="report-table"></div>
+                <div id="registroAcciones" style="margin-top:14px;display:flex;flex-direction:column;gap:12px">
+                    <label class="report-field-label"><span>Notas</span>
+                        <textarea id="registroNotas" class="report-field" rows="2"></textarea>
+                    </label>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap">
+                        <button type="button" class="report-btn" id="btnGuardarNota">Guardar nota</button>
+                        <button type="button" class="report-btn report-btn-primary" id="btnCerrarSemana">Cerrar semana</button>
+                        <button type="button" class="report-btn" id="btnRecalcular">Recalcular desde producci&oacute;n</button>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <!-- ── CAUSAS DE PARO Y MERMA ────────────────────────────────── -->
+        <section data-panel="causas" hidden>
+            <article class="report-panel report-panel-wide">
+                <div class="report-panel-head">
+                    <h2>Bit&aacute;cora de la Semana</h2>
+                    <label class="report-field-label" style="flex-direction:row;align-items:center;gap:8px">
+                        <span>Ver</span>
+                        <select id="causasFiltro" class="report-field" style="height:30px;width:150px">
+                            <option value="todos">Todo</option>
+                            <option value="merma">Solo con merma</option>
+                        </select>
+                    </label>
+                </div>
+                <div id="eventosTable" class="report-table"></div>
+            </article>
+        </section>
+
+        <!-- ── PARETO ────────────────────────────────────────────────── -->
+        <section data-panel="pareto" hidden>
+            <div class="report-note">
+                <b>Pareto de Causas &mdash; Paros (horas) y Merma (metros).</b>
+                Se actualiza solo a partir de la bit&aacute;cora de &laquo;Causas de Paro y Merma&raquo;.
+                &Uacute;til para decidir en qu&eacute; enfocar la mejora continua cada semana: qu&eacute; categor&iacute;a
+                concentra m&aacute;s horas de paro y cu&aacute;l m&aacute;s metros de merma.
+            </div>
+
+            <!-- Los dos mini-reportes (tablas), arriba, como en el Excel -->
+            <div class="report-grid">
+                <article class="report-panel">
+                    <div class="report-panel-head"><h2>Causas de Paro</h2><span>Horas &middot; % del total</span></div>
+                    <div id="paretoParoTabla" class="report-table"></div>
+                </article>
+                <article class="report-panel">
+                    <div class="report-panel-head"><h2>Causas de Merma</h2><span>Metros &middot; % del total</span></div>
+                    <div id="paretoMermaTabla" class="report-table"></div>
+                </article>
+            </div>
+
+            <!-- Las dos gr&aacute;ficas, debajo, como en el Excel -->
+            <div class="report-grid" style="margin-top:14px">
+                <article class="report-panel report-panel-chart">
+                    <div class="report-panel-head"><h2>Horas de Paro por Categor&iacute;a</h2></div>
+                    <div id="paretoParo" class="report-chart"></div>
+                </article>
+                <article class="report-panel report-panel-chart">
+                    <div class="report-panel-head"><h2>Metros de Merma por Categor&iacute;a</h2></div>
+                    <div id="paretoMerma" class="report-chart"></div>
+                </article>
+            </div>
+        </section>
+    </main>
+
+    <!-- ── MODAL: AUTOMATIZACIÓN DE INFORMES ─────────────────────────── -->
+    <div class="report-modal-overlay" id="autoModal" hidden>
+        <div class="report-modal" role="dialog" aria-modal="true" aria-labelledby="autoModalTitle">
+            <div class="report-modal-head">
+                <h2 id="autoModalTitle">Automatizaci&oacute;n de Informes</h2>
+                <button type="button" class="report-modal-close" id="autoModalClose" aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="report-modal-body">
+                <label class="report-check"><input type="checkbox" id="autoActivo"> <span>Enviar el informe autom&aacute;ticamente</span></label>
+                <div class="report-inline-row">
+                    <label class="report-field-label"><span>D&iacute;a</span>
+                        <select id="autoDia" class="report-field" style="width:130px">
+                            <option value="1">Lunes</option><option value="2">Martes</option><option value="3">Mi&eacute;rcoles</option>
+                            <option value="4">Jueves</option><option value="5">Viernes</option><option value="6">S&aacute;bado</option><option value="7">Domingo</option>
+                        </select>
+                    </label>
+                    <label class="report-field-label"><span>Hora</span><input type="number" id="autoHora" class="report-field" min="0" max="23" style="width:80px"></label>
+                    <label class="report-field-label"><span>Minuto</span><input type="number" id="autoMinuto" class="report-field" min="0" max="59" style="width:80px"></label>
+                </div>
+                <fieldset class="report-radio-group">
+                    <legend>Qu&eacute; semana env&iacute;a</legend>
+                    <label><input type="radio" name="autoTipo" value="ultima_cerrada"> <b>&Uacute;ltima semana cerrada.</b> Solo semanas ya revisadas y cerradas. Si no hay ninguna, el correo lo avisa.</label>
+                    <label><input type="radio" name="autoTipo" value="cerrar_actual"> <b>Cerrar la semana en curso y enviarla.</b> La cierra con los n&uacute;meros que tenga en ese momento.</label>
+                    <label><input type="radio" name="autoTipo" value="actual_preliminar"> <b>Semana en curso como preliminar.</b> Env&iacute;a siempre; si no estaba cerrada, va marcada &laquo;preliminar&raquo;.</label>
+                </fieldset>
+                <div class="report-inline-row">
+                    <label class="report-check"><input type="checkbox" id="autoFmtPdf"> <span>Adjuntar PDF</span></label>
+                    <label class="report-check"><input type="checkbox" id="autoFmtExcel"> <span>Adjuntar Excel</span></label>
+                </div>
+                <label class="report-field-label"><span>Correos que reciben el informe (uno por l&iacute;nea)</span>
+                    <textarea id="autoDestinatarios" class="report-field" rows="3" placeholder="nombre@empresa.com"></textarea>
+                </label>
+                <p id="autoEstadoTxt" style="margin:0;font-size:12px;color:#8a97a3"></p>
+            </div>
+            <div class="report-modal-foot">
+                <button type="button" class="report-btn" id="btnPreviewCorreo">Vista previa del correo</button>
+                <button type="button" class="report-btn" id="btnGuardarAuto">Guardar</button>
+                <button type="button" class="report-btn report-btn-primary" id="btnEnviarAhora">Enviar ahora</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/access-control.js?v=20260923-mensajes-carga"></script>
+    <script src="/reporteria/kpis-flexo.js?v=20260908h-kpis-flexo"></script>
+</body>
+</html>

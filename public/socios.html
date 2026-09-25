@@ -1,11 +1,13 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
     <title>Socios</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <link rel="stylesheet" href="/socios.css?v=20260826-pendientes-sap2">
 </head>
 <body>
     <main class="workspace workspace-quote quote-browser-main">
@@ -13,14 +15,19 @@
             <div class="quote-browser-search-row">
                 <div class="quote-browser-actions-left">
                     <button id="nuevoSocioButton" type="button" class="action-btn quote-browser-action-btn socios-browser-create-btn">Nuevo</button>
-                    <button id="importarSociosSapButton" type="button" class="action-btn quote-browser-action-btn">Actualizar desde SAP</button>
-                    <button id="refreshSociosButton" type="button" class="action-btn quote-browser-action-btn">Refrescar</button>
+                    <button id="importarSociosSapButton" type="button" class="action-btn quote-browser-action-btn" hidden>Actualizar desde SAP</button>
+                    <button id="refreshSociosButton" type="button" class="action-btn quote-browser-action-btn" hidden>Refrescar</button>
+                    <button id="filtrarPendientesSapButton" type="button" class="action-btn quote-browser-action-btn" aria-pressed="false" title="Mostrar solo socios pendientes de enviar a SAP" hidden>Pendientes de SAP</button>
+                    <button id="pruebaDiapiButton" type="button" class="action-btn quote-browser-action-btn" hidden>Prueba DIAPI</button>
+                    <button id="pruebaDiapiCantidadButton" type="button" class="action-btn quote-browser-action-btn" hidden>Prueba DIAPI (cantidad)</button>
                     <p id="sociosImportStatus" class="socios-import-status" hidden></p>
                 </div>
                 <div class="quote-browser-search-wrap">
                     <input id="sociosSearchInput" class="copy-popover-search quote-browser-search" type="search" placeholder="Buscar por código, nombre, vendedor o correo">
                 </div>
             </div>
+
+            <div id="sociosActiveFilters" class="socios-active-filters" hidden></div>
 
             <div class="scroll-bottom-indicator-host">
                 <div class="copy-popover-table-wrap quote-browser-table-wrap">
@@ -33,10 +40,11 @@
                                 <th data-sort-key="email">Correo<span class="sort-indicator"></span></th>
                                 <th data-sort-key="sector">Sector<span class="sort-indicator"></span></th>
                                 <th data-sort-key="creation_date">Creación<span class="sort-indicator"></span></th>
+                                <th>Estado</th>
                                 <th></th>
                             </tr>
                         </thead>
-                        <tbody id="sociosTableBody"></tbody>
+                        <tbody id="sociosTableBody"><tr><td colspan="8">Cargando los socios desde el servidor, un momento por favor…</td></tr></tbody>
                     </table>
                 </div>
                 <div id="sociosScrollBottomIndicator" class="scroll-bottom-indicator" aria-hidden="true"></div>
@@ -45,94 +53,243 @@
     </main>
 
     <div id="nuevoSocioPopover" class="socios-create-popover" hidden>
-        <div class="socios-create-popover-backdrop" data-close-popover="true"></div>
-        <section class="socios-create-popover-panel" role="dialog" aria-modal="true" aria-labelledby="nuevoSocioTitle">
+        <div class="socios-create-popover-backdrop"></div>
+        <section class="socios-create-popover-panel quote-request-popover-panel" role="dialog" aria-modal="true" aria-labelledby="nuevoSocioTitle">
             <div class="copy-popover-body socios-create-body">
                 <div class="copy-popover-header socios-create-header">
                     <div>
-                        <h2 id="nuevoSocioTitle">Nuevo socio</h2>
-                        <p class="socios-create-subtitle">Se guardará con la nomenclatura configurada y su consecutivo.</p>
+                        <h2 id="nuevoSocioTitle">Nuevo Prospecto</h2>
                     </div>
                     <button id="cerrarNuevoSocioButton" type="button" class="calc-popover-close" aria-label="Cerrar">×</button>
                 </div>
 
-                <form id="nuevoSocioForm" class="socios-create-form" autocomplete="off">
-                    <div class="socios-create-grid">
-                        <label class="socios-create-field socios-create-field-full">
-                            <span>Nombre de socio</span>
-                            <input name="partner_name" type="text" required>
-                        </label>
-                        <label class="socios-create-field">
-                            <span>RTU</span>
-                            <input name="tax_id" type="text" required>
-                        </label>
-                        <label class="socios-create-field">
-                            <span>Correo de facturación</span>
-                            <input name="email_facturacion" type="email" required>
-                        </label>
-                        <label class="socios-create-field">
-                            <span>Moneda</span>
-                            <input name="currency_code" type="text" value="USD" readonly>
-                        </label>
-                        <label class="socios-create-field">
-                            <span>Días crédito</span>
-                            <input name="payment_terms" type="text" value="Contado" readonly>
-                        </label>
-                    </div>
+                <form id="nuevoSocioForm" class="quote-request-form" autocomplete="new-password">
+                    <div class="quote-request-scroll">
+                        <section class="quote-request-section" data-step="1">
+                            <div class="socios-section">
+                                <div class="section-caption">Información de Identificación</div>
+                                <div class="socios-create-grid socios-create-grid-3">
+                                    <label class="socios-create-field">
+                                        <span>Tipo de prospecto <span class="socios-required-mark">*</span></span>
+                                        <select name="tipo_socio" id="wizardTipoSocio" required>
+                                            <option value="EMPRESA">Empresa / Persona jurídica</option>
+                                            <option value="PERSONA">Persona individual</option>
+                                        </select>
+                                    </label>
+                                    <label class="socios-create-field">
+                                        <span>Tipo de identificación <span class="socios-required-mark">*</span></span>
+                                        <select name="tipo_identificacion" id="wizardTipoIdentificacion" required></select>
+                                    </label>
+                                    <label class="socios-create-field">
+                                        <span>Número de identificación <span class="socios-required-mark">*</span></span>
+                                        <input name="tax_id" id="wizardTaxId" type="text" required autocomplete="new-password">
+                                        <span id="wizardTaxIdHint" class="socios-tax-id-hint" hidden></span>
+                                    </label>
+                                </div>
+                                <div id="wizardTaxIdDuplicatePanel" class="socios-tax-id-duplicate" hidden>
+                                    <div class="socios-tax-id-duplicate-text">
+                                        Ya existe un socio registrado con esta identificación:
+                                        <strong id="wizardTaxIdDuplicateCode"></strong> — <span id="wizardTaxIdDuplicateName"></span>
+                                    </div>
+                                    <div class="socios-tax-id-duplicate-actions">
+                                        <button type="button" id="wizardTaxIdCopyButton" class="socios-tax-id-duplicate-btn">Copiar código</button>
+                                        <button type="button" id="wizardTaxIdQuoteButton" class="socios-tax-id-duplicate-btn socios-tax-id-duplicate-btn-primary">Crear Cotización</button>
+                                    </div>
+                                </div>
+                            </div>
 
-                    <div class="socios-create-section-title">Contacto principal</div>
-                    <div class="socios-create-grid">
-                        <label class="socios-create-field socios-create-field-full">
-                            <span>Nombre</span>
-                            <input name="contact_name" type="text" required>
-                        </label>
-                        <label class="socios-create-field">
-                            <span>Identificación</span>
-                            <input name="contact_identification" type="text">
-                        </label>
-                        <label class="socios-create-field">
-                            <span>Celular</span>
-                            <input name="contact_mobile" type="text">
-                        </label>
-                        <label class="socios-create-field">
-                            <span>Correo</span>
-                            <input name="contact_email" type="email">
-                        </label>
-                        <label class="socios-create-field">
-                            <span>Teléfono</span>
-                            <input name="contact_phone" type="text">
-                        </label>
-                    </div>
+                            <div class="socios-section">
+                                <div class="section-caption" id="wizardPartnerNameCaption">Nombre de Empresa / Razón Social</div>
+                                <div class="socios-create-grid">
+                                    <label class="socios-create-field">
+                                        <span id="wizardPartnerNameLabel">Razón Social <span class="socios-required-mark">*</span></span>
+                                        <input name="partner_name" type="text" required autocomplete="new-password">
+                                    </label>
+                                </div>
+                            </div>
 
-                    <div class="socios-create-section-title">Dirección</div>
-                    <div class="socios-create-grid">
-                        <label class="socios-create-field">
-                            <span>País</span>
-                            <input name="address_country" type="text">
-                        </label>
-                        <label class="socios-create-field">
-                            <span>Departamento</span>
-                            <input name="address_state_province" type="text">
-                        </label>
-                        <label class="socios-create-field">
-                            <span>Zona</span>
-                            <input name="address_zone" type="text">
-                        </label>
-                        <label class="socios-create-field">
-                            <span>Cantón</span>
-                            <input name="address_county" type="text">
-                        </label>
-                        <label class="socios-create-field socios-create-field-full">
-                            <span>Detalle de la dirección</span>
-                            <input name="address_line" type="text">
-                        </label>
+                            <div class="socios-section">
+                                <div class="section-caption">Contacto Principal <span class="socios-section-caption-hint">(celular, teléfono o correo — al menos uno es obligatorio)</span></div>
+                                <div class="socios-create-grid" data-persona-only hidden>
+                                    <label class="socios-create-field">
+                                        <span>Correo de facturación</span>
+                                        <input name="email_facturacion" type="email" autocomplete="new-password">
+                                    </label>
+                                    <label class="socios-create-field">
+                                        <span>Celular</span>
+                                        <input name="contact_mobile" id="wizardPersonaMobile" type="text" autocomplete="new-password">
+                                    </label>
+                                    <label class="socios-create-field">
+                                        <span>Teléfono</span>
+                                        <input name="contact_phone" id="wizardPersonaPhone" type="text" autocomplete="new-password">
+                                    </label>
+                                </div>
+                                <div class="socios-create-grid" data-empresa-only hidden>
+                                    <label class="socios-create-field">
+                                        <span>Nombre <span class="socios-required-mark">*</span></span>
+                                        <input name="contact_first_name" id="wizardContactFirstName" type="text" autocomplete="new-password">
+                                    </label>
+                                    <label class="socios-create-field">
+                                        <span>Apellido</span>
+                                        <input name="contact_last_name" id="wizardContactLastName" type="text" autocomplete="new-password">
+                                    </label>
+                                    <label class="socios-create-field">
+                                        <span>Tipo de identificación</span>
+                                        <select name="contact_identification_type" id="wizardContactIdentificationType">
+                                            <option value="">-</option>
+                                            <option value="NIT">NIT</option>
+                                            <option value="DPI">DPI</option>
+                                            <option value="PASAPORTE">Pasaporte</option>
+                                            <option value="OTRO">Otro</option>
+                                        </select>
+                                    </label>
+                                    <label class="socios-create-field">
+                                        <span>Número de identificación</span>
+                                        <input name="contact_identification" id="wizardContactIdentification" type="text" autocomplete="new-password">
+                                    </label>
+                                    <label class="socios-create-field">
+                                        <span>Celular</span>
+                                        <input name="contact_mobile" id="wizardContactMobile" type="text" autocomplete="new-password">
+                                    </label>
+                                    <label class="socios-create-field">
+                                        <span>Teléfono</span>
+                                        <input name="contact_phone" id="wizardContactPhone" type="text" autocomplete="new-password">
+                                    </label>
+                                    <label class="socios-create-field">
+                                        <span>Correo</span>
+                                        <input name="contact_email" id="wizardContactEmail" type="email" autocomplete="new-password">
+                                    </label>
+                                    <label class="socios-create-field">
+                                        <span>Cargo o puesto</span>
+                                        <input name="contact_position" id="wizardContactPosition" type="text" autocomplete="new-password">
+                                    </label>
+                                    <div class="socios-create-field-full socios-check-row">
+                                        <div class="socios-check-stacked">
+                                            <span>Contacto Principal</span>
+                                            <input type="checkbox" id="wizardContactSameAsPartner">
+                                        </div>
+                                        <div class="socios-check-stacked">
+                                            <span>Representante Legal</span>
+                                            <input type="checkbox" id="wizardContactLegalRepresentative" name="contact_legal_representative">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="socios-section">
+                                <div class="section-caption">Dirección</div>
+                                <div class="socios-create-grid">
+                                    <label class="socios-create-field">
+                                        <span>País</span>
+                                        <input name="address_country" id="wizardAddressCountry" type="text" value="Guatemala" autocomplete="new-password">
+                                    </label>
+                                    <label class="socios-create-field">
+                                        <span>Departamento</span>
+                                        <select name="address_state_province" id="wizardAddressDepartamento"></select>
+                                    </label>
+                                    <label class="socios-create-field">
+                                        <span>Municipio</span>
+                                        <select name="address_county" id="wizardAddressMunicipio"></select>
+                                    </label>
+                                    <label class="socios-create-field" id="wizardAddressZonaField">
+                                        <span>Zona</span>
+                                        <select name="address_zone" id="wizardAddressZona"></select>
+                                        <span id="wizardAddressZonaHint" class="socios-tax-id-hint" hidden></span>
+                                    </label>
+                                    <label class="socios-create-field socios-create-field-full">
+                                        <span>Detalle de la dirección</span>
+                                        <input name="address_line" id="wizardAddressLine" type="text" autocomplete="new-password">
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="socios-section">
+                                <div class="section-caption">Moneda y Condiciones Comerciales</div>
+                                <div class="socios-create-grid socios-create-grid-3">
+                                    <label class="socios-create-field">
+                                        <span>Moneda</span>
+                                        <select name="currency_code" id="wizardCurrencyCode"></select>
+                                    </label>
+                                    <label class="socios-create-field">
+                                        <span>Días de crédito</span>
+                                        <select name="payment_terms" id="wizardPaymentTerms"></select>
+                                    </label>
+                                    <div class="socios-check-stacked">
+                                        <span>Socio Exento</span>
+                                        <input type="checkbox" id="wizardIsTaxExempt" name="is_tax_exempt">
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="quote-request-section" data-step="2">
+                            <div class="quote-request-section-head"><div><h3>Potencial Comercial</h3></div></div>
+                            <div class="socios-potencial-head-row">
+                                <p class="socios-create-subtitle">Estimación del negocio que este prospecto podría representar. No son ventas reales.</p>
+                                <button id="agregarPotencialLineaButton" type="button" class="socios-potencial-add-btn" title="Agregar línea" aria-label="Agregar línea"><span id="agregarPotencialLineaIcon" class="socios-potencial-add-icon"></span></button>
+                            </div>
+
+                            <div class="socios-potencial-table-wrap">
+                                <table class="socios-potential-table">
+                                    <thead>
+                                        <tr>
+                                            <th title="Detalle breve que ayude a identificar la línea con claridad.">Descripción</th>
+                                            <th title="Cantidad que el prospecto compraría en cada pedido. Ejemplo: 100 cajas.">Volumen</th>
+                                            <th title="Unidad de medida del volumen. Ejemplo: unidades, cajas, kg, m.">Unidad</th>
+                                            <th title="Cada cuánto se estima que el prospecto realizará una compra: semanal, mensual, trimestral, semestral o anual.">Frecuencia</th>
+                                            <th title="Precio estimado por cada unidad. Se usa solo para calcular el potencial y puede cambiar cuando exista una cotización real.">Precio estimado</th>
+                                            <th title="Si el volumen estimado cambia según la época del año: sube en temporada alta (ej. navidad) o baja en temporada baja.">Estacionalidad</th>
+                                            <th title="Volumen × precio: valor estimado por cada compra.">Valor por compra</th>
+                                            <th title="Valor promedio mensual estimado (anual ÷ 12).">Valor mensual</th>
+                                            <th title="Volumen × precio × frecuencia anual: potencial estimado del año.">Valor anual</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="wizardPotencialTableBody"></tbody>
+                                </table>
+                            </div>
+                            <p id="wizardPotencialEmpty" class="socios-potencials-empty" hidden>Agrega una o varias líneas con los productos o servicios que estimas que este prospecto comprará. El sistema calculará el potencial automáticamente.</p>
+
+                            <div class="socios-potencial-totals">
+                                <div class="socios-potential-total-card">
+                                    <span title="Estimación del valor que este prospecto podría generar en ventas durante un período de 12 meses. Se calcula con el volumen, precio y frecuencia de compra ingresados. No representa ventas reales.">Potencial anual estimado</span>
+                                    <strong id="wizardPotencialTotalEstimado">—</strong>
+                                </div>
+                                <label class="socios-potential-total-card">
+                                    <span title="Estimación de la posibilidad de que este prospecto se convierta en una oportunidad comercial efectiva. Se utiliza para calcular el Forecast.">Probabilidad de conversión</span>
+                                    <select id="wizardPotencialProbabilidad" name="potencial_probabilidad">
+                                        <option value="10">10 %</option>
+                                        <option value="25">25 %</option>
+                                        <option value="50" selected>50 %</option>
+                                        <option value="75">75 %</option>
+                                        <option value="90">90 %</option>
+                                    </select>
+                                </label>
+                                <div class="socios-potential-total-card">
+                                    <span title="Valor potencial ponderado multiplicando el potencial anual por la probabilidad de conversión. Es una proyección y no representa una venta confirmada.">Forecast estimado</span>
+                                    <strong id="wizardPotencialForecastEstimado">—</strong>
+                                </div>
+                            </div>
+                            <p class="socios-potencials-note">Los valores mostrados son estimaciones calculadas con los datos que ingresas. Se conservarán como referencia inicial aunque luego cambien las proyecciones.</p>
+                        </section>
+
+                        <section class="quote-request-section" data-step="3">
+                            <div class="quote-request-section-head"><div><h3>Revisión y Guardado</h3></div></div>
+                            <p class="socios-create-subtitle">Estado inicial: <strong>PROSPECTO</strong></p>
+                            <div id="wizardReviewSummary" class="socios-review-summary"></div>
+                        </section>
                     </div>
 
                     <p id="nuevoSocioStatus" class="socios-create-status" hidden></p>
 
-                    <div class="socios-create-actions">
-                        <button type="button" id="cancelarNuevoSocioButton" class="action-btn">Cancelar</button>
-                        <button type="submit" id="guardarNuevoSocioButton" class="action-btn action-btn-primary">Guardar socio</button>
+                    <div class="quote-request-wizard-footer">
+                        <div id="socioWizardProgress" class="quote-request-wizard-progress">Paso 1 de 3</div>
+                        <div class="quote-request-wizard-actions">
+                            <button id="socioWizardBackButton" type="button" class="action-btn quote-browser-action-btn">Anterior</button>
+                            <button id="socioWizardNextButton" type="button" class="action-btn quote-browser-action-btn">Siguiente</button>
+                            <button id="guardarNuevoSocioButton" type="submit" class="action-btn action-btn-primary quote-browser-action-btn" hidden>Guardar como prospecto</button>
+                            <button id="guardarComoSocioButton" type="submit" class="action-btn action-btn-primary quote-browser-action-btn" hidden>Guardar como socio</button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -168,7 +325,137 @@
         </section>
     </div>
 
-    <script src="/access-control.js"></script>
-    <script src="/socios.js"></script>
+    <div id="pruebaDiapiCantidadPopover" class="socios-create-popover" hidden>
+        <div class="socios-create-popover-backdrop" data-close-prueba-diapi-cantidad-popover="true"></div>
+        <section class="socios-create-popover-panel quote-create-popover-panel socios-diapi-cantidad-panel" role="dialog" aria-modal="true" aria-labelledby="pruebaDiapiCantidadTitle">
+            <div class="copy-popover-body socios-import-popover-body">
+                <div class="copy-popover-header socios-create-header">
+                    <div>
+                        <h2 id="pruebaDiapiCantidadTitle">Prueba DIAPI por cantidad</h2>
+                        <p class="socios-create-subtitle">Mismo mecanismo que "Prueba DIAPI", pidiendo una cantidad de socios en vez de un texto de búsqueda.</p>
+                    </div>
+                    <button id="cerrarPruebaDiapiCantidadPopoverButton" type="button" class="calc-popover-close" aria-label="Cerrar">×</button>
+                </div>
+
+                <label class="socios-create-field">
+                    <span>Cuántos socios traer</span>
+                    <input id="pruebaDiapiCantidadTopInput" type="number" min="1" max="5000" step="1" inputmode="numeric" value="100">
+                </label>
+
+                <label class="socios-create-field">
+                    <span>Segundos a esperar la respuesta</span>
+                    <input id="pruebaDiapiCantidadEsperaInput" type="number" min="1" max="180" step="1" inputmode="numeric" value="20">
+                </label>
+
+                <label class="socios-create-field">
+                    <span>Consulta que se va a ejecutar contra SAP</span>
+                    <textarea id="pruebaDiapiCantidadQueryPreview" class="socios-diapi-query-preview" rows="10" readonly></textarea>
+                </label>
+
+                <p id="pruebaDiapiCantidadStatus" class="socios-create-status" hidden></p>
+
+                <div class="socios-create-actions">
+                    <button type="button" id="cancelarPruebaDiapiCantidadButton" class="action-btn">Cancelar</button>
+                    <button type="button" id="ejecutarPruebaDiapiCantidadButton" class="action-btn action-btn-primary">Ejecutar</button>
+                </div>
+
+                <div class="socios-diapi-runs-section">
+                    <h3>Corridas de esta sesión</h3>
+                    <p class="socios-diapi-runs-hint">Cada fila es una ejecución real: cantidad pedida, segundos de espera pedidos, cuánto tardó de verdad, y el resultado. Toca una fila para ver la consulta usada y desplegar Contactos / Direcciones.</p>
+                    <div class="socios-diapi-runs-table-wrap">
+                        <table class="permission-admin-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Hora</th>
+                                    <th>Top pedido</th>
+                                    <th>Espera pedida</th>
+                                    <th>Tiempo real</th>
+                                    <th>Registros</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pruebaDiapiCantidadRunsBody">
+                                <tr><td colspan="7" class="audit-empty">Todavía no se ha ejecutado ninguna prueba.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div id="solicitudClienteModal" class="socios-create-popover" hidden>
+        <div class="socios-create-popover-backdrop"></div>
+        <section class="socios-create-popover-panel solicitud-cliente-panel" role="dialog" aria-modal="true" aria-labelledby="solicitudClienteTitle">
+            <div class="copy-popover-body socios-create-body">
+                <div class="copy-popover-header socios-create-header">
+                    <div><h2 id="solicitudClienteTitle">Solicitud de Creación de Cliente</h2></div>
+                    <button id="cerrarSolicitudClienteButton" type="button" class="calc-popover-close" aria-label="Cerrar">×</button>
+                </div>
+
+                <div id="solicitudClienteStepPregunta" class="socios-section">
+                    <p class="socios-create-status is-success">Prospecto <strong id="solicitudClientePartnerLabel"></strong> creado correctamente.</p>
+                    <p class="socios-create-subtitle">¿Deseas solicitar la creación de este cliente en SAP? Se enviará una solicitud a Finanzas junto con los documentos requeridos para su revisión y aprobación.</p>
+                    <div class="quote-request-wizard-footer">
+                        <button type="button" id="solicitudClienteNoBtn" class="action-btn quote-browser-action-btn">Ahora no</button>
+                        <button type="button" id="solicitudClienteSiBtn" class="action-btn action-btn-primary quote-browser-action-btn">Sí, solicitar creación</button>
+                    </div>
+                </div>
+
+                <div id="solicitudClienteStepDocs" class="socios-section" hidden>
+                    <div class="section-caption">Documentos requeridos</div>
+                    <p class="socios-create-subtitle">Arrastra cada documento a su recuadro, o toca el recuadro para buscarlo en tu equipo.</p>
+                    <div class="socios-create-grid socios-create-grid-2" id="solicitudClienteDropzones">
+                        <label class="socios-create-field solicitud-doc-field">
+                            <span>Formulario de Cliente <span class="socios-required-mark">*</span></span>
+                            <div class="solicitud-doc-dropzone" data-tipo="formulario_cliente" tabindex="0">
+                                <span class="solicitud-doc-dropzone-text">Arrastra el archivo aquí o toca para buscarlo</span>
+                            </div>
+                            <input type="file" data-tipo-input="formulario_cliente" class="solicitud-doc-input" hidden accept=".pdf,.jpg,.jpeg,.png">
+                        </label>
+                        <label class="socios-create-field solicitud-doc-field">
+                            <span>Solicitud de Crédito <span class="socios-required-mark">*</span></span>
+                            <div class="solicitud-doc-dropzone" data-tipo="solicitud_credito" tabindex="0">
+                                <span class="solicitud-doc-dropzone-text">Arrastra el archivo aquí o toca para buscarlo</span>
+                            </div>
+                            <input type="file" data-tipo-input="solicitud_credito" class="solicitud-doc-input" hidden accept=".pdf,.jpg,.jpeg,.png">
+                        </label>
+                        <label class="socios-create-field solicitud-doc-field">
+                            <span>Patentes <span class="socios-required-mark">*</span></span>
+                            <div class="solicitud-doc-dropzone" data-tipo="patentes" tabindex="0">
+                                <span class="solicitud-doc-dropzone-text">Arrastra el archivo aquí o toca para buscarlo</span>
+                            </div>
+                            <input type="file" data-tipo-input="patentes" class="solicitud-doc-input" hidden accept=".pdf,.jpg,.jpeg,.png">
+                        </label>
+                        <label class="socios-create-field solicitud-doc-field">
+                            <span>Datos del Representante Legal <span class="socios-required-mark">*</span></span>
+                            <div class="solicitud-doc-dropzone" data-tipo="representante_legal" tabindex="0">
+                                <span class="solicitud-doc-dropzone-text">Arrastra el archivo aquí o toca para buscarlo</span>
+                            </div>
+                            <input type="file" data-tipo-input="representante_legal" class="solicitud-doc-input" hidden accept=".pdf,.jpg,.jpeg,.png">
+                        </label>
+                        <label class="socios-create-field solicitud-doc-field">
+                            <span>RTU (Cédula Jurídica) <span class="socios-required-mark">*</span></span>
+                            <div class="solicitud-doc-dropzone" data-tipo="rtu" tabindex="0">
+                                <span class="solicitud-doc-dropzone-text">Arrastra el archivo aquí o toca para buscarlo</span>
+                            </div>
+                            <input type="file" data-tipo-input="rtu" class="solicitud-doc-input" hidden accept=".pdf,.jpg,.jpeg,.png">
+                        </label>
+                    </div>
+                    <div class="quote-request-wizard-footer">
+                        <button type="button" id="solicitudClienteVolverBtn" class="action-btn quote-browser-action-btn">Atrás</button>
+                        <button type="button" id="solicitudClienteEnviarBtn" class="action-btn action-btn-primary quote-browser-action-btn" disabled>Enviar solicitud</button>
+                    </div>
+                    <span id="solicitudClienteStatus" class="socios-create-subtitle"></span>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="/access-control.js?v=20260923-mensajes-carga"></script>
+    <script src="/formato-numero.js?v=20260820-wizard"></script>
+    <script src="/socios.js?v=20260924-geo-v1"></script>
 </body>
 </html>
+

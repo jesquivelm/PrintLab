@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="/theme.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cartilla de Color — Impresión</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Tahoma, sans-serif; color: #1b2430; background: #e8edf2; }
+  #calToolbar { display:flex; gap:10px; align-items:center; padding:14px 20px; background:#1f314b; color:#fff; }
+  #calToolbar button { padding:8px 14px; border:none; border-radius:6px; background:#314765; color:#fff; cursor:pointer; }
+  #calToolbar button.primary { background:#0b81b8; }
+  #calDoc { max-width:800px; margin:24px auto; background:#fff; padding:36px; border-radius:8px; box-shadow:0 2px 12px rgba(0,0,0,0.12); }
+  #calDoc h1 { font-size:20px; margin-bottom:4px; }
+  #calDoc .cal-sub { color:#647384; font-size:13px; margin-bottom:20px; }
+  table.cal-pantones { width:100%; border-collapse:collapse; }
+  table.cal-pantones th, table.cal-pantones td { border:1px solid #d7e2ea; padding:8px 10px; font-size:13px; text-align:left; }
+  table.cal-pantones th { background:#f2f5f8; }
+  .cal-swatch { display:inline-block; width:20px; height:20px; border-radius:4px; border:1px solid #d7e2ea; vertical-align:middle; }
+  @page {
+    size: Letter portrait;
+    margin: 0;
+  }
+  @media print {
+    html, body {
+        background: #fff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    #calToolbar { display:none !important; }
+    #calDoc { box-shadow:none !important; margin:0 auto !important; }
+  }
+</style>
+</head>
+<body>
+  <div id="calToolbar">
+    <span>Cartilla de Color</span>
+    <div style="flex:1;"></div>
+    <button onclick="window.close()">✕ Cerrar</button>
+    <button class="primary" onclick="window.print()">🖨 Imprimir / Guardar PDF</button>
+  </div>
+  <div id="calDoc">Cargando...</div>
+  <script>
+    function calEscapar(text) {
+      const d = document.createElement('div');
+      d.textContent = text == null ? '' : String(text);
+      return d.innerHTML;
+    }
+    const parametros = new URLSearchParams(window.location.search);
+    const id = parametros.get('id');
+    fetch('/api/calidad/documentos/' + encodeURIComponent(id)).then(function(r) { return r.json(); }).then(function(doc) {
+      const filas = (doc.pantones || []).map(function(p) {
+        const color = p.color_referencia && /^#/.test(p.color_referencia) ? p.color_referencia : '#ffffff';
+        return '<tr>' +
+          '<td><span class="cal-swatch" style="background:' + calEscapar(color) + '"></span></td>' +
+          '<td>' + calEscapar(p.pantone_codigo) + '</td>' +
+          '<td>' + calEscapar(p.receta_referencia || '—') + '</td>' +
+          '<td>' + calEscapar(p.densidad_objetivo ?? '—') + '</td>' +
+          '<td>' + calEscapar(p.anilox_codigo || '—') + '</td>' +
+        '</tr>';
+      }).join('') || '<tr><td colspan="5">Sin pantones registrados para esta orden.</td></tr>';
+      document.getElementById('calDoc').innerHTML =
+        '<h1>Cartilla de Color</h1>' +
+        '<div class="cal-sub">Orden ' + calEscapar(doc.orden_produccion_codigo) + (doc.producto_codigo ? ' — Producto ' + calEscapar(doc.producto_codigo) : '') + ' · Versión ' + doc.version + ' · Generado ' + new Date(doc.generado_en).toLocaleString('es-CR') + '</div>' +
+        '<table class="cal-pantones"><thead><tr><th>Color</th><th>Pantone</th><th>Receta</th><th>Densidad Objetivo</th><th>Anilox</th></tr></thead><tbody>' + filas + '</tbody></table>';
+    }).catch(function() {
+      document.getElementById('calDoc').innerHTML = '<p>No se pudo cargar el documento.</p>';
+    });
+  </script>
+</body>
+</html>

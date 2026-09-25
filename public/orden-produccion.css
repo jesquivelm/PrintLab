@@ -1,0 +1,5259 @@
+/* ── Módulo Production: orden-produccion.html + producto-documento.html (extraído de styles.css) ──────── */
+
+.production-order-card {
+    max-width: 1040px;
+    margin: 0 auto;
+    overflow: visible;
+
+}
+
+.production-order-planning-empty {
+    padding: 14px;
+    border: 1px dashed #dbe5ec;
+    border-radius: 12px;
+    background: #fbfdff;
+    font-size: 12px;
+    color: #70808d;
+
+}
+
+.production-flow-history {
+    display: grid;
+    gap: 10px;
+
+}
+
+.production-flow-history-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(130px, .8fr);
+    gap: 12px;
+    align-items: center;
+    min-width: 0;
+
+}
+
+.production-flow-history-title {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    flex-wrap: wrap;
+
+}
+
+.production-flow-history-plan,
+.production-flow-history-received {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+
+}
+
+.production-flow-history-title strong,
+.production-flow-history-received strong {
+    font-size: 13px;
+    color: #203746;
+
+}
+
+.production-flow-history-title span,
+.production-flow-history-plan span,
+.production-flow-history-received span,
+.production-flow-history-received em {
+    color: #607286;
+    font-size: 12px;
+    font-style: normal;
+    line-height: 1.35;
+
+}
+
+.production-order-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(300px, 0.9fr);
+    gap: 18px;
+    align-items: start;
+
+}
+
+.production-order-layout-refined {
+    grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+    width: 100%;
+    min-width: 0;
+
+}
+
+#orderContent .production-order-column-primary > .production-client-section {
+    grid-column: 1;
+    grid-row: 1;
+
+}
+
+#orderContent .production-order-column-primary > .production-product-section {
+    grid-column: 2;
+    grid-row: 1;
+
+}
+
+#orderContent .production-order-column-primary > .production-observations-section {
+    grid-column: 1 / -1;
+
+}
+
+.production-order-card .socios-section {
+    padding: 18px 16px 16px;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 6px 18px rgba(18, 38, 54, 0.05);
+    min-width: 0;
+    width: 100%;
+    overflow: hidden;
+
+}
+
+.production-order-card .section-caption {
+    margin-bottom: 12px;
+    margin-right: 34px;
+    padding: 4px 20px;
+    border-radius: 10px;
+    background: #eef4f8;
+    color: #577086;
+    font-size: 11px;
+    font-weight: 700;
+
+}
+
+.production-tracking-head-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+
+}
+
+.production-state-pill-inline {
+    font-size: 11px;
+    min-height: 22px;
+    padding: 0 10px;
+    border-radius: 999px;
+
+}
+
+.production-date-field input {
+    width: 100%;
+    min-height: 34px;
+    border: 1px solid #d4e1ea;
+    border-radius: 12px;
+    background: #fbfcfd;
+    color: #203746;
+    padding: 0 10px;
+
+}
+
+.production-order-card .socios-grid {
+    gap: 12px 14px;
+
+}
+
+.production-order-card .socios-grid .field {
+    gap: 5px;
+
+}
+
+.production-order-card .socios-grid .field-full {
+    grid-column: 1 / -1;
+
+}
+
+.production-order-card .socios-section .field label {
+    font-size: 13px;
+    color: #70808d;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+}
+
+.production-order-card .socios-grid input,
+.production-order-card .socios-grid textarea {
+    width: 100%;
+    min-height: 34px;
+    padding: 0 10px;
+    border-radius: 10px;
+    background: #fbfcfd;
+    border-color: #d7e1e8;
+    box-shadow: none;
+    font-size: 14px;
+
+}
+
+.production-order-card .socios-grid textarea {
+    min-height: 78px;
+    height: auto;
+    padding: 8px 10px;
+    resize: vertical;
+
+}
+
+.production-summary-stack {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+    width: 100%;
+
+}
+
+.production-summary-stack:empty,
+.production-summary-value:empty {
+    display: none;
+
+}
+
+.production-summary-grid {
+    display: grid;
+    gap: 12px 14px;
+    min-width: 0;
+    width: 100%;
+
+}
+
+.production-summary-grid-two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+}
+
+.production-summary-grid-five {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+
+}
+
+.production-summary-item {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+
+}
+
+.production-summary-item-full {
+    grid-column: 1 / -1;
+
+}
+
+/* Sub-encabezado dentro de un módulo de la ficha técnica: separa "información del proceso"
+   de "consumo / datos del proceso" (pedido de rediseño). Fuerza salto de línea completo
+   tanto en contenedores grid como flex-wrap. */
+.production-summary-subhead {
+    grid-column: 1 / -1;
+    flex: 1 0 100%;
+    width: 100%;
+    margin: 8px 0 2px;
+    padding-top: 7px;
+    border-top: 1px solid rgba(112, 128, 141, 0.22);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    color: var(--app-text-muted, #6b7a88);
+}
+.production-summary-subhead:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+}
+
+.production-summary-label {
+    display: block;
+    font-size: 16px;
+    font-weight: 400;
+    letter-spacing: normal;
+    color: #667085;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+}
+
+.production-summary-value {
+    display: block;
+    min-height: 18px;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.45;
+    color: #203746;
+    word-break: break-word;
+
+}
+
+.production-inline-link .production-summary-value {
+    flex: 1 1 auto;
+
+}
+
+.production-inline-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    width: 100%;
+    padding: 4px 2px;
+    margin: 0;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    color: var(--ink, #1e293b);
+    transition: background 0.15s, border-color 0.15s, padding 0.15s;
+
+}
+
+.production-inline-link-btn:hover {
+    padding: 4px 8px;
+    background: rgba(11, 129, 184, 0.06);
+    border-color: rgba(11, 129, 184, 0.18);
+
+}
+
+.production-inline-link-btn:focus-visible {
+    outline: 2px solid var(--blue, #0b81b8);
+    outline-offset: 1px;
+
+}
+
+.production-inline-link-btn .production-summary-value {
+    flex: 1 1 auto;
+
+}
+
+.production-inline-link-btn:empty::after {
+    content: '—';
+    color: var(--ink-4, #94a3b8);
+
+}
+
+.production-inline-icon {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: #f4f8fb;
+    color: #4d687a;
+    font-size: 16px;
+
+}
+
+.production-inline-icon-ghost {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: #86a0b1;
+
+}
+
+.production-subgroup {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid #edf3f7;
+    border-radius: 14px;
+    background: #fbfdff;
+
+}
+
+.production-subgroup-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+
+}
+
+.production-subgroup-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #577086;
+    letter-spacing: 0.04em;
+
+}
+
+.production-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+}
+
+.production-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: #eff6fa;
+    color: #335167;
+    font-size: 14px;
+    font-weight: 600;
+
+}
+
+.production-chip-muted {
+    background: #f4f6f8;
+    color: #748290;
+
+}
+
+.production-notes-box {
+    min-height: 42px;
+    max-height: 112px;
+    overflow: auto;
+    padding: 10px 12px;
+    border: 1px solid #d7e1e8;
+    border-radius: 12px;
+    background: #fbfcfd;
+    font-size: 12px;
+    line-height: 1.55;
+    color: #203746;
+    white-space: normal;
+
+}
+
+.production-order-code {
+    font-size: 26px;
+    line-height: 1;
+    color: #173446;
+    letter-spacing: 0.02em;
+
+}
+
+.production-order-state {
+    font-size: 15px;
+    color: #1f4b64;
+
+}
+
+.production-mini-table {
+    margin-top: 12px;
+
+}
+
+.production-deliveries-popover {
+    pointer-events: none;
+
+}
+
+.production-deliveries-popover .calc-popover-backdrop {
+    background: transparent;
+    pointer-events: auto;
+
+}
+
+.production-sap-popover .calc-popover-body {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+    overflow: auto;
+
+}
+
+.production-sap-popover .copy-popover-header h2 {
+    margin: 0;
+    font-size: 17px;
+    color: var(--app-text, #203746);
+
+}
+
+.production-deliveries-popover .calc-popover-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    overflow: auto;
+
+}
+
+.production-deliveries-popover .copy-popover-header h2 {
+    margin: 0;
+    font-size: 15px;
+
+}
+
+.production-deliveries-total {
+    display: grid;
+    gap: 4px;
+    padding: 10px 12px;
+    border: 1px solid #dbe5ec;
+    border-radius: 8px;
+    background: #f8fbfd;
+
+}
+
+.production-deliveries-total span {
+    font-size: 10px;
+    font-weight: 700;
+    color: #70808d;
+
+}
+
+.production-deliveries-total strong {
+    font-size: 20px;
+    color: #203746;
+
+}
+
+.production-mini-table table {
+    width: 100%;
+
+}
+
+.production-mini-table input {
+    width: 100%;
+    min-height: 30px;
+    padding: 5px 8px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: #203746;
+    font: inherit;
+    transition: border-color 0.15s ease, background 0.15s ease;
+    outline: none;
+
+}
+
+.production-mini-table input:focus {
+    border-color: #d8e3ea;
+    background: #ffffff;
+
+}
+
+.production-mini-table input.is-invalid {
+    border-color: #d03535;
+    box-shadow: 0 0 0 2px rgba(208, 53, 53, 0.12);
+
+}
+
+.production-deliveries-message {
+    font-size: 11px;
+    color: #b94848;
+
+}
+
+.production-art-preview {
+    min-height: 150px;
+    border: 1px solid #dbe5ec;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px;
+    color: #667480;
+    text-align: center;
+    overflow: hidden;
+    width: 100%;
+    max-height: 360px;
+    max-width: 100%;
+    box-sizing: border-box;
+
+}
+
+.production-art-preview-compact {
+    min-height: 120px;
+
+}
+
+.production-art-image {
+    max-width: 100%;
+    max-height: 100%;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+
+}
+
+.production-art-copy {
+    display: grid;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+
+}
+
+.production-art-section {
+    display: grid;
+    align-content: start;
+    align-self: stretch;
+    min-height: 0;
+
+}
+
+.production-art-section .section-caption,
+.production-observations-section .section-caption {
+    width: fit-content;
+
+}
+
+.production-order-popover-actions {
+    display: flex;
+    justify-content: flex-start;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+
+}
+
+.production-order-popover-actions .action-btn {
+    min-height: 38px;
+    padding: 0 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+
+}
+
+.production-order-popover-actions .action-btn-primary {
+    background: var(--app-primary-soft, rgba(11,129,184,.12));
+    color: var(--app-primary, #0b81b8);
+    border-color: rgba(11,129,184,.22);
+
+}
+
+.production-order-popover-summary {
+    display: grid;
+    gap: 8px;
+    padding: 14px;
+    border: 1px solid #dbe5ec;
+    border-radius: 12px;
+    background: #fbfdff;
+    color: #203746;
+    font-size: 12px;
+    line-height: 1.5;
+
+}
+
+.calc-popover-panel.production-flow-popover-panel {
+    width: min(620px, calc(100vw - 32px));
+    max-height: calc(100vh - 48px);
+    top: 24px;
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    transform: translateX(-50%);
+    border-radius: 22px;
+    background: #ffffff;
+
+}
+
+.production-flow-body {
+    display: grid;
+    gap: 10px;
+    padding: 16px;
+    overflow: auto;
+    background: transparent;
+
+}
+
+.calc-popover-panel-compact-detail .production-order-popover-body {
+    padding: 10px 0 20px;
+    overflow-y: auto;
+
+}
+
+#orderMachineDetailPopover .calc-popover-panel-compact-detail .production-order-popover-body {
+    height: calc(700px - 40px) !important;
+    max-height: calc(700px - 40px) !important;
+    overflow-y: auto !important;
+
+}
+
+#orderMachineDetailPopover .production-popover-row-wide .production-popover-field {
+    max-width: 450px;
+
+}
+
+#orderMachineDetailPopover .production-popover-tabs {
+    margin-top: 30px;
+
+}
+
+.calc-popover:not(.production-header-tab-popover) .calc-popover-backdrop {
+    background: transparent;
+
+}
+
+.production-observations-section {
+    margin-top: 18px;
+
+}
+
+.production-order-card .socios-section {
+    position: relative;
+
+}
+
+.production-order-card,
+.production-order-layout,
+.production-order-layout-refined,
+.production-order-card .socios-section,
+.production-subgroup,
+.production-summary-grid,
+.production-summary-item,
+.production-summary-stack,
+.production-roll-grid,
+.production-inline-form,
+.production-inline-form .field,
+.production-art-section,
+.production-art-preview,
+.production-art-dropzone {
+    min-width: 0;
+
+}
+
+.production-order-card,
+.production-order-layout,
+.production-order-layout-refined {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+
+}
+
+.production-order-layout,
+.production-order-layout-refined,
+.production-order-card .socios-section {
+    overflow-x: hidden;
+
+}
+
+.production-summary-line {
+    display: grid;
+    gap: 4px;
+    padding: 10px 12px;
+    border: 1px solid #edf2f6;
+    border-radius: 12px;
+    background: #fbfdff;
+
+}
+
+.production-summary-line-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: #70808d;
+
+}
+
+.production-summary-line-value {
+    font-size: 13px;
+    color: #203746;
+    word-break: break-word;
+
+}
+
+.production-info-pair .production-summary-line-value,
+.production-info-pair .production-summary-value,
+.production-delivery-summary-line .production-summary-line-value {
+    color: #e5eef8;
+
+}
+
+.production-summary-empty {
+    padding: 12px;
+    border: 1px dashed #d8e3ea;
+    border-radius: 12px;
+    background: #fbfdff;
+    font-size: 12px;
+    color: #778693;
+
+}
+
+.production-form-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 0 8px;
+
+}
+
+.production-form-divider::before,
+.production-form-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e2e8f0;
+
+}
+
+.production-form-divider-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #70808d;
+    white-space: nowrap;
+
+}
+
+.production-summary-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+
+}
+
+.production-summary-subsection {
+
+    gap: 4px;
+
+}
+
+.production-order-spotlight-right .production-summary-label,
+.production-order-spotlight-right .production-summary-value {
+    text-align: right;
+
+}
+
+.production-source-link-group {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+    min-width: 0;
+    font-size: 13px;
+    line-height: 1.35;
+    text-align: right;
+
+}
+
+.production-data-link {
+    color: #0b81b8;
+    text-decoration: none;
+    font-weight: 700;
+
+}
+
+.production-data-link:hover,
+.production-data-link:focus-visible {
+    color: #0b81b8;
+    text-decoration: underline;
+    outline: none;
+
+}
+
+.production-source-separator {
+    color: #7a8b99;
+
+}
+
+.production-inline-link > .production-summary-value {
+    flex: 1 1 auto;
+    min-width: 0;
+
+}
+
+.production-inline-icon-small {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+
+}
+
+.production-svg-test-image {
+    width: var(--config-icon-size, 18px);
+    height: var(--config-icon-size, 18px);
+    display: block;
+    object-fit: contain;
+    pointer-events: none;
+
+}
+
+.production-section-corner-toggle {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #8ea6b6;
+    font-size: 13px;
+
+}
+
+.production-tracking-card .production-inline-icon,
+.production-section-head-inline .production-inline-icon {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+
+}
+
+.production-tracking-column-right .production-summary-label,
+.production-tracking-column-right .production-summary-value,
+.production-tracking-column-right .production-order-code,
+.production-tracking-column-right .production-source-link-group {
+    text-align: right;
+    justify-content: flex-end;
+
+}
+
+.production-order-alert {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 54px;
+    border: 1px solid #f4c8c8;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #fff4f4 0%, #ffeaea 100%);
+    color: #b13636;
+    font-size: 16px;
+    font-weight: 700;
+
+}
+
+.production-roll-grid {
+    min-width: 0;
+    width: 100%;
+
+}
+
+.production-roll-grid-right .production-summary-item,
+.production-roll-grid-right .production-summary-label,
+.production-roll-grid-right .production-summary-value {
+    width: 100%;
+    text-align: left;
+
+}
+
+.production-state-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    font-weight: 700;
+
+}
+
+.production-state-pill.is-pending {
+ background: #fff3d8; color: #9b6a00; 
+}
+
+.production-state-pill.is-progress {
+ background: #e2f5ea; color: #1c7b49; 
+}
+
+.production-state-pill.is-alert {
+ background: #fde7e7; color: #ba3535; 
+}
+
+.production-state-pill.is-complete {
+ background: #e4f2ff; color: #1e5e93; 
+}
+
+.production-art-dropzone {
+    margin-top: 12px;
+    min-height: 140px;
+    border: 1px dashed #c7d7e3;
+    border-radius: 14px;
+    background: #fbfdff;
+    color: #6f8597;
+    font-size: 12px;
+    width: 100%;
+    max-width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+    display: flex;
+    align-self: stretch;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+
+}
+
+.production-art-dropzone.is-dragover,
+.production-art-dropzone:hover,
+.production-art-dropzone:focus-visible {
+    border-color: #8fc9e5;
+    background: #f5fbff;
+    box-shadow: 0 0 0 3px rgba(17, 143, 198, 0.08);
+    outline: none;
+
+}
+
+.production-inline-form {
+    display: grid;
+    gap: 12px;
+    margin-top: 8px;
+    min-width: 0;
+    width: 100%;
+
+}
+
+.production-summary-grid-art {
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+    align-items: start;
+
+}
+
+.production-art-comments-field {
+    align-self: start;
+
+}
+
+.production-art-comments-field textarea {
+    min-height: 132px;
+    height: 132px;
+
+}
+
+.production-art-meta-stack {
+    display: grid;
+    gap: 12px;
+    align-self: start;
+
+}
+
+.production-art-meta-stack .field {
+    width: 100%;
+    max-width: 100%;
+    justify-self: start;
+
+}
+
+.production-art-holder-field {
+    width: 100%;
+    max-width: 100%;
+    justify-self: start;
+
+}
+
+.production-art-holder-field {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    align-items: start;
+
+}
+
+.production-art-holder-field label,
+.production-art-holder-field input,
+.production-art-holder-field datalist {
+    grid-column: 1 / 2;
+
+}
+
+.production-art-holder-field::after {
+    content: none;
+
+}
+
+.production-art-holder-field input {
+    width: 100%;
+    min-width: 0;
+
+}
+
+.production-art-section .production-inline-form {
+    min-height: 0;
+    height: 100%;
+    align-content: start;
+    grid-template-rows: auto minmax(0, 1fr);
+
+}
+
+.production-art-section .production-inline-form[hidden] {
+    height: auto;
+
+}
+
+.production-art-section .production-art-preview {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 360px;
+    overflow: auto;
+
+}
+
+.production-art-preview-wrap {
+    position: relative;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+
+}
+
+.production-art-preview-wrap .production-art-preview {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+
+}
+
+.production-art-preview-wrap .production-art-preview .production-art-image {
+    width: 100%;
+    height: 100%;
+    max-height: 320px;
+    object-fit: contain;
+    border-radius: 8px;
+
+}
+
+.production-art-preview-wrap .production-art-preview .attachments-empty {
+    padding: 18px;
+    border: none;
+    background: transparent;
+    color: #667480;
+    font-size: 13px;
+
+}
+
+.production-art-delete {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    z-index: 2;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    width: 28px;
+    height: 28px;
+    font-size: 18px;
+    line-height: 28px;
+    text-align: center;
+    border-radius: 8px;
+    color: #667480;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+
+}
+
+.production-art-delete:hover {
+    color: #dc3545;
+    background: rgba(220, 53, 69, 0.08) !important;
+
+}
+
+.production-notes-input {
+    width: 100%;
+    resize: vertical;
+    box-sizing: border-box;
+    font: inherit;
+
+}
+
+.production-inline-form .field {
+    min-width: 0;
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 5px;
+
+}
+
+.production-inline-form .field input,
+.production-inline-form .field select,
+.production-inline-form .field textarea {
+    width: 100%;
+    max-width: 100%;
+    min-height: 38px;
+    border: 1px solid #d4e1ea;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #fcfeff 0%, #f6fafc 100%);
+    padding: 0 12px;
+    font-size: 14px;
+    color: #203746;
+    box-sizing: border-box;
+    min-width: 0;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+
+}
+
+.production-inline-form .field textarea {
+    min-height: 82px;
+    max-height: 122px;
+    resize: vertical;
+    padding: 10px 12px;
+
+}
+
+.production-art-comments-field textarea {
+    min-height: 38px;
+    height: 38px;
+    max-height: 118px;
+    resize: none;
+    overflow: hidden;
+
+}
+
+.production-observations-section {
+    margin-top: 8px;
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 100%;
+
+}
+
+.production-inline-form .field select {
+    min-width: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding-right: 34px;
+    background-image:
+        linear-gradient(45deg, transparent 50%, #8ba2b4 50%),
+        linear-gradient(135deg, #8ba2b4 50%, transparent 50%),
+        linear-gradient(180deg, #fcfeff 0%, #f6fafc 100%);
+    background-position:
+        calc(100% - 16px) calc(50% - 2px),
+        calc(100% - 11px) calc(50% - 2px),
+        0 0;
+    background-size:
+        5px 5px,
+        5px 5px,
+        100% 100%;
+    background-repeat: no-repeat;
+
+}
+
+.production-inline-form .field input:focus,
+.production-inline-form .field select:focus,
+.production-inline-form .field textarea:focus {
+    outline: none;
+    border-color: #97cce4;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(11, 129, 184, 0.08);
+
+}
+
+.production-art-copy,
+.production-art-copy strong,
+.production-art-copy span,
+.production-summary-value,
+.production-summary-line-value {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+
+}
+
+.production-order-card,
+.production-inline-form {
+    background: var(--app-surface);
+    color: var(--app-text);
+    border-color: var(--app-border);
+    box-shadow: var(--app-shadow-sm);
+
+}
+
+.production-inline-form .field input,
+.production-inline-form .field select,
+.production-inline-form .field textarea {
+    background: var(--app-surface-soft);
+    color: var(--app-text);
+    border-color: var(--app-border);
+
+}
+
+.production-inline-form .field input:focus,
+.production-inline-form .field select:focus,
+.production-inline-form .field textarea:focus {
+    background: var(--app-surface);
+    color: var(--app-text);
+    border-color: var(--app-primary);
+    box-shadow: 0 0 0 3px var(--app-ring);
+    outline: none;
+
+}
+
+html[data-theme="dark"] .production-order-card,
+html[data-theme="dark"] .production-order-card .socios-section {
+    background: var(--app-surface) !important;
+    color: var(--app-text) !important;
+    border-color: var(--app-border) !important;
+
+}
+
+html[data-theme="dark"] .production-summary-item,
+html[data-theme="dark"] .production-subgroup,
+html[data-theme="dark"] .production-notes-box,
+html[data-theme="dark"] .production-art-preview,
+html[data-theme="dark"] .production-order-popover-summary {
+    background: var(--app-surface-soft) !important;
+    color: var(--app-text) !important;
+    border-color: var(--app-border) !important;
+
+}
+
+html[data-theme="dark"] .production-mini-table table {
+    background: var(--app-surface) !important;
+    color: var(--app-text) !important;
+    border-color: var(--app-border) !important;
+
+}
+
+html[data-theme="dark"] .production-deliveries-total,
+html[data-theme="dark"] .production-mini-table input {
+    background: transparent;
+    color: var(--app-text);
+    border-color: transparent;
+
+}
+
+html[data-theme="dark"] .production-mini-table input:focus {
+    background: #101a2b;
+    border-color: var(--app-border);
+
+}
+
+html[data-theme="dark"] .production-deliveries-total strong {
+    color: var(--app-text);
+
+}
+
+html[data-theme="dark"] .production-order-card .socios-grid input,
+html[data-theme="dark"] .production-order-card .socios-grid textarea {
+    background: #111c30 !important;
+    color: var(--app-text) !important;
+    border-color: var(--app-border) !important;
+
+}
+
+html[data-theme="dark"] .production-summary-value,
+html[data-theme="dark"] .production-order-code,
+html[data-theme="dark"] .production-subgroup-title {
+    color: var(--app-text) !important;
+
+}
+
+html[data-theme="dark"] .production-summary-label,
+html[data-theme="dark"] .production-art-copy {
+    color: var(--app-text-muted) !important;
+
+}
+
+html[data-theme="dark"] .production-summary-item strong {
+    color: var(--app-text) !important;
+
+}
+
+html[data-theme="dark"] .production-chip,
+html[data-theme="dark"] .production-chip-muted {
+    background: rgba(56, 189, 248, 0.13) !important;
+    color: #bae6fd !important;
+    border-color: rgba(56, 189, 248, 0.22) !important;
+
+}
+
+html[data-theme="dark"] .production-flow-popover-panel,
+html[data-theme="dark"] .production-date-field input {
+    background: var(--app-surface-soft) !important;
+    color: var(--app-text) !important;
+    border-color: var(--app-border) !important;
+
+}
+
+html[data-theme="dark"] .production-flow-history-title strong,
+html[data-theme="dark"] .production-flow-history-received strong {
+    color: var(--app-text) !important;
+
+}
+
+html[data-theme="dark"] .production-info-pair .production-summary-line-value,
+html[data-theme="dark"] .production-info-pair .production-summary-value,
+html[data-theme="dark"] .production-popover-field {
+    color: var(--app-text) !important;
+
+}
+
+/* Valores de resumen (ej. "Arte en Poder de", "Orden de Arte") — el color claro fijo #203746
+   quedaba invisible sobre la tarjeta oscura. Se fuerza el texto del tema en ambos modos. */
+html[data-theme="dark"] .production-summary-line-value,
+html[data-theme="dark"] .production-summary-value {
+    color: var(--app-text) !important;
+
+}
+.production-summary-line-value,
+.production-summary-value {
+    color: var(--app-text);
+
+}
+
+html[data-theme="dark"] .production-popover-field {
+    background: #111c30 !important;
+    border-color: var(--app-border, #2d4759) !important;
+
+}
+
+html[data-theme="dark"] .production-popover-label {
+    color: var(--app-text-muted) !important;
+
+}
+
+html[data-theme="dark"] .production-popover-unit {
+    color: var(--app-text-muted) !important;
+
+}
+
+html[data-theme="dark"] .production-popover-section-title {
+    color: var(--app-text) !important;
+
+}
+
+html[data-theme="dark"] .production-popover-cost-table th {
+    color: var(--app-text-muted) !important;
+    border-bottom-color: var(--app-border) !important;
+
+}
+
+html[data-theme="dark"] .production-popover-cost-table td {
+    color: var(--app-text) !important;
+    border-bottom-color: var(--app-border) !important;
+
+}
+
+html[data-theme="dark"] .production-popover-cost-table td:first-child {
+    color: var(--app-text-muted) !important;
+
+}
+
+html[data-theme="dark"] .production-popover-cost-table .production-popover-cost-total td {
+    color: var(--app-text) !important;
+    border-top-color: var(--app-border) !important;
+
+}
+
+html[data-theme="dark"] .production-popover-tabs {
+    background: linear-gradient(180deg, #111c31 0%, #0e1a2e 100%) !important;
+    border-color: var(--app-border, #2d4759) !important;
+    box-shadow: none !important;
+
+}
+
+html[data-theme="dark"] .production-popover-tab {
+    color: var(--app-text-muted, #8899aa) !important;
+
+}
+
+html[data-theme="dark"] .production-popover-tab:hover {
+    background: rgba(56,189,248,0.08) !important;
+    color: var(--app-text, #e5eefb) !important;
+
+}
+
+html[data-theme="dark"] .production-popover-tab.active {
+    background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%) !important;
+    color: #fff !important;
+
+}
+
+html[data-theme="dark"] .production-delivery-summary-line .production-summary-line-value {
+    color: var(--app-text) !important;
+
+}
+
+html[data-theme="dark"] .production-flow-history-title span,
+html[data-theme="dark"] .production-flow-history-plan span,
+html[data-theme="dark"] .production-flow-history-received span,
+html[data-theme="dark"] .production-flow-history-received em {
+    color: var(--app-text-muted) !important;
+
+}
+
+html[data-theme="dark"] .production-order-card .production-summary-item,
+html[data-theme="dark"] .production-order-card .production-summary-line,
+html[data-theme="dark"] .production-order-card .production-order-spotlight,
+html[data-theme="dark"] .production-order-card .production-order-spotlight-item,
+html[data-theme="dark"] .production-order-card .production-product-key-grid {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+
+}
+
+html[data-theme="dark"] .production-order-card .production-date-field input {
+    background: #111c30 !important;
+    color: var(--app-text) !important;
+    border-color: var(--app-border) !important;
+    color-scheme: dark;
+
+}
+
+html[data-theme="dark"] .production-order-card .production-data-link {
+    color: #38bdf8 !important;
+
+}
+
+html[data-theme="dark"] .production-order-card .production-source-separator {
+    color: var(--app-text-muted) !important;
+
+}
+
+html[data-theme="dark"] .production-inline-icon {
+    background: #162033 !important;
+    color: #c9d8eb !important;
+    border-color: var(--app-border) !important;
+
+}
+
+html[data-theme="dark"] .production-inline-link-btn {
+    color: #e2e8f0 !important;
+    border-color: transparent !important;
+
+}
+
+html[data-theme="dark"] .production-inline-link-btn:hover {
+    padding: 4px 8px;
+    background: rgba(34, 211, 238, 0.08) !important;
+    border-color: rgba(34, 211, 238, 0.15) !important;
+
+}
+
+html[data-theme="dark"] .production-inline-link-btn:hover .production-summary-value {
+    text-decoration-color: rgba(34, 211, 238, 0.5);
+
+}
+
+html[data-theme="dark"] .production-inline-icon-ghost,
+html[data-theme="dark"] .production-contact-edit-btn,
+html[data-theme="dark"] .production-frontback-art-edit-btn {
+    background: transparent !important;
+
+}
+
+html[data-theme="dark"] .production-inline-icon:hover {
+    background: var(--app-primary-soft) !important;
+    color: var(--app-primary) !important;
+    border-color: color-mix(in srgb, var(--app-primary) 38%, var(--app-border)) !important;
+
+}
+
+html[data-theme="dark"] .production-state-pill,
+html[data-theme="dark"] .production-order-state {
+    color: #e5eefb !important;
+
+}
+
+html[data-theme="dark"] .production-state-pill.is-pending {
+    background: rgba(251, 191, 36, 0.16) !important;
+    color: #fde68a !important;
+
+}
+
+html[data-theme="dark"] .production-order-alert {
+    background: #111c30 !important;
+    color: var(--app-text) !important;
+    border-color: var(--app-border) !important;
+
+}
+
+.product-document-card .production-summary-grid {
+    gap: 14px;
+
+}
+
+.product-document-card .production-summary-item {
+    /*padding: 12px 13px;*/
+    /*border: 1px solid var(--app-border);*/
+    border-radius: 16px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--app-surface) 96%, #ffffff) 0%, color-mix(in srgb, var(--app-surface-soft) 88%, #eef5fa) 100%);
+
+}
+
+.product-document-card .production-client-section .production-client-info-grid {
+    padding: 0 13px;
+
+}
+
+.product-document-card #productDocSellerCol.production-client-seller-col {
+    display: flex;
+    justify-content: flex-end;
+    text-align: right;
+
+}
+
+.product-document-card .production-summary-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+}
+
+.product-document-card .production-order-column-primary > .socios-section:first-child .production-subgroup-head {
+    margin-bottom: 6px;
+
+}
+
+
+html[data-theme="dark"] .product-document-card .production-summary-item {
+    border-color: var(--app-border);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--app-surface-raised) 94%, #102033) 0%, color-mix(in srgb, var(--app-surface) 90%, #16253a) 100%);
+    box-shadow: none;
+
+}
+
+.production-order-card {
+    position: relative;
+    width: min(100%, 1245px);
+    max-width: 1245px;
+
+}
+
+.production-order-card {
+    --order-panel-bg: #ffffff;
+    --order-panel-soft: #fbfdff;
+    --order-panel-subtle: #f6fafc;
+    --order-panel-border: #dbe5ec;
+    --order-pill-bg: #eef6fb;
+    --order-pill-text: #577086;
+
+}
+
+.production-order-card .production-order-layout-refined {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    align-items: stretch;
+
+}
+
+.production-top-row,
+.production-bottom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 22px;
+
+}
+
+#orderContent > .production-order-layout-refined > .production-order-column-secondary {
+    display: none;
+
+}
+
+#orderContent > .production-order-layout-refined > .production-observations-section {
+    margin-top: 0;
+
+}
+
+.production-order-card .production-tracking-section {
+    overflow: visible;
+
+}
+
+.production-tracking-section {
+    display: block;
+
+}
+
+.production-tracking-body {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 12px;
+    align-items: start;
+
+}
+
+.production-tracking-left {
+    display: grid;
+    gap: 10px;
+    align-content: start;
+
+}
+
+.production-tracking-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    text-align: right;
+    min-width: 0;
+
+}
+
+.production-tracking-section .production-tracking-head-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: nowrap;
+    margin-bottom: 12px;
+
+}
+
+.production-tracking-section .production-tracking-head-row .production-tracking-state-row {
+    margin-right: 210px;
+}
+
+.production-tracking-section .production-tracking-head-row .section-caption {
+    margin: 0;
+    flex: 0 0 auto;
+    white-space: nowrap;
+
+}
+
+.production-tracking-section .production-state-pill-inline {
+    height: 20px;
+    min-height: 20px;
+    padding: 0 12px;
+    font-size: 13px;
+    line-height: 20px;
+    white-space: nowrap;
+
+}
+
+.production-tracking-section .production-summary-item {
+    max-width: 100%;
+
+}
+
+.production-tracking-section .production-source-link-group {
+    justify-content: flex-end;
+
+}
+
+.production-order-card .socios-section {
+    padding: 16px 14px;
+    border-radius: 12px;
+    border-color: var(--order-panel-border);
+    background: var(--order-panel-bg);
+    box-shadow: none;
+
+}
+
+.production-order-card .section-caption {
+    max-width: calc(100% - 38px);
+    min-height: 20px;
+    height: 20px;
+    margin: 0 36px 14px 0;
+    padding: 0 16px;
+    border-radius: 999px;
+    background: var(--order-pill-bg);
+    color: var(--order-pill-text);
+    font-size: 13px;
+    line-height: 20px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+}
+
+.production-order-card label,
+.production-order-card .production-summary-label,
+.production-order-card .production-summary-line-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+}
+
+.production-order-card .production-summary-stack {
+    gap: 12px;
+
+}
+
+.production-client-section .production-summary-stack {
+    gap: 14px;
+
+}
+
+.production-tracking-card-embedded .production-tracking-head-row {
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+
+}
+
+.production-tracking-card-embedded .production-state-pill-inline {
+    height: 20px;
+    min-height: 20px;
+    padding: 0 12px;
+    font-size: 13px;
+    line-height: 20px;
+    white-space: nowrap;
+
+}
+
+.production-tracking-icons-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    margin-top: -2px;
+
+}
+
+/* Desplegables alineados con sus botones durante scroll */
+.production-header-tab-popover .calc-popover-panel {
+    position: fixed;
+
+}
+
+.production-deliveries-popover .calc-popover-panel {
+    position: fixed;
+    max-height: min(550px, calc(100vh - 120px));
+    overflow-y: auto;
+
+}
+
+.production-attachments-popover .calc-popover-panel {
+    position: fixed;
+    max-height: min(550px, calc(100vh - 120px));
+    overflow-y: auto;
+
+}
+
+.production-product-section .production-summary-stack {
+    gap: 12px;
+
+}
+
+.production-subgroup {
+    gap: 12px;
+    padding: 14px;
+    border-radius: 12px;
+    background: var(--order-panel-soft);
+    border-color: var(--order-panel-border);
+
+}
+
+/* El bloque de Impresión (Sustrato, Tintas, Máquina, Tipo de Salida) es el único
+   .production-subgroup de esta pantalla. No debe leerse como una caja aparte:
+   sin fondo, sin borde ni radio, sin padding propio — el contenido va directo
+   sobre la tarjeta, igual que el resto de las secciones de la orden. */
+#orderPrintingBlock {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+}
+
+.production-summary-grid {
+    gap: 12px 14px;
+
+}
+
+.production-summary-item {
+    gap: 5px;
+
+}
+
+.production-chip {
+    min-height: 28px;
+    padding: 0 14px;
+
+}
+
+.production-roll-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+
+}
+
+.production-roll-grid .production-summary-item {
+    gap: 6px;
+    align-content: start;
+
+}
+
+.production-roll-grid .production-summary-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+}
+
+/* Rebobinado: columna izquierda (título + datos) y columna derecha con solo la
+   imagen de Tipo de Salida, ambas del mismo alto (stretch); la imagen se ajusta
+   al alto que ya tiene el contenido de la izquierda, nunca al revés. */
+#orderRebobinadoSection {
+    align-self: flex-start;
+}
+
+.production-rebobinado-layout {
+    display: grid;
+    /* El cuerpo toma todo el espacio disponible; la imagen ocupa una pista fija angosta,
+       así "Distancia Recorrida" y demás valores no quedan comprimidos ni cortados. */
+    grid-template-columns: minmax(0, 1fr) 160px;
+    gap: 16px;
+    align-items: start;
+}
+
+.production-rebobinado-main {
+    min-width: 0;
+    min-height: 0;
+}
+
+.production-rebobinado-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 0;
+    /* Imagen del sentido de bobinado: tamaño ideal ~150x150 px, nunca a toda la altura del módulo. */
+    width: 150px;
+    max-width: 150px;
+    height: 150px;
+    max-height: 150px;
+    align-self: center;
+    overflow: hidden;
+}
+
+.production-rebobinado-image img {
+    max-width: 150px;
+    max-height: 150px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+.production-rebobinado-image:empty {
+    display: none;
+}
+
+.production-roll-grid .production-output-type-item {
+    gap: 8px 8px;
+
+}
+
+.production-output-type-item > .production-summary-label {
+    grid-column: 1 / -1;
+
+}
+
+.production-output-type-item > .production-output-type-img {
+    display: flex;
+    align-items: flex-start;
+
+}
+
+.production-output-type-item > .production-output-type-img img {
+    max-height: 56px;
+    max-width: 100px;
+    border-radius: 4px;
+    display: block;
+
+}
+
+.production-output-type-img img {
+    max-height: 56px;
+    max-width: 100px;
+    border-radius: 3px;
+    display: block;
+
+}
+
+.production-output-type-wrap {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+
+}
+
+.production-tracking-card .production-section-corner-toggle {
+    top: 14px;
+
+}
+
+.production-tracking-card .production-state-pill {
+    min-width: 72px;
+    min-height: 28px;
+    justify-content: center;
+    padding: 0 10px;
+
+}
+
+.production-tracking-card.production-tracking-card-embedded .production-state-pill-inline {
+    height: 20px;
+    min-height: 20px;
+    padding: 0 12px;
+    font-size: 13px;
+    line-height: 20px;
+
+}
+
+.production-tracking-card .production-order-code {
+    font-size: 24px;
+
+}
+
+.production-date-field input {
+    min-height: 34px;
+    height: 34px;
+    width: 156px;
+    max-width: 100%;
+    text-align: left;
+
+}
+
+.production-tracking-card-embedded .production-date-field input {
+    width: 100%;
+
+}
+
+.production-tracking-card-embedded .production-date-field {
+    min-width: 0;
+    overflow: hidden;
+
+}
+
+.production-art-section {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+
+}
+
+.production-art-section .production-summary-grid-art {
+    grid-template-columns: 1fr;
+    gap: 12px;
+
+}
+
+.production-art-meta-stack {
+    order: 1;
+
+}
+
+.production-art-comments-field {
+    order: 2;
+
+}
+
+.production-art-section .production-art-preview-wrap {
+    order: 3;
+    flex: 1 1 auto;
+    min-height: 220px;
+    display: flex;
+
+}
+
+.production-art-comments-field textarea {
+    min-height: 38px;
+    height: 38px;
+    max-height: 118px;
+    resize: none;
+    overflow: hidden;
+
+}
+
+.production-art-dropzone {
+    min-height: 120px;
+    margin-top: 2px;
+    flex: 1 1 auto;
+
+}
+
+.production-art-preview {
+    border-radius: 8px;
+    overflow: hidden;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+
+}
+
+.production-art-preview .production-art-image {
+    max-height: 320px;
+    object-fit: contain;
+
+}
+
+.production-art-preview .production-art-image:not([src]),
+.production-art-preview .production-art-image[src=""] {
+    display: none;
+
+}
+
+.production-notes-box {
+    min-height: 68px;
+    max-height: 68px;
+
+}
+
+.production-notes-input {
+    resize: none;
+
+}
+
+.production-samples-section .production-form-divider,
+.production-delivery-section .production-form-divider {
+    margin: 12px 0 10px;
+
+}
+
+.production-samples-section .production-form-divider-label,
+.production-delivery-section .production-form-divider-label,
+.production-samples-section .production-summary-subsection-title,
+.production-delivery-section .production-summary-subsection-title {
+    text-transform: none;
+    letter-spacing: 0;
+
+}
+
+.production-samples-section .production-summary-two-col,
+.production-delivery-section .production-summary-two-col {
+    align-items: start;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+
+}
+
+/* Muestras/Visto Bueno: se le quita ~1/4 a la columna izquierda y se le da a la derecha,
+   para que la dirección del destinatario tenga aire y pueda bajar de línea. */
+.production-samples-section .production-summary-two-col {
+    grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+    column-gap: 20px;
+}
+
+/* El resumen de Muestras/Visto Bueno y Entrega debe quedar SIEMPRE dentro de
+   la sección: los valores largos (dirección, correo) hacen wrap en lugar de
+   desbordar y quedar recortados por el overflow:hidden de la sección. */
+.production-samples-section .production-contact-icon-value,
+.production-delivery-section .production-contact-icon-value {
+    min-width: 0;
+    max-width: 100%;
+
+}
+
+.production-samples-section .production-contact-icon-value span,
+.production-delivery-section .production-contact-icon-value span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+
+}
+
+.production-samples-section .production-summary-subsection,
+.production-delivery-section .production-summary-subsection {
+    align-content: start;
+    gap: 6px;
+    min-width: 0;
+
+}
+
+.production-samples-section .production-summary-subsection-title,
+.production-delivery-section .production-summary-subsection-title {
+    min-height: 24px;
+    line-height: 18px;
+    padding: 0 0 6px;
+    margin: 0 0 8px;
+    font-size: 11px;
+
+}
+
+.production-samples-section .production-form-divider::before,
+.production-samples-section .production-form-divider::after,
+.production-delivery-section .production-form-divider::before,
+.production-delivery-section .production-form-divider::after {
+    content: '';
+    height: 1px;
+    background: var(--order-panel-border, #dbe5ec);
+
+}
+
+.production-samples-section .production-summary-grid-two,
+.production-delivery-section .production-summary-grid-two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 14px;
+
+}
+
+.production-samples-section .field-full,
+.production-delivery-section .field-full,
+.production-samples-section .production-inline-form > .field,
+.production-delivery-section .production-inline-form > .field {
+    grid-column: 1 / -1;
+
+}
+
+.production-samples-section textarea,
+.production-delivery-section textarea {
+    min-height: 74px;
+    resize: vertical;
+
+}
+
+.production-date-field input.is-alert {
+    border-color: #dc2626 !important;
+    color: #b91c1c !important;
+
+}
+
+html[data-theme="dark"] .production-order-card {
+    --order-panel-bg: #152033;
+    --order-panel-soft: #1d2a3d;
+    --order-panel-subtle: #111c30;
+    --order-panel-border: #26364d;
+    --order-pill-bg: #173553;
+    --order-pill-text: #8fa8bd;
+
+}
+
+html[data-theme="dark"] body:has(.production-order-card) {
+    background: #0f1726;
+
+}
+
+html[data-theme="dark"] .production-order-card .socios-section {
+    background: var(--order-panel-bg) !important;
+    border-color: var(--order-panel-border) !important;
+    color: var(--app-text) !important;
+
+}
+
+html[data-theme="dark"] .production-order-card .section-caption {
+    background: none !important;
+    background-image: none !important;
+    color: var(--app-text) !important;
+    border-color: transparent !important;
+
+}
+
+html[data-theme="dark"] .production-order-card .production-subgroup,
+html[data-theme="dark"] .production-order-card .production-summary-line,
+html[data-theme="dark"] .production-order-card .production-art-preview,
+html[data-theme="dark"] .production-order-card .production-art-dropzone,
+html[data-theme="dark"] .production-order-card .production-output-preview {
+    background: var(--order-panel-soft) !important;
+    border-color: var(--order-panel-border) !important;
+    box-shadow: none !important;
+
+}
+
+html[data-theme="dark"] .production-order-card input,
+html[data-theme="dark"] .production-order-card select,
+html[data-theme="dark"] .production-order-card textarea,
+html[data-theme="dark"] .production-order-card .production-notes-box,
+html[data-theme="dark"] .production-order-card .production-date-field input {
+    background: var(--order-panel-subtle) !important;
+    border-color: var(--order-panel-border) !important;
+    color: var(--app-text) !important;
+
+}
+
+html[data-theme="dark"] .production-tracking-card .production-inline-icon,
+html[data-theme="dark"] .production-section-head-inline .production-inline-icon,
+html[data-theme="dark"] .production-art-section .production-section-corner-toggle {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+
+}
+
+html[data-theme="dark"] .production-tracking-card .production-state-pill.is-pending {
+    background: rgba(251, 191, 36, 0.18) !important;
+    color: #fde68a !important;
+
+}
+
+.production-order-card .production-client-section {
+    padding: 16px 14px;
+    border-radius: 12px;
+    border-color: var(--order-panel-border);
+    background: var(--order-panel-bg);
+    box-shadow: none;
+
+}
+
+.production-order-card .production-client-details,
+.production-order-card .production-tracking-card-embedded {
+    min-height: 126px;
+    padding: 16px 18px;
+    border: 1px solid var(--order-panel-border);
+    border-radius: 12px;
+    background: var(--order-panel-bg);
+
+}
+
+.production-order-card .production-client-details .section-caption {
+    margin-bottom: 14px;
+
+}
+
+.production-client-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 16px;
+    align-items: start;
+    min-width: 0;
+
+}
+
+.production-client-info-grid:empty,
+.production-client-info-grid[hidden] {
+    display: none;
+
+}
+
+.production-client-contact-col,
+.production-client-seller-col {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+
+}
+
+.production-client-contact-col[hidden],
+.production-client-seller-col[hidden] {
+    display: none;
+
+}
+
+.production-client-info-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    
+    line-height: 1.4;
+    color: #4d687a;
+
+}
+
+.production-client-info-line span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+}
+
+.production-client-info-line .production-client-info-icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--config-icon-size, 14px);
+    height: var(--config-icon-size, 14px);
+    overflow: visible;
+    color: #86a0b1;
+
+}
+
+.production-client-info-icon .table-icon-media,
+.production-client-info-icon .icon-svg-mask,
+.production-client-info-icon .icon-image-wrap,
+.production-client-info-icon .icon-image {
+    width: var(--config-icon-size, 14px) !important;
+    height: var(--config-icon-size, 14px) !important;
+    flex: 0 0 auto;
+
+}
+
+.motivo-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border: 0;
+    background: transparent;
+    padding: 4px;
+    cursor: pointer;
+    border-radius: var(--border-radius-md, 8px);
+}
+
+.motivo-action-btn:hover {
+    background: var(--app-bg-soft);
+}
+
+.motivo-action-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.production-acabados-flex {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.production-acabados-flex-item {
+    flex: 1 1 260px;
+    min-width: 220px;
+}
+
+.production-acabados-flex-item .production-summary-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+}
+
+.production-acabados-flex-item .production-summary-item {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    white-space: normal;
+}
+
+.production-acabados-flex-item .production-summary-label {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    flex-shrink: 0;
+}
+
+.production-acabados-flex-item .production-summary-item.production-summary-item-full {
+    flex-basis: 100%;
+    white-space: normal;
+}
+
+/* ============================================================================
+   FICHA TÉCNICA DE PRODUCCIÓN — layout
+   Regla base: la ETIQUETA y su VALOR van SIEMPRE juntos (gap chico), nunca
+   separados a lados opuestos. Los módulos se acomodan 2–3 por fila; cada uno
+   fluye sus pares "Etiqueta valor" y hace wrap natural. Sustrato y Empaque
+   (más campos) toman la fila completa. El divisor "Consumo" corta la línea.
+   ============================================================================ */
+.production-ficha-tecnica {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: stretch;   /* los módulos de una misma fila igualan altura: el borde "baja"
+                               y no quedan huecos entre contenedores (dinámico según contenido) */
+}
+.production-ficha-tecnica > .production-acabados-flex-item {
+    flex: 1 1 340px;
+    min-width: 300px;
+    max-width: 100%;
+    grid-column: auto;          /* anula .production-shared-config { grid-column: 1 / -1 } */
+}
+.production-ficha-tecnica > #orderSustratoSection,
+.production-ficha-tecnica > #orderEmpaqueSection,
+.production-ficha-tecnica > #orderRebobinadoSection {
+    flex-basis: 100%;
+}
+/* Rebobinado a fila completa: el cuerpo toma casi todo el ancho y la imagen su pista fija,
+   así "Distancia Recorrida" y los demás valores tienen aire y no los tapa la imagen. */
+.production-ficha-tecnica > #orderRebobinadoSection .production-rebobinado-layout {
+    grid-template-columns: minmax(0, 1fr) 170px;
+}
+/* Cuerpo del módulo en REJILLA: cada par "Etiqueta valor" es una celda, las celdas
+   se alinean en columnas y todo queda justificado a la izquierda. */
+.production-ficha-tecnica .production-acabados-flex-item .production-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 7px 48px;
+    align-content: start;
+    justify-items: start;
+}
+.production-ficha-tecnica .production-acabados-flex-item .production-summary-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-start; /* pegado a la izquierda */
+    gap: 6px;                    /* etiqueta y valor JUNTOS */
+    white-space: nowrap;         /* no partir "8h 38min" ni "358.8 mm (14.12 in)" */
+    min-width: 0;
+    max-width: 100%;
+}
+.production-ficha-tecnica .production-acabados-flex-item .production-summary-label {
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+    color: #70808d;
+}
+.production-ficha-tecnica .production-acabados-flex-item .production-summary-value {
+    overflow-wrap: normal;
+    word-break: normal;
+}
+.production-ficha-tecnica .production-summary-subhead {
+    flex: 1 0 100%;
+    width: 100%;
+    grid-column: 1 / -1;
+}
+
+/* Sustrato (SKU y Orden): NO rejilla de pistas fijas — con auto-fit las columnas quedaban
+   más angostas que su contenido y los pares "Etiqueta valor" se montaban unos sobre otros.
+   Se usa flex-wrap: cada par ocupa exactamente su ancho de contenido (interno sin cortar) y
+   baja de línea entero cuando no cabe. Gap amplio para que se lean separados. El nombre del
+   sustrato conserva todo su ancho (contenido en una línea). */
+#orderSustratoBody,
+#productDocSustratoBody {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 40px;
+    row-gap: 8px;
+    align-content: start;
+}
+#orderSustratoBody > .production-summary-item,
+#productDocSustratoBody > .production-summary-item {
+    flex: 0 0 auto;
+    max-width: 100%;
+}
+#orderSustratoBody > .production-summary-item:first-child,
+#productDocSustratoBody > .production-summary-item:first-child {
+    white-space: nowrap;   /* el nombre del sustrato NO baja de línea: se dimensiona a su texto */
+    min-width: 0;
+}
+#orderSustratoBody > .production-summary-item:first-child .production-summary-value,
+#productDocSustratoBody > .production-summary-item:first-child .production-summary-value {
+    white-space: nowrap;
+}
+
+/* Fila de 2 módulos: arriba Muestras/VB + Arte; abajo Observaciones + Entrega.
+   Compactos (mismo alto aprox. que el bloque de Cliente), no estirados. */
+.production-top-modules {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin: 0 0 4px;
+    align-items: flex-start;
+}
+.production-top-modules > .socios-section {
+    flex: 1 1 340px;
+    min-width: 300px;
+    margin: 0;
+    padding: 14px 16px;
+    min-height: 0;
+    align-self: flex-start;
+}
+/* Filas de 2 módulos (arriba: Muestras/VB + Arte; abajo: Observaciones + Entrega): las dos
+   tarjetas igualan altura para no dejar un hueco al lado de la más corta. */
+#orderTopModules > .socios-section,
+#orderBottomModules > .socios-section {
+    align-self: stretch;
+}
+/* Columna izquierda armada en runtime (relocateOrderModules): Información General apilada
+   encima de Muestras y Aprobaciones, ocupando el mismo ancho que la columna de Arte al lado. */
+#orderTopModules > .production-bottom-left-col {
+    flex: 1 1 340px;
+    min-width: 300px;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+#orderTopModules > .production-bottom-left-col > .socios-section {
+    margin: 0;
+    padding: 14px 16px;
+}
+.production-top-modules .production-summary-stack { min-height: 0; gap: 6px; }
+/* Muestras/VB: los íconos de teléfono/correo/dirección son SVG sin clase de tamaño → sin esto
+   se dibujan gigantes. Se acotan al tamaño de ícono inline, como en el bloque de Cliente. */
+.production-top-modules .production-client-info-line > svg,
+.production-summary-two-col .production-client-info-line > svg {
+    flex: 0 0 auto;
+    width: 15px;
+    height: 15px;
+    color: #86a0b1;
+}
+.production-top-modules .production-client-info-line,
+.production-summary-two-col .production-client-info-line {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+.production-top-modules .production-art-section { display: block; }
+.production-top-modules .production-art-section .production-inline-form[hidden],
+.production-top-modules .production-art-section .production-art-preview-wrap[hidden] {
+    display: none !important;
+}
+#orderBottomModules { margin: 12px 0 4px; }
+.production-bottom-row:empty { display: none; }
+
+/* "Impresión" (antes "Motivos"): Máquina de Impresión adentro, en varias columnas,
+   con la etiqueta pegada al valor. Sin caja propia para la máquina. */
+#orderMotivosLayout.production-config-split-side { margin-top: 0; }
+#orderMotivosLayout #orderMaquinaSection {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    margin-bottom: 14px;
+}
+#orderMotivosLayout #orderMaquinaSection > .section-caption { margin-left: 0; }
+/* Cabecera de "Impresión" en 5 columnas: título y datos de la máquina en las 3 primeras
+   (los datos uno debajo del otro); las 2 últimas para la vista previa del arte, que ocupa
+   todo el alto (título incluido) y queda centrada vertical y horizontalmente. La imagen
+   entra completa con su propia proporción, sin recorte ni deformación. */
+#orderMotivosLayout .impresion-cabecera {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    grid-template-rows: auto 1fr;
+    column-gap: 36px;
+}
+#orderMotivosLayout .impresion-cabecera > .section-caption { grid-column: 1; grid-row: 1; justify-self: start; }
+#orderMotivosLayout .impresion-cabecera > #orderMaquinaSection { grid-column: 1; grid-row: 2; min-width: 0; }
+#orderMotivosLayout .impresion-cabecera > .maquina-arte {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-width: 0;
+    padding-bottom: 14px;
+    position: relative;
+}
+#orderMotivosLayout .maquina-arte > .maquina-arte-titulo {
+    position: absolute;
+    top: 0;
+    left: 0;
+    margin: 0;
+}
+#orderMotivosLayout .maquina-arte img {
+    max-width: 100%;
+    max-height: 140px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    filter: drop-shadow(0 4px 10px rgba(18, 38, 54, 0.28));
+}
+html[data-theme="dark"] #orderMotivosLayout .maquina-arte img {
+    filter: drop-shadow(0 4px 12px rgba(255, 255, 255, 0.22));
+}
+/* Información de Arte expandida: termina donde termina la imagen; el botón de borrar va
+   justo debajo de la imagen (no flotando en la esquina de un recuadro alto). */
+.production-top-modules .production-art-section { align-self: start; }
+.production-top-modules .production-art-section .production-inline-form { height: auto; grid-template-rows: auto auto; }
+.production-top-modules .production-art-section .production-art-preview-wrap { flex: 0 0 auto; min-height: 0; }
+.production-top-modules .production-art-section .production-art-preview-wrap .production-art-preview { flex: 0 0 auto; }
+.production-top-modules .production-art-section .production-art-preview-wrap .production-art-preview .production-art-image { height: auto; }
+.production-top-modules .production-art-section .production-art-delete { position: static; align-self: flex-end; margin-top: 4px; }
+#orderMotivosLayout #orderMaquinaBody > .maquina-datos {
+    display: grid;
+    grid-template-rows: repeat(3, auto);
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    column-gap: 36px;
+    row-gap: 8px;
+    align-content: start;
+    justify-items: start;
+}
+#orderMotivosLayout #orderMaquinaBody .production-summary-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: 6px;
+    white-space: nowrap;
+    min-width: 0;
+    max-width: 100%;
+}
+#orderMotivosLayout #orderMaquinaBody .maquina-datos > .production-summary-item:first-child {
+    white-space: normal;
+}
+#orderMotivosLayout #orderMaquinaBody .production-summary-label { white-space: nowrap; overflow: visible; text-overflow: clip; }
+#orderMotivosLayout #orderMaquinaBody .production-summary-value { overflow-wrap: normal; word-break: normal; }
+/* ── Motivos / Impresión: tarjeta por motivo (encabezado con pastilla + franja de stats;
+   cuerpo de dos paneles con borde: Versiones · Tintas del Motivo) + franja resumen al pie.
+   Todo tematizado con los tokens --app-* (claro/oscuro). ────────────────────────────── */
+#orderMotivosTableWrap { margin-top: 6px; }
+
+.motivo-block {
+    padding: 16px 0 4px;
+    border-top: 1px solid var(--app-border, rgba(112, 128, 141, 0.22));
+    margin-top: 14px;
+}
+/* El primer motivo CONSERVA su border-top: es la línea que separa "Máquina de Impresión"
+   de los motivos. */
+.motivo-block:first-child {
+    margin-top: 16px;
+    padding-top: 16px;
+}
+
+.motivo-block-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px 24px;
+    flex-wrap: wrap;
+}
+.motivo-block-head-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 26px;
+}
+.motivo-tab {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--app-primary, #0b81b8) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--app-primary, #0b81b8) 45%, transparent);
+    color: var(--app-primary, #0b81b8);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.motivo-head-caption {
+    color: var(--app-text-muted, #6b7a88);
+    font-size: 13px;
+}
+.motivo-head-sku {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.motivo-stats,
+.motivo-summary {
+    display: flex;
+    align-items: flex-start;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+.motivo-stats { margin-left: auto; }
+.motivo-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+}
+.motivo-stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--app-text-muted, #8a99a6);
+    white-space: nowrap;
+}
+.motivo-stat-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--app-text, #1f293b);
+    white-space: nowrap;
+}
+
+.motivo-block-body {
+    display: grid;
+    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+    gap: 16px;
+    margin-top: 14px;
+}
+.motivo-panel {
+    border: 1px solid var(--app-border, #dfe5ea);
+    border-radius: 12px;
+    padding: 14px 16px;
+    background: var(--app-surface, #fff);
+    min-width: 0;
+}
+.motivo-panel-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--app-text, #1f293b);
+    margin-bottom: 10px;
+}
+
+.motivo-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.motivo-table th {
+    text-align: left;
+    padding: 6px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--app-text-muted, #667085);
+    border-bottom: 1px solid var(--app-border, #d6dde5);
+    white-space: nowrap;
+}
+.motivo-table td {
+    padding: 8px 8px;
+    color: var(--app-text, #1f293b);
+    border-bottom: 1px solid var(--app-border, #eef1f4);
+    vertical-align: middle;
+}
+.motivo-table tbody tr:last-child td { border-bottom: 0; }
+.motivo-table .ta-r,
+.motivo-table th.ta-r { text-align: right; }
+
+.motivo-tinta-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+.motivo-tinta-dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+    background: var(--tinta-dot, transparent);
+    border: 1px solid rgba(0, 0, 0, 0.18);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+.motivo-tinta-dot-none {
+    background: transparent;
+    border-style: dashed;
+    box-shadow: none;
+}
+.motivo-tinta-inactiva td { opacity: 0.5; }
+
+.motivo-tintas-total td {
+    font-weight: 700;
+    color: var(--app-text, #1f2937);
+    border-top: 2px solid var(--app-border, #d6dde5);
+    border-bottom: 0;
+    padding-top: 10px;
+}
+.motivo-tintas-total td:first-child { text-align: right; }
+
+.motivo-empty {
+    font-size: 12px;
+    color: var(--app-text-muted, #8a99a6);
+    padding: 8px 2px;
+}
+
+.motivo-summary {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--app-border, rgba(112, 128, 141, 0.22));
+}
+.motivo-summary .motivo-stat-emphasis { margin-left: auto; }
+.motivo-summary .motivo-stat-emphasis .motivo-stat-value { color: var(--app-primary, #0b81b8); }
+
+@media (max-width: 900px) {
+    .motivo-block-body { grid-template-columns: 1fr; }
+    .motivo-stats { margin-left: 0; }
+}
+
+/* Empaque: 4 columnas fijas — Proceso / Core / Caja / Tarima; cada par "Etiqueta valor" junto. */
+.production-empaque-consumo {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    column-gap: 36px;
+    row-gap: 4px;
+    margin-top: 6px;
+    align-items: start;
+}
+.production-empaque-group {
+    min-width: 0;
+}
+.production-empaque-group .production-summary-subhead {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+}
+.production-empaque-group .production-summary-item {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+/* Columna partida de la ficha: Sellos (arriba) + Troquelado (abajo). El contenedor es el
+   flex-item; los dos módulos van apilados. El último módulo crece para llenar la altura de la
+   fila (la ficha usa align-items: stretch), así el borde baja y no quedan huecos. */
+.production-plate-die-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.production-plate-die-col > section {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+.production-plate-die-col > section:last-child {
+    flex: 1 1 auto;
+}
+
+/* ============================================================================
+   FICHA TÉCNICA — Documento de SKU (producto-documento.html)
+   El SKU reusa el esqueleto de la Orden con ids propios (#productDoc*). Estas
+   reglas replican, para esos ids, el layout id-específico de la ficha de la
+   Orden (#order*), para que ambas vistas se vean igual.
+   ============================================================================ */
+.production-ficha-tecnica > #productDocSustratoSection,
+.production-ficha-tecnica > #productDocEmpaqueSection,
+.production-ficha-tecnica > #productDocRebobinadoSection {
+    flex-basis: 100%;
+}
+.production-ficha-tecnica > #productDocRebobinadoSection .production-rebobinado-layout {
+    grid-template-columns: minmax(0, 1fr) 170px;
+}
+/* #productDocSustratoBody: el grid vive junto a #orderSustratoBody (regla compartida arriba). */
+#productDocImpresionModule > #productDocMaquinaSection {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    margin-bottom: 14px;
+}
+#productDocImpresionModule > #productDocMaquinaSection > .section-caption { margin-left: 0; }
+#productDocImpresionModule #productDocMaquinaBody {
+    display: grid;
+    grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(200px, 1fr));
+    column-gap: 36px;
+    row-gap: 8px;
+    align-content: start;
+    justify-items: start;
+}
+#productDocImpresionModule #productDocMaquinaBody .production-summary-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: 6px;
+    white-space: nowrap;
+    min-width: 0;
+    max-width: 100%;
+}
+#productDocImpresionModule #productDocMaquinaBody > .production-summary-item:first-child { white-space: normal; }
+#productDocImpresionModule #productDocMaquinaBody .production-summary-label { white-space: nowrap; overflow: visible; text-overflow: clip; }
+#productDocImpresionModule #productDocMaquinaBody .production-summary-value { overflow-wrap: normal; word-break: normal; }
+#productDocMotivosTableWrap { margin-top: 6px; }
+
+/* Sellos: una sola columna → los valores nunca se recortan (nada de "…") aunque un número
+   crezca un dígito. Etiqueta en una línea; el valor puede envolver si hace falta. */
+#orderSellosBody {
+    grid-template-columns: minmax(0, 1fr);
+}
+#orderSellosBody .production-summary-item {
+    white-space: normal;
+}
+#orderSellosBody .production-summary-label {
+    white-space: nowrap;
+}
+
+.production-summary-unit {
+    font-weight: 400;
+    color: #667085;
+    font-size: 12px;
+    margin-left: 2px;
+}
+
+.production-summary-subcaption {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #667085;
+    margin: 10px 0 4px;
+}
+
+.production-motivo-detalle-inline {
+    margin-top: 8px;
+}
+
+/* Indicador de proceso en vivo (mismo verde parpadeante que "En curso" en produccion.html) */
+@keyframes production-live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+
+.production-live-dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #22c55e;
+    margin-left: 8px;
+    animation: production-live-pulse 1.1s ease-in-out infinite;
+    box-shadow: 0 0 6px #22c55e;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+.production-live-tooltip {
+    position: absolute;
+    z-index: 40;
+    min-width: 220px;
+    background: var(--app-surface, #fff);
+    border: 1px solid var(--app-border, #d7e1e8);
+    border-radius: 10px;
+    box-shadow: var(--app-shadow-md, 0 8px 24px rgba(15, 35, 50, .12));
+    padding: 12px 14px;
+    font-size: 13px;
+    color: var(--app-text, #16232f);
+}
+
+.production-live-tooltip strong {
+    display: block;
+    color: #16a34a;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-bottom: 6px;
+}
+
+.production-live-tooltip div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 2px 0;
+}
+
+.production-live-tooltip span:first-child {
+    color: var(--app-text-muted, #70808d);
+}
+
+/* El botón de detalle (p.ej. "Tipo" en Barniz) trae padding/borde propios
+   que lo hacen más alto que un valor de texto plano (Consumo, Material,
+   Tamaño de Etiqueta, etc.), desalineando la fila entre tarjetas de
+   Acabados. Se iguala su alto al de un .production-summary-value normal. */
+.production-acabados-flex-item .production-inline-link-btn {
+    padding: 0 2px;
+    border-width: 0;
+}
+
+.production-acabados-flex-item .production-inline-link-btn:hover {
+    padding: 0 6px;
+    border-width: 1px;
+}
+
+.production-motivos-caption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.production-motivos-quantity-total {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    text-transform: none;
+}
+
+.production-client-seller-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #334155;
+
+}
+
+/* --- Customer contact editable block --- */
+.production-client-contact-name strong {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--order-panel-text, #1e293b);
+
+}
+
+.production-contact-missing {
+    opacity: .75;
+
+}
+
+.production-contact-missing-label {
+    font-size: 12px;
+    color: #b45309;
+    font-weight: 500;
+
+}
+
+.production-customer-contact-display {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 6px;
+
+}
+
+.production-customer-contact-info {
+    flex: 0 1 auto;
+    min-width: 0;
+
+}
+
+/* Botón editar contacto: ícono-only sin caja. No hereda los 34px fijos de .production-inline-icon
+   (el contenedor se ajusta al ícono) y NO se toca el tamaño del ícono: lo define el catálogo de
+   íconos (Configuración → Diseño → Íconos → orderEdit). Sin fondo, sin borde, sin sombra. */
+.production-contact-edit-btn {
+    flex-shrink: 0;
+    margin-top: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    height: auto;
+    min-width: 0;
+    padding: 0;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0;
+}
+
+.production-contact-form-fields {
+    display: grid;
+    gap: 6px;
+    margin-top: 6px;
+
+}
+
+/* Mismo formato que los campos del cálculo / formularios de la orden (p. ej. "Nombre del Trabajo"). */
+.production-contact-input {
+    width: 100%;
+    min-height: 38px;
+    padding: 0 12px;
+    border: 1px solid #d4e1ea;
+    border-radius: 12px;
+    font-size: 14px;
+    font-family: inherit;
+    background: linear-gradient(180deg, #fcfeff 0%, #f6fafc 100%);
+    color: #203746;
+    outline: none;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+    box-sizing: border-box;
+}
+
+.production-contact-input:focus {
+    border-color: #97cce4;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(11, 129, 184, 0.08);
+}
+
+.production-contact-form-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+
+}
+
+/* Guardar / Cancelar: mismo formato de píldora que los botones del cálculo (.inline-button:
+   "Ver Proforma", "Agregar fila" de Troquel) — con más presencia. */
+.production-contact-save-btn,
+.production-contact-cancel-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 7px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: opacity .15s, background-color .15s, border-color .15s;
+
+}
+
+.production-contact-save-btn {
+    background: #0b81b8;
+    color: #fff;
+
+}
+
+.production-contact-save-btn:disabled {
+    opacity: .55;
+    cursor: default;
+
+}
+
+.production-contact-cancel-btn {
+    background: #fbfcfd;
+    color: #475569;
+    border-color: #d4e1ea;
+
+}
+
+.production-contact-save-btn:hover:not(:disabled) {
+    background: #0a72a3;
+
+}
+
+.production-contact-cancel-btn:hover {
+    background: #f1f5f9;
+    border-color: #c3d3de;
+
+}
+
+.production-contact-form-status {
+    margin-top: 5px;
+    font-size: 11px;
+    color: #dc2626;
+
+}
+
+/* dark mode */
+html[data-theme="dark"] .production-contact-missing-label {
+    color: #fbbf24;
+
+}
+
+html[data-theme="dark"] .production-contact-edit-btn {
+    border-color: #3a506b;
+    color: #8fa8bd;
+
+}
+
+html[data-theme="dark"] .production-contact-edit-btn:hover {
+    background: #1d2a3d;
+    color: #c9d8eb;
+
+}
+
+html[data-theme="dark"] .production-contact-input {
+    background: #152033;
+    border-color: #3a506b;
+    color: #c9d8eb;
+
+}
+
+html[data-theme="dark"] .production-contact-input:focus {
+    border-color: #38bdf8;
+
+}
+
+html[data-theme="dark"] .production-contact-cancel-btn {
+    background: #1d2a3d;
+    color: #8fa8bd;
+    border-color: #3a506b;
+
+}
+
+html[data-theme="dark"] .production-client-contact-name strong {
+    color: #c9d8eb;
+
+}
+
+.production-tracking-card-embedded .production-tracking-head-row {
+    grid-column: 1 / -1;
+
+}
+
+.production-tracking-card-embedded .production-summary-item {
+    max-width: 100%;
+
+}
+
+.production-tracking-card-embedded .production-source-link-group {
+    justify-content: flex-end;
+
+}
+
+.production-tracking-icons-row {
+    justify-content: flex-end;
+    gap: 10px;
+    padding-top: 4px;
+
+}
+
+.production-tracking-icons-row #orderSapButton {
+    display: none;
+
+}
+
+.production-tracking-icons-row {
+    position: relative;
+    background: var(--order-panel-bg);
+    --order-panel-bg: #ffffff;
+    --order-panel-border: #dbe5ec;
+
+}
+
+.production-tracking-icons-row .production-inline-icon {
+    width: 38px;
+    height: 38px;
+    border: none !important;
+    border-radius: 12px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+
+}
+
+.production-tracking-icons-row .production-inline-icon.is-active {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+    z-index: 1002;
+
+}
+
+.production-header-tab-popover .calc-popover-backdrop {
+    background: transparent !important;
+    pointer-events: none;
+
+}
+
+.production-header-tab-popover {
+    --order-panel-bg: #ffffff;
+    --order-panel-border: #dbe5ec;
+    --order-panel-soft: #fbfdff;
+
+}
+
+.production-header-tab-popover .calc-popover-panel {
+    transform: none !important;
+    border: 1px solid var(--order-panel-border) !important;
+    border-radius: 18px 0 18px 18px !important;
+    background: var(--order-panel-bg) !important;
+    pointer-events: auto;
+    max-height: min(680px, calc(100vh - 200px));
+    overflow: auto;
+    position: relative;
+    isolation: isolate;
+
+}
+
+.production-header-tab-popover .calc-popover-panel::before {
+    content: '';
+    position: absolute;
+    top: var(--tab-offset, -40px);
+    left: auto;
+    right: calc(100% - var(--tab-left, 0px) - var(--tab-width, 38px) + 1px);
+    width: var(--tab-width, 38px);
+    height: calc(var(--tab-bridge-height, 40px) - 20px);
+    background: var(--order-panel-bg);
+    border: none;
+    border-radius: 12px 12px 0 0;
+    box-shadow:
+        inset 0 1px 0 var(--order-panel-border),
+        inset 1px 0 0 var(--order-panel-border),
+        inset -1px 0 0 var(--order-panel-border);
+    pointer-events: none;
+    z-index: 1;
+
+}
+
+.production-header-tab-popover .calc-popover-panel.panel-left-side::before {
+    display: none;
+
+}
+
+.production-header-tab-popover .calc-popover-body {
+    background: var(--order-panel-bg) !important;
+    border-radius: inherit;
+
+}
+
+.production-flow-tab-popover .production-flow-popover-panel {
+    width: min(760px, calc(100vw - 32px));
+    max-height: min(680px, calc(100vh - 24px));
+
+}
+
+.production-attachments-popover-panel {
+    width: min(760px, calc(100vw - 32px));
+    max-height: min(520px, calc(100vh - 24px));
+
+}
+
+.production-attachments-popover .calc-popover-body {
+    padding: 18px 20px;
+    overflow: auto;
+
+}
+
+html[data-theme="dark"] .production-order-card .production-client-section {
+    background: var(--order-panel-bg) !important;
+    border-color: var(--order-panel-border) !important;
+
+}
+
+html[data-theme="dark"] .production-order-card .production-client-details,
+html[data-theme="dark"] .production-order-card .production-tracking-card-embedded,
+html[data-theme="dark"] .production-header-tab-popover {
+    --order-panel-bg: #152033;
+    --order-panel-border: #3a506b;
+    --order-panel-soft: #1d2a3d;
+
+}
+
+html[data-theme="dark"] .production-header-tab-popover .calc-popover-panel {
+    background: var(--order-panel-bg) !important;
+    border-color: var(--order-panel-border) !important;
+
+}
+
+html[data-theme="dark"] .production-header-tab-popover .calc-popover-panel::before {
+    background: var(--order-panel-bg);
+
+}
+
+html[data-theme="dark"] .production-tracking-icons-row {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    --order-panel-bg: #152033;
+    --order-panel-border: #3a506b;
+
+}
+
+html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: #86a0b1 !important;
+
+}
+
+html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon.is-active {
+    --order-panel-border: #3a506b;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+
+}
+
+html[data-theme="dark"] .production-client-info-line {
+    color: #c9d8eb !important;
+
+}
+
+html[data-theme="dark"] .production-client-info-icon {
+    color: #8fa8bd !important;
+
+}
+
+html[data-theme="dark"] .production-client-seller-name {
+    color: #e5edf7 !important;
+
+}
+
+html[data-theme="dark"] .production-art-delete {
+    background: transparent !important;
+
+}
+
+html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon:hover,
+html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon:focus-visible {
+    background: transparent !important;
+
+}
+
+html[data-theme="dark"] .production-summary-empty {
+    background: var(--order-panel-soft, #1d2a3d) !important;
+    border-color: var(--order-panel-border, #26364d) !important;
+    color: #8fa8bd !important;
+
+}
+
+html[data-theme="dark"] .production-form-divider::before,
+html[data-theme="dark"] .production-form-divider::after {
+    background: #26364d;
+
+}
+
+html[data-theme="dark"] .production-form-divider-label {
+    color: #8fa8bd;
+
+}
+
+html[data-theme="dark"] .production-order-card .production-chip {
+    background: #16415b !important;
+    color: #b7e3f8 !important;
+    border-color: transparent !important;
+
+}
+
+html[data-theme="dark"] .production-sap-popover .calc-popover-body {
+    background: var(--app-surface, #152033) !important;
+    border-color: var(--app-border, #26364d) !important;
+    color: var(--app-text, #e5edf7) !important;
+
+}
+
+html[data-theme="dark"] .production-sap-popover .copy-popover-header h2 {
+    color: var(--app-text, #e5edf7) !important;
+
+}
+
+html[data-theme="dark"] .production-order-card .production-summary-label,
+html[data-theme="dark"] .production-order-card .production-summary-line-label {
+    color: #8fa8bd !important;
+
+}
+
+/* ── FIX: Botón tab activo — el socios-section de la sección de tracking
+         necesita overflow: visible para que las esquinas superiores del
+         botón activo (border-radius: 12px 12px 0 0) no sean recortadas.
+         El override anterior en .production-tracking-section no era suficiente
+         porque el padre .socios-section tiene overflow: hidden. ── */
+.production-tracking-section.socios-section {
+    overflow: hidden;
+
+}
+
+.production-header-tab-popover .calc-popover-panel {
+    overflow: visible !important;
+
+}
+
+.production-header-tab-popover .calc-popover-body {
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: min(680px, calc(100vh - 200px));
+
+}
+
+.production-order-layout-refined {
+    overflow: hidden;
+
+}
+
+.production-tracking-state-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    flex-wrap: nowrap;
+
+}
+
+.production-group-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 20px;
+    padding: 0 12px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 20px;
+    background: #ede9fe;
+    color: #6d28d9;
+    white-space: nowrap;
+
+}
+
+html[data-theme="dark"] .production-group-pill {
+    background: #2e1065;
+    color: #c4b5fd;
+
+}
+
+.production-frontback-layout {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px 22px;
+    align-items: start;
+
+}
+
+.production-frontback-layout:has(> :only-child) {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 640px;
+
+}
+
+.production-frontback-layout[hidden] {
+    display: none;
+
+}
+
+.production-shared-config {
+    grid-column: 1 / -1;
+
+}
+
+.production-shared-config .production-summary-stack {
+    gap: 12px;
+
+}
+
+.production-shared-printing-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    gap: 16px;
+
+}
+
+/* Frente/Dorso: Configuración de Producción en 2 columnas (como impresión) */
+.is-frontback-order .production-shared-printing-grid {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 8px;
+
+}
+
+.is-frontback-order .production-shared-printing-col:nth-child(1) {
+ grid-column: 1; grid-row: 1 / 3; 
+}
+
+.is-frontback-order .production-shared-printing-col:nth-child(2) {
+ grid-column: 2; grid-row: 1; 
+}
+
+.is-frontback-order .production-shared-printing-col:nth-child(3) {
+ grid-column: 2; grid-row: 2; 
+}
+
+/* Frente/Dorso: ocultar sección de Arte en la configuración */
+.is-frontback-order .production-art-section {
+ display: none; 
+}
+
+.production-shared-printing-col {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+}
+
+.production-shared-printing-col > .production-summary-label:first-child {
+    margin-bottom: 4px;
+
+}
+
+.production-creation-summary-body {
+    font-size: 13px;
+    line-height: 1.6;
+    /* Anula el max-height/overflow duplicado en styles.css: un solo scroll,
+       el de .production-menu-content. */
+    max-height: none;
+    overflow: visible;
+
+}
+
+.production-creation-summary-row {
+    display: flex;
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--app-border, #e2e8f0);
+
+}
+
+.production-creation-summary-key {
+    font-weight: 600;
+    color: #475569;
+    min-width: 160px;
+    flex-shrink: 0;
+
+}
+
+.production-creation-summary-value {
+    color: #1e293b;
+    word-break: break-word;
+
+}
+
+.production-creation-summary-section {
+    font-weight: 700;
+    color: #1e293b;
+    font-size: 13px;
+    padding: 8px 0 4px;
+    margin-top: 4px;
+    border-bottom: 2px solid var(--app-border, #e2e8f0);
+
+}
+
+.production-creation-summary-subsection {
+    font-weight: 600;
+    color: #64748b;
+    font-size: 12px;
+    padding: 6px 0 2px;
+    margin-top: 2px;
+    border-bottom: 1px dashed var(--app-border, #e2e8f0);
+
+}
+
+html[data-theme="dark"] .production-creation-summary-key {
+    color: #94a3b8;
+
+}
+
+html[data-theme="dark"] .production-creation-summary-value {
+    color: #e2e8f0;
+
+}
+
+html[data-theme="dark"] .production-creation-summary-section {
+    color: #e2e8f0;
+    border-bottom-color: #334155;
+
+}
+
+html[data-theme="dark"] .production-creation-summary-subsection {
+    color: #94a3b8;
+    border-bottom-color: #334155;
+
+}
+
+/* Un solo scroll para Procesos Productivos / Datos de Creación: el del
+   contenedor externo .production-menu-content (formato "Scrollbar Azul").
+   Estos paneles internos solo fluyen, no scrollean (anula el duplicado en
+   styles.css con max-height:70vh/overflow:auto). */
+.production-creation-tab-panel {
+    padding: 0;
+    max-height: none;
+    overflow: visible;
+
+}
+
+.production-raw-divider {
+    border: none;
+    border-top: 2px solid var(--app-border, #cbd5e1);
+    margin: 16px 0;
+
+}
+
+.production-raw-origin {
+    margin-top: 4px;
+
+}
+
+.production-raw-origin-header {
+    font-weight: 700;
+    font-size: 13px;
+    color: #1e293b;
+    padding: 10px 0 6px;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 2px solid var(--app-border, #e2e8f0);
+
+}
+
+.production-raw-origin-toggle {
+    display: inline-block;
+    transition: transform 0.2s ease;
+    font-size: 11px;
+    color: #64748b;
+
+}
+
+.is-open .production-raw-origin-toggle {
+    transform: rotate(90deg);
+
+}
+
+.production-raw-origin-count {
+    font-weight: 400;
+    font-size: 11px;
+    color: #94a3b8;
+    margin-left: auto;
+
+}
+
+.production-raw-origin-body {
+    display: none;
+    margin-top: 4px;
+
+}
+
+.is-open .production-raw-origin-body {
+    display: block;
+
+}
+
+html[data-theme="dark"] .production-raw-origin-header {
+    color: #e2e8f0;
+    border-bottom-color: #334155;
+
+}
+
+html[data-theme="dark"] .production-raw-origin-toggle {
+    color: #94a3b8;
+
+}
+
+html[data-theme="dark"] .production-raw-origin-count {
+    color: #64748b;
+
+}
+
+html[data-theme="dark"] .production-raw-divider {
+    border-top-color: #334155;
+
+}
+
+#orderAdminTools.production-admin-tools {
+    display: flex !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 4px 14px 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box;
+
+}
+
+.production-top-row-wrapper {
+    position: relative;
+    padding-top: 0;
+
+}
+
+.production-admin-tool-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color .15s;
+
+}
+
+.production-admin-tool-btn:hover {
+    background: transparent !important;
+    color: #1e293b;
+
+}
+
+html[data-theme="dark"] .production-admin-tool-btn {
+    background: transparent !important;
+    border: none !important;
+    color: #94a3b8;
+
+}
+
+html[data-theme="dark"] .production-admin-tool-btn:hover {
+    background: transparent !important;
+    color: #e2e8f0;
+
+}
+
+.production-frontback-product .production-summary-stack {
+    gap: 8px;
+
+}
+
+.production-frontback-product .production-frontback-art-section {
+    margin-top: 0;
+
+}
+
+.production-frontback-product {
+    min-width: 0;
+
+}
+
+.production-frontback-product-head {
+    margin-bottom: 0;
+
+}
+
+.production-frontback-product-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+
+}
+
+.production-frontback-product-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+}
+
+.production-frontback-product-id {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
+
+}
+
+.production-frontback-quantity {
+    display: grid;
+    justify-items: end;
+    gap: 4px;
+    color: var(--ink-3);
+    font-weight: 700;
+
+}
+
+.production-frontback-quantity span {
+    font-size: 13px;
+    color: var(--ink-2);
+
+}
+
+.production-frontback-quantity strong {
+    color: #315f9d;
+    font-size: 28px;
+    line-height: 1;
+    letter-spacing: 0;
+    white-space: nowrap;
+
+}
+
+.production-frontback-product-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+    padding: 6px 0 0;
+
+}
+
+html[data-theme="dark"] .production-frontback-product-name {
+    color: #e2e8f0;
+
+}
+
+.production-frontback-side-chip--label {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-radius: 8px;
+    background: #e0f2fe;
+    color: #0369a1;
+    line-height: 1;
+
+}
+
+html[data-theme="dark"] .production-frontback-side-chip--label {
+    background: #0c4a6e;
+    color: #7dd3fc;
+
+}
+
+.production-frontback-side-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 20px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: #ede9fe;
+    color: #6d28d9;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 20px;
+
+}
+
+.production-frontback-art-section {
+    padding: 14px;
+    border-radius: 12px;
+    background: var(--order-panel-soft);
+    border: 1px solid var(--order-panel-border);
+
+}
+
+.production-frontback-art-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+
+}
+
+.production-frontback-art-preview-col {
+    flex: 1 1 50%;
+    min-width: 0;
+    max-width: 50%;
+
+}
+
+.production-frontback-art-preview-col .production-art-dropzone {
+    width: 100%;
+    height: 180px;
+    min-height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed var(--order-panel-border, #cbd5e1);
+    border-radius: 10px;
+    background: var(--order-panel-bg, #fff);
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    overflow: hidden;
+
+}
+
+.production-frontback-art-preview-col .production-art-dropzone:hover {
+    border-color: #93a8b8;
+    background: #f8fafc;
+
+}
+
+.production-frontback-art-preview-col .production-art-dropzone .attachments-empty {
+    font-size: 11px;
+    color: #94a3b8;
+    text-align: center;
+    line-height: 1.3;
+
+}
+
+.production-frontback-art-preview-col .production-art-dropzone .production-art-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+
+}
+
+.production-frontback-art-meta-col {
+    flex: 1;
+    min-width: 0;
+
+}
+
+.production-frontback-art-display {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+}
+
+.production-frontback-art-edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+}
+
+.production-frontback-art-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+}
+
+.production-frontback-art-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    line-height: 1;
+
+}
+
+.production-frontback-art-value {
+    font-size: 13px;
+    color: #1f2937;
+    font-weight: 500;
+    line-height: 1.4;
+
+}
+
+html[data-theme="dark"] .production-frontback-art-value {
+    color: #d1d5db;
+
+}
+
+html[data-theme="dark"] .production-frontback-art-label {
+    color: #94a3b8;
+
+}
+
+.production-frontback-art-edit-form input,
+.production-frontback-art-edit-form textarea {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    font-size: 13px;
+    font-family: inherit;
+    background: #fff;
+    color: #1f2937;
+    outline: none;
+    transition: border-color .15s;
+
+}
+
+.production-frontback-art-edit-form input:focus,
+.production-frontback-art-edit-form textarea:focus {
+    border-color: #3b82f6;
+
+}
+
+html[data-theme="dark"] .production-frontback-art-edit-form input,
+html[data-theme="dark"] .production-frontback-art-edit-form textarea {
+    background: #0f172a;
+    border-color: #3a506b;
+    color: #e5e7eb;
+
+}
+
+html[data-theme="dark"] .production-frontback-art-edit-form input:focus,
+html[data-theme="dark"] .production-frontback-art-edit-form textarea:focus {
+    border-color: #60a5fa;
+
+}
+
+.production-frontback-art-edit-form textarea {
+    min-height: 40px;
+    resize: vertical;
+
+}
+
+.production-frontback-art-edit-btn {
+    flex-shrink: 0;
+    margin-top: 0;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+
+}
+
+.production-frontback-art-edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 4px;
+
+}
+
+.production-frontback-art-cancel-btn {
+    padding: 5px 14px;
+    border: 1px solid var(--order-panel-border, #dbe5ec);
+    border-radius: 7px;
+    background: var(--order-panel-bg, #fff);
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+
+}
+
+.production-frontback-art-cancel-btn:hover {
+    background: #f1f5f9;
+    color: #374151;
+
+}
+
+html[data-theme="dark"] .production-frontback-art-cancel-btn {
+    border-color: #3a506b;
+    background: #152033;
+    color: #9ca3af;
+
+}
+
+html[data-theme="dark"] .production-frontback-art-cancel-btn:hover {
+    background: #1d2a3d;
+    color: #d1d5db;
+
+}
+
+html[data-theme="dark"] .production-frontback-side-chip {
+    background: #2e1065;
+    color: #c4b5fd;
+
+}
+
+html[data-theme="dark"] .production-frontback-quantity strong {
+    color: #9cc4ff;
+
+}
+
+.production-frontback-art-dropzone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 80px;
+    border: 2px dashed var(--order-panel-border, #dbe5ec);
+    border-radius: 10px;
+    background: var(--order-panel-soft, #fbfdff);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+
+}
+
+.production-frontback-art-dropzone:hover {
+    border-color: #6d28d9;
+    background: #f5f3ff;
+
+}
+
+html[data-theme="dark"] .production-frontback-art-dropzone:hover {
+    border-color: #a78bfa;
+    background: #1e1b4b;
+
+}
+
+.production-frontback-art-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+}
+
+.production-frontback-art-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+
+}
+
+.production-frontback-art-value {
+    font-size: 13px;
+    color: #1f2937;
+    font-weight: 500;
+
+}
+
+html[data-theme="dark"] .production-frontback-art-value {
+    color: #d1d5db;
+
+}
+
+html[data-theme="dark"] .production-frontback-art-section .production-frontback-art-preview-col .production-art-dropzone {
+    border-color: #3a506b;
+    background: #0f172a;
+
+}
+
+html[data-theme="dark"] .production-frontback-art-section .production-frontback-art-preview-col .production-art-dropzone:hover {
+    border-color: #4b6584;
+    background: #152033;
+
+}
+
+html[data-theme="dark"] .production-frontback-art-section .production-frontback-art-preview-col .production-art-dropzone .attachments-empty {
+    color: #64748b;
+
+}
+
+.production-popover-row {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 4px 20px;
+    margin-bottom: 6px;
+
+}
+
+.production-popover-row:last-child {
+    margin-bottom: 0;
+
+}
+
+.production-popover-label {
+    flex: 0 0 140px;
+    width: 140px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 13px;
+    font-weight: 500;
+    color: #667085;
+    padding-right: 10px;
+    text-align: right;
+
+}
+
+.production-popover-field {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 160px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    padding: 8px 14px;
+    border: 1px solid #d6dde5;
+    border-radius: 14px;
+    background: #fff;
+    color: #1f2937;
+    font-size: 14px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+}
+
+.production-popover-row.production-popover-row-wide .production-popover-label {
+    flex: 0 0 140px;
+    width: 140px;
+
+}
+
+.production-popover-row.production-popover-row-wide .production-popover-field {
+    max-width: none;
+    flex: 1 1 0;
+
+}
+
+.production-popover-unit {
+    font-weight: 400;
+    color: #667085;
+    font-size: 12px;
+    margin-left: 2px;
+
+}
+
+.production-popover-section {
+    margin-bottom: 16px;
+
+}
+
+.production-popover-section:last-child {
+    margin-bottom: 0;
+
+}
+
+.production-popover-section-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 12px;
+    padding: 0 20px;
+
+}
+
+.production-popover-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 3px;
+    margin: 40px 20px 14px;
+    border: 1px solid #d8e2ea;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.75);
+
+}
+
+.production-popover-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 8px 14px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: #60707f;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 9px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background-color 0.18s ease, color 0.18s ease;
+
+}
+
+.production-popover-tab:hover {
+    background: rgba(11,129,184,0.08);
+    color: #23516a;
+
+}
+
+.production-popover-tab.active {
+    background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%);
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(17,143,198,0.2);
+
+}
+
+.production-popover-tab-panel {
+    display: none;
+
+}
+
+.production-popover-tab-panel.active {
+    display: block;
+
+}
+
+.production-popover-cost-table-wrap {
+    padding: 4px 20px 0;
+    margin-top: 8px;
+    text-align-last: end;
+
+
+}
+
+.production-popover-cost-table {
+    width: auto;
+    min-width: 380px;
+    border-collapse: collapse;
+    font-size: 13px;
+
+}
+
+.production-popover-cost-table th {
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #667085;
+    text-align: center;
+    border-bottom: 2px solid #d6dde5;
+
+}
+
+.production-popover-cost-table td {
+    padding: 7px 10px;
+    font-size: 13px;
+    color: #1f293b;
+    border-bottom: 1px solid #eef1f4;
+
+}
+
+.production-popover-cost-table td:first-child {
+    font-weight: 500;
+    color: #44546a;
+    text-align: left;
+
+}
+
+.production-popover-cost-table td:nth-child(2) {
+    font-weight: 600;
+    text-align: right;
+
+}
+
+.production-popover-cost-table td:nth-child(3) {
+    font-weight: 600;
+    text-align: right;
+
+}
+
+.production-popover-cost-table .production-popover-cost-total td {
+    font-weight: 700;
+    color: #1f2937;
+    border-top: 2px solid #d6dde5;
+    border-bottom: none;
+
+}
+
+.production-motivo-tinta-inactiva td {
+    opacity: .5;
+}
+
+.production-order-popover-body {
+    padding: 4px 0;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+
+}
+
+.production-notes-box,
+.production-sap-popover .calc-popover-body,
+.production-deliveries-popover .calc-popover-body,
+.production-flow-body,
+.production-art-section .production-art-preview,
+.production-header-tab-popover .calc-popover-panel,
+.production-attachments-popover .calc-popover-body {
+    scrollbar-gutter: stable;
+
+}
+
+@media (max-width: 920px) {
+    .production-order-layout {
+        grid-template-columns: 1fr;
+    }
+    .production-summary-grid-two {
+        grid-template-columns: 1fr;
+    }
+    .production-summary-grid-art {
+        grid-template-columns: 1fr;
+    }
+    #orderContent .production-order-column-primary > .production-client-section,
+    #orderContent .production-order-column-primary > .production-product-section,
+    #orderContent .production-order-column-primary > .production-observations-section {
+        grid-column: 1;
+        grid-row: auto;
+    }
+    .production-tracking-column-right .production-summary-label,
+    .production-tracking-column-right .production-summary-value,
+    .production-tracking-column-right .production-order-code,
+    .production-tracking-column-right .production-source-link-group {
+        text-align: left;
+        justify-content: flex-start;
+    }
+    .production-flow-history-body {
+        grid-template-columns: 1fr;
+    }
+    .production-config-bottom-row {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    align-items: start;
+}
+    .production-config-bottom-row > .production-config-bottom-col {
+    min-width: 0;
+    flex: 1 1 0%;
+}
+    .production-config-bottom-row > .production-config-bottom-col.production-art-section {
+    flex: 0 0 280px;
+    display: block;
+    padding: 14px;
+    border: 1px solid #edf3f7;
+    border-radius: 14px;
+    background: #fbfdff;
+    max-height: 200px;
+    overflow: hidden;
+}
+    .production-config-bottom-row > .production-config-bottom-col.production-art-section .section-caption {
+    width: fit-content;
+}
+    .production-config-bottom-row > .production-config-bottom-col.production-art-section .production-art-preview-wrap {
+    max-height: 80px;
+    overflow: hidden;
+}
+    .production-config-bottom-row > .production-config-bottom-col.production-art-section .production-art-preview {
+    max-height: 70px;
+    padding: 6px;
+}
+    .production-config-bottom-row > .production-config-bottom-col.production-art-section .production-inline-form {
+    overflow: hidden;
+}
+    .production-roll-grid {
+        grid-template-columns: 1fr;
+    }
+    .production-order-card .production-order-layout-refined {
+        grid-template-columns: 1fr;
+    }
+    .production-top-row,
+    .production-bottom-row {
+        grid-template-columns: 1fr;
+    }
+    .production-client-info-grid {
+        grid-template-columns: 1fr;
+    }
+    .production-tracking-icons-row {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 980px) {
+    .production-tracking-section .production-tracking-head-row,
+    .production-tracking-state-row {
+        flex-wrap: wrap;
+    }
+    .production-frontback-layout {
+        grid-template-columns: 1fr;
+    }
+    .production-shared-printing-grid {
+        grid-template-columns: 1fr;
+    }
+    .production-frontback-art-row {
+        flex-direction: column;
+    }
+    .production-frontback-art-preview-col {
+        flex: none;
+        width: 100%;
+    }
+    .production-frontback-art-preview-col .production-art-dropzone {
+        width: 100%;
+        height: 120px;
+    }
+}
+
+/* Tabs de la pestaña Flujo con el mismo formato segmentado que los tabs de
+   Configuración General (.config-tabs / .config-tab): contenedor redondeado
+   con borde y degradado suave, columnas iguales, activo = píldora azul con
+   sombra. Esas clases viven solo en configuracion-general.html, así que se
+   replica el formato aquí. */
+#orderFlowTabs.tl-tabs-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    gap: 6px;
+    width: auto;
+    padding: 4px;
+    margin: 2px 44px 16px 0;
+    border: 1px solid var(--ink-6);
+    border-radius: 14px;
+    background: var(--ink-7);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+
+}
+
+#orderFlowTabs .tl-tab-btn {
+    width: 100%;
+    min-width: 0;
+    padding: 9px 14px;
+    border: 0;
+    background: transparent;
+    color: var(--ink-3);
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background-color .18s ease, color .18s ease, box-shadow .18s ease;
+
+}
+
+#orderFlowTabs .tl-tab-btn:hover {
+    background: rgba(11, 129, 184, 0.08);
+    color: var(--flow-blue);
+    border-bottom-color: transparent;
+
+}
+
+#orderFlowTabs .tl-tab-btn.active {
+    background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%);
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(17, 143, 198, 0.24);
+    border-bottom-color: transparent;
+
+}
+
+/* ── Menú unificado de la orden (Flujo / Entregas / Adjuntos / SAP / Datos de
+       Creación) — reemplaza los desplegables independientes que existían
+       antes; comparte el shell de .production-header-tab-popover /
+       .production-flow-popover-panel y solo añade el layout interno de
+       columna de íconos + panel de contenido. ── */
+.production-menu-popover .production-menu-popover-panel {
+    width: min(880px, calc(100vw - 32px));
+
+}
+
+/* Menú unificado: acabado propio, sin el conector/nub ni el radio asimétrico
+   heredados del popover de Flujo. */
+.production-menu-popover .calc-popover-panel {
+    border-radius: 16px !important;
+    border: 1px solid var(--order-panel-border) !important;
+    box-shadow: 0 18px 44px rgba(15, 35, 50, .16), 0 2px 8px rgba(15, 35, 50, .08) !important;
+    overflow: hidden !important;
+    /* Fallback; positionHeaderTabPopover() ajusta el alto exacto dejando un
+       margen inferior prudente segun donde quede el popover. */
+    max-height: calc(100vh - 96px) !important;
+
+}
+
+.production-menu-popover .calc-popover-body {
+    max-height: calc(100vh - 96px) !important;
+
+}
+
+.production-menu-popover .calc-popover-panel::before {
+    display: none !important;
+
+}
+
+.production-menu-popover-body {
+    display: flex;
+    align-items: stretch;
+    padding: 0;
+    border-radius: inherit;
+    overflow: hidden;
+
+}
+
+.production-menu-nav {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 16px 10px;
+    flex: 0 0 auto;
+    width: 58px;
+    box-shadow: inset -1px 0 0 var(--order-panel-border);
+    overflow: visible;
+
+}
+
+/* Todos los íconos del rail se ven igual: sin fondo ni recuadro en ningún
+   estado (patrón icon-only del proyecto — cf. .production-inline-icon-ghost).
+   Esto incluye neutralizar la caja azul que .browser-open-link aporta a
+   Imprimir / PDF / Calidad. */
+.production-menu-nav-btn,
+.production-menu-nav .browser-open-link.production-menu-nav-btn {
+    position: relative;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    color: #86a0b1;
+    transform: none;
+    transition: color .15s ease;
+
+}
+
+.production-menu-nav-btn:hover,
+.production-menu-nav-btn:focus-visible,
+.production-menu-nav-btn.is-active,
+.production-menu-nav .browser-open-link.production-menu-nav-btn:hover,
+.production-menu-nav .browser-open-link.production-menu-nav-btn:focus-visible {
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+    /* !important + --icon-color: renderIconButton fija color/--icon-color inline
+       en cada botón; sin esto el ícono activo no cambia de tono. */
+    color: #0b81b8 !important;
+    --icon-color: #0b81b8;
+
+}
+
+.production-menu-nav-btn.is-active::before {
+    content: '';
+    position: absolute;
+    left: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 18px;
+    border-radius: 0 3px 3px 0;
+    background: #0b81b8;
+
+}
+
+.production-menu-nav-divider {
+    width: 24px;
+    height: 1px;
+    background: var(--order-panel-border);
+    margin: 6px auto;
+    flex: 0 0 auto;
+
+}
+
+.production-menu-content {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(11, 129, 184, 0.42) transparent;
+
+}
+
+.production-menu-content::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+
+}
+
+.production-menu-content::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(11, 129, 184, 0.38);
+
+}
+
+.production-menu-content::-webkit-scrollbar-track {
+    background: transparent;
+
+}
+
+.production-menu-panel {
+    padding: 18px 20px;
+
+}
+
+.production-menu-panel-hint {
+    margin: 2px 0 14px;
+    font-size: 12px;
+    color: var(--ink-4, #70808d);
+    line-height: 1.4;
+
+}
+
+/* Procesos Productivos → Impresión: sub-encabezado de estación dentro de cada
+   columna de comparación (Cotizado / En Producción). */
+.cmp-col .cmp-subhead {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    color: var(--ink-4, #70808d);
+    margin: 12px 0 4px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--ink-6, #e2e8f0);
+
+}
+
+.cmp-col .cmp-subhead:first-of-type {
+    border-top: 0;
+    padding-top: 0;
+    margin-top: 2px;
+
+}
+
+/* ============================================================================
+   COMPARATIVA — Cotizado vs En Producción. Se usa en el menú del engranaje de la
+   Orden (panel "Comparativa") y en la pestaña "Comparativa" del SKU. Antes vivía
+   en el <style> inline de orden-produccion.html; movido acá para compartirlo con
+   producto-documento.html. Tokens --app-* (tematizados) con respaldo hex.
+   ============================================================================ */
+.cmp-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 2px 0 12px; }
+.cmp-legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--app-text, #1f293b); }
+.cmp-legend-item em { font-style: normal; font-weight: 400; color: var(--app-text-muted, #6b7a88); }
+.cmp-legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.cmp-legend-cotizado .cmp-legend-dot { background: color-mix(in srgb, var(--app-primary, #0277a9) 35%, transparent); border: 1px solid var(--app-primary, #0277a9); }
+.cmp-legend-produccion .cmp-legend-dot { background: color-mix(in srgb, var(--app-text-muted, #6b7a88) 18%, transparent); border: 1px solid var(--app-text-muted, #6b7a88); }
+
+.step-section { padding: 10px 0; border-bottom: 1px solid var(--app-border, #e4e9ee); }
+.step-section:last-child { border-bottom: none; }
+
+.cmp-step-header { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; font-weight: 600; color: var(--app-text, #1f293b); border-bottom: 1px solid var(--app-border, #e4e9ee); margin-bottom: 10px; }
+.cmp-step-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+
+.cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cmp-col { border-radius: 10px; padding: 12px; border: 1px solid transparent; min-width: 0; }
+.cmp-col.planned { background: color-mix(in srgb, var(--app-primary, #0277a9) 8%, transparent); border-color: color-mix(in srgb, var(--app-primary, #0277a9) 30%, transparent); }
+.cmp-col.real { background: color-mix(in srgb, var(--app-text-muted, #6b7a88) 7%, transparent); border-color: var(--app-border, #e4e9ee); }
+.cmp-col-title { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 5px; }
+.planned .cmp-col-title { color: var(--app-primary, #0277a9); }
+.real .cmp-col-title { color: var(--app-text-muted, #6b7a88); }
+
+.cmp-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 4px 0; border-bottom: 1px solid color-mix(in srgb, var(--app-text-muted, #6b7a88) 14%, transparent); font-size: 12px; }
+.cmp-row:last-child { border-bottom: none; }
+.cmp-row-label { color: var(--app-text-muted, #6b7a88); }
+.cmp-row-val { font-weight: 600; color: var(--app-text, #1f293b); font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 11px; text-align: right; }
+.cmp-row-val.over { color: #dc2626; }
+:root[data-theme="dark"] .cmp-row-val.over { color: #fb7185; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .cmp-row-val.over { color: #fb7185; } }
+
+/* Pastilla de estado del bloque (Sin captura / Con diferencias / Coincide). En la
+   Orden la define el .tl-pause-pill del <style> inline; esta versión es solo para
+   el SKU, donde ese inline no existe. */
+.product-doc-panel .tl-pause-pill { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: color-mix(in srgb, #d97706 15%, transparent); color: #b45309; }
+:root[data-theme="dark"] .product-doc-panel .tl-pause-pill { color: #fbbf24; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .product-doc-panel .tl-pause-pill { color: #fbbf24; } }
+
+/* ── Detalle de Entregas (dentro del menú) — la tabla comparte la clase global
+   .socios-table-wrap, que reserva 120px de alto, 700px de ancho mínimo y un
+   gutter de scroll permanente. Aquí solo hay dos columnas, así que se ajusta a
+   su contenido, sin scroll horizontal fantasma ni caja vacía. ── */
+#orderMenuPanelEntregas .production-deliveries-total {
+    margin-bottom: 2px;
+
+}
+
+#orderMenuPanelEntregas .production-mini-table {
+    margin-top: 0;
+    min-height: 0;
+    scrollbar-gutter: auto;
+
+}
+
+#orderMenuPanelEntregas .production-mini-table .quote-table {
+    min-width: 0;
+
+}
+
+#orderMenuPanelEntregas .production-mini-table .quote-table th,
+#orderMenuPanelEntregas .production-mini-table .quote-table td {
+    min-width: 0;
+
+}
+
+#orderMenuPanelEntregas .production-mini-table .quote-table th:last-child,
+#orderMenuPanelEntregas .production-mini-table .quote-table td:last-child {
+    text-align: right;
+
+}
+
+html[data-theme="dark"] .production-menu-nav-btn {
+    color: #94a3b8;
+
+}
+
+html[data-theme="dark"] .production-menu-nav-btn:hover,
+html[data-theme="dark"] .production-menu-nav-btn:focus-visible,
+html[data-theme="dark"] .production-menu-nav-btn.is-active {
+    color: #38bdf8;
+    background: transparent;
+
+}
+
+html[data-theme="dark"] .production-menu-nav-btn.is-active::before {
+    background: #38bdf8;
+
+}
+
+/* Scrollbar Azul — mismo patrón que .details-cost-shell (ver docs/design-system-theme.md) */
+.production-creation-summary-body {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(11, 129, 184, 0.42) transparent;
+
+}
+
+.production-creation-summary-body::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+
+}
+
+.production-creation-summary-body::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(11, 129, 184, 0.38);
+
+}
+
+.production-creation-summary-body::-webkit-scrollbar-track {
+    background: transparent;
+
+}
+
+/* ── Scrollbar Azul unificada — todos los paneles con scroll de la orden
+   comparten el mismo formato, horizontal y vertical (ver docs/design-system-theme.md
+   → "Scrollbar Azul"). No agregar barras ad-hoc con colores/anchos propios. ── */
+.production-flow-body,
+.production-flow-tab-content,
+.production-order-popover-body,
+.production-creation-tab-panel,
+.sap-consumption-history,
+.production-mini-table,
+.attachments-popover-body,
+.production-deliveries-popover .calc-popover-body,
+.production-sap-popover .calc-popover-body {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(11, 129, 184, 0.42) transparent;
+
+}
+
+.production-flow-body::-webkit-scrollbar,
+.production-flow-tab-content::-webkit-scrollbar,
+.production-order-popover-body::-webkit-scrollbar,
+.production-creation-tab-panel::-webkit-scrollbar,
+.sap-consumption-history::-webkit-scrollbar,
+.production-mini-table::-webkit-scrollbar,
+.attachments-popover-body::-webkit-scrollbar,
+.production-deliveries-popover .calc-popover-body::-webkit-scrollbar,
+.production-sap-popover .calc-popover-body::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+
+}
+
+.production-flow-body::-webkit-scrollbar-thumb,
+.production-flow-tab-content::-webkit-scrollbar-thumb,
+.production-order-popover-body::-webkit-scrollbar-thumb,
+.production-creation-tab-panel::-webkit-scrollbar-thumb,
+.sap-consumption-history::-webkit-scrollbar-thumb,
+.production-mini-table::-webkit-scrollbar-thumb,
+.attachments-popover-body::-webkit-scrollbar-thumb,
+.production-deliveries-popover .calc-popover-body::-webkit-scrollbar-thumb,
+.production-sap-popover .calc-popover-body::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(11, 129, 184, 0.38);
+
+}
+
+.production-flow-body::-webkit-scrollbar-track,
+.production-flow-tab-content::-webkit-scrollbar-track,
+.production-order-popover-body::-webkit-scrollbar-track,
+.production-creation-tab-panel::-webkit-scrollbar-track,
+.sap-consumption-history::-webkit-scrollbar-track,
+.production-mini-table::-webkit-scrollbar-track,
+.attachments-popover-body::-webkit-scrollbar-track,
+.production-deliveries-popover .calc-popover-body::-webkit-scrollbar-track,
+.production-sap-popover .calc-popover-body::-webkit-scrollbar-track {
+    background: transparent;
+
+}
+
+.attachment-card {
+    cursor: pointer;
+
+}
+
+.attachment-preview-image {
+    max-width: 100%;
+    max-height: 70vh;
+    display: block;
+    margin: 0 auto;
+    border-radius: 8px;
+
+}
+
+.attachment-preview-frame {
+    width: 100%;
+    height: 70vh;
+    border: 0;
+    border-radius: 8px;
+
+}
+
+.attachment-preview-audio,
+.attachment-preview-video {
+    width: 100%;
+    display: block;
+
+}
+
+.attachment-preview-video {
+    max-height: 70vh;
+
+}
+
+.attachment-preview-download-link {
+    display: inline-flex;
+    margin-top: 12px;
+
+}
+
+/* ── Estado de la Orden — detener / anular / reactivar (Nivel 1) ─────────────
+   Vive dentro del sistema azul del ERP. Sin gradientes ni sombras: el peso lo
+   cargan el color semantico (ambar = pausa, rojo = anulacion, azul = restaurar),
+   una barra de acento a la izquierda y el reloj en vivo. */
+
+/* Letrero rojo arriba de la orden */
+.order-detencion-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 18px;
+    margin-bottom: 14px;
+    padding: 11px 16px 11px 15px;
+    border: 1px solid #eab8b4;
+    border-left: 3px solid #c0392b;
+    border-radius: 12px;
+    background: #fdf3f2;
+    color: #9c2f28;
+}
+.order-detencion-banner.is-anulada { border-left-color: #7a241f; background: #fbecea; color: #7f241f; }
+.order-detencion-banner-main { display: flex; flex-direction: column; gap: 2px; min-width: 220px; }
+.order-detencion-banner-main strong { font-size: 14px; font-weight: 800; letter-spacing: .01em; }
+.order-detencion-banner-desc { font-size: 12px; opacity: .88; }
+.order-detencion-banner-meta { display: flex; flex-wrap: wrap; gap: 3px 14px; font-size: 11.5px; font-weight: 600; opacity: .82; }
+.order-detencion-banner-meta [data-detencion-clock] { font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+html[data-theme="dark"] .order-detencion-banner { background: #241315; border-color: #5c2f2c; border-left-color: #c0392b; color: #efb4ae; }
+html[data-theme="dark"] .order-detencion-banner.is-anulada { background: #1f1012; border-left-color: #8a3833; color: #eda9a2; }
+
+/* Panel del engranaje */
+.order-detencion-body { display: flex; flex-direction: column; gap: 16px; }
+
+/* Cabecera de estado */
+.odx-state {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 15px;
+    border: 1px solid var(--app-border);
+    border-left: 3px solid var(--app-border);
+    border-radius: 12px;
+    background: var(--app-surface-soft);
+}
+.odx-state--detenida { border-left-color: #d98c2b; }
+.odx-state--anulada  { border-left-color: #c0392b; }
+.odx-state--activa   { border-left-color: #1c9c5d; }
+.odx-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: #9aa7b2; }
+.odx-state--detenida .odx-dot { background: #e08a1e; box-shadow: 0 0 0 4px rgba(224, 138, 30, .16); }
+.odx-state--anulada  .odx-dot { background: #d0392c; box-shadow: 0 0 0 4px rgba(208, 57, 44, .16); }
+.odx-state--activa   .odx-dot { background: #1c9c5d; box-shadow: 0 0 0 4px rgba(28, 156, 93, .14); }
+@media (prefers-reduced-motion: no-preference) {
+    .odx-state--detenida .odx-dot { animation: odx-pulse 2.4s ease-in-out infinite; }
+    .odx-state--anulada  .odx-dot { animation: odx-pulse-red 2.4s ease-in-out infinite; }
+}
+@keyframes odx-pulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(224, 138, 30, .18); }
+    50%      { box-shadow: 0 0 0 7px rgba(224, 138, 30, 0); }
+}
+@keyframes odx-pulse-red {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(208, 57, 44, .18); }
+    50%      { box-shadow: 0 0 0 7px rgba(208, 57, 44, 0); }
+}
+.odx-state-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.odx-state-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--app-text-muted); }
+.odx-state-value { font-size: 15px; font-weight: 800; }
+.odx-state--detenida .odx-state-value { color: #b5701a; }
+.odx-state--anulada  .odx-state-value { color: #b23a2f; }
+.odx-state--activa   .odx-state-value { color: #17864f; }
+.odx-clock { margin-left: auto; text-align: right; font-size: 11px; font-weight: 600; color: var(--app-text-muted); line-height: 1.5; }
+.odx-clock b { display: block; font-size: 13px; font-weight: 800; color: var(--app-text); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+html[data-theme="dark"] .odx-state--detenida .odx-state-value { color: #e6a35c; }
+html[data-theme="dark"] .odx-state--anulada  .odx-state-value { color: #e8938a; }
+html[data-theme="dark"] .odx-state--activa   .odx-state-value { color: #5fce9d; }
+
+/* Fila de acciones */
+.odx-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.odx-note { margin: 0; font-size: 12.5px; color: var(--app-text-muted); }
+.odx-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 38px;
+    padding: 0 15px;
+    border-radius: 10px;
+    border: 1px solid var(--app-border);
+    background: var(--app-surface);
+    color: var(--app-text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .01em;
+    cursor: pointer;
+    transition: background-color .13s ease, border-color .13s ease, color .13s ease, transform .05s ease;
+}
+.odx-btn:hover { background: var(--app-surface-soft); }
+.odx-btn:active { transform: translateY(1px); }
+.odx-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--app-ring, rgba(17,143,198,.3)); }
+.odx-btn svg { width: 15px; height: 15px; flex: none; }
+.odx-btn[aria-expanded="true"] { background: var(--app-surface-soft); border-color: var(--app-text-muted); }
+.odx-btn--stop { border-color: #e2ac5c; color: #9a6413; }
+.odx-btn--stop:hover { background: #fbf1e0; border-color: #d9982f; }
+.odx-btn--void { border-color: #e0a49c; color: #a5352c; }
+.odx-btn--void:hover { background: #fbeae7; border-color: #d07a70; }
+.odx-btn--go { border-color: var(--app-primary); background: var(--app-primary); color: #fff; }
+.odx-btn--go:hover { background: var(--app-primary); filter: brightness(.94); }
+html[data-theme="dark"] .odx-btn--stop { border-color: #7d5a2c; color: #e6ab63; }
+html[data-theme="dark"] .odx-btn--stop:hover { background: #2c2312; border-color: #a8792f; }
+html[data-theme="dark"] .odx-btn--void { border-color: #7a3c36; color: #ec9d94; }
+html[data-theme="dark"] .odx-btn--void:hover { background: #2c1613; border-color: #9c5049; }
+
+/* Formulario en linea (reemplaza al modal) */
+.odx-form-wrap[hidden] { display: none; }
+.odx-form {
+    margin-top: 2px;
+    padding: 15px;
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    background: var(--app-surface);
+    animation: odx-form-in .2s ease both;
+}
+@keyframes odx-form-in {
+    from { opacity: 0; transform: translateY(-5px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .odx-form { animation: none; } }
+.odx-form-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; font-weight: 800; }
+.odx-form-head svg { width: 15px; height: 15px; flex: none; }
+.odx-form[data-accion="DETENER"] .odx-form-head { color: #9a6413; }
+.odx-form[data-accion="ANULAR"] .odx-form-head { color: #a5352c; }
+.odx-form[data-accion="REANUDAR"] .odx-form-head,
+.odx-form[data-accion="REACTIVAR"] .odx-form-head { color: var(--app-primary); }
+html[data-theme="dark"] .odx-form[data-accion="DETENER"] .odx-form-head { color: #e6ab63; }
+html[data-theme="dark"] .odx-form[data-accion="ANULAR"] .odx-form-head { color: #ec9d94; }
+.odx-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+.odx-field > span { font-size: 11px; font-weight: 600; color: #60707f; }
+html[data-theme="dark"] .odx-field > span { color: var(--app-text-muted); }
+.odx-input {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid #cfd8df;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 13px;
+    background: #fff;
+    color: #1f2b36;
+}
+textarea.odx-input { height: auto; min-height: 96px; padding: 10px 12px; line-height: 1.5; resize: vertical; }
+.odx-input:focus { outline: none; border-color: #118fc6; box-shadow: 0 0 0 3px rgba(17, 143, 198, 0.15); }
+html[data-theme="dark"] .odx-input { background: #0f172a; border-color: #2a384a; color: #dce8f2; }
+html[data-theme="dark"] .odx-input:focus { border-color: #3fa9dd !important; box-shadow: 0 0 0 3px rgba(63, 169, 221, 0.22) !important; }
+.odx-form-error { margin: -2px 0 12px; font-size: 12px; font-weight: 600; color: #b5352b; }
+html[data-theme="dark"] .odx-form-error { color: #ef9a92; }
+.odx-form-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.odx-form-cancel {
+    height: 34px;
+    padding: 0 12px;
+    border: 0;
+    background: none;
+    color: var(--app-text-muted);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 8px;
+}
+.odx-form-cancel:hover { color: var(--app-text); background: var(--app-surface-soft); }
+.odx-form-confirm {
+    height: 36px;
+    padding: 0 18px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    color: #fff;
+    cursor: pointer;
+    transition: filter .13s ease, transform .05s ease;
+}
+.odx-form-confirm:active { transform: translateY(1px); }
+.odx-form-confirm:disabled { opacity: .55; cursor: default; }
+.odx-form-confirm:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(17,143,198,.32); }
+.odx-form-confirm--stop { background: #d5901f; }
+.odx-form-confirm--void { background: #c0392b; }
+.odx-form-confirm--go   { background: var(--app-primary); }
+.odx-form-confirm:hover:not(:disabled) { filter: brightness(.94); }
+
+/* Historial */
+.odx-hist-title { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--app-text-muted); margin-bottom: 8px; }
+.odx-hist { position: relative; display: flex; flex-direction: column; }
+.odx-hist-item { position: relative; padding: 0 0 16px 20px; border-left: 2px solid var(--app-border); }
+.odx-hist-item:last-child { border-left-color: transparent; padding-bottom: 2px; }
+.odx-hist-item::before {
+    content: "";
+    position: absolute;
+    left: -6px; top: 3px;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--app-surface);
+    border: 2px solid #9aa7b2;
+}
+.odx-hist-item--detener::before   { border-color: #d5901f; }
+.odx-hist-item--anular::before    { border-color: #c0392b; }
+.odx-hist-item--reanudar::before,
+.odx-hist-item--reactivar::before { border-color: #1c9c5d; }
+.odx-hist-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.odx-hist-accion { font-size: 12px; font-weight: 800; letter-spacing: .02em; }
+.odx-hist-item--detener .odx-hist-accion   { color: #9a6413; }
+.odx-hist-item--anular .odx-hist-accion    { color: #a5352c; }
+.odx-hist-item--reanudar .odx-hist-accion,
+.odx-hist-item--reactivar .odx-hist-accion { color: #17864f; }
+html[data-theme="dark"] .odx-hist-item--detener .odx-hist-accion { color: #e6ab63; }
+html[data-theme="dark"] .odx-hist-item--anular .odx-hist-accion { color: #ec9d94; }
+html[data-theme="dark"] .odx-hist-item--reanudar .odx-hist-accion,
+html[data-theme="dark"] .odx-hist-item--reactivar .odx-hist-accion { color: #5fce9d; }
+.odx-hist-motivo { font-size: 11.5px; color: var(--app-text-muted); }
+.odx-hist-dur {
+    margin-left: auto;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--app-text-muted);
+    background: var(--app-surface-soft);
+    border: 1px solid var(--app-border);
+    border-radius: 999px;
+    padding: 1px 8px;
+    font-variant-numeric: tabular-nums;
+}
+.odx-hist-body { font-size: 12.5px; margin-top: 4px; white-space: pre-wrap; color: var(--app-text); }
+.odx-hist-meta { font-size: 11px; color: var(--app-text-muted); margin-top: 5px; }
+.odx-hist-empty { font-size: 12.5px; color: var(--app-text-muted); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Pasos de Producción — bitácora única (pestaña del engranaje)
+   ═══════════════════════════════════════════════════════════════════════ */
+.pp-wrap {
+    overflow: auto;
+    max-height: 60vh;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(11, 129, 184, 0.42) transparent;
+}
+.pp-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
+.pp-wrap::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(11, 129, 184, 0.38); }
+.pp-wrap::-webkit-scrollbar-track { background: transparent; }
+.pp-tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.pp-tbl thead th {
+    position: sticky; top: 0;
+    background: var(--app-surface-soft);
+    color: var(--app-text-muted);
+    font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+    text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--app-border);
+}
+.pp-tbl td { padding: 8px 10px; border-bottom: 1px solid var(--app-border); vertical-align: top; color: var(--app-text); }
+.pp-tbl tbody tr:last-child td { border-bottom: 0; }
+.pp-row--click { cursor: pointer; }
+.pp-row--click:hover { background: var(--app-surface-soft); }
+.pp-when { white-space: nowrap; color: var(--app-text-muted); font-variant-numeric: tabular-nums; }
+.pp-proc { white-space: nowrap; color: var(--app-text-muted); }
+.pp-who { white-space: nowrap; color: var(--app-text-muted); }
+.pp-dur, .pp-cost { white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; }
+.pp-pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+.pp-clas { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 4px; font-size: 10.5px; background: var(--app-surface-soft); border: 1px solid var(--app-border); color: var(--app-text-muted); }
+
+/* Modal chico que se ajusta al comentario */
+.pp-modal-back {
+    position: fixed; inset: 0; z-index: 4000;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(15, 23, 42, 0.45); padding: 24px;
+}
+.pp-modal {
+    background: var(--app-surface); color: var(--app-text);
+    border: 1px solid var(--app-border); border-radius: 14px;
+    padding: 18px 20px; max-width: 440px; width: 100%;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+.pp-modal-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.pp-modal-x { border: 0; background: transparent; font-size: 22px; line-height: 1; color: var(--app-text-muted); cursor: pointer; }
+.pp-modal-title { font-size: 15px; font-weight: 700; }
+.pp-modal-meta { font-size: 11.5px; color: var(--app-text-muted); margin-top: 4px; }
+.pp-modal-clas { display: inline-block; margin-top: 10px; padding: 2px 8px; border-radius: 6px; font-size: 11.5px; background: var(--app-surface-soft); border: 1px solid var(--app-border); }
+.pp-modal-body { margin-top: 12px; font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
+.pp-modal-costs { margin-top: 14px; display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--app-text-muted); border-top: 1px solid var(--app-border); padding-top: 10px; }
+.pp-modal-total { color: var(--app-text); font-size: 13px; margin-top: 2px; }

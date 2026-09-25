@@ -31,6 +31,7 @@ const DELIVERY_TIME_OPTIONS = [
 ];
 
 const fields = {
+    proformaFormat: document.getElementById('proformaFormat'),
     clientCompany: document.getElementById('proformaClientCompany'),
     clientContactName: document.getElementById('proformaClientContact'),
     clientPhone: document.getElementById('proformaClientPhone'),
@@ -40,7 +41,12 @@ const fields = {
     pricePresentation: document.getElementById('proformaPricePresentation'),
     priceDisplayMode: document.getElementById('proformaPriceDisplayMode'),
     sellerSignatureEnabled: document.getElementById('proformaSellerSignatureEnabled'),
+    firmaAncho: document.getElementById('proformaFirmaAncho'),
+    firmaAlto: document.getElementById('proformaFirmaAlto'),
+    firmaOffsetX: document.getElementById('proformaFirmaOffsetX'),
+    firmaOffsetY: document.getElementById('proformaFirmaOffsetY'),
     intro: document.getElementById('proformaIntro'),
+    productoDetalle: document.getElementById('proformaProductoDetalle'),
     paymentTerms: document.getElementById('proformaPaymentTerms'),
     deliveryTime: document.getElementById('proformaDeliveryTime')
 };
@@ -48,6 +54,11 @@ const printButton = document.getElementById('proformaPrintButton');
 const mobilePrintButton = document.getElementById('proformaMobilePrintButton');
 const configToggleButton = document.getElementById('proformaConfigToggleButton');
 const previewFrame = document.getElementById('proformaPreviewFrame');
+const firmaPositionBtn = document.getElementById('proformaFirmaPositionBtn');
+const firmaPopover = document.getElementById('proformaFirmaPopover');
+const firmaPopX = document.getElementById('proformaFirmaPopX');
+const firmaPopY = document.getElementById('proformaFirmaPopY');
+const FIRMA_STEP_PX = 10;
 
 let proformaState = null;
 let saveTimer = null;
@@ -61,15 +72,35 @@ function getQuoteCode() {
 
 function setPreviewSrc(code) {
     if (!previewFrame || !code) return;
-    const url = `/proforma-print.html?codigo=${encodeURIComponent(code)}&embed=1`;
+    const url = `/proforma-print.html?codigo=${encodeURIComponent(code)}&embed=1&v=20260831-preview-vivo-detalle4`;
     if (previewFrame.src !== url) {
         previewFrame.src = url;
     }
 }
 
-function reloadPreview() {
-    if (!previewFrame) return;
-    previewFrame.contentWindow?.location.reload();
+let previewPostTimer = null;
+function postPreviewData() {
+    if (!previewFrame || !proformaState) return;
+    window.clearTimeout(previewPostTimer);
+    previewPostTimer = window.setTimeout(() => {
+        previewFrame.contentWindow?.postMessage({ type: 'proforma-preview-config', data: proformaState }, window.location.origin);
+    }, 30);
+}
+
+function buildProductoDetalleAuto() {
+    const products = Array.isArray(proformaState?.products) ? proformaState.products : [];
+    return products
+        .map((product) => [product.name, product.dimensionsText, product.material, product.acabadosProforma]
+            .map((part) => String(part || '').trim())
+            .filter(Boolean)
+            .join(' · '))
+        .filter(Boolean)
+        .join('\n');
+}
+
+function currentProductoDetalleValue() {
+    const raw = fields.productoDetalle ? fields.productoDetalle.value : '';
+    return raw.trim() === buildProductoDetalleAuto().trim() ? '' : raw;
 }
 
 function isShellEmbedded() {
@@ -387,13 +418,39 @@ function applyIntroStyle(style = {}) {
 function applyFormState(readOnly) {
     Object.values(fields).forEach((field) => {
         if (!field) return;
-        field.disabled = readOnly;
-        field.readOnly = readOnly && field.tagName !== 'SELECT';
+        field.disabled = false;
+        field.readOnly = false;
     });
-    if (closeButton) closeButton.disabled = readOnly;
+    if (closeButton) closeButton.disabled = false;
+    if (firmaPositionBtn) firmaPositionBtn.disabled = false;
+}
+
+function syncFirmaPopoverReadout() {
+    if (!firmaPopX || !firmaPopY) return;
+    firmaPopX.textContent = fields.firmaOffsetX ? fields.firmaOffsetX.value || '0' : '0';
+    firmaPopY.textContent = fields.firmaOffsetY ? fields.firmaOffsetY.value || '35' : '35';
+}
+
+function toggleFirmaPopover() {
+    if (!firmaPopover || !firmaPositionBtn) return;
+    const willOpen = firmaPopover.hidden;
+    firmaPopover.hidden = !willOpen;
+    if (willOpen) syncFirmaPopoverReadout();
+}
+
+function moveFirmaBy(dx, dy) {
+    if (!fields.firmaOffsetX || !fields.firmaOffsetY) return;
+    const currentX = Number(fields.firmaOffsetX.value) || 0;
+    const currentY = Number(fields.firmaOffsetY.value) || 35;
+    fields.firmaOffsetX.value = Math.max(-100, Math.min(100, currentX + dx));
+    fields.firmaOffsetY.value = Math.max(-60, Math.min(60, currentY + dy));
+    syncFirmaPopoverReadout();
+    refreshPreviewFromForm();
+    queueSave();
 }
 
 function fillForm(data) {
+    if (fields.proformaFormat) fields.proformaFormat.value = data.formatOverride || '';
     if (fields.clientCompany) fields.clientCompany.value = repairTextEncoding(data.client?.company || '');
     if (fields.clientContactName) fields.clientContactName.value = repairTextEncoding(data.client?.contactName || '');
     if (fields.clientPhone) fields.clientPhone.value = repairTextEncoding(data.client?.phone || '');
@@ -404,6 +461,10 @@ function fillForm(data) {
     fields.currencyCode.value = data.currency?.code || (data.currencies || []).find((currency) => currency.code === 'USD')?.code || data.currencies?.[0]?.code || 'USD';
     fillSelectOptions(fields.validity, (data.validityOptions || []).map((item) => repairTextEncoding(item)), repairTextEncoding(data.validity || '30 días'));
     if (fields.sellerSignatureEnabled) fields.sellerSignatureEnabled.checked = data.sellerSignatureEnabled !== false;
+    if (fields.firmaAncho) fields.firmaAncho.value = Math.max(40, Math.min(400, Number(data.firmaAncho || 160) || 160));
+    if (fields.firmaAlto) fields.firmaAlto.value = Math.max(20, Math.min(200, Number(data.firmaAlto || 100) || 100));
+    if (fields.firmaOffsetX) fields.firmaOffsetX.value = Math.max(-100, Math.min(100, data.firmaOffsetX == null ? 0 : Number(data.firmaOffsetX)));
+    if (fields.firmaOffsetY) fields.firmaOffsetY.value = Math.max(-60, Math.min(60, data.firmaOffsetY == null ? 35 : Number(data.firmaOffsetY)));
     if (fields.pricePresentation) {
         fields.pricePresentation.innerHTML = `
             <option value="regular">Regular</option>
@@ -413,6 +474,10 @@ function fillForm(data) {
     }
     syncPriceModeOptions(data.priceDisplayMode || 'regular_unit');
     fields.intro.value = repairTextEncoding(data.intro || '');
+    if (fields.productoDetalle) {
+        const detalleGuardado = repairTextEncoding(data.productoDetalle || '').trim();
+        fields.productoDetalle.value = detalleGuardado || buildProductoDetalleAuto();
+    }
     fillSelectOptions(fields.paymentTerms, PAYMENT_TERM_OPTIONS, repairTextEncoding(data.paymentTerms || ''));
     fillSelectOptions(fields.deliveryTime, DELIVERY_TIME_OPTIONS, repairTextEncoding(data.deliveryTime || ''));
 }
@@ -514,6 +579,7 @@ function renderDocument(data) {
 
 function collectPayload() {
     return {
+        proformaFormat: fields.proformaFormat?.value || '',
         clientCompany: fields.clientCompany?.value.trim?.() || proformaState?.client?.company || '',
         clientContactName: fields.clientContactName?.value.trim?.() || proformaState?.client?.contactName || '',
         clientPhone: fields.clientPhone?.value.trim?.() || proformaState?.client?.phone || '',
@@ -524,7 +590,12 @@ function collectPayload() {
         pricePresentation: fields.pricePresentation?.value || getPricePresentation(fields.priceDisplayMode.value),
         priceDisplayMode: fields.priceDisplayMode.value,
         sellerSignatureEnabled: fields.sellerSignatureEnabled?.checked !== false,
+        firmaAncho: Math.max(40, Math.min(400, Number(fields.firmaAncho?.value || proformaState?.firmaAncho || 160) || 160)),
+        firmaAlto: Math.max(20, Math.min(200, Number(fields.firmaAlto?.value || proformaState?.firmaAlto || 100) || 100)),
+        firmaOffsetX: fields.firmaOffsetX?.value == null || fields.firmaOffsetX.value === '' ? (proformaState?.firmaOffsetX ?? 0) : Math.max(-100, Math.min(100, Number(fields.firmaOffsetX.value))),
+        firmaOffsetY: fields.firmaOffsetY?.value == null || fields.firmaOffsetY.value === '' ? (proformaState?.firmaOffsetY ?? 35) : Math.max(-60, Math.min(60, Number(fields.firmaOffsetY.value))),
         intro: fields.intro.value.trim(),
+        productoDetalle: currentProductoDetalleValue(),
         paymentTerms: fields.paymentTerms.value.trim(),
         deliveryTime: fields.deliveryTime.value.trim()
     };
@@ -549,7 +620,7 @@ async function loadProforma() {
 }
 
 async function persistProforma() {
-    if (!proformaState || proformaState.status === 'closed') return;
+    if (!proformaState) return;
     saveInFlight = true;
     setSaveStatus('Guardando...');
     const response = await fetch(`/api/proformas/${encodeURIComponent(proformaState.quoteCode)}`, {
@@ -564,7 +635,7 @@ async function persistProforma() {
         throw new Error(payload?.error || 'No fue posible guardar la proforma.');
     }
     proformaState = payload;
-    reloadPreview();
+    postPreviewData();
     setSaveStatus('Guardado');
     if (saveQueued) {
         saveQueued = false;
@@ -573,7 +644,6 @@ async function persistProforma() {
 }
 
 function queueSave() {
-    if (proformaState?.status === 'closed') return;
     if (saveInFlight) {
         saveQueued = true;
         return;
@@ -601,17 +671,18 @@ async function closeProforma() {
     }
     proformaState = payload;
     fillForm(payload);
-    reloadPreview();
+    postPreviewData();
     applyFormState(true);
     setSaveStatus(PROFORMA_LOCKED_MESSAGE);
 }
 
 function refreshPreviewFromForm() {
     if (!proformaState) return;
-    // Solo actualiza el estado local; el iframe se recarga al guardar
+    // Actualiza el estado local y lo envía al iframe para vista previa en vivo.
     const currency = (proformaState.currencies || []).find((item) => item.code === fields.currencyCode.value) || proformaState.currency;
     proformaState = {
         ...proformaState,
+        formatOverride: fields.proformaFormat?.value || '',
         client: {
             company: fields.clientCompany?.value.trim?.() || proformaState.client?.company || '',
             contactName: fields.clientContactName?.value.trim?.() || proformaState.client?.contactName || '',
@@ -627,13 +698,24 @@ function refreshPreviewFromForm() {
         pricePresentation: fields.pricePresentation?.value || getPricePresentation(fields.priceDisplayMode.value),
         priceDisplayMode: fields.priceDisplayMode.value,
         sellerSignatureEnabled: fields.sellerSignatureEnabled?.checked !== false,
+        firmaAncho: Math.max(40, Math.min(400, Number(fields.firmaAncho?.value || proformaState?.firmaAncho || 160) || 160)),
+        firmaAlto: Math.max(20, Math.min(200, Number(fields.firmaAlto?.value || proformaState?.firmaAlto || 100) || 100)),
+        firmaOffsetX: fields.firmaOffsetX?.value == null || fields.firmaOffsetX.value === '' ? (proformaState?.firmaOffsetX ?? 0) : Math.max(-100, Math.min(100, Number(fields.firmaOffsetX.value))),
+        firmaOffsetY: fields.firmaOffsetY?.value == null || fields.firmaOffsetY.value === '' ? (proformaState?.firmaOffsetY ?? 35) : Math.max(-60, Math.min(60, Number(fields.firmaOffsetY.value))),
         intro: fields.intro.value.trim(),
+        productoDetalle: currentProductoDetalleValue(),
         paymentTerms: fields.paymentTerms.value.trim(),
         deliveryTime: fields.deliveryTime.value.trim()
     };
+    postPreviewData();
 }
 
 function bindEvents() {
+    previewFrame?.addEventListener('load', () => {
+        if (proformaState) {
+            previewFrame.contentWindow?.postMessage({ type: 'proforma-preview-config', data: proformaState }, window.location.origin);
+        }
+    });
     const printProforma = () => {
         if (previewFrame?.contentWindow) {
             previewFrame.contentWindow.print();
@@ -652,7 +734,26 @@ function bindEvents() {
         if (event.key === 'Escape') {
             shellEl?.classList.remove('is-config-open');
             configToggleButton?.setAttribute('aria-expanded', 'false');
+            if (firmaPopover && !firmaPopover.hidden) firmaPopover.hidden = true;
         }
+    });
+    firmaPositionBtn?.addEventListener('click', toggleFirmaPopover);
+    firmaPopover?.querySelectorAll('[data-dir]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const deltas = {
+                up: [0, -FIRMA_STEP_PX],
+                down: [0, FIRMA_STEP_PX],
+                left: [-FIRMA_STEP_PX, 0],
+                right: [FIRMA_STEP_PX, 0]
+            };
+            const [dx, dy] = deltas[btn.dataset.dir] || [0, 0];
+            moveFirmaBy(dx, dy);
+        });
+    });
+    document.addEventListener('click', (event) => {
+        if (!firmaPopover || firmaPopover.hidden) return;
+        if (firmaPopover.contains(event.target) || firmaPositionBtn?.contains(event.target)) return;
+        firmaPopover.hidden = true;
     });
     Object.entries(fields).forEach(([key, field]) => {
         field?.addEventListener('input', () => {
@@ -688,6 +789,7 @@ async function init() {
         ]);
         loadedConfig = config;
         applyConfiguredIcons();
+        postPreviewData();
     } catch (error) {
         console.error('No se pudo inicializar la proforma:', error);
     }

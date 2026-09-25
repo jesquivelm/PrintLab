@@ -1,6 +1,9 @@
 const http = require('http');
 const https = require('https');
 const diApiBridge = require('./sap-di-api');
+// Misma clasificación de errores que usa la cola de envíos a SAP (sap-envios-service.js),
+// reutilizada aquí para que un "error definitivo" signifique lo mismo en ambos mecanismos.
+const { clasificarError: clasificarErrorSap, CLASES_ERROR_DEFINITIVO, encolarEnvioSap } = require('./sap-envios-service');
 
 const DEFAULT_SAP_CONFIG = Object.freeze({
     mode: 'demo',
@@ -13,6 +16,7 @@ const DEFAULT_SAP_CONFIG = Object.freeze({
     sapCompany: 'SBO_pruebas',
     diApiBaseUrl: '',
     diApiTimeoutMs: 30000,
+    providerNotes: '',
     autoSyncEnabled: false,
     syncIntervalMinutes: 30,
     allowSelfSigned: true,
@@ -22,7 +26,27 @@ const DEFAULT_SAP_CONFIG = Object.freeze({
     lastSyncStartedAt: null,
     lastSyncFinishedAt: null,
     maxImportPartners: 2000,
-    maxImportItems: 2000
+    maxImportItems: 2000,
+    productionReservationWarehouseCode: '',
+    // Valores de documentos SAP (definidos por el equipo SAP del cliente).
+    sapItemGroupCode: '',
+    sapFinishedGoodsWarehouseCode: '',
+    sapMaterialsWarehouseCode: '',
+    sapFinishedGoodsUomCode: '',
+    sapSalesOrderSeries: '',
+    sapProductionOrderSeries: '',
+    sapInvoiceSeries: '',
+    sapInventoryExitSeries: '',
+    sapInventoryEntrySeries: '',
+    sapSalesTaxCode: '',
+    sapPartnerGroupCode: '',
+    sapPaymentTermsCode: '',
+    sapPriceListNum: '',
+    sapProductionRequiresBom: false,
+    sapFacturaAutomatica: false,
+    // Los campos de usuario PL_* del artículo (anexo del correo) solo se envían
+    // cuando el equipo SAP ya los creó en OITM. Mientras tanto, apagado.
+    sapUdfPlActivos: false
 });
 
 const DEMO_DATA_SEED = Object.freeze({
@@ -139,7 +163,7 @@ const DEMO_DATA_SEED = Object.freeze({
 const SYNC_ENTITY_DEFS = Object.freeze({
     BusinessPartners: {
         pageSize: 200,
-        query: '$select=CardCode,CardName,CardType,Balance,Currency,Phone1,Phone2,Email,EmailAddress,ContactPerson,PriceListNum,FederalTaxID,LicTradNum,Cellular,BPAddresses,ContactEmployees&$expand=BPAddresses,ContactEmployees'
+        query: '$select=CardCode,CardName,CardType,Balance,Currency,Phone1,Phone2,Email,EmailAddress,ContactPerson,PriceListNum,FederalTaxID,LicTradNum,Cellular,SalesPersonCode,BPAddresses,ContactEmployees&$expand=BPAddresses,ContactEmployees'
     },
     Items: {
         pageSize: 500,
@@ -165,21 +189,21 @@ const SAP_MIRROR_TABLES = Object.freeze({
         group: 'socios',
         direction: 'import',
         key: 'CardCode',
-        columns: ['CardCode', 'CardName', 'CardType', 'Currency', 'LicTradNum', 'FederalTaxID', 'Phone1', 'E_Mail', 'CntctPrsn', 'ListNum', 'validFor', 'Balance']
+        columns: ['CardCode', 'CardName', 'CardType', 'Currency', 'LicTradNum', 'FederalTaxID', 'Phone1', 'E_Mail', 'CntctPrsn', 'ListNum', 'validFor', 'Balance', 'GroupCode', 'VatGroup', 'Territory']
     },
     CRD1: {
         label: 'Direcciones de socios',
         group: 'socios',
         direction: 'import',
         key: 'CardCode',
-        columns: ['CardCode', 'Address', 'AdresType', 'Street', 'Block', 'City', 'County', 'State', 'Country', 'ZipCode']
+        columns: ['CardCode', 'Address', 'AdresType', 'Street', 'Block', 'ZipCode', 'City', 'County', 'State', 'Country', 'Building']
     },
     OCPR: {
         label: 'Contactos de socios',
         group: 'socios',
         direction: 'import',
         key: 'CardCode',
-        columns: ['CardCode', 'Name', 'FirstName', 'LastName', 'E_MailL', 'Tel1', 'Cellolar', 'Position']
+        columns: ['CardCode', 'CntctCode', 'Name', 'Position', 'Tel1', 'Tel2', 'Cellolar', 'Fax']
     },
     OITM: {
         label: 'Importación de artículos',
@@ -250,6 +274,38 @@ const SAP_MIRROR_TABLES = Object.freeze({
         direction: 'export',
         key: 'Father',
         columns: ['Father', 'Code', 'Quantity', 'Warehouse', 'PriceList']
+    },
+    OSLP: {
+        label: 'Vendedores',
+        group: 'socios',
+        direction: 'import',
+        key: 'sales_person_code',
+        pgTable: 'sap_salesperson_profit_centers',
+        columns: ['sales_person_code', 'salesperson_name', 'nombre_local', 'profit_center_code', 'is_active']
+    },
+    HISTORIAL_ENVIOS: {
+        label: 'Historial de cada envío a SAP (qué se mandó, qué contestó, cuándo)',
+        group: 'historial',
+        direction: 'export',
+        key: 'id',
+        pgTable: 'sap_write_log',
+        columns: ['id', 'entity_name', 'mode', 'status', 'request_payload', 'response_payload', 'error_message', 'created_at']
+    },
+    HISTORIAL_LLAMADAS: {
+        label: 'Historial de cada llamada a SAP, lectura o escritura (quién, qué pidió, qué contestó, cuándo)',
+        group: 'historial',
+        direction: 'both',
+        key: 'id',
+        pgTable: 'sap_activity_log',
+        columns: ['id', 'action_type', 'entity_name', 'actor', 'status', 'internal_url', 'service_url', 'request_vars', 'response_summary', 'error_message', 'started_at', 'finished_at']
+    },
+    HISTORIAL_PREGUNTAS: {
+        label: 'Preguntas hechas al conector DIAPI (consulta pedida, si ya contestó, cuándo)',
+        group: 'historial',
+        direction: 'import',
+        key: 'id',
+        pgTable: 'sap_inbox_requests',
+        columns: ['id', 'entity_type', 'status', 'parameters', 'result_payload', 'last_error', 'provider_error_sql', 'created_at', 'answered_at', 'applied_at']
     }
 });
 
@@ -265,17 +321,18 @@ const SAP_MIRROR_PROCESS_DEFS = Object.freeze({
         diApiRoute: '/business-partners',
         serviceLayerRoute: 'BusinessPartners',
         sql: [
-            'SELECT CardCode, CardName, CardType, Currency, LicTradNum, FederalTaxID, Phone1, E_Mail, CntctPrsn, ListNum, validFor, Balance',
+            'SELECT CardCode, CardName, CardType, Currency, LicTradNum, FederalTaxID, Phone1, E_Mail, CntctPrsn, ListNum, validFor, Balance, SlpCode',
             '  FROM OCRD',
             " WHERE validFor = 'Y'",
-            "   AND CardType IN ('C', 'L')",
+            "   AND CardType = 'C'",
+            "   AND CardCode LIKE 'C%'",
             ' ORDER BY CardCode ASC'
         ].join('\n'),
         relatedSql: [
             'SELECT CardCode, Address, AdresType, Street, City, County, Country FROM CRD1 WHERE CardCode IN (:CardCode)',
-            'SELECT CardCode, CntctCode, Name, Tel1, E_MailL FROM OCPR WHERE CardCode IN (:CardCode)'
+            'SELECT CardCode, CntctCode, Name, Tel1 FROM OCPR WHERE CardCode IN (:CardCode)'
         ],
-        note: 'Socios activos. Incluye clientes y prospectos; direcciones y contactos se guardan en tablas separadas.'
+        note: "Solo clientes activos (CardType 'C') cuyo código inicia con 'C'; direcciones y contactos se guardan en tablas separadas."
     },
     'import-items': {
         key: 'import-items',
@@ -366,8 +423,161 @@ const SAP_IMPORT_JOB_DEFS = Object.freeze({
             search: '',
             group: ''
         }
+    },
+    'sap-import-salespeople': {
+        jobCode: 'sap-import-salespeople',
+        label: 'Vendedores',
+        entityLabel: 'OSLP',
+        internalUrl: '/api/sap/salesperson-profit-centers/sync',
+        serviceUrl: 'sap-mirror://SalesPersons',
+        defaultFilters: {
+            enabled: false,
+            intervalMinutes: 60,
+            limit: 500,
+            search: '',
+            type: ''
+        }
+    },
+    'sap-import-contacts': {
+        jobCode: 'sap-import-contacts',
+        label: 'Contactos',
+        entityLabel: 'OCPR',
+        internalUrl: '/api/sap/mirror/import-contacts',
+        serviceUrl: 'sap-mirror://Contacts',
+        defaultFilters: {
+            enabled: false,
+            intervalMinutes: 30,
+            limit: 2000,
+            search: ''
+        }
+    },
+    'sap-import-addresses': {
+        jobCode: 'sap-import-addresses',
+        label: 'Direcciones',
+        entityLabel: 'CRD1',
+        internalUrl: '/api/sap/mirror/import-addresses',
+        serviceUrl: 'sap-mirror://Addresses',
+        defaultFilters: {
+            enabled: false,
+            intervalMinutes: 30,
+            limit: 2000,
+            search: ''
+        }
+    },
+    'sap-import-batches': {
+        jobCode: 'sap-import-batches',
+        label: 'Lotes (tintas)',
+        entityLabel: 'OBTN',
+        internalUrl: '/api/sap/mirror/import-batches',
+        serviceUrl: 'sap-mirror://Batches',
+        defaultFilters: {
+            enabled: false,
+            intervalMinutes: 30,
+            limit: 2000,
+            search: ''
+        }
+    },
+    // Único flujo de "push" en esta lista (todos los demás son "pull", importan
+    // desde SAP hacia PrintLab): envía la tasa del dólar del día hacia SAP.
+    // No usa límite ni filtro (siempre es un solo valor: el tipo de cambio de hoy).
+    'sap-envio-tipo-cambio': {
+        jobCode: 'sap-envio-tipo-cambio',
+        label: 'Tipo de cambio del dólar (USD→GTQ)',
+        entityLabel: 'ExchangeRates',
+        internalUrl: '/api/exchange-rates/enviar-sap',
+        serviceUrl: 'sap-push://ExchangeRate',
+        direction: 'push',
+        defaultFilters: {
+            enabled: false,
+            intervalMinutes: 1440
+        }
     }
 });
+
+// jobCode de Automatización → entity_type usado al preguntarle a DIAPI (sap_inbox_requests.entity_type).
+const SAP_IMPORT_JOB_INBOX_ENTITY = Object.freeze({
+    'sap-import-business-partners': 'business-partners',
+    'sap-import-items': 'items',
+    'sap-import-salespeople': 'salespersons',
+    'sap-import-contacts': 'business-partner-contacts',
+    'sap-import-addresses': 'business-partner-addresses',
+    'sap-import-batches': 'item-batches'
+});
+
+// Catálogo completo de tablas que usa la integración con SAP: para qué sirve
+// cada una, quién la llena y quién la lee. Es documentación fija, no datos —
+// sirve para responder "¿qué tabla se está tocando?" sin tener que leer el
+// código cada vez. Si se agrega una tabla nueva relacionada con SAP, agregarla
+// aquí también.
+const CATALOGO_TABLAS_SAP = Object.freeze([
+    {
+        grupo: 'Copia exacta de SAP (mismos nombres y campos que SAP)',
+        nota: '',
+        tablas: [
+            { tabla: 'OCRD', paraQueSirve: 'Encabezado de cada socio de negocio traído de SAP.', quienLaLlena: 'La importación automática de Socios (conector DIAPI).', quienLaLee: 'Pestaña Tablas, para auditoría.' },
+            { tabla: 'CRD1', paraQueSirve: 'Direcciones de cada socio.', quienLaLlena: 'La importación automática de Socios (conector DIAPI).', quienLaLee: 'Pestaña Tablas, para auditoría.' },
+            { tabla: 'OCPR', paraQueSirve: 'Contactos de cada socio.', quienLaLlena: 'La importación automática de Socios (conector DIAPI).', quienLaLee: 'Pestaña Tablas, para auditoría.' },
+            { tabla: 'OITM', paraQueSirve: 'Encabezado de cada artículo traído de SAP.', quienLaLlena: 'La importación automática de Inventario (conector DIAPI).', quienLaLee: 'Pestaña Tablas, para auditoría.' },
+            { tabla: 'OITW', paraQueSirve: 'Existencia de cada artículo, por bodega.', quienLaLlena: 'La importación automática de Inventario (conector DIAPI).', quienLaLee: 'Pestaña Tablas, para auditoría.' },
+            { tabla: 'ITM1', paraQueSirve: 'Precio de cada artículo, por lista de precios.', quienLaLlena: 'La importación automática de Inventario (conector DIAPI).', quienLaLee: 'Pestaña Tablas, para auditoría.' },
+            { tabla: 'OWHS', paraQueSirve: 'Catálogo de bodegas.', quienLaLlena: 'La importación automática de Inventario (conector DIAPI).', quienLaLee: 'Pestaña Tablas, para auditoría.' },
+            { tabla: 'ORDR', paraQueSirve: 'Encabezado de cada orden de venta que PrintLab mandó a SAP.', quienLaLlena: 'El envío de Orden de Venta (conector DIAPI).', quienLaLee: 'Pestaña Tablas y pantalla de Automatización, para auditoría.' },
+            { tabla: 'RDR1', paraQueSirve: 'Líneas (productos) de cada orden de venta enviada.', quienLaLlena: 'El envío de Orden de Venta (conector DIAPI).', quienLaLee: 'Pestaña Tablas y pantalla de Automatización, para auditoría.' },
+            { tabla: 'OWOR', paraQueSirve: 'Encabezado de cada orden de producción enviada.', quienLaLlena: 'El envío de BOM / Producción (conector DIAPI).', quienLaLee: 'Pestaña Tablas y pantalla de Automatización, para auditoría.' },
+            { tabla: 'WOR1', paraQueSirve: 'Componentes de cada orden de producción enviada.', quienLaLlena: 'El envío de BOM / Producción (conector DIAPI).', quienLaLee: 'Pestaña Tablas y pantalla de Automatización, para auditoría.' },
+            { tabla: 'OITT', paraQueSirve: 'Receta (BOM) enviada a SAP.', quienLaLlena: 'El envío de BOM / Producción (conector DIAPI).', quienLaLee: 'Pestaña Tablas y pantalla de Automatización, para auditoría.' },
+            { tabla: 'ITT1', paraQueSirve: 'Componentes de cada receta (BOM) enviada.', quienLaLlena: 'El envío de BOM / Producción (conector DIAPI).', quienLaLee: 'Pestaña Tablas y pantalla de Automatización, para auditoría.' }
+        ]
+    },
+    {
+        grupo: 'Copia que usan las pantallas de PrintLab (mismos datos, en otro formato)',
+        nota: '',
+        tablas: [
+            { tabla: 'sap_business_partners', paraQueSirve: 'Copia de los socios, lista para las pantallas de Socios y Cotizaciones.', quienLaLlena: 'Se llena junto con OCRD/CRD1/OCPR, en la misma importación.', quienLaLee: 'Pantallas de Socios, Cotizaciones y buscador de clientes.' },
+            { tabla: 'sap_items', paraQueSirve: 'Copia de los artículos, con campos que PrintLab agrega encima (ancho, gramaje, calibre, proveedor, marca, clasificación). Es la tabla que hoy alimenta Costos → Inventarios SAP.', quienLaLlena: 'Se llena junto con OITM/OITW/ITM1, en la misma importación.', quienLaLee: 'Costos → Inventarios SAP, el catálogo de materiales del cálculo, y el mapeo de clasificación por categoría.' },
+            { tabla: 'sap_warehouses', paraQueSirve: 'Copia de las bodegas.', quienLaLlena: 'Se llena junto con OWHS.', quienLaLee: 'Pantallas donde se elige bodega.' },
+            { tabla: 'sap_orders', paraQueSirve: 'Copia de las órdenes de venta enviadas, en el formato que usa la aplicación.', quienLaLlena: 'Se llena junto con ORDR/RDR1.', quienLaLee: 'Pantallas de seguimiento de órdenes hacia SAP.' },
+            { tabla: 'sap_invoices', paraQueSirve: 'Copia de las facturas enviadas.', quienLaLlena: 'Al enviar una factura a SAP.', quienLaLee: 'Pantallas de facturación y seguimiento.' },
+            { tabla: 'sap_item_links', paraQueSirve: 'Relaciona un material o insumo local (de una receta o el cálculo) con su código de artículo real en SAP.', quienLaLlena: 'Al vincular un material del cálculo con su artículo de SAP.', quienLaLee: 'El cálculo y las recetas, para saber a qué artículo de SAP corresponde cada material.' },
+            { tabla: 'sap_inventory_snapshot', paraQueSirve: 'Una foto de las existencias de cada artículo, tomada de sap_items en un momento dado.', quienLaLlena: 'Procesos que guardan una foto de inventario para historial.', quienLaLee: 'Reportes que necesitan ver existencias de una fecha pasada.' }
+        ]
+    },
+    {
+        grupo: 'Cola de envíos hacia SAP (lo que se ve en Monitoreo → Envíos)',
+        nota: '',
+        tablas: [
+            { tabla: 'sap_envios_pendientes', paraQueSirve: 'Cada documento que PrintLab debe mandar a SAP (socio, artículo, orden de venta, factura, BOM, orden de producción, salida de materiales), con su estado y cuántas veces se ha intentado. Es la tabla detrás de la pantalla de Envíos.', quienLaLlena: 'Se crea una fila cada vez que se guarda algo que debe subir a SAP.', quienLaLee: 'Configuración → Seguridad → SAP → Envíos.' },
+            { tabla: 'sap_envios_intentos', paraQueSirve: 'El detalle de cada intento de un envío: qué se mandó, qué contestó SAP, si falló y por qué.', quienLaLlena: 'El proceso que reintenta los envíos pendientes, en cada intento.', quienLaLee: 'La misma pantalla de Envíos, al abrir el detalle de un documento.' },
+            { tabla: 'sap_envios_config', paraQueSirve: 'Cuántas veces reintentar un envío y cuánto esperar entre intentos.', quienLaLlena: 'Se edita desde la pantalla de Envíos.', quienLaLee: 'El proceso que reintenta los envíos pendientes.' },
+            { tabla: 'sap_outbox', paraQueSirve: 'El buzón real donde queda cada documento esperando a que el conector DIAPI lo recoja y lo cree o actualice en SAP. Cada envío de sap_envios_pendientes termina escribiendo aquí adentro.', quienLaLlena: 'PrintLab, al armar el documento que se va a enviar.', quienLaLee: 'El conector DIAPI, cuando revisa si hay algo pendiente; luego PrintLab, cuando lee la respuesta.' },
+            { tabla: 'sap_outbox_attempts', paraQueSirve: 'El detalle técnico de cada vez que el conector intentó procesar un documento del buzón.', quienLaLlena: 'El conector DIAPI, al contestar.', quienLaLee: 'Diagnóstico técnico interno.' }
+        ]
+    },
+    {
+        grupo: 'Preguntas hacia SAP (lecturas bajo demanda)',
+        nota: '',
+        tablas: [
+            { tabla: 'sap_inbox_requests', paraQueSirve: 'Una pregunta que PrintLab le hizo al conector (por ejemplo "tráeme los vendedores") y que espera respuesta.', quienLaLlena: 'PrintLab, al pedir una importación o una consulta.', quienLaLee: 'El conector DIAPI, para saber qué le preguntan; luego PrintLab, para leer la respuesta.' },
+            { tabla: 'sap_sync_jobs', paraQueSirve: 'La configuración de cada carga automática (socios, inventario, vendedores, contactos, direcciones, lotes): cada cuánto correr, con qué filtro, cuándo corrió por última vez.', quienLaLlena: 'Configuración → Seguridad → SAP → Automatización.', quienLaLee: 'La misma pantalla de Automatización.' },
+            { tabla: 'sap_diapi_heartbeat', paraQueSirve: 'La última vez que el conector DIAPI vino a preguntar algo, para saber si sigue conectado.', quienLaLlena: 'El conector, cada vez que se conecta.', quienLaLee: 'El indicador de conexión en la pantalla de Automatización.' }
+        ]
+    },
+    {
+        grupo: 'Configuración y bitácoras',
+        nota: '',
+        tablas: [
+            { tabla: 'sap_integration_config', paraQueSirve: 'Los datos de conexión a SAP: servidor, usuario, modo de trabajo.', quienLaLlena: 'Configuración → Seguridad → SAP → Configuración.', quienLaLee: 'Toda la integración, para saber a dónde conectarse.' },
+            { tabla: 'sap_sync_log', paraQueSirve: 'Historial de cada sincronización: cuántos registros trajo, si hubo error.', quienLaLlena: 'Cada sincronización, al terminar.', quienLaLee: 'Diagnóstico técnico interno.' },
+            { tabla: 'sap_write_log', paraQueSirve: 'Historial de escrituras hacia SAP (registro más antiguo, junto a sap_envios_intentos).', quienLaLlena: 'Cada escritura hacia SAP, al terminar.', quienLaLee: 'Diagnóstico técnico interno.' },
+            { tabla: 'sap_activity_log', paraQueSirve: 'Historial detallado de cada llamada hacia SAP, sea lectura o escritura: qué se pidió y qué contestó.', quienLaLlena: 'Cada llamada hacia SAP, al terminar.', quienLaLee: 'Configuración → Seguridad → SAP → Importación.' },
+            { tabla: 'sap_salesperson_profit_centers', paraQueSirve: 'La lista de vendedores traída de SAP, con el centro de beneficio que se le asigna a mano a cada uno.', quienLaLlena: 'La importación de vendedores; el centro de beneficio se llena a mano.', quienLaLee: 'Configuración → Seguridad → Vendedor SAP; el envío de órdenes a SAP.' },
+            { tabla: 'sap_production_cost_center_settings', paraQueSirve: 'El centro de costo que se usa por defecto para producción.', quienLaLlena: 'Configuración SAP.', quienLaLee: 'El envío de órdenes de producción.' },
+            { tabla: 'sap_bom_local', paraQueSirve: 'Copia local de la receta (BOM) que se envió a SAP, para comparar contra lo que en verdad se está gastando.', quienLaLlena: 'Al crear o actualizar una receta en SAP.', quienLaLee: 'La Consola de Pruebas SAP, al avisar "esto no está en el BOM".' },
+            { tabla: 'sap_salidas_materiales', paraQueSirve: 'Cada descarga de materiales que se le mandó a SAP para una orden.', quienLaLlena: 'Al descontar materiales de una orden contra SAP.', quienLaLee: 'La Consola de Pruebas SAP.' },
+            { tabla: 'official_queries', paraQueSirve: 'Las 8 consultas oficiales de inventario que se definieron, más las consultas de referencia de las cargas automáticas. Es texto de referencia, editable desde la pantalla.', quienLaLlena: 'Se edita desde Consultas Oficiales.', quienLaLee: 'La pantalla de Consultas Oficiales y Costos → Inventarios SAP (como referencia; ver nota de auditoría).' }
+        ]
+    }
+]);
 
 const SESSION_STATE = {
     cacheKey: '',
@@ -378,6 +588,8 @@ const SESSION_STATE = {
 let demoState = deepClone(DEMO_DATA_SEED);
 let schedulerHandle = null;
 let syncInFlight = false;
+let limpiezaInboxHandle = null;
+let limpiezaInboxEnCurso = false;
 
 function deepClone(value) {
     return JSON.parse(JSON.stringify(value));
@@ -434,15 +646,21 @@ function extractSapAddresses(row = {}) {
         : (Array.isArray(row.Addresses) ? row.Addresses : []);
     return addresses
         .map((address, index) => ({
-            addressName: normalizeText(address.AddressName, `SAP-${index + 1}`),
-            addressTypeCode: normalizeText(address.AddressType),
-            addressTypeLabel: mapSapAddressType(address.AddressType),
+            addressName: normalizeText(address.AddressName || address.Address, `SAP-${index + 1}`),
+            addressTypeCode: normalizeText(address.AddressType || address.AdresType),
+            addressTypeLabel: mapSapAddressType(address.AddressType || address.AdresType),
             country: normalizeText(address.Country),
             stateProvince: normalizeText(address.State || address.StateProvince),
             county: normalizeText(address.County),
             district: normalizeText(address.Block),
             addressLine: buildSapAddressLine(address),
             zipCode: normalizeText(address.ZipCode),
+            block: normalizeText(address.Block),
+            city: normalizeText(address.City),
+            building: normalizeText(address.Building),
+            floor: normalizeText(address.Floor),
+            room: normalizeText(address.Room),
+            streetNumber: normalizeText(address.StreetNo),
             payload: address || {}
         }))
         .filter((address) => address.addressName || address.addressLine);
@@ -515,7 +733,7 @@ function extractSapContacts(row = {}, primaryAddress = {}) {
     const sourceRows = contacts.length ? contacts : (fallbackName ? [{
         Name: fallbackName,
         FirstName: fallbackName,
-        E_MailL: pickSapPartnerEmail(row),
+        E_Mail: pickSapPartnerEmail(row),
         Tel1: pickSapPartnerPhone(row),
         Cellolar: pickSapPartnerMobile(row),
         Position: 'Principal'
@@ -527,7 +745,7 @@ function extractSapContacts(row = {}, primaryAddress = {}) {
             contactName: name,
             firstName: pickSapPartnerField(contact, ['FirstName'], parts.firstName),
             lastName: pickSapPartnerField(contact, ['LastName'], parts.lastName),
-            email: pickSapPartnerField(contact, ['E_MailL', 'Email', 'EmailAddress'], pickSapPartnerEmail(row)),
+            email: pickSapPartnerField(contact, ['E_Mail', 'E_MailL', 'Email', 'EmailAddress'], pickSapPartnerEmail(row)),
             phone: pickSapPartnerField(contact, ['Tel1', 'Phone1', 'Telephone1'], pickSapPartnerPhone(row)),
             mobile: pickSapPartnerField(contact, ['Cellolar', 'Cellular', 'MobilePhone', 'Mobile'], pickSapPartnerMobile(row)),
             fax: pickSapPartnerField(contact, ['Fax', 'Fax1']),
@@ -537,6 +755,16 @@ function extractSapContacts(row = {}, primaryAddress = {}) {
             county: pickSapPartnerField(contact, ['County'], primaryAddress.county || ''),
             addressLine: pickSapPartnerField(contact, ['Address'], primaryAddress.addressLine || ''),
             identification: pickSapContactIdentification(contact, pickSapPartnerTaxId(row)),
+            sapContactCode: pickSapPartnerField(contact, ['CntctCode']),
+            phone2: pickSapPartnerField(contact, ['Tel2']),
+            phone3: pickSapPartnerField(contact, ['Tel3']),
+            website: pickSapPartnerField(contact, ['HomePage']),
+            notes: pickSapPartnerField(contact, ['Notes1']),
+            notes2: pickSapPartnerField(contact, ['Notes2']),
+            street: pickSapPartnerField(contact, ['Street']),
+            block: pickSapPartnerField(contact, ['Block']),
+            zipCode: pickSapPartnerField(contact, ['ZipCode']),
+            city: pickSapPartnerField(contact, ['City']),
             payload: contact || {}
         };
     }).filter((contact) => contact.contactName || contact.email || contact.phone || contact.mobile);
@@ -591,15 +819,26 @@ function getSapItemPriceRows(row = {}) {
 
 function normalizeSapProvider(value, fallback = DEFAULT_SAP_CONFIG.provider) {
     const normalized = normalizeText(value, fallback).toLowerCase();
-    return normalized === 'di-api' ? 'di-api' : 'service-layer';
+    if (normalized === 'di-api') return 'di-api';
+    if (normalized === 'di-api-middleware') return 'di-api-middleware';
+    return 'service-layer';
 }
 
 function isDiApiProvider(config = {}) {
     return normalizeSapProvider(config.provider || config.sapProvider) === 'di-api';
 }
 
+function isDiApiMiddlewareProvider(config = {}) {
+    return normalizeSapProvider(config.provider || config.sapProvider || config.sap_provider) === 'di-api-middleware';
+}
+
 function isLiveProviderReady(config = {}) {
     const provider = normalizeSapProvider(config.provider || config.sapProvider || config.sap_provider);
+    if (provider === 'di-api-middleware') {
+        // No requiere datos de conexión: PrintLab solo encola la necesidad y el
+        // conector DIAPI (que sí tiene los datos de SAP) la resuelve por su cuenta.
+        return true;
+    }
     const sapUser = normalizeText(config.sapUser != null ? config.sapUser : config.sap_user);
     const sapCompany = normalizeText(config.sapCompany != null ? config.sapCompany : config.sap_company);
     const sapPassword = String(config.sapPassword != null ? config.sapPassword : (config.sap_password != null ? config.sap_password : ''));
@@ -648,6 +887,7 @@ function normalizeSapConfigRecord(source = {}) {
         sapCompany: normalizedCompany === 'SBO_DEMO' ? '' : normalizedCompany,
         diApiBaseUrl: normalizeText(source.diApiBaseUrl || source.di_api_base_url),
         diApiTimeoutMs: normalizePositiveInt(source.diApiTimeoutMs || source.di_api_timeout_ms, DEFAULT_SAP_CONFIG.diApiTimeoutMs, 1000, 120000),
+        providerNotes: normalizeText(source.providerNotes || source.provider_notes),
         autoSyncEnabled: normalizeBoolean(source.autoSyncEnabled != null ? source.autoSyncEnabled : source.auto_sync_enabled, DEFAULT_SAP_CONFIG.autoSyncEnabled),
         syncIntervalMinutes: normalizePositiveInt(source.syncIntervalMinutes || source.sync_interval_minutes, DEFAULT_SAP_CONFIG.syncIntervalMinutes, 5, 1440),
         allowSelfSigned: normalizeBoolean(source.allowSelfSigned != null ? source.allowSelfSigned : source.allow_self_signed, DEFAULT_SAP_CONFIG.allowSelfSigned),
@@ -657,7 +897,33 @@ function normalizeSapConfigRecord(source = {}) {
         lastSyncStartedAt: normalizeTimestamp(source.lastSyncStartedAt || source.last_sync_started_at),
         lastSyncFinishedAt: normalizeTimestamp(source.lastSyncFinishedAt || source.last_sync_finished_at),
         maxImportPartners: normalizePositiveInt(source.maxImportPartners || source.max_import_partners, DEFAULT_SAP_CONFIG.maxImportPartners, 1, 100000),
-        maxImportItems: normalizePositiveInt(source.maxImportItems || source.max_import_items, DEFAULT_SAP_CONFIG.maxImportItems, 1, 100000)
+        maxImportItems: normalizePositiveInt(source.maxImportItems || source.max_import_items, DEFAULT_SAP_CONFIG.maxImportItems, 1, 100000),
+        productionReservationWarehouseCode: normalizeText(source.productionReservationWarehouseCode || source.production_reservation_warehouse_code),
+        sapItemGroupCode: normalizeText(source.sapItemGroupCode || source.sap_item_group_code),
+        sapFinishedGoodsWarehouseCode: normalizeText(source.sapFinishedGoodsWarehouseCode || source.sap_finished_goods_warehouse_code),
+        sapMaterialsWarehouseCode: normalizeText(source.sapMaterialsWarehouseCode || source.sap_materials_warehouse_code),
+        sapFinishedGoodsUomCode: normalizeText(source.sapFinishedGoodsUomCode || source.sap_finished_goods_uom_code),
+        sapSalesOrderSeries: normalizeText(source.sapSalesOrderSeries || source.sap_sales_order_series),
+        sapProductionOrderSeries: normalizeText(source.sapProductionOrderSeries || source.sap_production_order_series),
+        sapInvoiceSeries: normalizeText(source.sapInvoiceSeries || source.sap_invoice_series),
+        sapInventoryExitSeries: normalizeText(source.sapInventoryExitSeries || source.sap_inventory_exit_series),
+        sapInventoryEntrySeries: normalizeText(source.sapInventoryEntrySeries || source.sap_inventory_entry_series),
+        sapSalesTaxCode: normalizeText(source.sapSalesTaxCode || source.sap_sales_tax_code),
+        sapPartnerGroupCode: normalizeText(source.sapPartnerGroupCode || source.sap_partner_group_code),
+        sapPaymentTermsCode: normalizeText(source.sapPaymentTermsCode || source.sap_payment_terms_code),
+        sapPriceListNum: normalizeText(source.sapPriceListNum || source.sap_price_list_num),
+        sapProductionRequiresBom: normalizeBoolean(
+            source.sapProductionRequiresBom != null ? source.sapProductionRequiresBom : source.sap_production_requires_bom,
+            DEFAULT_SAP_CONFIG.sapProductionRequiresBom
+        ),
+        sapFacturaAutomatica: normalizeBoolean(
+            source.sapFacturaAutomatica != null ? source.sapFacturaAutomatica : source.sap_factura_automatica,
+            DEFAULT_SAP_CONFIG.sapFacturaAutomatica
+        ),
+        sapUdfPlActivos: normalizeBoolean(
+            source.sapUdfPlActivos != null ? source.sapUdfPlActivos : source.sap_udf_pl_activos,
+            DEFAULT_SAP_CONFIG.sapUdfPlActivos
+        )
     };
     return normalized;
 }
@@ -848,9 +1114,13 @@ async function ensureSapSchema(pgQuery) {
             last_sync_finished_at TIMESTAMPTZ NULL,
             max_import_partners INTEGER NOT NULL DEFAULT 2000,
             max_import_items INTEGER NOT NULL DEFAULT 2000,
+            provider_notes TEXT NOT NULL DEFAULT '',
+            production_reservation_warehouse_code TEXT NOT NULL DEFAULT '',
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
     `);
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS provider_notes TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS production_reservation_warehouse_code TEXT NOT NULL DEFAULT ''`);
     await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 'demo'`);
     await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS provider TEXT NOT NULL DEFAULT 'service-layer'`);
     await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS sap_host TEXT NOT NULL DEFAULT ''`);
@@ -872,6 +1142,23 @@ async function ensureSapSchema(pgQuery) {
     await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS max_import_partners INTEGER NOT NULL DEFAULT 2000`);
     await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS max_import_items INTEGER NOT NULL DEFAULT 2000`);
     await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+    // Valores de documentos SAP (Configuración → SAP → Valores SAP).
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS sap_item_group_code TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS sap_finished_goods_warehouse_code TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS sap_materials_warehouse_code TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS sap_finished_goods_uom_code TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS sap_sales_order_series TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS sap_production_order_series TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS sap_invoice_series TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS sap_inventory_exit_series TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS sap_inventory_entry_series TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS sap_sales_tax_code TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS sap_partner_group_code TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS sap_payment_terms_code TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS sap_price_list_num TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS sap_production_requires_bom BOOLEAN NOT NULL DEFAULT FALSE`);
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS sap_factura_automatica BOOLEAN NOT NULL DEFAULT FALSE`);
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS sap_udf_pl_activos BOOLEAN NOT NULL DEFAULT FALSE`);
     await pgQuery(`
         INSERT INTO sap_integration_config (
             id,
@@ -950,6 +1237,37 @@ async function ensureSapSchema(pgQuery) {
         )
     `);
     await pgQuery(`CREATE INDEX IF NOT EXISTS "OCRD_CardName_idx" ON "OCRD" ("CardName")`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "Phone2" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "Cellular" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "Fax" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "IntrntSite" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "Notes" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "VatGroup" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "GroupCode" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "Territory" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "OwnerCode" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "ValidFrom" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "ValidTo" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "FrozenFrom" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "FrozenTo" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "Address" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "Block" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "ZipCode" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "City" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "County" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "Country" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "State1" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "Building" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "MailAddres" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "MailBlock" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "MailZipCod" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "MailCity" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "MailCounty" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "MailCountr" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "State2" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "MailBuildi" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "BillToDef" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCRD" ADD COLUMN IF NOT EXISTS "ShipToDef" TEXT NOT NULL DEFAULT ''`);
     await pgQuery(`
         CREATE TABLE IF NOT EXISTS "CRD1" (
             id BIGSERIAL PRIMARY KEY,
@@ -969,6 +1287,7 @@ async function ensureSapSchema(pgQuery) {
         )
     `);
     await pgQuery(`CREATE INDEX IF NOT EXISTS "CRD1_CardCode_idx" ON "CRD1" ("CardCode")`);
+    await pgQuery(`ALTER TABLE "CRD1" ADD COLUMN IF NOT EXISTS "Building" TEXT NOT NULL DEFAULT ''`);
     await pgQuery(`
         CREATE TABLE IF NOT EXISTS "OCPR" (
             id BIGSERIAL PRIMARY KEY,
@@ -986,6 +1305,11 @@ async function ensureSapSchema(pgQuery) {
         )
     `);
     await pgQuery(`CREATE INDEX IF NOT EXISTS "OCPR_CardCode_idx" ON "OCPR" ("CardCode")`);
+    await pgQuery(`ALTER TABLE "OCPR" ADD COLUMN IF NOT EXISTS "CntctCode" INTEGER`);
+    await pgQuery(`ALTER TABLE "OCPR" ADD COLUMN IF NOT EXISTS "Tel2" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCPR" ADD COLUMN IF NOT EXISTS "Fax" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE "OCPR" ADD COLUMN IF NOT EXISTS "E_Mail" TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'OCPR' AND column_name = 'E_MailL') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'OCPR' AND column_name = 'E_Mail') THEN ALTER TABLE "OCPR" RENAME COLUMN "E_MailL" TO "E_Mail"; END IF; END $$`);
     await pgQuery(`
         CREATE TABLE IF NOT EXISTS "OITM" (
             "ItemCode" TEXT PRIMARY KEY,
@@ -1176,6 +1500,14 @@ async function ensureSapSchema(pgQuery) {
     `);
     await pgQuery(`CREATE INDEX IF NOT EXISTS sap_items_name_idx ON sap_items (item_name)`);
     await pgQuery(`ALTER TABLE sap_items ADD COLUMN IF NOT EXISTS classification_source_value TEXT NOT NULL DEFAULT ''`);
+    // Datos técnicos del material tomados de los campos de usuario del maestro de artículos de SAP
+    // (U_Ancho / U_Gramaje / U_Calibre / U_Proveedor / U_Marca). El sistema solo los lee; nunca los
+    // edita. Si SAP no los trae, el material queda incompleto y se bloquea en el cálculo.
+    await pgQuery(`ALTER TABLE sap_items ADD COLUMN IF NOT EXISTS ancho_mm NUMERIC NULL`);
+    await pgQuery(`ALTER TABLE sap_items ADD COLUMN IF NOT EXISTS gramaje_g_m2 NUMERIC NULL`);
+    await pgQuery(`ALTER TABLE sap_items ADD COLUMN IF NOT EXISTS calibre_micras NUMERIC NULL`);
+    await pgQuery(`ALTER TABLE sap_items ADD COLUMN IF NOT EXISTS proveedor TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE sap_items ADD COLUMN IF NOT EXISTS marca TEXT NOT NULL DEFAULT ''`);
     await pgQuery(`
         CREATE TABLE IF NOT EXISTS sap_warehouses (
             warehouse_code TEXT PRIMARY KEY,
@@ -1395,6 +1727,95 @@ async function ensureSapSchema(pgQuery) {
     `);
     await pgQuery(`CREATE INDEX IF NOT EXISTS sap_outbox_attempts_outbox_idx ON sap_outbox_attempts (outbox_id, created_at DESC)`);
     await pgQuery(`
+        CREATE TABLE IF NOT EXISTS sap_inbox_requests (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            request_code TEXT NOT NULL UNIQUE,
+            module_name TEXT NOT NULL DEFAULT 'sap',
+            entity_type TEXT NOT NULL,
+            reference_id TEXT NOT NULL DEFAULT '',
+            reference_code TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'pending',
+            parameters JSONB NOT NULL DEFAULT '{}'::jsonb,
+            result_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+            last_error TEXT NOT NULL DEFAULT '',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            answered_at TIMESTAMPTZ NULL,
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS sap_inbox_requests_status_idx ON sap_inbox_requests (status, created_at)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS sap_inbox_requests_reference_idx ON sap_inbox_requests (entity_type, reference_code)`);
+    // Marca cuándo la respuesta del conector realmente quedó aplicada en las tablas locales
+    // (no solo contestada) — para poder mostrarle al usuario "sí llegó y sí se guardó",
+    // no solo "sí contestó".
+    await pgQuery(`ALTER TABLE sap_inbox_requests ADD COLUMN IF NOT EXISTS applied_at TIMESTAMPTZ NULL`);
+    await pgQuery(`ALTER TABLE sap_inbox_requests ADD COLUMN IF NOT EXISTS records_applied INTEGER NULL`);
+    // Detalle crudo del error reportado por el conector DIAPI cuando una consulta falla:
+    // el SQL exacto que se ejecutó contra SAP y el mensaje original de SAP/HANA (sin el
+    // envoltorio "No fue posible consultar…"). Sirve para diagnosticar desde PrintLab sin
+    // pedir los logs del conector.
+    await pgQuery(`ALTER TABLE sap_inbox_requests ADD COLUMN IF NOT EXISTS provider_error_sql TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE sap_inbox_requests ADD COLUMN IF NOT EXISTS provider_error_detail TEXT NOT NULL DEFAULT ''`);
+    // Clasificación del error (misma función que sap-envios-service.js) para distinguir
+    // una falla definitiva (p.ej. la referencia ya no existe: nunca se va a resolver sola,
+    // necesita que una persona la revise) de una falla temporal (p.ej. sin conexión: el
+    // siguiente intento puede funcionar solo). Se usa para protegerla del borrado automático.
+    await pgQuery(`ALTER TABLE sap_inbox_requests ADD COLUMN IF NOT EXISTS error_clase TEXT NOT NULL DEFAULT ''`);
+
+    // ── Cola local de envíos a SAP (push desde PrintLab, sin middleware) ──────
+    // Registra cada documento que hay que enviar a SAP (socio, orden de venta,
+    // producto terminado, factura), lo reintenta en cada corrida del scheduler
+    // hasta 'max_intentos', y guarda el detalle de cada intento (incluida la
+    // respuesta cruda de SAP) para diagnóstico de Finanzas.
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS sap_envios_pendientes (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            codigo TEXT NOT NULL UNIQUE,
+            tipo TEXT NOT NULL,
+            referencia TEXT NOT NULL DEFAULT '',
+            estado TEXT NOT NULL DEFAULT 'pendiente',
+            intentos INTEGER NOT NULL DEFAULT 0,
+            max_intentos INTEGER NOT NULL DEFAULT 10,
+            proximo_intento_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            ultimo_error TEXT NOT NULL DEFAULT '',
+            ultimo_error_clase TEXT NOT NULL DEFAULT '',
+            payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+            resultado JSONB NOT NULL DEFAULT '{}'::jsonb,
+            creado_por TEXT NOT NULL DEFAULT '',
+            creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            actualizado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            enviado_en TIMESTAMPTZ NULL,
+            fallido_en TIMESTAMPTZ NULL,
+            notificado_en TIMESTAMPTZ NULL
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS sap_envios_pendientes_estado_idx ON sap_envios_pendientes (estado, proximo_intento_en)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS sap_envios_pendientes_ref_idx ON sap_envios_pendientes (tipo, referencia)`);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS sap_envios_intentos (
+            id BIGSERIAL PRIMARY KEY,
+            envio_id UUID NOT NULL REFERENCES sap_envios_pendientes(id) ON DELETE CASCADE,
+            numero INTEGER NOT NULL DEFAULT 1,
+            estado TEXT NOT NULL DEFAULT '',
+            error TEXT NOT NULL DEFAULT '',
+            error_clase TEXT NOT NULL DEFAULT '',
+            request JSONB NOT NULL DEFAULT '{}'::jsonb,
+            response JSONB NOT NULL DEFAULT '{}'::jsonb,
+            creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS sap_envios_intentos_envio_idx ON sap_envios_intentos (envio_id, creado_en DESC)`);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS sap_envios_config (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            max_intentos INTEGER NOT NULL DEFAULT 10,
+            backoff_base_segundos INTEGER NOT NULL DEFAULT 60,
+            actualizado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            CONSTRAINT sap_envios_config_singleton CHECK (id = 1)
+        )
+    `);
+    await pgQuery(`INSERT INTO sap_envios_config (id) VALUES (1) ON CONFLICT (id) DO NOTHING`);
+    await pgQuery(`
         CREATE TABLE IF NOT EXISTS sap_salesperson_profit_centers (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             salesperson_name TEXT NOT NULL,
@@ -1408,6 +1829,10 @@ async function ensureSapSchema(pgQuery) {
         )
     `);
     await pgQuery(`CREATE INDEX IF NOT EXISTS sap_salesperson_profit_centers_active_idx ON sap_salesperson_profit_centers (is_active, salesperson_name)`);
+    await pgQuery(`ALTER TABLE sap_salesperson_profit_centers ADD COLUMN IF NOT EXISTS nombre_local TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE business_partners ADD COLUMN IF NOT EXISTS salesperson_sap_code TEXT`);
+    await pgQuery(`ALTER TABLE business_partners ADD COLUMN IF NOT EXISTS salesperson_user_code TEXT`);
+    await pgQuery(`ALTER TABLE business_partners ADD COLUMN IF NOT EXISTS sap_modified_date TIMESTAMPTZ`);
     await pgQuery(`
         CREATE TABLE IF NOT EXISTS sap_production_cost_center_settings (
             id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
@@ -1438,17 +1863,85 @@ async function ensureSapSchema(pgQuery) {
         )
     `);
     await pgQuery(`CREATE INDEX IF NOT EXISTS sap_sync_jobs_status_idx ON sap_sync_jobs (status, created_at DESC)`);
+    // Amarra una corrida de Automatización a la solicitud sap_inbox_requests que está
+    // esperando contestar el conector, para no perder la pregunta ni reenviarla en cada
+    // ciclo del scheduler: se sigue revisando la MISMA solicitud hasta que responda.
+    await pgQuery(`ALTER TABLE sap_sync_jobs ADD COLUMN IF NOT EXISTS pending_inbox_request_id UUID NULL`);
     for (const definition of Object.values(SAP_IMPORT_JOB_DEFS)) {
         await pgQuery(`
             INSERT INTO sap_sync_jobs (job_code, entity_name, direction, status, filters, message)
-            VALUES ($1, $2, 'pull', 'idle', $3::jsonb, 'Pendiente de configurar automatización.')
+            VALUES ($1, $2, $3, 'idle', $4::jsonb, 'Pendiente de configurar automatización.')
             ON CONFLICT (job_code) DO NOTHING
         `, [
             definition.jobCode,
             definition.entityLabel,
+            definition.direction || 'pull',
             JSON.stringify(definition.defaultFilters)
         ]);
     }
+    // Si el servidor se reinició (o se cayó) mientras un trabajo estaba a medias,
+    // ese trabajo se queda escrito como "running" para siempre — nadie puede volver a
+    // intentarlo porque el candado atómico de executeSapImportJob nunca lo suelta. Un
+    // proceso recién arrancado no puede tener nada realmente en curso todavía, así que
+    // cualquier "running" que exista en este momento es basura de una corrida anterior
+    // que nunca terminó de escribir su resultado. Se libera aquí, en cada arranque.
+    await pgQuery(`
+        UPDATE sap_sync_jobs
+           SET status = 'error',
+               message = 'Se reinició automáticamente: el servidor se reinició (o se cayó) mientras esta carga seguía en curso y nunca terminó.',
+               finished_at = NOW(),
+               updated_at = NOW()
+         WHERE status = 'running'
+    `);
+    // Marca de vida del conector DIAPI: se actualiza cada vez que el conector viene a
+    // preguntar algo (aunque no haya nada pendiente), para poder mostrar "sí está
+    // llegando hasta acá" en vez de tener que adivinarlo por los trabajos.
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS sap_diapi_heartbeat (
+            id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+            last_seen_at TIMESTAMPTZ NULL,
+            last_seen_endpoint TEXT NOT NULL DEFAULT ''
+        )
+    `);
+    await pgQuery(`
+        INSERT INTO sap_diapi_heartbeat (id, last_seen_at, last_seen_endpoint)
+        VALUES (1, NULL, '')
+        ON CONFLICT (id) DO NOTHING
+    `);
+    // Consola de Pruebas SAP: copia local del BOM enviado + historial de descargas.
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS sap_bom_local (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            sku TEXT NOT NULL,
+            order_code TEXT NOT NULL DEFAULT '',
+            sap_item_code TEXT NOT NULL DEFAULT '',
+            item_name TEXT NOT NULL DEFAULT '',
+            cantidad NUMERIC(14,4) NOT NULL DEFAULT 0,
+            unidad TEXT NOT NULL DEFAULT '',
+            enviado_por TEXT NOT NULL DEFAULT '',
+            enviado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE (sku, sap_item_code)
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS sap_bom_local_sku_idx ON sap_bom_local (sku)`);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS sap_salidas_materiales (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            order_code TEXT NOT NULL,
+            sku TEXT NOT NULL DEFAULT '',
+            doc_entry TEXT NOT NULL DEFAULT '',
+            queue_code TEXT NOT NULL DEFAULT '',
+            lineas JSONB NOT NULL DEFAULT '[]'::jsonb,
+            fuera_de_bom JSONB NOT NULL DEFAULT '[]'::jsonb,
+            origen TEXT NOT NULL DEFAULT 'consola',
+            estado TEXT NOT NULL DEFAULT 'enviado',
+            error TEXT NOT NULL DEFAULT '',
+            creado_por TEXT NOT NULL DEFAULT '',
+            creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS sap_salidas_materiales_order_idx ON sap_salidas_materiales (order_code, creado_en DESC)`);
+
     const currentConfig = await loadSapConfig(pgQuery);
     await saveSapConfigSnapshotToAppConfig(pgQuery, currentConfig);
 }
@@ -1518,6 +2011,24 @@ async function saveSapConfig(pgQuery, input) {
                keep_demo_enabled = $14,
                max_import_partners = $15,
                max_import_items = $16,
+               provider_notes = $17,
+               production_reservation_warehouse_code = $18,
+               sap_item_group_code = $19,
+               sap_finished_goods_warehouse_code = $20,
+               sap_materials_warehouse_code = $21,
+               sap_finished_goods_uom_code = $22,
+               sap_sales_order_series = $23,
+               sap_production_order_series = $24,
+               sap_invoice_series = $25,
+               sap_inventory_exit_series = $26,
+               sap_inventory_entry_series = $27,
+               sap_sales_tax_code = $28,
+               sap_partner_group_code = $29,
+               sap_payment_terms_code = $30,
+               sap_price_list_num = $31,
+               sap_production_requires_bom = $32,
+               sap_factura_automatica = $33,
+               sap_udf_pl_activos = $34,
                updated_at = NOW()
          WHERE id = 1
     `, [
@@ -1536,7 +2047,25 @@ async function saveSapConfig(pgQuery, input) {
         merged.allowSelfSigned,
         merged.keepDemoEnabled,
         merged.maxImportPartners,
-        merged.maxImportItems
+        merged.maxImportItems,
+        merged.providerNotes,
+        merged.productionReservationWarehouseCode,
+        merged.sapItemGroupCode,
+        merged.sapFinishedGoodsWarehouseCode,
+        merged.sapMaterialsWarehouseCode,
+        merged.sapFinishedGoodsUomCode,
+        merged.sapSalesOrderSeries,
+        merged.sapProductionOrderSeries,
+        merged.sapInvoiceSeries,
+        merged.sapInventoryExitSeries,
+        merged.sapInventoryEntrySeries,
+        merged.sapSalesTaxCode,
+        merged.sapPartnerGroupCode,
+        merged.sapPaymentTermsCode,
+        merged.sapPriceListNum,
+        merged.sapProductionRequiresBom,
+        merged.sapFacturaAutomatica,
+        merged.sapUdfPlActivos
     ]);
     const saved = await loadSapConfig(pgQuery);
     await saveSapConfigSnapshotToAppConfig(pgQuery, saved);
@@ -1825,6 +2354,21 @@ async function fetchSyncRecords(config, entityName) {
     return fetchPagedFromSap(liveConfig, entityName, definition.query, definition.pageSize);
 }
 
+// Nomenclatura de socios que entran al módulo local (business_partners y sus
+// contactos/direcciones): solo los clasificados como clientes (SAP CardType 'C')
+// cuyo CardCode inicia con 'C' seguido de un número (p.ej. "C0001"). El espejo
+// crudo de SAP (OCRD/CRD1/OCPR/sap_business_partners) se guarda completo igual;
+// este filtro solo decide qué llega a las tablas que consume la aplicación.
+// Debe coincidir con el filtro del import manual en services/socios-service.js.
+const PREFIJO_CODIGO_CLIENTE_SAP = 'C';
+const TIPOS_TARJETA_CLIENTE_SAP = ['C'];
+
+function socioCumpleNomenclaturaClienteSap(cardCode, cardType) {
+    const codigo = normalizeText(cardCode).toUpperCase();
+    const tipo = normalizeText(cardType).toUpperCase();
+    return /^C\d/.test(codigo) && TIPOS_TARJETA_CLIENTE_SAP.includes(tipo);
+}
+
 async function upsertBusinessPartners(client, records) {
     for (const row of records) {
         const partnerCode = normalizeText(row.CardCode);
@@ -1842,6 +2386,12 @@ async function upsertBusinessPartners(client, records) {
             || sapAddresses[0]
             || {};
         const sapContacts = extractSapContacts(row, primaryAddress);
+        const salespersonName = pickSapPartnerField(row, ['SalesPersonName', 'SALESPERSONNAME', 'SlpName', 'SLPNAME']);
+        const rawSalespersonSapCode = pickSapPartnerField(row, ['SlpCode', 'SLPCODE', 'SalesPersonCode', 'SALESPERSONCODE']);
+        const salespersonSapCode = Number(rawSalespersonSapCode) > 0 ? rawSalespersonSapCode : '';
+        const sapCreationDate = normalizeTimestamp(pickSapPartnerField(row, ['CreateDate']));
+        const sapModifiedDate = normalizeTimestamp(pickSapPartnerField(row, ['UpdateDate']));
+        const paymentTermsName = pickSapPartnerField(row, ['PaymentTermsName', 'PymntGroup']);
         const syncSnapshot = {
             synced_at: new Date().toISOString(),
             source: 'sap',
@@ -1862,10 +2412,16 @@ async function upsertBusinessPartners(client, records) {
             await client.query(`
                 INSERT INTO "OCRD" (
                     "CardCode", "CardName", "CardType", "Currency", "LicTradNum", "FederalTaxID",
-                    "Phone1", "E_Mail", "CntctPrsn", "ListNum", "validFor", "frozenFor", "Balance",
+                    "Phone1", "Phone2", "Cellular", "Fax", "E_Mail", "IntrntSite", "CntctPrsn", "Notes",
+                    "VatGroup", "GroupCode", "Territory", "OwnerCode",
+                    "ListNum", "validFor", "frozenFor", "Balance",
+                    "ValidFrom", "ValidTo", "FrozenFrom", "FrozenTo",
+                    "Address", "Block", "ZipCode", "City", "County", "Country", "State1", "Building",
+                    "MailAddres", "MailBlock", "MailZipCod", "MailCity", "MailCounty", "MailCountr", "State2", "MailBuildi",
+                    "BillToDef", "ShipToDef",
                     raw_data, synced_at
                 )
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,NOW())
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45::jsonb,NOW())
                 ON CONFLICT ("CardCode")
                 DO UPDATE SET
                     "CardName" = EXCLUDED."CardName",
@@ -1874,12 +2430,43 @@ async function upsertBusinessPartners(client, records) {
                     "LicTradNum" = EXCLUDED."LicTradNum",
                     "FederalTaxID" = EXCLUDED."FederalTaxID",
                     "Phone1" = EXCLUDED."Phone1",
+                    "Phone2" = EXCLUDED."Phone2",
+                    "Cellular" = EXCLUDED."Cellular",
+                    "Fax" = EXCLUDED."Fax",
                     "E_Mail" = EXCLUDED."E_Mail",
+                    "IntrntSite" = EXCLUDED."IntrntSite",
                     "CntctPrsn" = EXCLUDED."CntctPrsn",
+                    "Notes" = EXCLUDED."Notes",
+                    "VatGroup" = EXCLUDED."VatGroup",
+                    "GroupCode" = EXCLUDED."GroupCode",
+                    "Territory" = EXCLUDED."Territory",
+                    "OwnerCode" = EXCLUDED."OwnerCode",
                     "ListNum" = EXCLUDED."ListNum",
                     "validFor" = EXCLUDED."validFor",
                     "frozenFor" = EXCLUDED."frozenFor",
                     "Balance" = EXCLUDED."Balance",
+                    "ValidFrom" = EXCLUDED."ValidFrom",
+                    "ValidTo" = EXCLUDED."ValidTo",
+                    "FrozenFrom" = EXCLUDED."FrozenFrom",
+                    "FrozenTo" = EXCLUDED."FrozenTo",
+                    "Address" = EXCLUDED."Address",
+                    "Block" = EXCLUDED."Block",
+                    "ZipCode" = EXCLUDED."ZipCode",
+                    "City" = EXCLUDED."City",
+                    "County" = EXCLUDED."County",
+                    "Country" = EXCLUDED."Country",
+                    "State1" = EXCLUDED."State1",
+                    "Building" = EXCLUDED."Building",
+                    "MailAddres" = EXCLUDED."MailAddres",
+                    "MailBlock" = EXCLUDED."MailBlock",
+                    "MailZipCod" = EXCLUDED."MailZipCod",
+                    "MailCity" = EXCLUDED."MailCity",
+                    "MailCounty" = EXCLUDED."MailCounty",
+                    "MailCountr" = EXCLUDED."MailCountr",
+                    "State2" = EXCLUDED."State2",
+                    "MailBuildi" = EXCLUDED."MailBuildi",
+                    "BillToDef" = EXCLUDED."BillToDef",
+                    "ShipToDef" = EXCLUDED."ShipToDef",
                     raw_data = EXCLUDED.raw_data,
                     synced_at = NOW()
             `, [
@@ -1890,12 +2477,43 @@ async function upsertBusinessPartners(client, records) {
                 sapText(row.LicTradNum || taxId),
                 sapText(row.FederalTaxID || taxId),
                 phone,
+                sapText(row.Phone2),
+                sapText(row.Cellular),
+                sapText(row.Fax),
                 email,
+                sapText(row.IntrntSite || row.Website),
                 contactPerson,
+                sapText(row.Notes),
+                sapText(row.VatGroup),
+                sapText(row.GroupCode),
+                sapText(row.Territory),
+                sapText(row.OwnerCode),
                 sapNumber(row.PriceListNum || row.ListNum),
                 sapText(row.validFor || row.ValidFor || 'Y', 'Y'),
                 sapText(row.frozenFor || row.FrozenFor || 'N', 'N'),
                 balance,
+                sapText(row.ValidFrom),
+                sapText(row.ValidTo),
+                sapText(row.FrozenFrom),
+                sapText(row.FrozenTo),
+                sapText(row.Address || row.BillingAddress),
+                sapText(row.Block || row.BillingBlock),
+                sapText(row.ZipCode || row.BillingZipCode),
+                sapText(row.City || row.BillingCity),
+                sapText(row.County || row.BillingCounty),
+                sapText(row.Country || row.BillingCountry),
+                sapText(row.State || row.BillingState),
+                sapText(row.Building || row.BillingBuilding),
+                sapText(row.MailAddres || row.ShippingAddress),
+                sapText(row.MailBlock || row.ShippingBlock),
+                sapText(row.MailZipCod || row.ShippingZipCode),
+                sapText(row.MailCity || row.ShippingCity),
+                sapText(row.MailCounty || row.ShippingCounty),
+                sapText(row.MailCountr || row.ShippingCountry),
+                sapText(row.State2 || row.ShippingState),
+                sapText(row.MailBuildi || row.ShippingBuilding),
+                sapText(row.BillToDef),
+                sapText(row.ShipToDef),
                 JSON.stringify(row || {})
             ]);
             await client.query(`DELETE FROM "CRD1" WHERE "CardCode" = $1`, [partnerCode]);
@@ -1903,9 +2521,10 @@ async function upsertBusinessPartners(client, records) {
                 await client.query(`
                     INSERT INTO "CRD1" (
                         "CardCode", "Address", "AdresType", "Street", "Block", "City",
-                        "County", "State", "Country", "ZipCode", raw_data, synced_at
+                        "County", "State", "Country", "ZipCode", "Building",
+                        raw_data, synced_at
                     )
-                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,NOW())
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,NOW())
                     ON CONFLICT ("CardCode", "Address", "AdresType")
                     DO UPDATE SET
                         "Street" = EXCLUDED."Street",
@@ -1915,6 +2534,7 @@ async function upsertBusinessPartners(client, records) {
                         "State" = EXCLUDED."State",
                         "Country" = EXCLUDED."Country",
                         "ZipCode" = EXCLUDED."ZipCode",
+                        "Building" = EXCLUDED."Building",
                         raw_data = EXCLUDED.raw_data,
                         synced_at = NOW()
                 `, [
@@ -1928,39 +2548,43 @@ async function upsertBusinessPartners(client, records) {
                     sapText(address.State),
                     sapText(address.Country),
                     sapText(address.ZipCode),
+                    sapText(address.Building),
                     JSON.stringify(address || {})
                 ]);
             }
             const contacts = Array.isArray(row.ContactEmployees) ? row.ContactEmployees : [];
-            const contactRows = contacts.length ? contacts : (contactPerson ? [{ Name: contactPerson, FirstName: contactPerson, E_MailL: email, Tel1: phone, Cellolar: pickSapPartnerMobile(row), Position: 'Principal' }] : []);
+            const contactRows = contacts.length ? contacts : (contactPerson ? [{ Name: contactPerson, FirstName: contactPerson, E_Mail: email, Tel1: phone, Cellolar: pickSapPartnerMobile(row), Position: 'Principal' }] : []);
             for (const contact of contactRows) {
                 const name = sapText(contact.Name || contact.ContactName || contactPerson);
                 if (!name) continue;
                 await client.query(`
                     INSERT INTO "OCPR" (
-                        "CardCode", "Name", "FirstName", "LastName", "E_MailL",
-                        "Tel1", "Cellolar", "Position", raw_data, synced_at
+                        "CardCode", "CntctCode", "Name", "Position",
+                        "Tel1", "Tel2", "Cellolar", "Fax", "E_Mail",
+                        raw_data, synced_at
                     )
-                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,NOW())
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,NOW())
                     ON CONFLICT ("CardCode", "Name")
                     DO UPDATE SET
-                        "FirstName" = EXCLUDED."FirstName",
-                        "LastName" = EXCLUDED."LastName",
-                        "E_MailL" = EXCLUDED."E_MailL",
-                        "Tel1" = EXCLUDED."Tel1",
-                        "Cellolar" = EXCLUDED."Cellolar",
+                        "CntctCode" = EXCLUDED."CntctCode",
                         "Position" = EXCLUDED."Position",
+                        "Tel1" = EXCLUDED."Tel1",
+                        "Tel2" = EXCLUDED."Tel2",
+                        "Cellolar" = EXCLUDED."Cellolar",
+                        "Fax" = EXCLUDED."Fax",
+                        "E_Mail" = EXCLUDED."E_Mail",
                         raw_data = EXCLUDED.raw_data,
                         synced_at = NOW()
                 `, [
                     partnerCode,
+                    sapNumber(contact.CntctCode),
                     name,
-                    sapText(contact.FirstName || name),
-                    sapText(contact.LastName),
-                    sapText(contact.E_MailL || contact.Email || email),
-                    sapText(contact.Tel1 || contact.Phone1 || phone),
-                    sapText(contact.Cellolar || contact.MobilePhone || contact.Mobile || pickSapPartnerMobile(row)),
                     sapText(contact.Position),
+                    sapText(contact.Tel1 || contact.Phone1 || phone),
+                    sapText(contact.Tel2),
+                    sapText(contact.Cellolar || contact.MobilePhone || contact.Mobile || pickSapPartnerMobile(row)),
+                    sapText(contact.Fax),
+                    sapText(contact.E_Mail || contact.E_MailL || contact.Email || email),
                     JSON.stringify(contact || {})
                 ]);
             }
@@ -2003,69 +2627,209 @@ async function upsertBusinessPartners(client, records) {
             JSON.stringify(row || {})
         ]);
 
-        await client.query(`
-            INSERT INTO business_partners (
-                partner_code,
-                partner_name,
-                salesperson_name,
-                tax_id,
-                email,
-                email_facturacion,
-                currency_code,
-                payment_terms,
-                sector,
-                sub_sector,
-                is_tax_exempt,
-                allowed_percentage,
-                client_type,
-                creation_date,
-                raw_data,
-                updated_at
-            ) VALUES (
-                $1, $2, '', $3, $4, $5, $6, '', '', '', false, NULL, $7, CURRENT_DATE, $8::jsonb, NOW()
-            )
-            ON CONFLICT (partner_code)
-            DO UPDATE SET
-                partner_name = COALESCE(NULLIF(EXCLUDED.partner_name, ''), business_partners.partner_name),
-                tax_id = CASE
-                    WHEN COALESCE(NULLIF(business_partners.tax_id, ''), '') = '' THEN EXCLUDED.tax_id
-                    ELSE business_partners.tax_id
-                END,
-                email = CASE
-                    WHEN COALESCE(NULLIF(business_partners.email, ''), '') = '' THEN EXCLUDED.email
-                    ELSE business_partners.email
-                END,
-                email_facturacion = CASE
-                    WHEN COALESCE(NULLIF(business_partners.email_facturacion, ''), '') = '' THEN EXCLUDED.email_facturacion
-                    ELSE business_partners.email_facturacion
-                END,
-                currency_code = CASE
-                    WHEN COALESCE(NULLIF(business_partners.currency_code, ''), '') = '' THEN EXCLUDED.currency_code
-                    ELSE business_partners.currency_code
-                END,
-                client_type = CASE
-                    WHEN COALESCE(NULLIF(business_partners.client_type, ''), '') = '' THEN EXCLUDED.client_type
-                    ELSE business_partners.client_type
-                END,
-                raw_data = COALESCE(business_partners.raw_data, '{}'::jsonb) || EXCLUDED.raw_data,
-                updated_at = NOW()
-        `, [
-            partnerCode,
-            partnerName,
-            taxId || null,
-            email || null,
-            email || null,
-            currency || null,
-            clientType || null,
-            JSON.stringify({
-                SAP_SERVICE_LAYER: syncSnapshot
-            })
-        ]);
+        // Nomenclatura: solo clientes (CardType 'C') con CardCode que inicia en 'C'
+        // llegan a business_partners y sus contactos/direcciones. El espejo crudo de
+        // arriba (OCRD/CRD1/OCPR/sap_business_partners) ya quedó guardado completo.
+        if (!socioCumpleNomenclaturaClienteSap(partnerCode, cardType)) {
+            continue;
+        }
+
+        let skippedByDuplicateTaxId = false;
+        try {
+            await client.query('SAVEPOINT sp_business_partner_upsert');
+            await client.query(`
+                INSERT INTO business_partners (
+                    partner_code,
+                    partner_name,
+                    salesperson_name,
+                    tax_id,
+                    email,
+                    email_facturacion,
+                    currency_code,
+                    payment_terms,
+                    sector,
+                    sub_sector,
+                    is_tax_exempt,
+                    allowed_percentage,
+                    client_type,
+                    creation_date,
+                    updated_at,
+                    salesperson_sap_code,
+                    sap_modified_date,
+                    phone1, phone2, cellular, fax, website, contact_person, notes,
+                    vat_group, territory, owner_code, group_code,
+                    valid_for, frozen_for,
+                    balance,
+                    billing_address, billing_block, billing_zip_code, billing_city,
+                    billing_county, billing_country, billing_state, billing_building,
+                    shipping_address, shipping_block, shipping_zip_code, shipping_city,
+                    shipping_county, shipping_country, shipping_state, shipping_building,
+                    bill_to_default, ship_to_default
+                ) VALUES (
+                    $1, $2, $8, $3, $4, $5, $6, $9, '', '', false, NULL, $7,
+                    COALESCE($10::date, CURRENT_DATE), NOW(), $11, $12,
+                    $13, $14, $15, $16, $17, $18, $19,
+                    $20, $21, $22, $23,
+                    $24, $25,
+                    $26,
+                    $27, $28, $29, $30, $31, $32, $33, $34,
+                    $35, $36, $37, $38, $39, $40, $41, $42,
+                    $43, $44
+                )
+                ON CONFLICT (partner_code)
+                DO UPDATE SET
+                    partner_name = COALESCE(NULLIF(EXCLUDED.partner_name, ''), business_partners.partner_name),
+                    salesperson_name = CASE
+                        WHEN COALESCE(NULLIF(EXCLUDED.salesperson_name, ''), '') <> '' THEN EXCLUDED.salesperson_name
+                        ELSE business_partners.salesperson_name
+                    END,
+                    salesperson_sap_code = CASE
+                        WHEN COALESCE(NULLIF(EXCLUDED.salesperson_sap_code, ''), '') <> '' THEN EXCLUDED.salesperson_sap_code
+                        ELSE business_partners.salesperson_sap_code
+                    END,
+                    tax_id = CASE
+                        WHEN COALESCE(NULLIF(business_partners.tax_id, ''), '') = '' THEN EXCLUDED.tax_id
+                        ELSE business_partners.tax_id
+                    END,
+                    email = CASE
+                        WHEN COALESCE(NULLIF(business_partners.email, ''), '') = '' THEN EXCLUDED.email
+                        ELSE business_partners.email
+                    END,
+                    email_facturacion = CASE
+                        WHEN COALESCE(NULLIF(business_partners.email_facturacion, ''), '') = '' THEN EXCLUDED.email_facturacion
+                        ELSE business_partners.email_facturacion
+                    END,
+                    currency_code = CASE
+                        WHEN COALESCE(NULLIF(business_partners.currency_code, ''), '') = '' THEN EXCLUDED.currency_code
+                        ELSE business_partners.currency_code
+                    END,
+                    payment_terms = CASE
+                        WHEN COALESCE(NULLIF(business_partners.payment_terms, ''), '') = '' THEN EXCLUDED.payment_terms
+                        ELSE business_partners.payment_terms
+                    END,
+                    client_type = CASE
+                        WHEN COALESCE(NULLIF(business_partners.client_type, ''), '') = '' THEN EXCLUDED.client_type
+                        ELSE business_partners.client_type
+                    END,
+                    sap_modified_date = COALESCE(EXCLUDED.sap_modified_date, business_partners.sap_modified_date),
+                    updated_at = NOW(),
+                    phone1 = CASE
+                        WHEN COALESCE(NULLIF(business_partners.phone1, ''), '') = '' THEN EXCLUDED.phone1
+                        ELSE business_partners.phone1
+                    END,
+                    phone2 = CASE
+                        WHEN COALESCE(NULLIF(business_partners.phone2, ''), '') = '' THEN EXCLUDED.phone2
+                        ELSE business_partners.phone2
+                    END,
+                    cellular = CASE
+                        WHEN COALESCE(NULLIF(business_partners.cellular, ''), '') = '' THEN EXCLUDED.cellular
+                        ELSE business_partners.cellular
+                    END,
+                    fax = CASE
+                        WHEN COALESCE(NULLIF(business_partners.fax, ''), '') = '' THEN EXCLUDED.fax
+                        ELSE business_partners.fax
+                    END,
+                    website = CASE
+                        WHEN COALESCE(NULLIF(business_partners.website, ''), '') = '' THEN EXCLUDED.website
+                        ELSE business_partners.website
+                    END,
+                    contact_person = COALESCE(NULLIF(EXCLUDED.contact_person, ''), business_partners.contact_person),
+                    notes = COALESCE(NULLIF(EXCLUDED.notes, ''), business_partners.notes),
+                    vat_group = COALESCE(NULLIF(EXCLUDED.vat_group, ''), business_partners.vat_group),
+                    territory = COALESCE(NULLIF(EXCLUDED.territory, ''), business_partners.territory),
+                    owner_code = COALESCE(NULLIF(EXCLUDED.owner_code, ''), business_partners.owner_code),
+                    group_code = COALESCE(NULLIF(EXCLUDED.group_code, ''), business_partners.group_code),
+                    valid_for = EXCLUDED.valid_for,
+                    frozen_for = EXCLUDED.frozen_for,
+                    balance = EXCLUDED.balance,
+                    billing_address = COALESCE(NULLIF(EXCLUDED.billing_address, ''), business_partners.billing_address),
+                    billing_block = COALESCE(NULLIF(EXCLUDED.billing_block, ''), business_partners.billing_block),
+                    billing_zip_code = COALESCE(NULLIF(EXCLUDED.billing_zip_code, ''), business_partners.billing_zip_code),
+                    billing_city = COALESCE(NULLIF(EXCLUDED.billing_city, ''), business_partners.billing_city),
+                    billing_county = COALESCE(NULLIF(EXCLUDED.billing_county, ''), business_partners.billing_county),
+                    billing_country = COALESCE(NULLIF(EXCLUDED.billing_country, ''), business_partners.billing_country),
+                    billing_state = COALESCE(NULLIF(EXCLUDED.billing_state, ''), business_partners.billing_state),
+                    billing_building = COALESCE(NULLIF(EXCLUDED.billing_building, ''), business_partners.billing_building),
+                    shipping_address = COALESCE(NULLIF(EXCLUDED.shipping_address, ''), business_partners.shipping_address),
+                    shipping_block = COALESCE(NULLIF(EXCLUDED.shipping_block, ''), business_partners.shipping_block),
+                    shipping_zip_code = COALESCE(NULLIF(EXCLUDED.shipping_zip_code, ''), business_partners.shipping_zip_code),
+                    shipping_city = COALESCE(NULLIF(EXCLUDED.shipping_city, ''), business_partners.shipping_city),
+                    shipping_county = COALESCE(NULLIF(EXCLUDED.shipping_county, ''), business_partners.shipping_county),
+                    shipping_country = COALESCE(NULLIF(EXCLUDED.shipping_country, ''), business_partners.shipping_country),
+                    shipping_state = COALESCE(NULLIF(EXCLUDED.shipping_state, ''), business_partners.shipping_state),
+                    shipping_building = COALESCE(NULLIF(EXCLUDED.shipping_building, ''), business_partners.shipping_building),
+                    bill_to_default = COALESCE(NULLIF(EXCLUDED.bill_to_default, ''), business_partners.bill_to_default),
+                    ship_to_default = COALESCE(NULLIF(EXCLUDED.ship_to_default, ''), business_partners.ship_to_default)
+            `, [
+                partnerCode,
+                partnerName,
+                taxId || null,
+                email || null,
+                email || null,
+                currency || null,
+                clientType || null,
+                salespersonName || '',
+                paymentTermsName || '',
+                sapCreationDate,
+                salespersonSapCode || null,
+                sapModifiedDate,
+                sapText(row.Phone1 || phone),
+                sapText(row.Phone2),
+                sapText(row.Cellular),
+                sapText(row.Fax),
+                sapText(row.IntrntSite || row.Website),
+                contactPerson,
+                sapText(row.Notes),
+                sapText(row.VatGroup),
+                sapText(row.Territory),
+                sapText(row.OwnerCode),
+                sapText(row.GroupCode),
+                sapText(row.ValidFor || 'Y'),
+                sapText(row.FrozenFor || 'N'),
+                balance,
+                sapText(row.Address || row.BillingAddress),
+                sapText(row.Block || row.BillingBlock),
+                sapText(row.ZipCode || row.BillingZipCode),
+                sapText(row.City || row.BillingCity),
+                sapText(row.County || row.BillingCounty),
+                sapText(row.Country || row.BillingCountry),
+                sapText(row.State || row.BillingState),
+                sapText(row.Building || row.BillingBuilding),
+                sapText(row.MailAddres || row.ShippingAddress),
+                sapText(row.MailBlock || row.ShippingBlock),
+                sapText(row.MailZipCod || row.ShippingZipCode),
+                sapText(row.MailCity || row.ShippingCity),
+                sapText(row.MailCounty || row.ShippingCounty),
+                sapText(row.MailCountr || row.ShippingCountry),
+                sapText(row.State2 || row.ShippingState),
+                sapText(row.MailBuildi || row.ShippingBuilding),
+                sapText(row.BillToDef),
+                sapText(row.ShipToDef)
+            ]);
+            await client.query('RELEASE SAVEPOINT sp_business_partner_upsert');
+        } catch (error) {
+            // La cédula/tax_id ya pertenece a otro partner_code (sucursal o cuenta
+            // hermana en SAP bajo la misma entidad legal): no se duplica el registro
+            // en business_partners, se omite y se sigue con el resto del lote. El
+            // espejo sap_business_partners de arriba sí queda guardado igual, porque
+            // ese no tiene esta restricción.
+            if (error.code === '23505' && error.constraint === 'idx_business_partners_tax_id_unique') {
+                await client.query('ROLLBACK TO SAVEPOINT sp_business_partner_upsert');
+                console.warn(`[sap] business_partners: se omitió ${partnerCode} porque su tax_id ya pertenece a otro socio.`);
+                skippedByDuplicateTaxId = true;
+            } else {
+                throw error;
+            }
+        }
+
+        if (skippedByDuplicateTaxId) {
+            continue;
+        }
 
         await client.query(`
             DELETE FROM business_partner_contacts
              WHERE partner_code = $1
-               AND raw_data ? 'SAP_SERVICE_LAYER'
+               AND COALESCE(source, '') = 'sap'
         `, [partnerCode]);
 
         for (const contact of sapContacts) {
@@ -2084,9 +2848,20 @@ async function upsertBusinessPartners(client, records) {
                     country,
                     state_province,
                     county,
-                    raw_data
+                    source,
+                    sap_contact_code,
+                    phone2,
+                    phone3,
+                    website,
+                    notes,
+                    notes2,
+                    street,
+                    block,
+                    zip_code,
+                    city
                 ) VALUES (
-                    $1, $2, $3, $4, $5, $6, $7, $8, $9, false, $10, $11, $12, $13::jsonb
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9, false, $10, $11, $12, 'sap',
+                    $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
                 )
             `, [
                 partnerCode,
@@ -2101,23 +2876,23 @@ async function upsertBusinessPartners(client, records) {
                 contact.country || '',
                 contact.stateProvince || '',
                 contact.county || '',
-                JSON.stringify({
-                    SAP_SERVICE_LAYER: {
-                        ...syncSnapshot,
-                        contact_identification: contact.identification || '',
-                        contact_address: contact.addressLine || ''
-                    },
-                    IDENTIFICACION: contact.identification || '',
-                    ADDRESS: contact.addressLine || '',
-                    sap_contact: contact.payload || {}
-                })
+                contact.sapContactCode || null,
+                contact.phone2 || null,
+                contact.phone3 || null,
+                contact.website || null,
+                contact.notes || null,
+                contact.notes2 || null,
+                contact.street || null,
+                contact.block || null,
+                contact.zipCode || null,
+                contact.city || null
             ]);
         }
 
         await client.query(`
             DELETE FROM business_partner_addresses
              WHERE partner_code = $1
-               AND raw_data ? 'SAP_SERVICE_LAYER'
+               AND COALESCE(source, '') = 'sap'
         `, [partnerCode]);
 
         for (const address of sapAddresses) {
@@ -2132,9 +2907,16 @@ async function upsertBusinessPartners(client, records) {
                     district,
                     address_line,
                     zip_code,
-                    raw_data
+                    source,
+                    block,
+                    city,
+                    building,
+                    floor,
+                    room,
+                    street_number
                 ) VALUES (
-                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9, 'sap',
+                    $10, $11, $12, $13, $14, $15
                 )
             `, [
                 partnerCode,
@@ -2146,14 +2928,12 @@ async function upsertBusinessPartners(client, records) {
                 address.district || null,
                 address.addressLine || null,
                 address.zipCode || null,
-                JSON.stringify({
-                    SAP_SERVICE_LAYER: {
-                        ...syncSnapshot,
-                        address_name: address.addressName,
-                        address_type_code: address.addressTypeCode
-                    },
-                    sap_address: address.payload
-                })
+                address.block || null,
+                address.city || null,
+                address.building || null,
+                address.floor || null,
+                address.room || null,
+                address.streetNumber || null
             ]);
         }
     }
@@ -2274,6 +3054,16 @@ async function upsertItems(client, records) {
                 ]);
             }
         }
+        const sapNumOrNull = (value) => {
+            if (value == null || value === '') return null;
+            const n = Number(value);
+            return Number.isFinite(n) ? n : null;
+        };
+        const anchoMm = sapNumOrNull(row.U_Ancho != null ? row.U_Ancho : row.U_ANCHO);
+        const gramajeGM2 = sapNumOrNull(row.U_Gramaje != null ? row.U_Gramaje : row.U_GRAMAJE);
+        const calibreMicras = sapNumOrNull(row.U_Calibre != null ? row.U_Calibre : row.U_CALIBRE);
+        const proveedorSap = normalizeText(row.U_Proveedor || row.U_PROVEEDOR);
+        const marcaSap = normalizeText(row.U_Marca || row.U_MARCA);
         await client.query(`
             INSERT INTO sap_items (
                 item_code,
@@ -2286,10 +3076,15 @@ async function upsertItems(client, records) {
                 currency,
                 buy_unit_msr,
                 sales_unit_msr,
+                ancho_mm,
+                gramaje_g_m2,
+                calibre_micras,
+                proveedor,
+                marca,
                 payload,
                 synced_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, NOW())
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, NOW())
             ON CONFLICT (item_code)
             DO UPDATE SET
                 item_name = EXCLUDED.item_name,
@@ -2301,6 +3096,11 @@ async function upsertItems(client, records) {
                 currency = EXCLUDED.currency,
                 buy_unit_msr = EXCLUDED.buy_unit_msr,
                 sales_unit_msr = EXCLUDED.sales_unit_msr,
+                ancho_mm = EXCLUDED.ancho_mm,
+                gramaje_g_m2 = EXCLUDED.gramaje_g_m2,
+                calibre_micras = EXCLUDED.calibre_micras,
+                proveedor = EXCLUDED.proveedor,
+                marca = EXCLUDED.marca,
                 payload = EXCLUDED.payload,
                 synced_at = NOW()
         `, [
@@ -2314,6 +3114,11 @@ async function upsertItems(client, records) {
             normalizeText(row.Currency),
             buyUnit,
             normalizeText(row.SalesUnitMsr),
+            anchoMm,
+            gramajeGM2,
+            calibreMicras,
+            proveedorSap,
+            marcaSap,
             JSON.stringify(row || {})
         ]);
         await client.query(`
@@ -2652,14 +3457,15 @@ function getSapMirrorTableConfig(tableName) {
     const normalized = String(tableName || '').trim().toUpperCase();
     const config = SAP_MIRROR_TABLES[normalized];
     if (!config) throw new Error('Tabla SAP no soportada.');
-    return { tableName: normalized, ...config };
+    return { tableName: normalized, ...config, pgTable: config.pgTable || normalized };
 }
 
 async function loadSapMirrorSummary(pgQuery) {
     const tables = [];
     for (const tableName of Object.keys(SAP_MIRROR_TABLES)) {
         const config = SAP_MIRROR_TABLES[tableName];
-        const countResult = await pgQuery(`SELECT COUNT(*)::int AS total FROM "${tableName}"`);
+        const pgTable = config.pgTable || tableName;
+        const countResult = await pgQuery(`SELECT COUNT(*)::int AS total FROM "${pgTable}"`);
         tables.push({
             tableName,
             ...config,
@@ -2696,7 +3502,7 @@ async function listSapMirrorTable(pgQuery, tableName, query = {}) {
     const selectColumns = config.columns.map((column) => `"${column}"`).join(', ');
     const result = await pgQuery(`
         SELECT ${selectColumns}
-          FROM "${config.tableName}"
+          FROM "${config.pgTable}"
          ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
       ORDER BY "${orderColumn}" ASC
          LIMIT $${values.length}
@@ -2706,6 +3512,85 @@ async function listSapMirrorTable(pgQuery, tableName, query = {}) {
         table: config,
         rows: result.rows
     };
+}
+
+function getSapMirrorProcessDefinitions() {
+    const flujosAutomatizacion = [
+        { clave: 'sap-import-business-partners', etiqueta: 'Socios, contactos y direcciones', entidades: 'OCRD/CRD1/OCPR', origen: 'import-business-partners' },
+        { clave: 'sap-import-items', etiqueta: 'Inventario, stock, precios y bodegas', entidades: 'OITM/OITW/ITM1/OWHS', origen: 'import-items' },
+        { clave: 'sap-import-salespeople', etiqueta: 'Vendedores', entidades: 'OSLP', origen: '',
+            sql: [
+                'SELECT TOP 2000',
+                '    SlpCode AS SalesPersonCode,',
+                '    SlpName AS SalesPersonName,',
+                '    Active AS IsActive',
+                'FROM OSLP',
+                'ORDER BY SlpCode ASC'
+            ].join('\n'),
+            nota: 'Catálogo simple de vendedores activos. El alias de las columnas es el nombre que espera el conector DIAPI.' },
+        { clave: 'sap-import-contacts', etiqueta: 'Contactos', entidades: 'OCPR', origen: '',
+            sql: [
+                'SELECT TOP 2000',
+                '    T0.CardCode,',
+                '    T0.CntctCode,',
+                '    T0.Name,',
+                '    T0.Position,',
+                '    T0.Tel1,',
+                '    T0.Tel2,',
+                '    T0.Cellolar,',
+                '    T0.Fax,',
+                '    T0.E_MailL AS E_Mail',
+                'FROM OCPR T0',
+                'ORDER BY T0.CardCode ASC, T0.CntctCode ASC'
+            ].join('\n'),
+            nota: 'Contactos de socios de negocio, ordenados por socio. Sin filtros: trae el catálogo completo.' },
+        { clave: 'sap-import-addresses', etiqueta: 'Direcciones', entidades: 'CRD1', origen: '',
+            sql: [
+                'SELECT TOP 2000',
+                '    T0.CardCode,',
+                '    T0.Address,',
+                '    T0.AdresType,',
+                '    T0.Street,',
+                '    T0.Block,',
+                '    T0.City,',
+                '    T0.County,',
+                '    T0.State,',
+                '    T0.Country,',
+                '    T0.ZipCode,',
+                '    T0.Building',
+                'FROM CRD1 T0',
+                'ORDER BY T0.CardCode ASC, T0.Address ASC'
+            ].join('\n'),
+            nota: 'Direcciones de facturación y envío de cada socio (AdresType distingue el tipo).' },
+        { clave: 'sap-import-batches', etiqueta: 'Lotes (tintas)', entidades: 'OBTN', origen: '',
+            sql: [
+                'SELECT TOP 2000',
+                '    T0.ItemCode,',
+                '    T0.DistNumber,',
+                '    T0.SysNumber,',
+                '    T0.Quantity,',
+                '    T0.MnfDate,',
+                '    T0.ExpDate,',
+                '    T0.Quantity,',
+                '    T0.Balance,',
+                '    T0.U_K_Bobina',
+                'FROM OBTN T0',
+                'WHERE T0.Quantity > 0',
+                'ORDER BY T0.ItemCode ASC, T0.DistNumber ASC'
+            ].join('\n'),
+            nota: 'Lotes de inventario con existencia. U_K_Bobina es un campo de usuario del cliente; Balance viene en la misma tabla OBTN.' }
+    ];
+    return flujosAutomatizacion.map((flujo) => {
+        const def = flujo.origen ? SAP_MIRROR_PROCESS_DEFS[flujo.origen] : null;
+        return {
+            clave: flujo.clave,
+            etiqueta: flujo.etiqueta,
+            entidades: flujo.entidades,
+            sql: def?.sql || flujo.sql || '',
+            sqlRelacionadas: Array.isArray(def?.relatedSql) ? def.relatedSql : (flujo.relatedSql || []),
+            nota: def?.note || flujo.nota || ''
+        };
+    });
 }
 
 function getSapMirrorProcessDefinition(processKey) {
@@ -2726,7 +3611,7 @@ function normalizeSapImportJobFilters(jobCode, input = {}) {
     const normalized = {
         enabled: normalizeBoolean(source.enabled, definition.defaultFilters.enabled),
         intervalMinutes: normalizePositiveInt(source.intervalMinutes, definition.defaultFilters.intervalMinutes, 5, 1440),
-        limit: normalizePositiveInt(source.limit, definition.defaultFilters.limit, 1, 1000),
+        limit: normalizePositiveInt(source.limit, definition.defaultFilters.limit, 1, 100000),
         search: normalizeText(source.search)
     };
     if (Object.prototype.hasOwnProperty.call(definition.defaultFilters, 'type')) normalized.type = normalizeText(source.type);
@@ -2752,7 +3637,8 @@ function buildSapImportJobPublicRow(row = {}) {
         message: normalizeText(row.message),
         startedAt: row.started_at || row.startedAt || null,
         finishedAt,
-        nextRunAt
+        nextRunAt,
+        pendingInboxRequestId: row.pending_inbox_request_id || row.pendingInboxRequestId || null
     };
 }
 
@@ -2760,6 +3646,7 @@ function normalizeSapSalespersonProfitCenterRow(row = {}) {
     return {
         id: normalizeText(row.id),
         salespersonName: normalizeText(row.salesperson_name),
+        localName: normalizeText(row.nombre_local),
         salesPersonCode: row.sales_person_code == null ? null : Number(row.sales_person_code),
         profitCenterCode: normalizeText(row.profit_center_code),
         notes: normalizeText(row.notes),
@@ -2779,7 +3666,7 @@ function normalizeSapProductionCostCenterSettingsRow(row = {}) {
 
 async function listSapSalespersonProfitCenters(pgQuery) {
     const result = await pgQuery(`
-        SELECT id, salesperson_name, sales_person_code, profit_center_code, notes, is_active, created_at, updated_at
+        SELECT id, salesperson_name, nombre_local, sales_person_code, profit_center_code, notes, is_active, created_at, updated_at
           FROM sap_salesperson_profit_centers
       ORDER BY is_active DESC, LOWER(salesperson_name), created_at DESC
     `);
@@ -2802,25 +3689,95 @@ async function saveSapSalespersonProfitCenter(pgQuery, payload = {}) {
     }
     const result = await pgQuery(`
         INSERT INTO sap_salesperson_profit_centers (
-            salesperson_name, sales_person_code, profit_center_code, notes, is_active, updated_at
+            salesperson_name, nombre_local, sales_person_code, profit_center_code, notes, is_active, updated_at
         )
-        VALUES ($1,$2,$3,$4,$5,NOW())
+        VALUES ($1,$2,$3,$4,$5,$6,NOW())
         ON CONFLICT (salesperson_name)
         DO UPDATE SET
+            nombre_local = EXCLUDED.nombre_local,
             sales_person_code = EXCLUDED.sales_person_code,
             profit_center_code = EXCLUDED.profit_center_code,
             notes = EXCLUDED.notes,
             is_active = EXCLUDED.is_active,
             updated_at = NOW()
-        RETURNING id, salesperson_name, sales_person_code, profit_center_code, notes, is_active, created_at, updated_at
+        RETURNING id, salesperson_name, nombre_local, sales_person_code, profit_center_code, notes, is_active, created_at, updated_at
     `, [
         salespersonName,
+        normalizeText(payload.localName || payload.local_name || payload.nombre_local),
         salesPersonCode,
         profitCenterCode,
         normalizeText(payload.notes),
         payload.isActive !== false && payload.is_active !== false
     ]);
     return normalizeSapSalespersonProfitCenterRow(result.rows[0]);
+}
+
+// Sincroniza el catálogo de vendedores desde SAP B1 Service Layer (entidad estándar SalesPersons).
+// Usa upsert por sales_person_code (identificador estable de SAP) — nunca toca nombre_local, que es
+// exclusivamente editable en este ERP y no debe perderse al re-sincronizar.
+async function syncSapSalespersonsFromSap(pgQuery, config, { timeoutMs = 90000 } = {}) {
+    let rows;
+    if (isDiApiMiddlewareProvider(config)) {
+        rows = await fetchViaSapMiddleware({
+            pgQuery,
+            entityType: 'salespersons',
+            parameters: {},
+            moduleName: 'sap-config',
+            timeoutMs
+        });
+    } else {
+        rows = (await sapRequest(config, "SalesPersons?$select=SalesEmployeeCode,SalesEmployeeName,Active")).value || [];
+    }
+    let inserted = 0;
+    let updated = 0;
+    let omitidas = 0;
+    const omitidasMuestra = [];
+    const errors = [];
+    for (const row of rows) {
+        // El conector (di-api-middleware) devuelve SalesPersonCode/SalesPersonName/IsActive;
+        // Service Layer devuelve SalesEmployeeCode/SalesEmployeeName/Active. Además, cuando el
+        // conector consulta un HANA que pliega los alias sin comillas a MAYÚSCULA, llegan como
+        // SALESPERSONCODE/SALESPERSONNAME/ISACTIVE. Se normalizan las claves a minúscula para
+        // tolerar las tres formas.
+        const campos = {};
+        for (const [clave, valor] of Object.entries(row || {})) campos[clave.toLowerCase()] = valor;
+        const rawCode = campos.salespersoncode ?? campos.salesemployeecode ?? campos.slpcode;
+        const salesPersonCode = rawCode == null || rawCode === '' ? null : Number(rawCode);
+        const salespersonName = normalizeText(campos.salespersonname || campos.salesemployeename || campos.slpname);
+        if (salesPersonCode == null || !Number.isFinite(salesPersonCode) || !salespersonName) {
+            omitidas += 1;
+            if (omitidasMuestra.length < 5) omitidasMuestra.push(row);
+            continue;
+        }
+        const activeValue = campos.isactive ?? campos.active;
+        const isActive = activeValue !== 'tNO' && activeValue !== false && activeValue !== 'N';
+        try {
+            const existing = await pgQuery(
+                `SELECT id FROM sap_salesperson_profit_centers WHERE sales_person_code = $1 LIMIT 1`,
+                [salesPersonCode]
+            );
+            if (existing.rows.length) {
+                await pgQuery(
+                    `UPDATE sap_salesperson_profit_centers
+                        SET salesperson_name = $2, is_active = $3, updated_at = NOW()
+                      WHERE sales_person_code = $1`,
+                    [salesPersonCode, salespersonName, isActive]
+                );
+                updated += 1;
+            } else {
+                await pgQuery(
+                    `INSERT INTO sap_salesperson_profit_centers
+                        (salesperson_name, nombre_local, sales_person_code, profit_center_code, notes, is_active, updated_at)
+                     VALUES ($1, '', $2, '', '', $3, NOW())`,
+                    [salespersonName, salesPersonCode, isActive]
+                );
+                inserted += 1;
+            }
+        } catch (error) {
+            errors.push({ salesPersonCode, salespersonName, message: error.message });
+        }
+    }
+    return { total: rows.length, inserted, updated, omitidas, omitidasMuestra, errors };
 }
 
 async function deleteSapSalespersonProfitCenter(pgQuery, id) {
@@ -2878,15 +3835,12 @@ async function findSapSalespersonProfitCenter(pgQuery, payload = {}) {
         `, [normalizedSalesPersonCode]);
         if (result.rows.length) return normalizeSapSalespersonProfitCenterRow(result.rows[0]);
     }
-    if (!salespersonName) return null;
-    const result = await pgQuery(`
-        SELECT id, salesperson_name, sales_person_code, profit_center_code, notes, is_active, created_at, updated_at
-          FROM sap_salesperson_profit_centers
-         WHERE is_active = TRUE
-           AND LOWER(salesperson_name) = LOWER($1)
-         LIMIT 1
-    `, [salespersonName]);
-    return result.rows.length ? normalizeSapSalespersonProfitCenterRow(result.rows[0]) : null;
+    // Resolución SOLO por código de ejecutivo SAP. No se busca por nombre: el nombre del
+    // usuario local de PrintLab no es el nombre del ejecutivo en SAP, y hacer match por
+    // nombre mezcla dos identidades distintas (ya rompió el flujo antes). Si no llegó un
+    // código válido, no hay ejecutivo SAP asociado.
+    void salespersonName;
+    return null;
 }
 
 async function enrichOrderPayloadWithProfitCenter(pgQuery, body = {}, requestPayload = {}) {
@@ -2939,6 +3893,29 @@ function applyProductionCostCenterToPayload(requestPayload = {}, defaultCostCent
     return requestPayload;
 }
 
+// Aplica los "Valores SAP" del panel de configuración al payload de un documento:
+// serie de numeración en el encabezado, código de impuesto y/o bodega en cada línea.
+// Solo escribe cuando el valor de config existe y la línea no lo trae ya definido.
+function applySapDocDefaults(requestPayload = {}, config = {}, { series = '', taxCode = '', warehouseCode = '' } = {}) {
+    const payload = { ...requestPayload };
+    const serieNum = normalizeText(series);
+    if (serieNum && payload.Series == null && payload.series == null) {
+        const asNumber = Number(serieNum);
+        payload.Series = Number.isFinite(asNumber) && String(asNumber) === serieNum ? asNumber : serieNum;
+    }
+    const tax = normalizeText(taxCode);
+    const whs = normalizeText(warehouseCode);
+    if ((tax || whs) && Array.isArray(payload.DocumentLines)) {
+        payload.DocumentLines = payload.DocumentLines.map((line) => {
+            const next = { ...line };
+            if (tax && !normalizeText(next.TaxCode)) next.TaxCode = tax;
+            if (whs && !normalizeText(next.WarehouseCode)) next.WarehouseCode = whs;
+            return next;
+        });
+    }
+    return payload;
+}
+
 async function listSapImportJobs(pgQuery) {
     const result = await pgQuery(`
         SELECT *
@@ -2980,6 +3957,9 @@ async function saveSapImportJob(pgQuery, jobCode, input = {}) {
 }
 
 async function getSapConnectorHealth(config = {}) {
+    if (isDiApiMiddlewareProvider(config)) {
+        return { ok: true, provider: 'di-api-middleware', message: 'DI API Middleware: la salud se valida cuando el conector responde una solicitud encolada, no por conexión directa.' };
+    }
     if (!isDiApiProvider(config)) {
         return { ok: true, provider: normalizeSapProvider(config.provider), message: 'Proveedor Service Layer configurado.' };
     }
@@ -3051,8 +4031,11 @@ function buildSapMirrorImportQuery(processKey, input = {}, config = null) {
     };
     if (search) query.search = search;
     if (processKey === 'import-business-partners') {
-        query.cardTypes = 'C,L';
-        if (normalizeText(input.type)) query.type = normalizeText(input.type);
+        // Solo clientes (CardType = 'C'). Proveedores ('S') u otros tipos de SAP no
+        // deben llegar a esta importación de socios.
+        const requestedType = normalizeText(input.type) || 'C';
+        query.type = requestedType;
+        query.cardTypes = requestedType;
     }
     if (processKey === 'import-items' && normalizeText(input.group)) {
         query.group = normalizeText(input.group);
@@ -3110,7 +4093,7 @@ function buildSapMirrorProcedure(config = {}, processKey = 'import-business-part
     };
 }
 
-async function fetchSapMirrorBusinessPartners({ pgQuery, config, limit, search, type, demo = false }) {
+async function fetchSapMirrorBusinessPartners({ pgQuery, config, limit, search, type, modifiedSince = '', demo = false, timeoutMs = 90000 }) {
     if (!demo && resolveOperatingMode(config) !== 'demo') {
         const health = await getSapConnectorHealth(config);
         if (isMockSapConnectorHealth(health)) {
@@ -3121,11 +4104,160 @@ async function fetchSapMirrorBusinessPartners({ pgQuery, config, limit, search, 
     if (demo || resolveOperatingMode(config) === 'demo') {
         return filterDemoSapRows(deepClone(demoState.BusinessPartners), 'import-business-partners', query);
     }
+    if (isDiApiMiddlewareProvider(config)) {
+        // Se pide de a páginas chicas (PAGE_SIZE) en vez de todo de una sola vez: una
+        // consulta gigante contra SAP tumbaba la conexión. Cada página es una pregunta
+        // corta e independiente al conector; si SAP entrega menos de PAGE_SIZE, ya no
+        // hay más páginas y se para. Puede tardar varios minutos en total — está bien,
+        // el límite de vida de la corrida (10 min) es el único límite real de tiempo.
+        const PAGE_SIZE = 500;
+        const rows = [];
+        let offset = 0;
+        while (rows.length < query.top) {
+            const pageTop = Math.min(PAGE_SIZE, query.top - rows.length);
+            const page = await fetchViaSapMiddleware({
+                pgQuery,
+                entityType: 'business-partners',
+                moduleName: 'automatizacion-socios',
+                // codePattern: filtro que SAP aplica ANTES de recortar a `top` — sin esto,
+                // el límite se gastaba en socios que no siguen la numeración de cliente
+                // real (p. ej. "100 MONTAD") antes de llegar a los que sí sirven (C0001...).
+                parameters: { type: query.type || '', search: query.search || '', top: pageTop, offset, modifiedSince, codePattern: 'C%', sql: await consultaOficialFlujo(pgQuery, 'sap-import-business-partners') },
+                timeoutMs
+            });
+            rows.push(...page);
+            if (page.length < pageTop) break;
+            offset += pageTop;
+        }
+        return rows.slice(0, query.top);
+    }
     const payload = await queryBusinessPartners({ pgQuery, config, query });
     return (Array.isArray(payload.value) ? payload.value : []).slice(0, query.top);
 }
 
-async function fetchSapMirrorItems({ pgQuery, config, limit, search, group, demo = false }) {
+// Lee la consulta oficial de un flujo desde la tabla oficial_queries (editable en
+// Configuración). Si no existe o está vacía, devuelve '' y el pedido viaja sin SQL —
+// el conector usará su rutina interna como hasta ahora.
+async function consultaOficialFlujo(pgQuery, claveFlujo) {
+    try {
+        const r = await pgQuery(`SELECT sql_text FROM official_queries WHERE clave = $1 AND is_active = TRUE LIMIT 1`, [claveFlujo]);
+        return (r.rows[0]?.sql_text || '').trim();
+    } catch {
+        return '';
+    }
+}
+
+async function fetchSapMirrorContacts({ pgQuery, config, limit, modifiedSince = '', timeoutMs = 90000 }) {
+    const top = normalizePositiveInt(limit, 2000, 1, 100000);
+    if (resolveOperatingMode(config) === 'demo') return [];
+    if (isDiApiMiddlewareProvider(config)) {
+        const rows = await fetchViaSapMiddleware({
+            pgQuery,
+            entityType: 'business-partner-contacts',
+            moduleName: 'automatizacion-contactos',
+            parameters: { top, modifiedSince, sql: await consultaOficialFlujo(pgQuery, 'sap-import-contacts') },
+            timeoutMs
+        });
+        return rows.slice(0, top);
+    }
+    return [];
+}
+
+async function fetchSapMirrorAddresses({ pgQuery, config, limit, modifiedSince = '', timeoutMs = 90000 }) {
+    const top = normalizePositiveInt(limit, 2000, 1, 100000);
+    if (resolveOperatingMode(config) === 'demo') return [];
+    if (isDiApiMiddlewareProvider(config)) {
+        const rows = await fetchViaSapMiddleware({
+            pgQuery,
+            entityType: 'business-partner-addresses',
+            moduleName: 'automatizacion-direcciones',
+            parameters: { top, modifiedSince, sql: await consultaOficialFlujo(pgQuery, 'sap-import-addresses') },
+            timeoutMs
+        });
+        return rows.slice(0, top);
+    }
+    return [];
+}
+
+async function fetchSapMirrorBatches({ pgQuery, config, limit, modifiedSince = '', timeoutMs = 90000 }) {
+    const top = normalizePositiveInt(limit, 2000, 1, 100000);
+    if (resolveOperatingMode(config) === 'demo') return [];
+    if (isDiApiMiddlewareProvider(config)) {
+        const rows = await fetchViaSapMiddleware({
+            pgQuery,
+            entityType: 'item-batches',
+            moduleName: 'automatizacion-lotes',
+            parameters: { top, modifiedSince, sql: await consultaOficialFlujo(pgQuery, 'sap-import-batches') },
+            timeoutMs
+        });
+        return rows.slice(0, top);
+    }
+    return [];
+}
+
+// SAP usa 1899-12-30 como "fecha nunca capturada" (epoch OLE Automation) en vez de NULL.
+function sapDateOrNull(value) {
+    const text = normalizeText(value);
+    if (!text) return null;
+    const year = Number(text.slice(0, 4));
+    return year > 1900 ? text.slice(0, 10) : null;
+}
+
+async function upsertLotes(client, rows) {
+    const list = Array.isArray(rows) ? rows : [];
+    for (const row of list) {
+        const itemCode = normalizeText(row.ItemCode);
+        if (!itemCode) continue;
+        const producto = await client.query(`SELECT id FROM tintas.productos WHERE codigo_sap = $1 LIMIT 1`, [itemCode]);
+        if (!producto.rows.length) continue; // ItemCode de SAP que no es una tinta local conocida.
+        const productoId = producto.rows[0].id;
+        const lote = sapText(row.DistNumber) || sapText(row.LotNumber) || sapText(row.SysNumber);
+        if (!lote) continue;
+        const quantity = sapNumber(row.Quantity);
+        const bobinaWeight = sapNumber(row.U_K_Bobina);
+        const pesoNeto = (quantity != null && quantity !== 0) ? quantity : (bobinaWeight != null && bobinaWeight !== 0 ? bobinaWeight : 0);
+        const balance = sapNumber(row.Balance);
+        const pesoDisponible = balance != null ? balance : pesoNeto;
+        await client.query(`
+            INSERT INTO tintas.lotes (
+                producto_id, lote, sap_codigo_lote, fecha_fabricacion, fecha_vencimiento,
+                peso_neto, peso_disponible, unidad_medida, origen_inventario, estado
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,'KG','SAP','ACTIVO')
+            ON CONFLICT (producto_id, lote)
+            DO UPDATE SET
+                sap_codigo_lote = EXCLUDED.sap_codigo_lote,
+                fecha_fabricacion = EXCLUDED.fecha_fabricacion,
+                fecha_vencimiento = EXCLUDED.fecha_vencimiento,
+                peso_neto = EXCLUDED.peso_neto,
+                peso_disponible = EXCLUDED.peso_disponible,
+                actualizado_en = NOW()
+        `, [
+            productoId,
+            lote,
+            sapText(row.SysNumber),
+            sapDateOrNull(row.MnfDate),
+            sapDateOrNull(row.ExpDate),
+            pesoNeto,
+            pesoDisponible
+        ]);
+    }
+}
+
+async function importSapMirrorBatches({ pgQuery, withTransaction, limit, modifiedSince = '', timeoutMs = 90000 }) {
+    const config = await loadSapConfig(pgQuery);
+    const records = await fetchSapMirrorBatches({ pgQuery, config, limit, modifiedSince, timeoutMs });
+    await withTransaction(async (client) => {
+        await upsertLotes(client, records);
+    });
+    return {
+        ok: true,
+        entity: 'Batches',
+        records: records.length,
+        tables: ['tintas.lotes']
+    };
+}
+
+async function fetchSapMirrorItems({ pgQuery, config, limit, search, group, modifiedSince = '', demo = false, timeoutMs = 90000 }) {
     if (!demo && resolveOperatingMode(config) !== 'demo') {
         const health = await getSapConnectorHealth(config);
         if (isMockSapConnectorHealth(health)) {
@@ -3135,6 +4267,16 @@ async function fetchSapMirrorItems({ pgQuery, config, limit, search, group, demo
     const query = buildSapMirrorImportQuery('import-items', { limit, search, group }, config);
     if (demo || resolveOperatingMode(config) === 'demo') {
         return filterDemoSapRows(deepClone(demoState.Items), 'import-items', query);
+    }
+    if (isDiApiMiddlewareProvider(config)) {
+        const rows = await fetchViaSapMiddleware({
+            pgQuery,
+            entityType: 'items',
+            moduleName: 'automatizacion-items',
+            parameters: { group: query.group || '', search: query.search || '', top: query.top, modifiedSince, sql: await consultaOficialFlujo(pgQuery, 'sap-import-items') },
+            timeoutMs
+        });
+        return rows.slice(0, query.top);
     }
     const payload = await queryItems({ pgQuery, config, query });
     return (Array.isArray(payload.value) ? payload.value : []).slice(0, query.top);
@@ -3187,9 +4329,9 @@ async function previewSapMirrorProcess({ pgQuery, processKey, input = {} }) {
     };
 }
 
-async function importSapMirrorBusinessPartners({ pgQuery, withTransaction, limit, search, type, demo = false }) {
+async function importSapMirrorBusinessPartners({ pgQuery, withTransaction, limit, search, type, modifiedSince = '', demo = false, timeoutMs = 90000 }) {
     const config = await loadSapConfig(pgQuery);
-    const records = await fetchSapMirrorBusinessPartners({ pgQuery, config, limit, search, type, demo });
+    const records = await fetchSapMirrorBusinessPartners({ pgQuery, config, limit, search, type, modifiedSince, demo, timeoutMs });
     await withTransaction(async (client) => {
         await upsertBusinessPartners(client, records);
     });
@@ -3202,9 +4344,158 @@ async function importSapMirrorBusinessPartners({ pgQuery, withTransaction, limit
     };
 }
 
-async function importSapMirrorItems({ pgQuery, withTransaction, limit, search, group, demo = false }) {
+async function upsertContacts(client, rows) {
+    const list = Array.isArray(rows) ? rows : [];
+    const cardCodes = [...new Set(list.map((row) => normalizeText(row.CardCode)).filter(Boolean))];
+    if (cardCodes.length) {
+        await client.query(`DELETE FROM business_partner_contacts WHERE source = 'sap' AND partner_code = ANY($1::text[])`, [cardCodes]);
+    }
+    for (const row of list) {
+        const cardCode = normalizeText(row.CardCode);
+        const name = sapText(row.Name);
+        if (!cardCode || !name) continue;
+        await client.query(`
+            INSERT INTO "OCPR" (
+                "CardCode", "CntctCode", "Name", "Position",
+                "Tel1", "Tel2", "Cellolar", "Fax", "E_Mail",
+                raw_data, synced_at
+            )
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,NOW())
+            ON CONFLICT ("CardCode", "Name")
+            DO UPDATE SET
+                "CntctCode" = EXCLUDED."CntctCode",
+                "Position" = EXCLUDED."Position",
+                "Tel1" = EXCLUDED."Tel1",
+                "Tel2" = EXCLUDED."Tel2",
+                "Cellolar" = EXCLUDED."Cellolar",
+                "Fax" = EXCLUDED."Fax",
+                "E_Mail" = EXCLUDED."E_Mail",
+                raw_data = EXCLUDED.raw_data,
+                synced_at = NOW()
+        `, [
+            cardCode,
+            sapNumber(row.CntctCode),
+            name,
+            sapText(row.Position),
+            sapText(row.Tel1),
+            sapText(row.Tel2),
+            sapText(row.Cellolar),
+            sapText(row.Fax),
+            sapText(row.E_Mail || row.E_MailL),
+            JSON.stringify(row || {})
+        ]);
+        await client.query(`
+            INSERT INTO business_partner_contacts (
+                partner_code, contact_name, position, phone, mobile, fax, email, sap_contact_code, source, created_at
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'sap',NOW())
+        `, [
+            cardCode,
+            name,
+            sapText(row.Position),
+            sapText(row.Tel1),
+            sapText(row.Cellolar),
+            sapText(row.Fax),
+            sapText(row.E_Mail || row.E_MailL),
+            sapText(row.CntctCode)
+        ]);
+    }
+}
+
+async function upsertAddresses(client, rows) {
+    const list = Array.isArray(rows) ? rows : [];
+    const cardCodes = [...new Set(list.map((row) => normalizeText(row.CardCode)).filter(Boolean))];
+    if (cardCodes.length) {
+        await client.query(`DELETE FROM business_partner_addresses WHERE source = 'sap' AND partner_code = ANY($1::text[])`, [cardCodes]);
+    }
+    for (const row of list) {
+        const cardCode = normalizeText(row.CardCode);
+        const addressName = sapText(row.Address);
+        if (!cardCode || !addressName) continue;
+        await client.query(`
+            INSERT INTO "CRD1" (
+                "CardCode", "Address", "AdresType", "Street", "Block", "City",
+                "County", "State", "Country", "ZipCode", "Building",
+                raw_data, synced_at
+            )
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,NOW())
+            ON CONFLICT ("CardCode", "Address", "AdresType")
+            DO UPDATE SET
+                "Street" = EXCLUDED."Street",
+                "Block" = EXCLUDED."Block",
+                "City" = EXCLUDED."City",
+                "County" = EXCLUDED."County",
+                "State" = EXCLUDED."State",
+                "Country" = EXCLUDED."Country",
+                "ZipCode" = EXCLUDED."ZipCode",
+                "Building" = EXCLUDED."Building",
+                raw_data = EXCLUDED.raw_data,
+                synced_at = NOW()
+        `, [
+            cardCode,
+            addressName,
+            sapText(row.AdresType),
+            sapText(row.Street),
+            sapText(row.Block),
+            sapText(row.City),
+            sapText(row.County),
+            sapText(row.State),
+            sapText(row.Country),
+            sapText(row.ZipCode),
+            sapText(row.Building),
+            JSON.stringify(row || {})
+        ]);
+        await client.query(`
+            INSERT INTO business_partner_addresses (
+                partner_code, address_name, address_type, address_line, block, city,
+                county, state_province, country, zip_code, building, source, created_at
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'sap',NOW())
+        `, [
+            cardCode,
+            addressName,
+            sapText(row.AdresType),
+            sapText(row.Street),
+            sapText(row.Block),
+            sapText(row.City),
+            sapText(row.County),
+            sapText(row.State),
+            sapText(row.Country),
+            sapText(row.ZipCode),
+            sapText(row.Building)
+        ]);
+    }
+}
+
+async function importSapMirrorContacts({ pgQuery, withTransaction, limit, modifiedSince = '', timeoutMs = 90000 }) {
     const config = await loadSapConfig(pgQuery);
-    const itemRecords = await fetchSapMirrorItems({ pgQuery, config, limit, search, group, demo });
+    const records = await fetchSapMirrorContacts({ pgQuery, config, limit, modifiedSince, timeoutMs });
+    await withTransaction(async (client) => {
+        await upsertContacts(client, records);
+    });
+    return {
+        ok: true,
+        entity: 'Contacts',
+        records: records.length,
+        tables: ['OCPR', 'business_partner_contacts']
+    };
+}
+
+async function importSapMirrorAddresses({ pgQuery, withTransaction, limit, modifiedSince = '', timeoutMs = 90000 }) {
+    const config = await loadSapConfig(pgQuery);
+    const records = await fetchSapMirrorAddresses({ pgQuery, config, limit, modifiedSince, timeoutMs });
+    await withTransaction(async (client) => {
+        await upsertAddresses(client, records);
+    });
+    return {
+        ok: true,
+        entity: 'Addresses',
+        records: records.length,
+        tables: ['CRD1', 'business_partner_addresses']
+    };
+}
+
+async function importSapMirrorItems({ pgQuery, withTransaction, limit, search, group, modifiedSince = '', demo = false, timeoutMs = 90000 }) {
+    const config = await loadSapConfig(pgQuery);
+    const itemRecords = await fetchSapMirrorItems({ pgQuery, config, limit, search, group, modifiedSince, demo, timeoutMs });
     let warehouseRecords = [];
     try {
         warehouseRecords = demo || resolveOperatingMode(config) === 'demo'
@@ -3227,8 +4518,21 @@ async function importSapMirrorItems({ pgQuery, withTransaction, limit, search, g
     };
 }
 
-async function executeSapImportJob({ pgQuery, withTransaction, jobCode, actor = 'scheduler', automated = true }) {
+// Cuánto puede durar como máximo una corrida antes de que se considere "colgada" y se
+// pueda volver a intentar. El usuario pidió expresamente un límite de tiempo de vida:
+// una consulta a SAP no debería tardar más de esto en resolverse (éxito o error).
+const SAP_IMPORT_JOB_MAX_RUNTIME_MS = 10 * 60 * 1000;
+
+async function executeSapImportJob({ pgQuery, withTransaction, jobCode, actor = 'scheduler', automated = true, timeoutMs = 120000 }) {
     const definition = getSapImportJobDefinition(jobCode);
+    // Candado atómico: si otra corrida ya está en curso (running) para este mismo job,
+    // esta UPDATE no afecta ninguna fila (Postgres serializa el UPDATE sobre la misma
+    // fila) y salimos sin volver a preguntarle nada a SAP. Evita disparar consultas
+    // duplicadas al conector si alguien le da varias veces seguidas a "Ejecutar ahora".
+    // Excepción: si lleva "running" más de SAP_IMPORT_JOB_MAX_RUNTIME_MS, se considera
+    // colgada (el proceso se cayó a medias, o algo se quedó esperando sin límite) y se
+    // libera sola — si no, un solo trabajo trabado bloquea la automatización para
+    // siempre, sin que nadie pueda reintentarlo.
     const jobRow = await pgQuery(`
         UPDATE sap_sync_jobs
            SET status = 'running',
@@ -3236,31 +4540,90 @@ async function executeSapImportJob({ pgQuery, withTransaction, jobCode, actor = 
                updated_at = NOW(),
                message = 'Ejecutando carga automática SAP...'
          WHERE job_code = $1
+           AND (status <> 'running' OR started_at < NOW() - INTERVAL '${SAP_IMPORT_JOB_MAX_RUNTIME_MS / 60000} minutes')
      RETURNING *
     `, [definition.jobCode]);
-    if (!jobRow.rows.length) throw new Error('No se encontró el trabajo de importación SAP.');
+    if (!jobRow.rows.length) {
+        const existing = await pgQuery(`SELECT status FROM sap_sync_jobs WHERE job_code = $1`, [definition.jobCode]);
+        if (!existing.rows.length) throw new Error('No se encontró el trabajo de importación SAP.');
+        return { ok: true, alreadyRunning: true, records: 0 };
+    }
     const currentJob = jobRow.rows[0];
     const filters = normalizeSapImportJobFilters(definition.jobCode, currentJob.filters || {});
     const config = await loadSapConfig(pgQuery).catch(() => ({}));
     const startedAt = new Date().toISOString();
+    // Primera corrida (finished_at nulo): carga completa. Corridas siguientes: solo lo
+    // modificado en SAP desde la última corrida exitosa (carga incremental).
+    const modifiedSince = currentJob.finished_at ? new Date(currentJob.finished_at).toISOString() : '';
     try {
-        const payload = definition.jobCode === 'sap-import-business-partners'
-            ? await importSapMirrorBusinessPartners({
+        let payload;
+        if (definition.jobCode === 'sap-import-business-partners') {
+            payload = await importSapMirrorBusinessPartners({
                 pgQuery,
                 withTransaction,
                 limit: filters.limit,
                 search: filters.search,
                 type: filters.type,
-                demo: false
-            })
-            : await importSapMirrorItems({
+                modifiedSince,
+                demo: false,
+                timeoutMs
+            });
+        } else if (definition.jobCode === 'sap-import-salespeople') {
+            const syncResult = await syncSapSalespersonsFromSap(pgQuery, config, { timeoutMs });
+            payload = { ok: true, records: syncResult.total };
+        } else if (definition.jobCode === 'sap-import-contacts') {
+            payload = await importSapMirrorContacts({
+                pgQuery,
+                withTransaction,
+                limit: filters.limit,
+                modifiedSince,
+                timeoutMs
+            });
+        } else if (definition.jobCode === 'sap-import-addresses') {
+            payload = await importSapMirrorAddresses({
+                pgQuery,
+                withTransaction,
+                limit: filters.limit,
+                modifiedSince,
+                timeoutMs
+            });
+        } else if (definition.jobCode === 'sap-import-batches') {
+            payload = await importSapMirrorBatches({
+                pgQuery,
+                withTransaction,
+                limit: filters.limit,
+                modifiedSince,
+                timeoutMs
+            });
+        } else if (definition.jobCode === 'sap-envio-tipo-cambio') {
+            // Push, no pull: envía la tasa del día. Si falla, se respalda en la
+            // misma cola sap_envios_pendientes que usan los demás documentos que
+            // PrintLab empuja a SAP, para que quede visible en Configuración →
+            // Seguridad → SAP → Envíos igual que cualquier otro envío.
+            const { fecha } = await obtenerTipoCambioUsdGtqVigente(pgQuery);
+            try {
+                await enviarTipoCambioSap({ pgQuery });
+                payload = { ok: true, records: 1 };
+            } catch (error) {
+                if (!error.yaExistia) {
+                    try {
+                        await encolarEnvioSap(pgQuery, { tipo: 'tipo_cambio', referencia: fecha, payload: {}, creadoPor: actor });
+                    } catch (_) {}
+                }
+                throw error;
+            }
+        } else {
+            payload = await importSapMirrorItems({
                 pgQuery,
                 withTransaction,
                 limit: filters.limit,
                 search: filters.search,
                 group: filters.group,
-                demo: false
+                modifiedSince,
+                demo: false,
+                timeoutMs
             });
+        }
         await pgQuery(`
             UPDATE sap_sync_jobs
                SET status = 'success',
@@ -3274,6 +4637,23 @@ async function executeSapImportJob({ pgQuery, withTransaction, jobCode, actor = 
             Number(payload.records || 0),
             `Carga completada correctamente.`
         ]);
+        // Marca la solicitud de sap_inbox_requests que se acaba de aplicar (la más
+        // reciente contestada y aún sin marcar para esta entidad) — así el historial
+        // puede mostrar "sí se guardó en la base local", no solo "sí contestó".
+        const inboxEntityType = SAP_IMPORT_JOB_INBOX_ENTITY[definition.jobCode];
+        if (inboxEntityType) {
+            await pgQuery(`
+                UPDATE sap_inbox_requests
+                   SET applied_at = NOW(),
+                       records_applied = $2
+                 WHERE id = (
+                    SELECT id FROM sap_inbox_requests
+                     WHERE entity_type = $1 AND status = 'answered' AND applied_at IS NULL
+                  ORDER BY created_at DESC
+                     LIMIT 1
+                 )
+            `, [inboxEntityType, Number(payload.records || 0)]);
+        }
         await logSapActivity(pgQuery, {
             actionType: 'import',
             entityName: definition.entityLabel,
@@ -3574,12 +4954,13 @@ function extractOrderMaterialNeed(orderRow = {}) {
         || snapshotRaw['GENERAL | MATERIAL']
         || materialCode
     );
-    const primaryQty = safeNumber(
+    const primaryQtyMeters = safeNumber(lineSnapshot.materialMeters, 0);
+    const primaryQtyLegacyFeet = safeNumber(
         lineSnapshot.materialFeet
-        || snapshotRaw['GENERAL | SUSTRATO | CONSUMO PIES']
-        || orderRow.ordered_quantity,
+        || snapshotRaw['GENERAL | SUSTRATO | CONSUMO PIES'],
         0
     );
+    const primaryQty = primaryQtyMeters > 0 ? primaryQtyMeters : (primaryQtyLegacyFeet > 0 ? primaryQtyLegacyFeet : safeNumber(orderRow.ordered_quantity, 0));
     const tintCount = safeNumber(
         lineSnapshot.tintCount
         || lineSnapshot.pantoneCount
@@ -3591,7 +4972,7 @@ function extractOrderMaterialNeed(orderRow = {}) {
         materialCode,
         materialName,
         requiredQty: primaryQty > 0 ? primaryQty : safeNumber(orderRow.ordered_quantity, 1),
-        uom: primaryQty > 0 ? 'pies' : 'unidad',
+        uom: primaryQtyMeters > 0 ? 'metros' : (primaryQtyLegacyFeet > 0 ? 'pies' : 'unidad'),
         tintCount,
         dieCode,
         productName: normalizeText(lineSnapshot.productName || lineSummary.product_name || orderRow.product_code),
@@ -4184,14 +5565,20 @@ function filterDemoOrders(query) {
     return { value: rows.slice(0, top), source: 'local' };
 }
 
+function isoToday() {
+    return new Date().toISOString().slice(0, 10);
+}
+
 function buildOrderPayload(input = {}) {
     if (Array.isArray(input.DocumentLines)) {
         return input;
     }
+    // SAP B1 exige DocDate y DocDueDate en el Pedido de Cliente; si no vienen,
+    // se usa la fecha de hoy para no romper la creación.
     return {
         CardCode: normalizeText(input.clientCode || input.client_code || input.CardCode),
-        DocDate: normalizeText(input.date || input.DocDate),
-        DocDueDate: normalizeText(input.dueDate || input.due_date || input.DocDueDate),
+        DocDate: normalizeText(input.date || input.DocDate) || isoToday(),
+        DocDueDate: normalizeText(input.dueDate || input.due_date || input.DocDueDate) || isoToday(),
         Comments: normalizeText(input.notes || input.Comments),
         SalesPersonCode: input.salesPersonCode == null ? -1 : Number(input.salesPersonCode),
         DocumentLines: Array.isArray(input.lines) ? input.lines.map((line) => ({
@@ -4358,6 +5745,134 @@ function buildMockInventoryEntryResponse(input = {}) {
     };
 }
 
+async function enqueueInboxRequest(pgQuery, { entityType, referenceId = '', referenceCode = '', parameters = {}, moduleName = 'sap' }) {
+    // Evita preguntarle al conector DIAPI dos veces la misma cosa al mismo tiempo:
+    // si ya hay una solicitud viva (pendiente o en curso) para este mismo entity_type +
+    // reference_code, se reutiliza esa en vez de insertar otra. Solo aplica cuando hay
+    // un reference_code real — una consulta general (p.ej. "buscar socios que contengan
+    // X") no tiene una referencia única que comparar y cada búsqueda es una pregunta
+    // distinta, así que esas no se deduplican.
+    const refCode = String(referenceCode || '').trim();
+    if (refCode) {
+        const vivo = await pgQuery(
+            `SELECT * FROM sap_inbox_requests
+              WHERE entity_type = $1 AND reference_code = $2 AND status IN ('pending', 'processing')
+              ORDER BY created_at DESC LIMIT 1`,
+            [entityType, refCode]
+        );
+        if (vivo.rows.length) {
+            console.log(`Solicitud a DIAPI evitada (duplicada): ya hay una viva para ${entityType} / ${refCode} (${vivo.rows[0].request_code}).`);
+            return vivo.rows[0];
+        }
+    }
+    const requestCode = buildSequenceCode('SIN');
+    const result = await pgQuery(`
+        INSERT INTO sap_inbox_requests (
+            request_code, module_name, entity_type, reference_id, reference_code, parameters
+        )
+        VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+        RETURNING *
+    `, [requestCode, moduleName, entityType, referenceId, referenceCode, JSON.stringify(parameters || {})]);
+    return result.rows[0];
+}
+
+async function getInboxRequestById(pgQuery, id) {
+    const result = await pgQuery(`
+        SELECT id, request_code, entity_type, status, parameters, result_payload, last_error, created_at, answered_at
+          FROM sap_inbox_requests
+         WHERE id = $1::uuid
+    `, [id]);
+    return result.rows[0] || null;
+}
+
+function sleepMs(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForInboxRequestResult(pgQuery, id, { timeoutMs = 90000, intervalMs = 1500 } = {}) {
+    const deadline = Date.now() + timeoutMs;
+    let item = await getInboxRequestById(pgQuery, id);
+    while (item && item.status !== 'answered' && item.status !== 'error' && Date.now() < deadline) {
+        await sleepMs(intervalMs);
+        item = await getInboxRequestById(pgQuery, id);
+    }
+    return item;
+}
+
+async function fetchViaSapMiddleware({ pgQuery, entityType, parameters = {}, moduleName = 'sap', timeoutMs = 90000 }) {
+    // Consulta oficial: se deja el SQL escrito dentro del pedido para que el conector
+    // DIAPI lo lea y lo transmita tal cual a SAP (mismo idioma en ambos lados).
+    const sqlOficial = typeof parameters.sql === 'string' && parameters.sql.trim() ? parameters.sql.trim() : null;
+    const request = await enqueueInboxRequest(pgQuery, { entityType, parameters, moduleName });
+    const answered = await waitForInboxRequestResult(pgQuery, request.id, { timeoutMs });
+    if (!answered || answered.status === 'pending' || answered.status === 'processing') {
+        throw new Error(`El conector DIAPI no respondió a tiempo la solicitud de ${entityType} (${request.request_code}).`);
+    }
+    if (answered.status === 'error') {
+        throw new Error(answered.last_error || `El conector DIAPI reportó un error resolviendo ${entityType}.`);
+    }
+    const rows = Array.isArray(answered.result_payload) ? answered.result_payload : (Array.isArray(answered.result_payload?.value) ? answered.result_payload.value : []);
+    return rows;
+}
+
+// Contraparte de enqueueInboxRequest/fetchViaSapMiddleware para escrituras: en vez de
+// preguntar algo, se encola una acción (crear reserva, socio, orden, etc.) para que el
+// conector DIAPI la ejecute contra SAP y devuelva el resultado por /api/sap/outbox/:id/result.
+async function enqueueSapOutboxWrite(pgQuery, { entityType, actionType = 'create', payload = {}, referenceId = '', referenceCode = '', moduleName = 'sap', priority = 100 }) {
+    // Evita encolar el mismo encargo dos veces mientras el anterior sigue vivo: si ya
+    // hay una fila pendiente/en curso para el mismo entity_type + actionType + reference_code,
+    // se reutiliza esa en vez de insertar otra (mismo criterio que enqueueInboxRequest).
+    const refCode = String(referenceCode || '').trim();
+    if (refCode) {
+        const vivo = await pgQuery(
+            `SELECT * FROM sap_outbox
+              WHERE entity_type = $1 AND action_type = $2 AND reference_code = $3 AND status IN ('pending', 'processing')
+              ORDER BY created_at DESC LIMIT 1`,
+            [entityType, actionType, refCode]
+        );
+        if (vivo.rows.length) {
+            console.log(`Envío a SAP evitado (duplicado): ya hay uno vivo para ${entityType}/${actionType} / ${refCode} (${vivo.rows[0].queue_code}).`);
+            return vivo.rows[0];
+        }
+    }
+    const queueCode = buildSequenceCode('SOUT');
+    const result = await pgQuery(`
+        INSERT INTO sap_outbox (
+            queue_code, module_name, entity_type, action_type, provider,
+            reference_id, reference_code, status, priority, payload
+        ) VALUES ($1, $2, $3, $4, 'di-api-middleware', $5, $6, 'pending', $7, $8::jsonb)
+        RETURNING *
+    `, [queueCode, moduleName, entityType, actionType, referenceId, referenceCode, priority, JSON.stringify(payload || {})]);
+    return result.rows[0];
+}
+
+async function getSapOutboxById(pgQuery, id) {
+    const result = await pgQuery(`SELECT * FROM sap_outbox WHERE id = $1::uuid`, [id]);
+    return result.rows[0] || null;
+}
+
+async function waitForSapOutboxResult(pgQuery, id, { timeoutMs = 90000, intervalMs = 1500 } = {}) {
+    const deadline = Date.now() + timeoutMs;
+    let item = await getSapOutboxById(pgQuery, id);
+    while (item && item.status !== 'done' && item.status !== 'error' && Date.now() < deadline) {
+        await sleepMs(intervalMs);
+        item = await getSapOutboxById(pgQuery, id);
+    }
+    return item;
+}
+
+async function submitViaSapMiddleware({ pgQuery, entityType, actionType = 'create', payload = {}, referenceCode = '', moduleName = 'sap', timeoutMs = 90000 }) {
+    const outboxRow = await enqueueSapOutboxWrite(pgQuery, { entityType, actionType, payload, referenceCode, moduleName });
+    const result = await waitForSapOutboxResult(pgQuery, outboxRow.id, { timeoutMs });
+    if (!result || result.status === 'pending' || result.status === 'processing') {
+        throw new Error(`El conector DIAPI no respondió a tiempo el envío de ${entityType} (${outboxRow.queue_code}).`);
+    }
+    if (result.status === 'error') {
+        throw new Error(result.last_error || `El conector DIAPI reportó un error procesando ${entityType}.`);
+    }
+    return result.result_payload || {};
+}
+
 async function queryBusinessPartners({ pgQuery, config, query }) {
     if (String(query?.source || '').trim().toLowerCase() === 'local') {
         return loadLocalBusinessPartners(pgQuery, query);
@@ -4471,7 +5986,7 @@ async function queryOrders({ pgQuery, config, query }) {
     return { value: Array.isArray(payload.value) ? payload.value : [], source: 'sap', provider: 'service-layer' };
 }
 
-function buildBusinessPartnerPayload(data = {}) {
+function buildBusinessPartnerPayload(data = {}, config = {}) {
     const cardType = normalizeText(data.cardType) || 'S';
     const cardCode = normalizeText(data.cardCode);
     const cardName = normalizeText(data.partnerName);
@@ -4480,6 +5995,11 @@ function buildBusinessPartnerPayload(data = {}) {
     const phone = normalizeText(data.phone);
     const contactName = normalizeText(data.contactName);
     const currency = normalizeText(data.currency) || 'USD';
+    // Grupo / condición de pago / lista de precios: se toman de "Valores SAP" del
+    // panel si están definidos; si no, la lista de precios cae a 1 (por defecto SAP).
+    const grupoSocio = normalizeText(data.groupCode || config.sapPartnerGroupCode);
+    const condPago = normalizeText(data.paymentTermsCode || config.sapPaymentTermsCode);
+    const listaPrecios = normalizeText(data.priceListNum || config.sapPriceListNum);
     const payload = {
         CardName: cardName,
         CardType: cardType,
@@ -4489,8 +6009,10 @@ function buildBusinessPartnerPayload(data = {}) {
         EmailAddress: email,
         Phone1: phone,
         ContactPerson: contactName,
-        PriceListNum: 1
+        PriceListNum: listaPrecios ? (Number(listaPrecios) || listaPrecios) : 1
     };
+    if (grupoSocio) payload.GroupCode = Number(grupoSocio) || grupoSocio;
+    if (condPago) payload.PayTermsGrpCode = Number(condPago) || condPago;
     if (cardCode) {
         payload.CardCode = cardCode;
     }
@@ -4514,7 +6036,7 @@ function buildBusinessPartnerPayload(data = {}) {
         payload.ContactEmployees = [
             {
                 Name: contactName,
-                E_MailL: email,
+                E_Mail: email,
                 MobilePhone: phone,
                 Tel1: phone
             }
@@ -4523,17 +6045,52 @@ function buildBusinessPartnerPayload(data = {}) {
     return payload;
 }
 
-async function createBusinessPartnerInSap({ pgQuery, config, data }) {
+// Consola de Pruebas SAP: arma la "consulta que se enviaria" sin mandarla.
+// Cada createXxxInSap acepta { dryRun }; con dryRun retorna esto y no encola nada.
+function buildDryRunPreview(entityType, requestPayload, config = {}, actionType = 'create') {
+    let connectorTarget = '';
+    try { connectorTarget = diApiBridge.buildDiApiBaseUrl(config) || ''; } catch (_) {}
+    return {
+        __dryRun: true,
+        transport: isDiApiMiddlewareProvider(config)
+            ? 'di-api-middleware (cola sap_outbox)'
+            : (isDiApiProvider(config) ? 'di-api (directo)' : 'service-layer'),
+        entityType,
+        actionType,
+        method: 'POST',
+        connectorTarget,
+        body: requestPayload,
+        source: 'sap'
+    };
+}
+
+async function createBusinessPartnerInSap({ pgQuery, config, data, dryRun = false, actionType = 'create' }) {
     const mode = resolveOperatingMode(config);
     const liveConfig = assertLiveSapConfigReady(config, 'La creación de socio');
-    const requestPayload = buildBusinessPartnerPayload(data);
+    const requestPayload = buildBusinessPartnerPayload(data, liveConfig);
+    if (actionType === 'update' && !dryRun && !normalizeText(requestPayload.CardCode)) {
+        throw new Error('Para actualizar el socio en SAP se necesita su CardCode.');
+    }
+    if (dryRun) return buildDryRunPreview('business-partner', requestPayload, liveConfig, actionType);
     try {
-        const responsePayload = isDiApiProvider(liveConfig)
-            ? await diApiBridge.createBusinessPartner(liveConfig, requestPayload)
-            : await sapRequest(liveConfig, 'BusinessPartners', {
-                method: 'POST',
-                body: requestPayload
+        let responsePayload;
+        if (isDiApiMiddlewareProvider(liveConfig)) {
+            responsePayload = await submitViaSapMiddleware({
+                pgQuery,
+                entityType: 'business-partner',
+                actionType,
+                payload: requestPayload,
+                referenceCode: normalizeText(data.partnerCode || data.partner_code || requestPayload.CardCode || requestPayload.CardName),
+                moduleName: 'socios'
             });
+        } else {
+            responsePayload = isDiApiProvider(liveConfig)
+                ? await diApiBridge.createBusinessPartner(liveConfig, requestPayload)
+                : await sapRequest(liveConfig, 'BusinessPartners', {
+                    method: 'POST',
+                    body: requestPayload
+                });
+        }
         await logWrite(pgQuery, {
             entityName: 'BusinessPartners',
             mode,
@@ -4555,17 +6112,40 @@ async function createBusinessPartnerInSap({ pgQuery, config, data }) {
     }
 }
 
-async function createOrder({ pgQuery, config, body }) {
+async function createOrder({ pgQuery, config, body, dryRun = false, actionType = 'create' }) {
     const mode = resolveOperatingMode(config);
     const liveConfig = assertLiveSapConfigReady(config, 'La creación de órdenes');
-    const requestPayload = await enrichOrderPayloadWithProfitCenter(pgQuery, body || {}, buildOrderPayload(body || {}));
+    let requestPayload = await enrichOrderPayloadWithProfitCenter(pgQuery, body || {}, buildOrderPayload(body || {}));
+    requestPayload = applySapDocDefaults(requestPayload, liveConfig, {
+        series: liveConfig.sapSalesOrderSeries,
+        taxCode: liveConfig.sapSalesTaxCode
+    });
+    if (body && body.DocEntry != null && body.DocEntry !== '') {
+        requestPayload.DocEntry = Number(body.DocEntry);
+    }
+    if (actionType === 'update' && !dryRun && !(Number(requestPayload.DocEntry) > 0)) {
+        throw new Error('Para actualizar la Orden de Venta en SAP se necesita su DocEntry.');
+    }
+    if (dryRun) return buildDryRunPreview('sales-order', requestPayload, liveConfig, actionType);
     try {
-        const responsePayload = isDiApiProvider(liveConfig)
-            ? await diApiBridge.createOrder(liveConfig, requestPayload)
-            : await sapRequest(liveConfig, 'Orders', {
-                method: 'POST',
-                body: requestPayload
+        let responsePayload;
+        if (isDiApiMiddlewareProvider(liveConfig)) {
+            responsePayload = await submitViaSapMiddleware({
+                pgQuery,
+                entityType: 'sales-order',
+                actionType,
+                payload: requestPayload,
+                referenceCode: requestPayload.CardCode,
+                moduleName: 'ventas'
             });
+        } else {
+            responsePayload = isDiApiProvider(liveConfig)
+                ? await diApiBridge.createOrder(liveConfig, requestPayload)
+                : await sapRequest(liveConfig, 'Orders', {
+                    method: 'POST',
+                    body: requestPayload
+                });
+        }
         await logWrite(pgQuery, {
             entityName: 'Orders',
             mode,
@@ -4587,17 +6167,33 @@ async function createOrder({ pgQuery, config, body }) {
     }
 }
 
-async function createProductTree({ pgQuery, config, body }) {
+async function createProductTree({ pgQuery, config, body, dryRun = false, actionType = 'create' }) {
     const mode = resolveOperatingMode(config);
     const liveConfig = assertLiveSapConfigReady(config, 'La creación del BOM');
     const requestPayload = buildProductTreePayload(body || {});
+    if (actionType === 'update' && !normalizeText(requestPayload.TreeCode || requestPayload.ItemCode)) {
+        throw new Error('Para actualizar el BOM en SAP se necesita el código del SKU (TreeCode).');
+    }
+    if (dryRun) return buildDryRunPreview('product-tree', requestPayload, liveConfig, actionType);
     try {
-        const responsePayload = isDiApiProvider(liveConfig)
-            ? await diApiBridge.createProductTree(liveConfig, requestPayload)
-            : await sapRequest(liveConfig, 'ProductTrees', {
-                method: 'POST',
-                body: requestPayload
+        let responsePayload;
+        if (isDiApiMiddlewareProvider(liveConfig)) {
+            responsePayload = await submitViaSapMiddleware({
+                pgQuery,
+                entityType: 'product-tree',
+                actionType,
+                payload: requestPayload,
+                referenceCode: normalizeText(requestPayload.TreeCode || requestPayload.ItemCode),
+                moduleName: 'produccion'
             });
+        } else {
+            responsePayload = isDiApiProvider(liveConfig)
+                ? await diApiBridge.createProductTree(liveConfig, requestPayload)
+                : await sapRequest(liveConfig, 'ProductTrees', {
+                    method: 'POST',
+                    body: requestPayload
+                });
+        }
         await logWrite(pgQuery, {
             entityName: 'ProductTrees',
             mode,
@@ -4619,17 +6215,245 @@ async function createProductTree({ pgQuery, config, body }) {
     }
 }
 
-async function createInvoice({ pgQuery, config, body }) {
+// ── Artículo terminado (OITM) ───────────────────────────────────────────────
+// Construye el payload de la ficha de artículo con los campos de usuario PL_*
+// del anexo del correo "Plan para conectar con SAP".
+function buildItemPayload(input = {}, config = {}) {
+    if (normalizeText(input.ItemCode) && Array.isArray(input.UserFields)) {
+        return input;
+    }
+    const itemCode = normalizeText(input.itemCode || input.ItemCode || input.sku);
+    const itemName = normalizeText(input.itemName || input.ItemName || input.nombre || itemCode);
+    const grupo = normalizeText(input.itemGroupCode || config.sapItemGroupCode);
+    const uom = normalizeText(input.uomCode || config.sapFinishedGoodsUomCode) || 'unidades';
+    const udf = input.udf || input.pl || {};
+    const userFields = [
+        { Name: 'U_PL_ORIGEN', Value: 'PrintLab' },
+        { Name: 'U_PL_COTIZ', Value: normalizeText(udf.PL_COTIZ).slice(0, 20) },
+        { Name: 'U_PL_LINEA', Value: normalizeText(udf.PL_LINEA).slice(0, 20) },
+        { Name: 'U_PL_ORDEN', Value: normalizeText(udf.PL_ORDEN).slice(0, 20) },
+        { Name: 'U_PL_PRODUCTO', Value: normalizeText(udf.PL_PRODUCTO).slice(0, 20) },
+        { Name: 'U_PL_CLIENTE', Value: normalizeText(udf.PL_CLIENTE).slice(0, 100) },
+        { Name: 'U_PL_MONEDA', Value: normalizeText(udf.PL_MONEDA).slice(0, 3) },
+        { Name: 'U_PL_ANCHO', Value: safeNumber(udf.PL_ANCHO) },
+        { Name: 'U_PL_LARGO', Value: safeNumber(udf.PL_LARGO) },
+        { Name: 'U_PL_SUSTRATO', Value: normalizeText(udf.PL_SUSTRATO).slice(0, 100) },
+        { Name: 'U_PL_TINTAS', Value: typeof udf.PL_TINTAS === 'string' ? udf.PL_TINTAS : JSON.stringify(udf.PL_TINTAS || {}) },
+        { Name: 'U_PL_LAMINADO', Value: normalizeText(udf.PL_LAMINADO).slice(0, 60) },
+        { Name: 'U_PL_BARNIZ', Value: normalizeText(udf.PL_BARNIZ).slice(0, 60) },
+        { Name: 'U_PL_ESTAMPADO', Value: normalizeText(udf.PL_ESTAMPADO).slice(0, 60) },
+        { Name: 'U_PL_ADICIONALES', Value: typeof udf.PL_ADICIONALES === 'string' ? udf.PL_ADICIONALES : JSON.stringify(udf.PL_ADICIONALES || []) },
+        { Name: 'U_PL_TROQUEL', Value: normalizeText(udf.PL_TROQUEL).slice(0, 40) }
+    ];
+    const payload = {
+        ItemCode: itemCode,
+        ItemName: itemName.slice(0, 100),
+        ItemsGroupCode: grupo ? Number(grupo) || grupo : undefined,
+        InventoryUOM: uom,
+        SalesUnit: uom,
+        InventoryItem: 'tYES',
+        SalesItem: 'tYES',
+        PurchaseItem: 'tNO',
+        Valid: 'tYES'
+    };
+    // Los campos de usuario PL_* solo se envían si el switch del panel está
+    // encendido (es decir, cuando el equipo SAP ya creó los UDF en OITM).
+    if (config.sapUdfPlActivos || input.forzarUdf) {
+        payload.UserFields = userFields;
+    }
+    return payload;
+}
+
+async function createItemInSap({ pgQuery, config, body, dryRun = false, actionType = 'create' }) {
+    const mode = resolveOperatingMode(config);
+    const liveConfig = assertLiveSapConfigReady(config, 'La creación del artículo terminado');
+    const requestPayload = buildItemPayload(body || {}, liveConfig);
+    if (!normalizeText(requestPayload.ItemCode)) {
+        throw new Error('El artículo terminado necesita un código (SKU) definido en la orden.');
+    }
+    if (dryRun) return buildDryRunPreview('item', requestPayload, liveConfig, actionType);
+    try {
+        let responsePayload;
+        if (isDiApiMiddlewareProvider(liveConfig)) {
+            responsePayload = await submitViaSapMiddleware({
+                pgQuery,
+                entityType: 'item',
+                actionType,
+                payload: requestPayload,
+                referenceCode: normalizeText(requestPayload.ItemCode),
+                moduleName: 'produccion'
+            });
+        } else {
+            responsePayload = isDiApiProvider(liveConfig)
+                ? await diApiBridge.createItem(liveConfig, requestPayload)
+                : await sapRequest(liveConfig, 'Items', {
+                    method: 'POST',
+                    body: requestPayload
+                });
+        }
+        await logWrite(pgQuery, { entityName: 'Items', mode, status: 'success', requestPayload, responsePayload });
+        return { ...responsePayload, source: 'sap' };
+    } catch (error) {
+        await logWrite(pgQuery, { entityName: 'Items', mode, status: 'error', requestPayload, responsePayload: {}, errorMessage: error.message });
+        throw error;
+    }
+}
+
+// ── Tipo de cambio del dólar (SBOBobService_SetExchangeRate) ──────────────
+// Envío diario y manual del tipo de cambio USD→GTQ. Solo soporta el
+// proveedor di-api-middleware (cola sap_outbox + conector DIAPI), que es el
+// que este proyecto usa en producción para este tipo de documento.
+async function createExchangeRateInSap({ pgQuery, config, body, dryRun = false, actionType = 'create' }) {
+    const mode = resolveOperatingMode(config);
+    const liveConfig = assertLiveSapConfigReady(config, 'El envío del tipo de cambio');
+    const requestPayload = {
+        Currency: normalizeText(body?.Currency, 'USD'),
+        Rate: safeNumber(body?.Rate),
+        RateDate: normalizeText(body?.RateDate)
+    };
+    if (!(requestPayload.Rate > 0)) {
+        throw new Error('El tipo de cambio a enviar no es válido.');
+    }
+    if (dryRun) return buildDryRunPreview('exchange-rate', requestPayload, liveConfig, actionType);
+    if (!isDiApiMiddlewareProvider(liveConfig)) {
+        throw new Error('El envío del tipo de cambio a SAP todavía solo está implementado para el conector DIAPI.');
+    }
+    try {
+        const responsePayload = await submitViaSapMiddleware({
+            pgQuery,
+            entityType: 'exchange-rate',
+            actionType,
+            payload: requestPayload,
+            referenceCode: requestPayload.RateDate,
+            moduleName: 'finanzas'
+        });
+        await logWrite(pgQuery, { entityName: 'ExchangeRates', mode, status: 'success', requestPayload, responsePayload });
+        return { ...responsePayload, source: 'sap' };
+    } catch (error) {
+        await logWrite(pgQuery, { entityName: 'ExchangeRates', mode, status: 'error', requestPayload, responsePayload: {}, errorMessage: error.message });
+        throw error;
+    }
+}
+
+// Lee la tasa USD→GTQ que ya calculó/guardó el módulo de Tipo de Cambio para
+// hoy. Es la única fila que le interesa a SAP (rate_value = cuántos quetzales
+// vale 1 dólar).
+async function obtenerTipoCambioUsdGtqVigente(pgQuery) {
+    const result = await pgQuery(
+        `SELECT rate_value, rate_date FROM exchange_rate_current WHERE base_currency = 'USD' AND currency_code = 'GTQ' LIMIT 1`
+    );
+    if (!result.rows.length) {
+        throw new Error('Todavía no hay tipo de cambio calculado para hoy.');
+    }
+    const row = result.rows[0];
+    // Se usa la fecha de la tasa (rate_date), no la fecha de hoy: es la fecha
+    // real a la que corresponde ese valor, y así la referencia de la cola
+    // (una por día) queda ligada al dato que se está enviando.
+    const fecha = new Date(row.rate_date).toISOString().slice(0, 10);
+    return { rateValue: Number(row.rate_value) || 0, fecha };
+}
+
+// Envía a SAP el tipo de cambio del dólar del día (solo USD por ahora).
+async function enviarTipoCambioSap({ pgQuery, dryRun = false } = {}) {
+    const { rateValue, fecha } = await obtenerTipoCambioUsdGtqVigente(pgQuery);
+    const payload = { Currency: 'USD', Rate: rateValue, RateDate: fecha };
+    const sapConfig = await loadSapConfig(pgQuery);
+    const response = await createExchangeRateInSap({ pgQuery, config: sapConfig, body: payload, dryRun });
+    if (dryRun) return { fecha, payload, preview: response };
+    return { fecha, payload, response };
+}
+
+// ── Orden de Producción (OWOR) ─────────────────────────────────────────────
+function buildProductionOrderPayload(input = {}, config = {}) {
+    if (normalizeText(input.ItemNo) && input.ProductionOrderStatus) {
+        return input;
+    }
+    // SAP B1 exige PlannedQuantity > 0 en la Orden de Producción.
+    const cantidadPlan = safeNumber(input.quantity ?? input.PlannedQuantity ?? input.plannedQuantity);
+    const payload = {
+        ItemNo: normalizeText(input.itemCode || input.ItemNo || input.sku),
+        PlannedQuantity: cantidadPlan > 0 ? cantidadPlan : 1,
+        Warehouse: normalizeText(input.warehouse || input.Warehouse || config.sapFinishedGoodsWarehouseCode),
+        ProductionOrderType: normalizeText(input.type || input.ProductionOrderType) || 'bopotStandard',
+        ProductionOrderOrigin: 'bopooManual',
+        Comments: normalizeText(input.comments || input.Comments || `Orden de producción ${normalizeText(input.orderCode)}`),
+        DueDate: normalizeText(input.dueDate || input.DueDate)
+    };
+    const serie = normalizeText(config.sapProductionOrderSeries);
+    if (serie) {
+        const n = Number(serie);
+        payload.Series = Number.isFinite(n) && String(n) === serie ? n : serie;
+    }
+    return payload;
+}
+
+async function createProductionOrderInSap({ pgQuery, config, body, dryRun = false, actionType = 'create' }) {
+    const mode = resolveOperatingMode(config);
+    const liveConfig = assertLiveSapConfigReady(config, 'La creación de la orden de producción');
+    const requestPayload = buildProductionOrderPayload(body || {}, liveConfig);
+    if (!normalizeText(requestPayload.ItemNo)) {
+        throw new Error('La orden de producción necesita el código del artículo terminado (SKU).');
+    }
+    if (body && body.DocEntry != null && body.DocEntry !== '') {
+        requestPayload.DocEntry = Number(body.DocEntry);
+        requestPayload.AbsoluteEntry = Number(body.DocEntry);
+    }
+    if (actionType === 'update' && !dryRun && !(Number(requestPayload.DocEntry) > 0)) {
+        throw new Error('Para actualizar la Orden de Producción en SAP se necesita su DocEntry.');
+    }
+    if (dryRun) return buildDryRunPreview('production-order', requestPayload, liveConfig, actionType);
+    try {
+        let responsePayload;
+        if (isDiApiMiddlewareProvider(liveConfig)) {
+            responsePayload = await submitViaSapMiddleware({
+                pgQuery,
+                entityType: 'production-order',
+                actionType,
+                payload: requestPayload,
+                referenceCode: normalizeText(body?.orderCode || requestPayload.ItemNo),
+                moduleName: 'produccion'
+            });
+        } else {
+            responsePayload = isDiApiProvider(liveConfig)
+                ? await diApiBridge.createProductionOrder(liveConfig, requestPayload)
+                : await sapRequest(liveConfig, 'ProductionOrders', {
+                    method: 'POST',
+                    body: requestPayload
+                });
+        }
+        await logWrite(pgQuery, { entityName: 'ProductionOrders', mode, status: 'success', requestPayload, responsePayload });
+        return { ...responsePayload, source: 'sap' };
+    } catch (error) {
+        await logWrite(pgQuery, { entityName: 'ProductionOrders', mode, status: 'error', requestPayload, responsePayload: {}, errorMessage: error.message });
+        throw error;
+    }
+}
+
+async function createInvoice({ pgQuery, config, body, dryRun = false, actionType = 'create' }) {
     const mode = resolveOperatingMode(config);
     const liveConfig = assertLiveSapConfigReady(config, 'La creación de facturas');
-    const requestPayload = buildInvoicePayload(body || {});
+    const requestPayload = applySapDocDefaults(buildInvoicePayload(body || {}), liveConfig, {
+        series: liveConfig.sapInvoiceSeries
+    });
+    if (dryRun) return buildDryRunPreview('invoice', requestPayload, liveConfig, actionType);
     try {
-        const responsePayload = isDiApiProvider(liveConfig)
-            ? await diApiBridge.createInvoice(liveConfig, requestPayload)
-            : await sapRequest(liveConfig, 'Invoices', {
-                method: 'POST',
-                body: requestPayload
+        let responsePayload;
+        if (isDiApiMiddlewareProvider(liveConfig)) {
+            responsePayload = await submitViaSapMiddleware({
+                pgQuery,
+                entityType: 'invoice',
+                payload: requestPayload,
+                referenceCode: normalizeText(body?.orderCode || body?.order_code),
+                moduleName: 'ventas'
             });
+        } else {
+            responsePayload = isDiApiProvider(liveConfig)
+                ? await diApiBridge.createInvoice(liveConfig, requestPayload)
+                : await sapRequest(liveConfig, 'Invoices', {
+                    method: 'POST',
+                    body: requestPayload
+                });
+        }
         await logWrite(pgQuery, {
             entityName: 'Invoices',
             mode,
@@ -4651,23 +6475,48 @@ async function createInvoice({ pgQuery, config, body }) {
     }
 }
 
-async function createInventoryExit({ pgQuery, config, body }) {
+async function createInventoryExit({ pgQuery, config, body, dryRun = false, actionType = 'create' }) {
     const mode = resolveOperatingMode(config);
     const liveConfig = assertLiveSapConfigReady(config, 'La salida de inventario');
     const settings = await loadSapProductionCostCenterSettings(pgQuery);
     const defaultCostCenterCode = normalizeText(settings.defaultCostCenterCode);
-    const requestPayload = applyProductionCostCenterToPayload(
-        buildInventoryExitPayload(body || {}),
-        defaultCostCenterCode,
-        'la salida de componentes'
+    const requestPayload = applySapDocDefaults(
+        applyProductionCostCenterToPayload(
+            buildInventoryExitPayload(body || {}),
+            defaultCostCenterCode,
+            'la salida de componentes'
+        ),
+        liveConfig,
+        { series: liveConfig.sapInventoryExitSeries }
     );
     try {
-        const responsePayload = isDiApiProvider(liveConfig)
-            ? await diApiBridge.createInventoryExit(liveConfig, requestPayload)
-            : await sapRequest(liveConfig, 'InventoryGenExits', {
-                method: 'POST',
-                body: requestPayload
+        let responsePayload;
+        if (isDiApiMiddlewareProvider(liveConfig)) {
+            const warehouseCode = normalizeText(liveConfig.sapMaterialsWarehouseCode)
+                || normalizeText(liveConfig.productionReservationWarehouseCode);
+            if (!warehouseCode && !dryRun) {
+                throw new Error('Configura la "Bodega de Materiales" (Configuración > SAP > Valores SAP) o la "Bodega Destino Reservas" antes de hacer descargas de inventario.');
+            }
+            requestPayload.DocumentLines = (requestPayload.DocumentLines || []).map((line) => ({
+                ...line,
+                WarehouseCode: line.WarehouseCode || warehouseCode
+            }));
+            if (dryRun) return buildDryRunPreview('inventory-exit', requestPayload, liveConfig, actionType);
+            responsePayload = await submitViaSapMiddleware({
+                pgQuery,
+                entityType: 'inventory-exit',
+                payload: requestPayload,
+                referenceCode: normalizeText(body?.productionOrderId || body?.production_order_id),
+                moduleName: 'produccion'
             });
+        } else {
+            responsePayload = isDiApiProvider(liveConfig)
+                ? await diApiBridge.createInventoryExit(liveConfig, requestPayload)
+                : await sapRequest(liveConfig, 'InventoryGenExits', {
+                    method: 'POST',
+                    body: requestPayload
+                });
+        }
         await logWrite(pgQuery, {
             entityName: 'InventoryGenExits',
             mode,
@@ -4689,23 +6538,48 @@ async function createInventoryExit({ pgQuery, config, body }) {
     }
 }
 
-async function createInventoryEntry({ pgQuery, config, body }) {
+async function createInventoryEntry({ pgQuery, config, body, dryRun = false, actionType = 'create' }) {
     const mode = resolveOperatingMode(config);
     const liveConfig = assertLiveSapConfigReady(config, 'La entrada de inventario');
     const settings = await loadSapProductionCostCenterSettings(pgQuery);
     const defaultCostCenterCode = normalizeText(settings.defaultCostCenterCode);
-    const requestPayload = applyProductionCostCenterToPayload(
-        buildInventoryEntryPayload(body || {}),
-        defaultCostCenterCode,
-        'la terminación de producción'
+    const requestPayload = applySapDocDefaults(
+        applyProductionCostCenterToPayload(
+            buildInventoryEntryPayload(body || {}),
+            defaultCostCenterCode,
+            'la terminación de producción'
+        ),
+        liveConfig,
+        { series: liveConfig.sapInventoryEntrySeries }
     );
     try {
-        const responsePayload = isDiApiProvider(liveConfig)
-            ? await diApiBridge.createInventoryEntry(liveConfig, requestPayload)
-            : await sapRequest(liveConfig, 'InventoryGenEntries', {
-                method: 'POST',
-                body: requestPayload
+        let responsePayload;
+        if (isDiApiMiddlewareProvider(liveConfig)) {
+            const warehouseCode = normalizeText(liveConfig.sapFinishedGoodsWarehouseCode)
+                || normalizeText(liveConfig.productionReservationWarehouseCode);
+            if (!warehouseCode && !dryRun) {
+                throw new Error('Configura la "Bodega de Producto Terminado" (Configuración > SAP > Valores SAP) o la "Bodega Destino Reservas" antes de registrar entradas de producto terminado.');
+            }
+            requestPayload.DocumentLines = (requestPayload.DocumentLines || []).map((line) => ({
+                ...line,
+                WarehouseCode: line.WarehouseCode || warehouseCode
+            }));
+            if (dryRun) return buildDryRunPreview('inventory-entry', requestPayload, liveConfig, actionType);
+            responsePayload = await submitViaSapMiddleware({
+                pgQuery,
+                entityType: 'inventory-entry',
+                payload: requestPayload,
+                referenceCode: normalizeText(body?.productionOrderId || body?.production_order_id),
+                moduleName: 'produccion'
             });
+        } else {
+            responsePayload = isDiApiProvider(liveConfig)
+                ? await diApiBridge.createInventoryEntry(liveConfig, requestPayload)
+                : await sapRequest(liveConfig, 'InventoryGenEntries', {
+                    method: 'POST',
+                    body: requestPayload
+                });
+        }
         await logWrite(pgQuery, {
             entityName: 'InventoryGenEntries',
             mode,
@@ -4717,6 +6591,61 @@ async function createInventoryEntry({ pgQuery, config, body }) {
     } catch (error) {
         await logWrite(pgQuery, {
             entityName: 'InventoryGenEntries',
+            mode,
+            status: 'error',
+            requestPayload,
+            responsePayload: {},
+            errorMessage: error.message
+        });
+        throw error;
+    }
+}
+
+async function createInventoryReservation({ pgQuery, config, body }) {
+    const mode = resolveOperatingMode(config);
+    const liveConfig = assertLiveSapConfigReady(config, 'La reserva de inventario');
+    const requestPayload = {
+        ItemCode: normalizeText(body?.sapItemCode || body?.ItemCode),
+        ItemName: normalizeText(body?.materialName || body?.ItemName),
+        Quantity: safeNumber(body?.quantity ?? body?.Quantity),
+        WarehouseCode: normalizeText(body?.warehouseCode || body?.WarehouseCode),
+        BaseDocType: normalizeText(body?.baseDocType || body?.BaseDocType, 'ProductionOrder'),
+        BaseEntry: normalizeText(body?.orderCode || body?.OrderCode),
+        Comments: normalizeText(body?.reason || body?.Comments)
+    };
+    try {
+        let responsePayload;
+        if (isDiApiMiddlewareProvider(liveConfig)) {
+            const toWarehouseCode = normalizeText(liveConfig.productionReservationWarehouseCode);
+            if (!toWarehouseCode) {
+                throw new Error('Configura la "Bodega Destino Reservas" en Configuración General > SAP antes de solicitar reservas de inventario.');
+            }
+            responsePayload = await submitViaSapMiddleware({
+                pgQuery,
+                entityType: 'inventory-reservation',
+                payload: { ...requestPayload, ToWarehouseCode: toWarehouseCode },
+                referenceCode: requestPayload.BaseEntry,
+                moduleName: 'produccion'
+            });
+        } else {
+            responsePayload = isDiApiProvider(liveConfig)
+                ? await diApiBridge.createReservation(liveConfig, requestPayload)
+                : await sapRequest(liveConfig, 'StockReservations', {
+                    method: 'POST',
+                    body: requestPayload
+                });
+        }
+        await logWrite(pgQuery, {
+            entityName: 'StockReservations',
+            mode,
+            status: 'success',
+            requestPayload,
+            responsePayload
+        });
+        return { ...responsePayload, source: 'sap' };
+    } catch (error) {
+        await logWrite(pgQuery, {
+            entityName: 'StockReservations',
             mode,
             status: 'error',
             requestPayload,
@@ -4798,7 +6727,11 @@ function registerSapRoutes({ app, pgQuery, withTransaction }) {
 
     app.get('/api/sap/import-jobs', async (req, res) => {
         try {
-            res.json({ rows: await listSapImportJobs(pgQuery) });
+            const heartbeat = await pgQuery(`SELECT last_seen_at, last_seen_endpoint FROM sap_diapi_heartbeat WHERE id = 1`);
+            res.json({
+                rows: await listSapImportJobs(pgQuery),
+                diapiHeartbeat: heartbeat.rows[0] || { last_seen_at: null, last_seen_endpoint: '' }
+            });
         } catch (error) {
             res.status(500).json({ error: error.message || 'No fue posible cargar los trabajos de importación SAP.' });
         }
@@ -4919,6 +6852,10 @@ function registerSapRoutes({ app, pgQuery, withTransaction }) {
         } catch (error) {
             res.status(500).json({ error: error.message || 'No fue posible cargar las tablas espejo SAP.' });
         }
+    });
+
+    app.get('/api/sap/catalogo-tablas', async (req, res) => {
+        res.json({ grupos: CATALOGO_TABLAS_SAP });
     });
 
     app.get('/api/sap/mirror/processes', async (req, res) => {
@@ -5120,6 +7057,20 @@ function registerSapRoutes({ app, pgQuery, withTransaction }) {
                 errorMessage: error.message
             });
             res.status(400).json({ error: error.message || 'No fue posible consultar socios SAP.' });
+        }
+    });
+
+    app.get('/api/sap/items/last-sync', async (req, res) => {
+        try {
+            const result = await pgQuery(`SELECT MAX(synced_at) AS last_synced_at, COUNT(*)::int AS records_count FROM sap_items`);
+            const row = result.rows[0] || {};
+            res.json({
+                ok: true,
+                lastSyncedAt: row.last_synced_at || null,
+                recordsCount: row.records_count || 0
+            });
+        } catch (error) {
+            res.status(500).json({ ok: false, error: error.message || 'No fue posible consultar la última sincronización del inventario.' });
         }
     });
 
@@ -5506,6 +7457,16 @@ function registerSapRoutes({ app, pgQuery, withTransaction }) {
         }
     });
 
+    app.post('/api/sap/salesperson-profit-centers/sync', async (req, res) => {
+        try {
+            const config = await loadSapConfig(pgQuery);
+            const summary = await syncSapSalespersonsFromSap(pgQuery, config);
+            res.json({ ok: true, summary, items: await listSapSalespersonProfitCenters(pgQuery) });
+        } catch (error) {
+            res.status(400).json({ error: error.message || 'No fue posible sincronizar los vendedores desde SAP.' });
+        }
+    });
+
     app.get('/api/sap/production-cost-center', async (req, res) => {
         try {
             res.json(await loadSapProductionCostCenterSettings(pgQuery));
@@ -5626,6 +7587,256 @@ function registerSapRoutes({ app, pgQuery, withTransaction }) {
         }
     });
 
+    // ── Endpoints para el middleware DIAPI ──────────────────────────────────
+    // La red solo permite que el middleware (instalado en el servidor de SAP)
+    // inicie la conexión hacia PrintLab, nunca al revés. Estos endpoints existen
+    // para que el middleware, por su cuenta, venga a preguntar qué hay pendiente
+    // (envíos y consultas) y a entregar los resultados. Protegidos con un token
+    // compartido, mismo patrón que ya usa tintas-service.js con x-webhook-token.
+    function checkDiapiToken(req, res) {
+        const expected = process.env.DIAPI_SHARED_TOKEN;
+        if (!expected) {
+            registerDiapiHeartbeat(req.path);
+            return true;
+        }
+        const provided = req.headers['x-diapi-token'];
+        if (provided !== expected) {
+            res.status(401).json({ error: 'Token de integración DIAPI inválido.' });
+            return false;
+        }
+        registerDiapiHeartbeat(req.path);
+        return true;
+    }
+
+    // Deja constancia de que el conector SÍ vino a preguntar, tenga o no algo pendiente
+    // que darle. Sin esto, si no hay nada en las colas, no queda ningún rastro de que la
+    // comunicación esté funcionando — y es exactamente lo que hace falta para poder
+    // distinguir "el conector no se está conectando" de "se conecta pero no hay nada
+    // pendiente". No se espera (fire-and-forget): nunca debe frenar ni romper la
+    // respuesta real al conector.
+    function registerDiapiHeartbeat(endpoint) {
+        pgQuery(`
+            UPDATE sap_diapi_heartbeat
+               SET last_seen_at = NOW(),
+                   last_seen_endpoint = $1
+             WHERE id = 1
+        `, [endpoint || '']).catch(() => null);
+    }
+
+    app.get('/api/sap/outbox/pending', async (req, res) => {
+        if (!checkDiapiToken(req, res)) return;
+        try {
+            const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+            const result = await pgQuery(`
+                SELECT id, entity_type, action_type, payload
+                  FROM sap_outbox
+                 WHERE status = 'pending'
+                   AND next_attempt_at <= NOW()
+              ORDER BY priority ASC, created_at ASC
+                 LIMIT $1
+            `, [limit]);
+            const ids = result.rows.map((row) => row.id);
+            if (ids.length) {
+                await pgQuery(`UPDATE sap_outbox SET status = 'processing', updated_at = NOW() WHERE id = ANY($1::uuid[])`, [ids]);
+            }
+            res.json({
+                value: result.rows.map((row) => ({
+                    id: row.id,
+                    entityType: row.entity_type,
+                    actionType: row.action_type || 'create',
+                    payload: row.payload
+                }))
+            });
+        } catch (error) {
+            res.status(500).json({ error: error.message || 'No fue posible obtener los envíos pendientes.' });
+        }
+    });
+
+    app.post('/api/sap/outbox/:id/result', async (req, res) => {
+        if (!checkDiapiToken(req, res)) return;
+        try {
+            const { ok, result, error: errorMessage } = req.body || {};
+            const status = ok ? 'done' : 'error';
+            await pgQuery(`
+                UPDATE sap_outbox
+                   SET status = $2,
+                       result_payload = $3::jsonb,
+                       last_error = $4,
+                       processed_at = NOW(),
+                       updated_at = NOW(),
+                       attempt_count = attempt_count + 1
+                 WHERE id = $1::uuid
+            `, [req.params.id, status, JSON.stringify(result || {}), errorMessage || '']);
+            res.json({ ok: true });
+        } catch (error) {
+            res.status(500).json({ error: error.message || 'No fue posible registrar el resultado del envío.' });
+        }
+    });
+
+    app.get('/api/sap/inbox/pending', async (req, res) => {
+        if (!checkDiapiToken(req, res)) return;
+        try {
+            const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+            const result = await pgQuery(`
+                SELECT id, entity_type, parameters
+                  FROM sap_inbox_requests
+                 WHERE status = 'pending'
+              ORDER BY created_at ASC
+                 LIMIT $1
+            `, [limit]);
+            const ids = result.rows.map((row) => row.id);
+            if (ids.length) {
+                await pgQuery(`UPDATE sap_inbox_requests SET status = 'processing', updated_at = NOW() WHERE id = ANY($1::uuid[])`, [ids]);
+            }
+            res.json({
+                value: result.rows.map((row) => ({ id: row.id, entityType: row.entity_type, parameters: row.parameters }))
+            });
+        } catch (error) {
+            res.status(500).json({ error: error.message || 'No fue posible obtener las consultas pendientes.' });
+        }
+    });
+
+    app.post('/api/sap/inbox/:id/result', async (req, res) => {
+        if (!checkDiapiToken(req, res)) return;
+        try {
+            const { ok, result, error: errorMessage, errorSql, errorDetail } = req.body || {};
+            const status = ok ? 'answered' : 'error';
+            const errorClase = ok ? '' : clasificarErrorSap({ message: errorMessage || '' });
+            await pgQuery(`
+                UPDATE sap_inbox_requests
+                   SET status = $2,
+                       result_payload = $3::jsonb,
+                       last_error = $4,
+                       provider_error_sql = $5,
+                       provider_error_detail = $6,
+                       error_clase = $7,
+                       answered_at = NOW(),
+                       updated_at = NOW()
+                 WHERE id = $1::uuid
+            `, [req.params.id, status, JSON.stringify(result || {}), errorMessage || '', errorSql || '', errorDetail || '', errorClase]);
+            res.json({ ok: true });
+        } catch (error) {
+            res.status(500).json({ error: error.message || 'No fue posible registrar la respuesta.' });
+        }
+    });
+
+    // Historial de solicitudes reales enviadas al conector DIAPI para una entidad
+    // (business-partners/items/salespersons): cuándo se preguntó, cuándo la leyó DIAPI,
+    // cuándo contestó, con cuántos registros, y si esos registros ya quedaron guardados
+    // en las tablas locales. Es el control que responde "¿sí está llegando o no?".
+    app.get('/api/sap/inbox/history', async (req, res) => {
+        try {
+            const entityType = normalizeText(req.query.entityType);
+            const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+            const result = await pgQuery(`
+                SELECT request_code, status, parameters, created_at, updated_at, answered_at,
+                       applied_at, records_applied, last_error, provider_error_sql, provider_error_detail
+                  FROM sap_inbox_requests
+                 WHERE ($1 = '' OR entity_type = $1)
+              ORDER BY created_at DESC
+                 LIMIT $2
+            `, [entityType, limit]);
+            res.json({
+                ok: true,
+                items: result.rows.map((row) => ({
+                    requestCode: row.request_code,
+                    status: row.status,
+                    parameters: row.parameters,
+                    createdAt: row.created_at,
+                    readAt: row.status === 'pending' ? null : row.updated_at,
+                    answeredAt: row.answered_at,
+                    appliedAt: row.applied_at,
+                    recordsApplied: row.records_applied,
+                    lastError: row.last_error || '',
+                    providerErrorSql: row.provider_error_sql || '',
+                    providerErrorDetail: row.provider_error_detail || ''
+                }))
+            });
+        } catch (error) {
+            res.status(500).json({ error: error.message || 'No fue posible cargar el historial de solicitudes.' });
+        }
+    });
+
+    app.post('/api/sap/mirror/push', async (req, res) => {
+        if (!checkDiapiToken(req, res)) return;
+        try {
+            const businessPartners = Array.isArray(req.body?.businessPartners) ? req.body.businessPartners : [];
+            const items = Array.isArray(req.body?.items) ? req.body.items : [];
+            await withTransaction(async (client) => {
+                if (businessPartners.length) await upsertBusinessPartners(client, businessPartners);
+                if (items.length) await upsertItems(client, items);
+            });
+            res.json({ ok: true, businessPartners: businessPartners.length, items: items.length });
+        } catch (error) {
+            res.status(500).json({ error: error.message || 'No fue posible aplicar el refresco de SAP.' });
+        }
+    });
+
+    app.post('/api/sap/limpiar-datos-prueba', async (req, res) => {
+        try {
+            const includeAll = normalizeBoolean(req.body?.includeAll, false);
+            // scope permite limpiar/recargar solo una parte (ej. socios) sin tocar el
+            // resto (ej. inventario) — por defecto 'all' preserva el comportamiento previo.
+            const scope = normalizeText(req.body?.scope, 'all');
+            const includePartners = scope === 'all' || scope === 'partners';
+            const includeItems = scope === 'all' || scope === 'items';
+            const jobCodes = Object.keys(SAP_IMPORT_JOB_DEFS).filter((code) => {
+                if (scope === 'all') return true;
+                if (scope === 'partners') return code === 'sap-import-business-partners';
+                if (scope === 'items') return code === 'sap-import-items';
+                return true;
+            });
+            const summary = await withTransaction(async (client) => {
+                const result = {};
+                if (includePartners) {
+                    const businessPartners = includeAll
+                        ? await client.query(`DELETE FROM business_partners`)
+                        : await client.query(`DELETE FROM business_partners WHERE sap_card_code IS NOT NULL`);
+                    const contacts = includeAll
+                        ? await client.query(`DELETE FROM business_partner_contacts`)
+                        : await client.query(`DELETE FROM business_partner_contacts WHERE COALESCE(source, '') = 'sap'`);
+                    const addresses = includeAll
+                        ? await client.query(`DELETE FROM business_partner_addresses`)
+                        : await client.query(`DELETE FROM business_partner_addresses WHERE COALESCE(source, '') = 'sap'`);
+                    const sapBusinessPartners = await client.query(`DELETE FROM sap_business_partners`);
+                    const ocrd = await client.query(`DELETE FROM "OCRD"`);
+                    const crd1 = await client.query(`DELETE FROM "CRD1"`);
+                    result.businessPartners = businessPartners.rowCount;
+                    result.contacts = contacts.rowCount;
+                    result.addresses = addresses.rowCount;
+                    result.sapBusinessPartners = sapBusinessPartners.rowCount;
+                    result.ocrd = ocrd.rowCount;
+                    result.crd1 = crd1.rowCount;
+                }
+                if (includeItems) {
+                    const sapItems = await client.query(`DELETE FROM sap_items`);
+                    const oitm = await client.query(`DELETE FROM "OITM"`);
+                    const oitw = await client.query(`DELETE FROM "OITW"`);
+                    const owhs = await client.query(`DELETE FROM "OWHS"`);
+                    const sapWarehouses = await client.query(`DELETE FROM sap_warehouses`);
+                    result.sapItems = sapItems.rowCount;
+                    result.oitm = oitm.rowCount;
+                    result.oitw = oitw.rowCount;
+                    result.owhs = owhs.rowCount;
+                    result.sapWarehouses = sapWarehouses.rowCount;
+                }
+                // Sin esto, la próxima corrida de la Automatización cree que ya sincronizó
+                // hasta finished_at y solo pida "lo modificado desde entonces" (incremental),
+                // trayendo 0 registros aunque la tabla local esté vacía.
+                await client.query(`
+                    UPDATE sap_sync_jobs
+                       SET finished_at = NULL,
+                           records_count = 0,
+                           message = 'Datos locales vaciados: la próxima corrida sera una carga completa.'
+                     WHERE job_code = ANY($1::text[])
+                `, [jobCodes]);
+                return result;
+            });
+            res.json({ ok: true, summary });
+        } catch (error) {
+            res.status(500).json({ error: error.message || 'No fue posible limpiar los datos de prueba de SAP.' });
+        }
+    });
 }
 
 function startSapScheduler({ pgQuery, withTransaction, intervalMs = 60_000 }) {
@@ -5669,14 +7880,73 @@ function startSapScheduler({ pgQuery, withTransaction, intervalMs = 60_000 }) {
     }
 }
 
+// Borra de sap_inbox_requests las filas con más de 30 días de antigüedad, para que
+// esta tabla no crezca para siempre (cada consulta al conector DIAPI deja una fila).
+// No toca ninguna otra tabla (sap_outbox, sap_write_log, sap_activity_log, etc.).
+// Excepción: una fila en 'error' cuya causa se clasificó como definitiva (ver
+// CLASES_ERROR_DEFINITIVO en sap-envios-service.js, p.ej. "referencia_no_encontrada")
+// no se borra sola nunca, sin importar la antigüedad — necesita que una persona la
+// revise primero. Una fila en 'error' por una causa temporal (sin conexión, timeout,
+// etc.) sí se puede borrar pasados los 30 días: ya quedó superada.
+async function limpiarInboxRequestsVencidos(pgQuery) {
+    const clasesDefinitivas = Array.from(CLASES_ERROR_DEFINITIVO);
+    const result = await pgQuery(
+        `DELETE FROM sap_inbox_requests
+          WHERE created_at < NOW() - INTERVAL '30 days'
+            AND NOT (status = 'error' AND error_clase = ANY($1::text[]))`,
+        [clasesDefinitivas]
+    );
+    const borradas = result?.rowCount || 0;
+    console.log(`Limpieza de sap_inbox_requests: se borraron ${borradas} fila(s) con más de 30 días.`);
+    return borradas;
+}
+
+function startSapInboxCleanupWorker({ pgQuery, intervalMs = 24 * 60 * 60 * 1000 }) {
+    if (limpiezaInboxHandle) return limpiezaInboxHandle;
+    limpiezaInboxHandle = setInterval(async () => {
+        if (limpiezaInboxEnCurso) return;
+        limpiezaInboxEnCurso = true;
+        try {
+            await limpiarInboxRequestsVencidos(pgQuery);
+        } catch (error) {
+            console.error('Limpieza de sap_inbox_requests:', error.message);
+        } finally {
+            limpiezaInboxEnCurso = false;
+        }
+    }, intervalMs);
+    if (typeof limpiezaInboxHandle.unref === 'function') {
+        limpiezaInboxHandle.unref();
+    }
+    return limpiezaInboxHandle;
+}
+
 module.exports = {
     ensureSapSchema,
     registerSapRoutes,
     startSapScheduler,
+    startSapInboxCleanupWorker,
+    limpiarInboxRequestsVencidos,
+    executeSapImportJob,
+    upsertBusinessPartners,
     fetchSapBusinessPartnersForImport,
     fetchSapItemsForImport,
     stageSapMirrorOrder,
     stageSapMirrorBom,
     createBusinessPartnerInSap,
-    loadSapConfig
+    loadSapConfig,
+    queryBusinessPartners,
+    enqueueInboxRequest,
+    getInboxRequestById,
+    createInventoryExit,
+    createInventoryEntry,
+    createInventoryReservation,
+    createOrder,
+    createInvoice,
+    createProductTree,
+    createItemInSap,
+    createExchangeRateInSap,
+    obtenerTipoCambioUsdGtqVigente,
+    enviarTipoCambioSap,
+    createProductionOrderInSap,
+    getSapMirrorProcessDefinitions
 };

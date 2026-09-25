@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <title>Reporter&iacute;a &mdash; Materia Prima</title>
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <link rel="stylesheet" href="/reporteria.css?v=20260908c3-kpis-flexo">
+</head>
+<body class="report-body">
+    <main class="report-shell">
+        <header class="report-header">
+            <div>
+                <h1>An&aacute;lisis de Materia Prima</h1>
+                <p>Composici&oacute;n del costo de materia prima sobre el precio de venta, por componente, producto y periodo.</p>
+            </div>
+            <form id="reportFilters" class="report-filters">
+                <label><span>Desde</span><input id="dateFrom" type="date"></label>
+                <label><span>Hasta</span><input id="dateTo" type="date"></label>
+                <label><span>Vendedor</span><input id="vendedor" type="text" placeholder="Nombre exacto"></label>
+                <label><span>Cliente</span><input id="cliente" type="text" placeholder="Nombre o c&oacute;digo"></label>
+                <label><span>Producto</span><input id="producto" type="text" placeholder="C&oacute;digo"></label>
+                <button type="submit">Actualizar</button>
+            </form>
+        </header>
+
+        <section id="reportStatus" class="report-status">Cargando reporter&iacute;a...</section>
+        <section id="kpiGrid" class="report-kpis"></section>
+
+        <section class="report-grid">
+            <article class="report-panel report-panel-chart">
+                <div class="report-panel-head"><h2>Composici&oacute;n de Materia Prima</h2><span>% sobre el precio de venta</span></div>
+                <div id="composicionChart" class="report-chart"></div>
+            </article>
+            <article class="report-panel report-panel-chart">
+                <div class="report-panel-head"><h2>Composici&oacute;n del Precio de Venta</h2><span>Materia prima vs resto</span></div>
+                <div id="precioComposicion" class="report-metric-stack"></div>
+            </article>
+            <article class="report-panel report-panel-wide">
+                <div class="report-panel-head"><h2>Detalle por Componente</h2><span>Monto y porcentaje</span></div>
+                <div id="componentesTable" class="report-table"></div>
+            </article>
+            <article class="report-panel report-panel-wide">
+                <div class="report-panel-head"><h2>Materia Prima por Producto</h2><span>Mayores consumidores</span></div>
+                <div id="productoTable" class="report-table"></div>
+            </article>
+            <article class="report-panel report-panel-wide">
+                <div class="report-panel-head"><h2>Evoluci&oacute;n Mensual del % de Materia Prima</h2><span>Tendencia</span></div>
+                <div id="mesTable" class="report-table"></div>
+            </article>
+        </section>
+    </main>
+    <script src="/access-control.js?v=20260923-mensajes-carga"></script>
+    <script src="/reporteria/materia-prima.js?v=20260922-alerta-mp"></script>
+</body>
+</html>

@@ -4,19 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tintas - PrintLab</title>
-<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+<link rel="stylesheet" href="/tintas/styles.css?v=20260905-sellos">
 <script src="/theme.js"></script>
 <style>
 body { margin:0; background:transparent; }
-.tintas-dashboard-grid { display:grid; grid-template-columns:repeat(4,minmax(180px,220px)); justify-content:center; gap:18px; padding:32px 24px; max-width:1200px; margin:0 auto; }
-.tintas-dashboard-card { display:grid; justify-items:center; align-content:center; gap:12px; aspect-ratio:1/1; padding:18px; border:1px solid var(--app-border); border-radius:24px; background:var(--app-surface); text-align:center; box-shadow:var(--app-shadow-sm); transition:transform 0.18s ease,box-shadow 0.18s ease,border-color 0.18s ease; cursor:pointer; }
-.tintas-dashboard-card:hover, .tintas-dashboard-card:focus-visible { transform:translateY(-2px); box-shadow:var(--app-shadow-md); }
-.tintas-dashboard-card-icon { display:inline-flex; align-items:center; justify-content:center; width:54px; height:54px; flex:0 0 54px; color:var(--icon-base-color,var(--app-primary)); border-radius:14px; transition:color 0.18s ease,transform 0.18s ease; }
-.tintas-dashboard-card:hover .tintas-dashboard-card-icon, .tintas-dashboard-card:focus-visible .tintas-dashboard-card-icon { color:var(--icon-hover-color,var(--app-primary-strong)); transform:translateY(-1px); }
-.tintas-dashboard-card-icon .icon-glyph { color:currentColor; font-size:var(--config-icon-size,38px); }
-.tintas-dashboard-card-icon .icon-svg-mask, .tintas-dashboard-card-icon .icon-image { width:var(--config-icon-size,38px); height:var(--config-icon-size,38px); display:block; max-width:100%; max-height:100%; object-fit:contain; }
-.tintas-dashboard-card-title { font-size:13px; font-weight:500; color:var(--app-text-muted); }
-.tintas-dashboard-card:hover .tintas-dashboard-card-title { color:var(--app-text); }
 </style>
 </head>
 <body>
@@ -27,7 +19,8 @@ const TINTAS_MODULES = [
   { route:'/tintas/catalogo', label:'Catálogo de Tintas', iconKey:'tintasCatalogo' },
   { route:'/tintas/lotes', label:'Control de Inventario', iconKey:'tintasInventario' },
   { route:'/tintas/pantones', label:'Biblioteca Pantone', iconKey:'tintasPantones' },
-  { route:'/tintas/recetas', label:'Recetas y Fórmulas', iconKey:'tintasRecetas' }
+  { route:'/tintas/recetas', label:'Recetas y Fórmulas', iconKey:'tintasRecetas' },
+  { route:'/tintas/calculadora', label:'Calculadora de Color', iconKey:'tintasCalculadora' }
 ];
 
 let loadedConfig = {};

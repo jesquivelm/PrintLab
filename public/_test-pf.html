@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Test Proforma Formatos</title>
+</head>
+<body>
+<script>
+(async () => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const result = { paso1_empresa: {}, paso2_textos: {}, paso3_clasico: {}, paso4_preview: {}, paso5_restaurar: {} };
+    try {
+        const loginRes = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: 'jesquiv', password: 'ABC1234abc' })
+        });
+        const login = await loginRes.json();
+        if (!loginRes.ok || !login.user) throw new Error('Login falló');
+        localStorage.setItem('erp-user-session', JSON.stringify(login.user));
+
+        const frame = document.createElement('iframe');
+        frame.src = '/configuracion-general.html';
+        frame.style.width = '1400px';
+        frame.style.height = '900px';
+        document.body.appendChild(frame);
+        await sleep(18000);
+
+        const doc = frame.contentDocument;
+        const win = frame.contentWindow;
+        result.diagnostico = {
+            frameUrl: frame.contentWindow.location.href,
+            loadedConfigTipo: win.eval('typeof loadedConfig') || 'ERR',
+            tieneFormats: win.eval('!!(loadedConfig && loadedConfig.general && loadedConfig.general.proformaFormats)') || 'ERR',
+            enLogin: !!doc.querySelector('#loginForm, .login-box, form[action="/login"]'),
+            saveStatus: doc.getElementById('saveStatus')?.textContent || 'AUSENTE'
+        };
+        result.diag2 = {
+            formatsEditNull: win.eval('proformaFormatsEdit === null') || 'ERR',
+            editFormat: win.eval('proformaEditFormat') || 'ERR',
+            termsF2: win.eval('(proformaFormatsEdit && proformaFormatsEdit.formato2) ? proformaFormatsEdit.formato2.termsConditions.length : "NO"') || 'ERR',
+            termsC: win.eval('(proformaFormatsEdit && proformaFormatsEdit.clasico) ? proformaFormatsEdit.clasico.termsConditions.length : "NO"') || 'ERR',
+            modoC: win.eval('(proformaFormatsEdit && proformaFormatsEdit.clasico) ? proformaFormatsEdit.clasico.modoTerminos : "NO"') || 'ERR',
+            fnPopulate: win.eval('typeof populateProformaFormatFields') || 'ERR',
+            fnCapture: win.eval('typeof captureProformaFormatFields') || 'ERR',
+            termsInputVal: doc.getElementById('proformaTermsField')?.value.length || 'ERR',
+            formatSelectVal: doc.getElementById('proformaFormatField')?.value || 'ERR'
+        };
+
+        const nameDisplay = doc.getElementById('proformaCompanyNameDisplay');
+        const marginBottom = doc.getElementById('proformaLogoMarginBottomField');
+        const marginRight = doc.getElementById('proformaLogoMarginRightField');
+        const contactCheck = doc.getElementById('proformaContactEnabledCheck');
+        const chipFormato2 = doc.querySelector('#proformaEmpresaFormatSelector input[value="formato2"]');
+        const chipClasico = doc.querySelector('#proformaEmpresaFormatSelector input[value="clasico"]');
+        const logoUrl = doc.getElementById('proformaLogoUrlField');
+        result.paso1_empresa = {
+            nombreDisplay: nameDisplay ? nameDisplay.value : 'AUSENTE',
+            margenInferior: marginBottom ? marginBottom.value : 'AUSENTE',
+            margenDerecho: marginRight ? marginRight.value : 'AUSENTE',
+            contactoCheck: contactCheck ? contactCheck.checked : 'AUSENTE',
+            formatoActivo: chipFormato2 && chipFormato2.checked ? 'formato2' : (chipClasico && chipClasico.checked ? 'clasico' : 'ninguno'),
+            logoLongitud: logoUrl ? logoUrl.value.length : 0
+        };
+
+        const tabTextos = doc.querySelector('.proforma-subtab[data-proforma-tab="textos"]');
+        if (tabTextos) {
+            tabTextos.click();
+            await sleep(1000);
+        }
+        const termsCheck = doc.getElementById('proformaTermsUniqueCheck');
+        const termsField = doc.getElementById('proformaTermsField');
+        const termsGroup = doc.getElementById('proformaTermsGroupWrap');
+        result.paso2_textos = {
+            termsCheck: termsCheck ? termsCheck.checked : 'AUSENTE',
+            termsLen: termsField ? termsField.value.length : -1,
+            termsPreview: termsField ? termsField.value.slice(0, 40) : '',
+            grupoOculto: termsGroup ? termsGroup.hidden : 'AUSENTE'
+        };
+
+        if (chipClasico) {
+            chipClasico.click();
+            await sleep(1000);
+        }
+        const marginTopClasico = doc.getElementById('proformaLogoMarginTopField');
+        result.paso3_clasico = {
+            formatoActivo: chipClasico && chipClasico.checked ? 'clasico' : 'no',
+            margenSuperior: marginTopClasico ? marginTopClasico.value : 'AUSENTE',
+            margenInferiorClasico: marginBottom ? marginBottom.value : 'AUSENTE',
+            grupoOcultoClasico: termsGroup ? termsGroup.hidden : 'AUSENTE',
+            termsCheckClasico: termsCheck ? termsCheck.checked : 'AUSENTE'
+        };
+
+        const formatSelect = doc.getElementById('proformaFormatField');
+        if (formatSelect) {
+            formatSelect.value = 'clasico';
+            win.updateProformaPreview();
+            await sleep(3500);
+        }
+        const previewFrame = doc.getElementById('proformaPreviewFrame');
+        let info = 'NO FRAME';
+        if (previewFrame && previewFrame.contentDocument) {
+            const p = previewFrame.contentDocument;
+            info = {
+                pPage: !!p.querySelector('.p-page'),
+                p2Page: !!p.querySelector('.p2-page'),
+                nombre: p.querySelector('.p-company-name')?.textContent || 'AUSENTE',
+                grid: !!p.querySelector('.p-terms-grid'),
+                margenImg: p.querySelector('.p-logo img')?.style.margin || 'SIN IMG'
+            };
+        }
+        result.paso4_preview = info;
+
+        if (formatSelect) {
+            formatSelect.value = 'formato2';
+            win.updateProformaPreview();
+            await sleep(3500);
+        }
+        let info2 = 'NO FRAME';
+        if (previewFrame && previewFrame.contentDocument) {
+            const p2 = previewFrame.contentDocument;
+            info2 = {
+                p2Page: !!p2.querySelector('.p2-page'),
+                pPage: !!p2.querySelector('.p-page'),
+                termsH3: p2.querySelector('.p2-terms h3')?.textContent || 'AUSENTE',
+                margenImg: p2.querySelector('.p2-logo img')?.style.margin || 'SIN IMG'
+            };
+        }
+        result.paso5_restaurar = info2;
+
+        result.diag3 = {};
+        try {
+            win.eval('populateProformaConfigFields()');
+            result.diag3.manualPopulate = 'OK';
+        } catch (e) {
+            result.diag3.manualPopulate = 'ERROR: ' + e.message;
+        }
+        result.diag3.termsInputTrasPopulate = doc.getElementById('proformaTermsField')?.value.length ?? 'NULL';
+        result.diag3.margenTrasPopulate = doc.getElementById('proformaLogoMarginBottomField')?.value ?? 'NULL';
+        result.diag3.chipTrasPopulate = doc.querySelector('#proformaEmpresaFormatSelector input:checked')?.value ?? 'NINGUNO';
+        result.diag3.contactTrasPopulate = doc.getElementById('proformaContactEnabledCheck')?.checked ?? 'NULL';
+
+        try {
+            win.eval('window.__cfg2 = null; fetch("/api/config/general").then(r => r.json()).then(c => { window.__cfg2 = c; })');
+        } catch (e) {
+            result.diag3.fetchDesdeFrame = 'EVAL ERROR: ' + e.message;
+        }
+        await sleep(4000);
+        result.diag3.fetchDesdeFrame = win.eval('window.__cfg2 ? String(window.__cfg2.general.proformaFormats.formato2.termsConditions || "").length : "SIN RESPUESTA"');
+        result.diag3.fetchLogo = win.eval('window.__cfg2 ? String(window.__cfg2.general.proformaFormats.formato2.logoUrl || "").length : "SIN RESPUESTA"');
+        result.diag3.fetchClasicoPayment = win.eval('window.__cfg2 ? String(window.__cfg2.general.proformaFormats.clasico.paymentTerms || "").length : "SIN RESPUESTA"');
+    } catch (error) {
+        result.error = error.message;
+    }
+    document.title = 'RESULT ' + JSON.stringify(result);
+    const out = document.createElement('pre');
+    out.textContent = JSON.stringify(result, null, 2);
+    document.body.appendChild(out);
+})();
+</script>
+</body>
+</html>

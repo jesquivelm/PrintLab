@@ -654,8 +654,8 @@ async function importQuotes(client, context, maps) {
         await client.query(
             `INSERT INTO quotes (
                 quote_code, customer_code, customer_name, contact_name, email, salesperson_name,
-                phone, status, created_on, due_on, raw_data
-             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)`,
+                phone, status, created_on, due_on, clave_solicitud
+             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
             [
                 quoteCode,
                 customerCode,
@@ -667,7 +667,7 @@ async function importQuotes(client, context, maps) {
                 asText(pickValue(index, 'Estado Cotizacion')) || 'Activa',
                 asDate(pickValue(index, 'FECHA CREACION DATE', 'FECHA CREACION')),
                 asDate(pickValue(index, 'FECHA VENCIMIENTO', 'FECHA CADUCIDAD')),
-                JSON.stringify(row)
+                pickValue(index, 'Clave_Solicitud') || null
             ]
         );
 

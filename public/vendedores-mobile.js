@@ -2,6 +2,8 @@ const CONFIG_ENDPOINT = '/api/config/shell';
 const QUOTES_ENDPOINT = '/api/cotizaciones';
 const PARTNERS_ENDPOINT = '/api/socios';
 const ORDERS_ENDPOINT = '/api/ordenes-produccion';
+const PRODUCTS_ENDPOINT = '/api/productos';
+const NOTIFICATIONS_ENDPOINT = '/api/notification-center';
 const SELLER_PHOTO_STORAGE_KEY = 'erp-vendedores-photo';
 
 const sellerName = document.getElementById('sellerName');
@@ -44,22 +46,41 @@ const quickAttachments = document.getElementById('quickAttachments');
 const quickAttachmentsPreview = document.getElementById('quickAttachmentsPreview');
 const quickActionStatus = document.getElementById('quickActionStatus');
 const quickActionSubmit = document.getElementById('quickActionSubmit');
+const wizardProgress = document.getElementById('wizardProgress');
+const wizardNav = document.getElementById('wizardNav');
+const wizardPrev = document.getElementById('wizardPrev');
+const wizardNext = document.getElementById('wizardNext');
+const wizardStepPanels = Array.from(document.querySelectorAll('.wizard-step-panel'));
+const wizardSteps = Array.from(document.querySelectorAll('.wizard-step'));
 
 let configState = null;
+let currentUserSession = null;
 let activeFilter = 'quotes';
-let dataState = { quotes: [], orders: [], partners: [] };
+let dataState = { quotes: [], orders: [], partners: [], products: [], notifications: [] };
 let refreshTimer = null;
 let selectedThemeMode = 'light';
 let quickActionMode = 'quote';
 let quickSelectedPartner = null;
+let currentWizardStep = 1;
 
 function escapeHtml(value) {
     return String(value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+        .replace(/&/g, '&')
+        .replace(/</g, '<')
+        .replace(/>/g, '>')
+        .replace(/"/g, '"')
+        .replace(/'/g, ''');
+}
+
+function sessionHeaders() {
+    const session = window.ErpAccess ? window.ErpAccess.readSession() : null;
+    if (!session) return {};
+    return { 'x-erp-session': JSON.stringify({ username: session.username || '', name: session.name || '', permissionName: session.permissionName || '' }) };
+}
+
+function getCurrentSalespersonName() {
+    const session = window.ErpAccess ? window.ErpAccess.readSession() : null;
+    return session?.name || session?.fullName || session?.username || 'Vendedor';
 }
 
 function firstFilled(...values) {
@@ -259,8 +280,9 @@ function updatePhotoUi(src) {
 
 function renderSellerPhoto() {
     const saved = localStorage.getItem(SELLER_PHOTO_STORAGE_KEY);
+    const sessionPhoto = currentUserSession?.photoUrl;
     const fallbackImage = firstFilled(configState?.general?.mobileSellerProfileImage, configState?.branding?.companyLogoUrl, configState?.branding?.logoUrl);
-    updatePhotoUi(saved || fallbackImage || '');
+    updatePhotoUi(saved || sessionPhoto || fallbackImage || '');
 }
 
 function setButtonIcon(button, iconKey, fallback, label, withText = false) {
@@ -287,6 +309,7 @@ function applyMobileIcons() {
     setButtonIcon(document.getElementById('moduleQuotesButton'), 'mobileQuotes', '▣', 'Cotizaciones');
     setButtonIcon(document.getElementById('moduleOrdersButton'), 'mobileOrders', '◫', 'Órdenes');
     setButtonIcon(document.getElementById('modulePartnersButton'), 'mobilePartners', '◉', 'Socios');
+    setButtonIcon(document.getElementById('moduleProductsButton'), 'mobileProducts', '◈', 'Productos');
     setButtonIcon(document.getElementById('moduleAlertsButton'), 'mobileAlerts', '◌', 'Alertas');
     setButtonIcon(createProspectButton, 'mobilePartners', '◉', 'Crear prospecto', true);
     setButtonIcon(createQuoteButton, 'mobileQuotes', '▣', 'Crear cotización', true);
@@ -326,22 +349,45 @@ function renderOrdersList(items) {
         activityList.innerHTML = '<div class="empty-state">No hay órdenes recientes.</div>';
         return;
     }
-    activityList.innerHTML = items.map((item) => `
+    activityList.innerHTML = items.map((item) => {
+        const alert = orderNeedsAttention(item);
+        const progressInfo = computeOrderProgress(item);
+        const statusLabel = item.delivered_on ? 'Entregada' : (alert ? '⚠ Alerta' : (item.estado_detencion ? '⏸ Parada' : 'En producción'));
+        const statusClass = item.delivered_on ? 'sent' : (alert ? 'alert' : (item.estado_detencion ? 'pending' : 'sent'));
+        
+        return `
         <article class="quote-card">
             <div class="quote-card-head">
                 <div>
-                    <p class="quote-title">${escapeHtml(item.product_name || item.quote_code || item.order_code)}</p>
+                    <p class="quote-title">${escapeHtml(item.product_name || item.job_name || item.order_code)}</p>
                     <p class="quote-subline">${escapeHtml(item.customer_name || 'Sin cliente')}</p>
                     <p class="quote-meta">${escapeHtml(firstFilled(item.machine_name, item.process_type, 'Producción'))}</p>
                 </div>
-                <span class="status-pill ${item.planning?.needsAttention ? 'alert' : 'sent'}">${item.planning?.needsAttention ? 'Alerta' : 'Orden'}</span>
+                <span class="status-pill ${statusClass}">${escapeHtml(statusLabel)}</span>
+            </div>
+            <div class="order-progress" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--mobile-border);">
+                <div class="order-progress-row" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12px; margin-bottom: 6px;">
+                    <span style="color: var(--mobile-text-soft);">Etapa</span>
+                    <strong style="color: var(--mobile-text);">${escapeHtml(progressInfo.currentStage)}</strong>
+                </div>
+                <div class="order-progress-bar" style="height: 6px; background: var(--mobile-border); border-radius: 3px; overflow: hidden;">
+                    <div style="width: ${progressInfo.progress}%; height: 100%; background: ${progressInfo.progress === 100 ? 'var(--mobile-success)' : 'var(--mobile-accent)'}; border-radius: 3px; transition: width 0.3s ease;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 11px; color: var(--mobile-text-soft);">
+                    <span>${progressInfo.progress}% completado</span>
+                    <span>${escapeHtml(formatLastMovement(progressInfo.lastMovement))}</span>
+                    <span style="color: ${progressInfo.daysToDelivery !== null && progressInfo.daysToDelivery < 0 ? 'var(--mobile-danger)' : 'var(--mobile-text-soft)'};">
+                        ${escapeHtml(getDaysToDeliveryLabel(progressInfo.daysToDelivery))}
+                    </span>
+                </div>
             </div>
             <div class="quote-actions">
                 <span>${escapeHtml(formatDate(item.created_at))}</span>
                 <a class="open-button" href="/orden-produccion/${encodeURIComponent(item.order_code)}?mobilePreview=1">Abrir</a>
             </div>
         </article>
-    `).join('');
+    `;
+    }).join('');
 }
 
 function renderPartnersList(items) {
@@ -367,13 +413,222 @@ function renderPartnersList(items) {
     `).join('');
 }
 
-function renderAlertsList(items) {
-    const alertItems = items.filter((item) => item.planning?.needsAttention);
-    if (!alertItems.length) {
+function renderProductsList(items) {
+    if (!items.length) {
+        activityList.innerHTML = '<div class="empty-state">No hay productos registrados.</div>';
+        return;
+    }
+    activityList.innerHTML = items.map((item) => `
+        <article class="quote-card">
+            <div class="quote-card-head">
+                <div>
+                    <p class="quote-title">${escapeHtml(item.product_name || item.product_code)}</p>
+                    <p class="quote-subline">${escapeHtml(item.client_name || 'Sin cliente')}</p>
+                    <p class="quote-meta">${escapeHtml(firstFilled(item.material_name, item.department, 'Flexografía'))}</p>
+                </div>
+                <span class="status-pill sent">${item.quote_count > 0 ? `${item.quote_count} cotizaciones` : 'Nuevo'}</span>
+            </div>
+            <div class="quote-actions">
+                <span>Última: ${item.last_quoted_at ? escapeHtml(formatDate(item.last_quoted_at)) : 'Nunca'}</span>
+                <button type="button" class="open-button" data-product-quote="${escapeHtml(item.product_code)}">Cotizar</button>
+            </div>
+        </article>
+    `).join('');
+}
+
+function updateAlertsBadge(notifications) {
+    const alertsButton = document.getElementById('moduleAlertsButton');
+    if (!alertsButton) return;
+    const unreadCount = notifications.filter(n => n.unreadCount > 0).length;
+    const planningAlerts = (dataState.orders.items || []).filter(orderNeedsAttention).length;
+    const totalAlerts = unreadCount + planningAlerts;
+    let badge = alertsButton.querySelector('.alerts-badge');
+    if (totalAlerts > 0) {
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'alerts-badge';
+            alertsButton.appendChild(badge);
+        }
+        badge.textContent = totalAlerts > 9 ? '9+' : totalAlerts;
+        badge.style.display = 'flex';
+    } else if (badge) {
+        badge.style.display = 'none';
+    }
+}
+
+function formatNotificationDate(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return '';
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    if (diffMins < 1) return 'Ahora';
+    if (diffMins < 60) return `Hace ${diffMins} min`;
+    if (diffHours < 24) return `Hace ${diffHours} h`;
+    if (diffDays < 7) return `Hace ${diffDays} d`;
+    return date.toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit' });
+}
+
+function orderNeedsAttention(item) {
+    if (item.planning?.productionScheduleAlert) return true;
+    const promised = item.planning?.promisedDeliveryDate;
+    if (promised && !item.delivered_on) {
+        const promisedDate = new Date(promised);
+        if (!Number.isNaN(promisedDate.getTime()) && promisedDate.getTime() < Date.now()) return true;
+    }
+    return false;
+}
+
+function computeOrderProgress(item) {
+    const steps = item.steps || [];
+    if (!steps.length) return { currentStage: 'Sin planificar', progress: 0, lastMovement: null, daysToDelivery: null };
+    
+    const total = steps.length;
+    const completed = steps.filter(s => s.routeStatus === 'COMPLETADO' || s.routeStatus === 'COMPLETED' || s.routeStatus === 'FINALIZADO').length;
+    const inProgress = steps.find(s => s.routeStatus === 'EN_MARCHA' || s.routeStatus === 'RUN' || s.routeStatus === 'EN_PROCESO');
+    const pending = steps.find(s => s.routeStatus === 'PENDIENTE' || s.routeStatus === 'PREPARACION' || s.routeStatus === 'SETUP');
+    
+    let currentStage = 'Pendiente';
+    if (inProgress) currentStage = `En proceso: ${inProgress.processName}`;
+    else if (pending) currentStage = `Siguiente: ${pending.processName}`;
+    else if (completed === total) currentStage = 'Completada';
+    else if (completed > 0) currentStage = `${completed}/${total} procesos`;
+    
+    const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+    
+    let lastMovement = null;
+    const dates = steps
+        .flatMap(s => [s.actualEndAt, s.actualStartAt].filter(Boolean))
+        .map(d => new Date(d))
+        .filter(d => !Number.isNaN(d.getTime()))
+        .sort((a, b) => b - a);
+    if (dates.length) lastMovement = dates[0];
+    
+    let daysToDelivery = null;
+    const promised = item.planning?.promisedDeliveryDate;
+    if (promised && !item.delivered_on) {
+        const promisedDate = new Date(promised);
+        if (!Number.isNaN(promisedDate.getTime())) {
+            const diff = promisedDate.getTime() - Date.now();
+            daysToDelivery = Math.ceil(diff / (1000 * 60 * 60 * 24));
+        }
+    }
+    
+    return { currentStage, progress, lastMovement, daysToDelivery };
+}
+
+function formatLastMovement(date) {
+    if (!date) return 'Sin movimientos';
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    if (diffMins < 1) return 'Hace un momento';
+    if (diffMins < 60) return `Hace ${diffMins} min`;
+    if (diffHours < 24) return `Hace ${diffHours} h`;
+    if (diffDays < 7) return `Hace ${diffDays} d`;
+    return date.toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function getDaysToDeliveryLabel(days) {
+    if (days === null || days === undefined) return 'Sin fecha';
+    if (days < 0) return `Atrasada ${Math.abs(days)} día${Math.abs(days) !== 1 ? 's' : ''}`;
+    if (days === 0) return 'Hoy';
+    if (days === 1) return 'Mañana';
+    return `En ${days} días`;
+}
+
+function renderAlertsList(orders) {
+    const planningAlerts = orders.filter(orderNeedsAttention);
+    const notifications = dataState.notifications || [];
+    const unreadNotifications = notifications.filter(n => n.unreadCount > 0);
+    
+    const hasPlanningAlerts = planningAlerts.length > 0;
+    const hasNotifications = unreadNotifications.length > 0;
+    
+    if (!hasPlanningAlerts && !hasNotifications) {
         activityList.innerHTML = '<div class="empty-state">No hay alertas activas.</div>';
         return;
     }
-    renderOrdersList(alertItems);
+    
+    let html = '';
+    
+    if (hasNotifications) {
+        html += `
+            <div class="alert-section" style="margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <h4 style="margin: 0; font-size: 13px; color: var(--mobile-text-soft); text-transform: uppercase; letter-spacing: 0.1em;">Notificaciones</h4>
+                    <span class="status-pill sent" style="font-size: 10px;">${unreadNotifications.length} no leídas</span>
+                </div>
+        `;
+        html += unreadNotifications.map((n) => `
+            <article class="quote-card" style="margin-bottom: 8px;">
+                <div class="quote-card-head">
+                    <div>
+                        <p class="quote-title">${escapeHtml(n.customerName || n.productName || 'Notificación')}</p>
+                        <p class="quote-subline">${escapeHtml(n.documentCode || n.threadCode || '')}</p>
+                        <p class="quote-meta">${escapeHtml(n.conversationType || 'Mensaje')}</p>
+                    </div>
+                    <span class="status-pill ${n.unreadCount > 0 ? 'alert' : 'sent'}">${n.unreadCount > 0 ? 'Nuevo' : 'Leído'}</span>
+                </div>
+                <div class="quote-actions">
+                    <span>${escapeHtml(formatNotificationDate(n.lastMessageAt))}</span>
+                </div>
+            </article>
+        `).join('');
+        html += '</div>';
+    }
+    
+    if (hasPlanningAlerts) {
+        html += `
+            <div class="alert-section">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <h4 style="margin: 0; font-size: 13px; color: var(--mobile-text-soft); text-transform: uppercase; letter-spacing: 0.1em;">Órdenes con alerta</h4>
+                    <span class="status-pill alert" style="font-size: 10px;">${planningAlerts.length}</span>
+                </div>
+        `;
+        html += planningAlerts.map((item) => {
+            const progressInfo = computeOrderProgress(item);
+            const daysLabel = getDaysToDeliveryLabel(progressInfo.daysToDelivery);
+            return `
+            <article class="quote-card">
+                <div class="quote-card-head">
+                    <div>
+                        <p class="quote-title">${escapeHtml(item.product_name || item.job_name || item.order_code)}</p>
+                        <p class="quote-subline">${escapeHtml(item.customer_name || 'Sin cliente')}</p>
+                        <p class="quote-meta">${escapeHtml(firstFilled(item.machine_name, item.process_type, 'Producción'))}</p>
+                    </div>
+                    <span class="status-pill alert">⚠ Alerta</span>
+                </div>
+                <div class="order-progress" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--mobile-border);">
+                    <div class="order-progress-row" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12px; margin-bottom: 6px;">
+                        <span style="color: var(--mobile-text-soft);">Etapa</span>
+                        <strong style="color: var(--mobile-text);">${escapeHtml(progressInfo.currentStage)}</strong>
+                    </div>
+                    <div class="order-progress-bar" style="height: 6px; background: var(--mobile-border); border-radius: 3px; overflow: hidden;">
+                        <div style="width: ${progressInfo.progress}%; height: 100%; background: var(--mobile-danger); border-radius: 3px; transition: width 0.3s ease;"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 11px; color: var(--mobile-text-soft);">
+                        <span>${progressInfo.progress}% completado</span>
+                        <span>${escapeHtml(formatLastMovement(progressInfo.lastMovement))}</span>
+                        <span style="color: var(--mobile-danger);">${escapeHtml(daysLabel)}</span>
+                    </div>
+                </div>
+                <div class="quote-actions">
+                    <span>${escapeHtml(formatDate(item.created_at))}</span>
+                    <a class="open-button" href="/orden-produccion/${encodeURIComponent(item.order_code)}?mobilePreview=1">Abrir</a>
+                </div>
+            </article>
+            `;
+        }).join('');
+        html += '</div>';
+    }
+    
+    activityList.innerHTML = html;
 }
 
 function renderActivity() {
@@ -388,14 +643,19 @@ function renderActivity() {
     const partners = dataState.partners.filter((item) =>
         [item.partner_name, item.partner_code, item.email].join(' ').toLowerCase().includes(term || '')
     );
+    const products = dataState.products.filter((item) =>
+        [item.product_code, item.product_name, item.client_name, item.material_name, item.department].join(' ').toLowerCase().includes(term || '')
+    );
     if (activeFilter === 'quotes') return renderQuoteList(quotes);
     if (activeFilter === 'orders') return renderOrdersList(orders);
     if (activeFilter === 'partners') return renderPartnersList(partners);
+    if (activeFilter === 'products') return renderProductsList(products);
     return renderAlertsList(orders);
 }
 
-async function fetchJson(url, options) {
-    const response = await fetch(url, options);
+async function fetchJson(url, options = {}) {
+    const headers = { ...sessionHeaders(), ...(options.headers || {}) };
+    const response = await fetch(url, { ...options, headers });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || 'Error de carga.');
     return payload;
@@ -403,25 +663,42 @@ async function fetchJson(url, options) {
 
 async function loadConfig() {
     configState = await fetchJson(CONFIG_ENDPOINT);
-    sellerName.textContent = firstFilled(configState?.general?.mobileSellerName, configState?.session?.currentUser, 'Administrador');
-    sellerPhotoFallback.textContent = initialsFromName(sellerName.textContent);
-    renderSellerPhoto();
+    currentUserSession = window.ErpAccess ? window.ErpAccess.readSession() : null;
+    const displayName = getCurrentSalespersonName();
+    sellerName.textContent = displayName;
+    sellerPhotoFallback.textContent = initialsFromName(displayName);
+    if (currentUserSession?.photoUrl) {
+        updatePhotoUi(currentUserSession.photoUrl);
+    } else {
+        renderSellerPhoto();
+    }
     applyMobileIcons();
     applyTheme(getThemePreference());
 }
 
 async function refreshData() {
-    const [quotesPayload, ordersPayload, partnersPayload] = await Promise.all([
+    const salespersonName = getCurrentSalespersonName();
+    const [quotesPayload, ordersPayload, partnersPayload, productsPayload, notificationsPayload] = await Promise.all([
         fetchJson(`${QUOTES_ENDPOINT}?limit=60`),
-        fetchJson(`${ORDERS_ENDPOINT}?limit=30`),
-        fetchJson(`${PARTNERS_ENDPOINT}?limit=20`)
+        fetchJson(`${ORDERS_ENDPOINT}?limit=100`),
+        fetchJson(`${PARTNERS_ENDPOINT}?limit=50`),
+        fetchJson(`${PRODUCTS_ENDPOINT}?limit=50`),
+        fetchJson(`${NOTIFICATIONS_ENDPOINT}/threads?limit=20`)
     ]);
+    const allOrders = ordersPayload?.items || [];
+    const myOrders = allOrders.filter((o) => {
+        const sp = String(o.salesperson_name || '').trim();
+        return sp && sp.toLowerCase() === salespersonName.toLowerCase();
+    });
     dataState = {
         quotes: quotesPayload.cotizaciones || [],
-        orders: ordersPayload || { items: [] },
-        partners: partnersPayload.socios || []
+        orders: { items: myOrders },
+        partners: partnersPayload.socios || [],
+        products: productsPayload.productos || [],
+        notifications: notificationsPayload.items || []
     };
     renderActivity();
+    updateAlertsBadge(notificationsPayload.items || []);
 }
 
 function scheduleAutoRefresh() {
@@ -488,18 +765,18 @@ function closeDetail() {
 function openQuickAction(mode, partner = null) {
     quickActionMode = mode;
     quickSelectedPartner = partner;
-    quickActionTitle.textContent = mode === 'prospect' ? 'Crear prospecto' : 'Crear cotización';
-    quickActionSubmit.textContent = mode === 'prospect' ? 'Crear prospecto' : 'Crear cotización';
-    quickTaxWrapper.hidden = mode !== 'prospect';
-    quickBillingEmailWrapper.hidden = mode !== 'prospect';
-    quickQuoteFields.hidden = mode !== 'quote';
+    const isProspect = mode === 'prospect';
+    quickActionTitle.textContent = isProspect ? 'Crear prospecto' : 'Crear cotización';
+    quickActionSubmit.textContent = isProspect ? 'Crear prospecto' : 'Crear cotización';
+    quickTaxWrapper.hidden = !isProspect;
+    quickBillingEmailWrapper.hidden = !isProspect;
     quickCustomerName.value = partner?.name || '';
     quickContactName.value = '';
     quickTaxId.value = '';
     quickBillingEmail.value = '';
     quickProductName.value = '';
     quickProductType.value = '';
-    quickQuantity.value = '';
+    quickQuantity.value = '1';
     quickShape.value = '';
     quickProcessType.value = 'Flexografía';
     quickComments.value = '';
@@ -509,11 +786,66 @@ function openQuickAction(mode, partner = null) {
         checkbox.checked = false;
     });
     setQuickStatus('');
+    
+    if (isProspect) {
+        wizardProgress.hidden = true;
+        wizardNav.hidden = true;
+        wizardStepPanels.forEach((panel) => panel.hidden = true);
+        document.getElementById('wizardStep1').hidden = false;
+        quickActionSubmit.hidden = false;
+        quickActionSubmit.textContent = 'Crear prospecto';
+    } else {
+        wizardProgress.hidden = false;
+        wizardNav.hidden = false;
+        quickActionSubmit.hidden = true;
+        currentWizardStep = 1;
+        showWizardStep(1);
+    }
     quickActionSheet.hidden = false;
 }
 
 function closeQuickAction() {
     quickActionSheet.hidden = true;
+    wizardProgress.hidden = true;
+    wizardNav.hidden = true;
+}
+
+function showWizardStep(step) {
+    currentWizardStep = step;
+    wizardStepPanels.forEach((panel) => {
+        panel.hidden = panel.dataset.step != step;
+    });
+    wizardSteps.forEach((ws) => {
+        const wsStep = parseInt(ws.dataset.step, 10);
+        ws.classList.toggle('active', wsStep === step);
+        ws.classList.toggle('completed', wsStep < step);
+    });
+    wizardPrev.hidden = step === 1;
+    wizardNext.hidden = step === 3;
+    quickActionSubmit.hidden = step !== 3;
+}
+
+function validateWizardStep(step) {
+    if (step === 1) {
+        if (!quickCustomerName.value.trim()) {
+            setQuickStatus('El nombre del cliente es obligatorio.', true);
+            quickCustomerName.focus();
+            return false;
+        }
+    } else if (step === 2) {
+        if (!quickProductName.value.trim()) {
+            setQuickStatus('El nombre del producto es obligatorio.', true);
+            quickProductName.focus();
+            return false;
+        }
+        if (!quickQuantity.value || Number(quickQuantity.value) < 1) {
+            setQuickStatus('La cantidad debe ser al menos 1.', true);
+            quickQuantity.focus();
+            return false;
+        }
+    }
+    setQuickStatus('');
+    return true;
 }
 
 async function createProspect() {
@@ -665,6 +997,19 @@ function initEvents() {
                 code: partnerQuoteButton.dataset.partnerQuote,
                 name: partnerQuoteButton.dataset.partnerName
             });
+            return;
+        }
+        const productQuoteButton = event.target.closest('[data-product-quote]');
+        if (productQuoteButton) {
+            const productCode = productQuoteButton.dataset.productQuote;
+            const product = dataState.products.find(p => p.product_code === productCode);
+            if (product) {
+                quickCustomerName.value = product.client_name || '';
+                openQuickAction('quote', {
+                    code: product.client_code || '',
+                    name: product.client_name || ''
+                });
+            }
         }
     });
 
@@ -677,8 +1022,17 @@ function initEvents() {
     quickActionSheet.addEventListener('click', (event) => {
         if (event.target.closest('[data-close-quick-action="true"]')) closeQuickAction();
     });
+
+    wizardPrev.addEventListener('click', () => {
+        if (currentWizardStep > 1) showWizardStep(currentWizardStep - 1);
+    });
+    wizardNext.addEventListener('click', () => {
+        if (validateWizardStep(currentWizardStep)) showWizardStep(currentWizardStep + 1);
+    });
+
     quickActionForm.addEventListener('submit', async (event) => {
         event.preventDefault();
+        if (quickActionMode === 'quote' && !validateWizardStep(3)) return;
         setQuickStatus('Procesando...');
         try {
             let partner = null;

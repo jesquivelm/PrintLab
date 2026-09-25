@@ -317,12 +317,16 @@ function persistRememberedCredentials() {
 function resolveRouteForLanding(key) {
     const map = {
         dashboard: '/dashboard',
+        // "Tu Actividad" no es una pagina aparte: se entra por el dashboard (el que
+        // maneja las pestañas con iframes) y este abre esa pestaña solo, ver dashboard.js.
+        'mi-actividad': '/dashboard',
         socios: '/socios',
         productos: '/productos',
         cotizaciones: '/cotizaciones',
         notificaciones: '/notificaciones.html',
         ordenes: '/ordenes-produccion',
-        planificacion: '/planificacion/lanzamiento',
+        produccion: '/produccion',
+        planificacion: '/planificacion/gantt',
         calculos: '/flexo-calculo',
         costos: '/costos.html',
         'inventario-mp': '/inventario-materiales',
@@ -332,7 +336,8 @@ function resolveRouteForLanding(key) {
         vendedores: '/vendedores',
         sap: '/configuracion-general',
         seguimiento: '/ordenes-produccion',
-        solicitudes: '/cotizaciones'
+        solicitudes: '/cotizaciones',
+        reporteria: '/reporteria/kpis-flexo'
     };
     return map[key] || '/dashboard';
 }
@@ -372,12 +377,14 @@ function hasLoginSuperPermission(session) {
 function getLoginRouteModules(route) {
     const pathname = new URL(route || '/', window.location.origin).pathname.toLowerCase();
     if (pathname === '/' || pathname === '/dashboard') return ['dashboard'];
+    if (pathname === '/mi-actividad' || pathname === '/mi-actividad.html') return ['dashboard'];
     if (pathname === '/socios' || pathname.startsWith('/socios/')) return ['socios'];
     if (pathname === '/productos' || pathname.startsWith('/productos/')) return ['productos'];
     if (pathname === '/cotizaciones' || pathname.startsWith('/cotizaciones/')) return ['cotizaciones'];
     if (pathname === '/notificaciones' || pathname === '/notificaciones.html') return ['dashboard'];
     if (pathname === '/calculo-flexografia' || pathname === '/flexo-calculo') return ['calculos'];
     if (pathname === '/ordenes-produccion' || pathname.startsWith('/orden-produccion')) return ['ordenes'];
+    if (pathname === '/produccion') return ['produccion'];
     if (pathname === '/planificacion' || pathname.startsWith('/planificacion/')) return ['planificacion'];
     if (pathname === '/costos' || pathname === '/costos.html') return ['costos'];
     if (pathname === '/configuracion-general') return ['configuracion-general'];
@@ -402,7 +409,7 @@ function resolveAllowedLandingRoute(session) {
     if (canOpenLoginLanding(session, preferred)) return preferred;
     // Si el preferido no está permitido, busca el primer módulo al que sí tiene acceso
     const moduleOrder = [
-        'dashboard', 'cotizaciones', 'socios', 'ordenes', 'planificacion',
+        'dashboard', 'produccion', 'cotizaciones', 'socios', 'ordenes', 'planificacion',
         'productos', 'calculos', 'costos', 'inventario-mp', 'inventario-troqueles',
         'inventario-maquinaria', 'vendedores', 'configuracion-general'
     ];
@@ -602,23 +609,162 @@ async function loadConfig() {
     await refreshLoginConfig(cachedConfig, cachedRepository);
 }
 
+// ─── PIN en vez de contraseña (login normal, con usuario) ──────────────────
+const LOGIN_PIN_ENDPOINT = '/api/auth/login-pin';
+const loginPinModeToggle = document.getElementById('loginPinModeToggle');
+const loginPasswordLabel = document.getElementById('loginPasswordLabel');
+let loginPinMode = false;
+
+function setLoginPinMode(enabled) {
+    loginPinMode = enabled;
+    if (loginPasswordLabel) loginPasswordLabel.textContent = enabled ? 'PIN' : 'Contraseña';
+    if (loginPassword) {
+        loginPassword.placeholder = enabled ? 'PIN de 4 dígitos' : 'Contraseña';
+        loginPassword.setAttribute('inputmode', enabled ? 'numeric' : 'text');
+        loginPassword.setAttribute('maxlength', enabled ? '4' : '');
+        loginPassword.value = '';
+    }
+    if (loginPasswordToggle) loginPasswordToggle.hidden = enabled;
+    if (loginPinModeToggle) loginPinModeToggle.textContent = enabled ? 'Entrar con contraseña en vez de PIN' : 'Entrar con PIN en vez de contraseña';
+    loginStatus.textContent = '';
+}
+
+loginPinModeToggle?.addEventListener('click', () => setLoginPinMode(!loginPinMode));
+
+// ─── Login solo-PIN (cuando se abre desde una tablet) ───────────────────────
+// Se distingue tableta de teléfono leyendo el user-agent del navegador (el "carnet
+// de identidad" que manda cada aparato), no por si la pantalla es táctil — un teléfono
+// también tiene pantalla táctil y no debe mostrar esta versión simplificada.
+function detectDeviceKind() {
+    const ua = navigator.userAgent || '';
+    const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1 && !/iPhone/i.test(ua);
+    if (isIPadOS || /iPad|Tablet|PlayBook|Silk/i.test(ua)) return 'tablet';
+    if (/Android/i.test(ua) && !/Mobile/i.test(ua)) return 'tablet';
+    if (/iPhone|iPod|Android.*Mobile|Windows Phone|BlackBerry|Mobile/i.test(ua)) return 'phone';
+    return 'desktop';
+}
+
+const pinOnlyStage = document.getElementById('loginPinOnlyStage');
+const pinOnlyDotsWrap = document.getElementById('loginPinOnlyDots');
+const pinOnlyKeypad = document.getElementById('loginPinOnlyKeypad');
+const pinOnlyStatus = document.getElementById('loginPinOnlyStatus');
+let pinOnlyDigits = '';
+let pinOnlySubmitting = false;
+
+function renderPinOnlyKeypad() {
+    if (!pinOnlyKeypad) return;
+    const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'];
+    pinOnlyKeypad.innerHTML = keys.map((k) => {
+        if (k === '') return '<button type="button" class="login-pin-only-key ghost" tabindex="-1"></button>';
+        return `<button type="button" class="login-pin-only-key" data-key="${escapeHtml(k)}">${escapeHtml(k)}</button>`;
+    }).join('');
+    pinOnlyKeypad.querySelectorAll('[data-key]').forEach((btn) => {
+        btn.addEventListener('click', () => onPinOnlyKeyPress(btn.dataset.key));
+    });
+}
+
+function updatePinOnlyDots(errorState) {
+    if (!pinOnlyDotsWrap) return;
+    pinOnlyDotsWrap.querySelectorAll('.login-pin-only-dot').forEach((dot, i) => {
+        dot.classList.toggle('filled', i < pinOnlyDigits.length && !errorState);
+        dot.classList.toggle('error', Boolean(errorState));
+    });
+}
+
+function onPinOnlyKeyPress(key) {
+    if (pinOnlySubmitting) return;
+    if (key === '⌫') {
+        pinOnlyDigits = pinOnlyDigits.slice(0, -1);
+        if (pinOnlyStatus) pinOnlyStatus.textContent = '';
+        updatePinOnlyDots(false);
+        return;
+    }
+    if (pinOnlyDigits.length >= 4) return;
+    pinOnlyDigits += key;
+    updatePinOnlyDots(false);
+    if (pinOnlyDigits.length === 4) submitPinOnly();
+}
+
+async function submitPinOnly() {
+    pinOnlySubmitting = true;
+    if (pinOnlyStatus) {
+        pinOnlyStatus.style.color = '#6b7986';
+        pinOnlyStatus.textContent = 'Verificando…';
+    }
+    try {
+        const response = await fetch(LOGIN_PIN_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pin: pinOnlyDigits })
+        });
+        const data = await readLoginResponse(response);
+        if (!response.ok) {
+            if (pinOnlyStatus) {
+                pinOnlyStatus.style.color = '#b94848';
+                pinOnlyStatus.textContent = data?.error || 'PIN incorrecto.';
+            }
+            updatePinOnlyDots(true);
+            pinOnlyDigits = '';
+            pinOnlySubmitting = false;
+            return;
+        }
+        setStoredSession(data.user, false);
+        if (pinOnlyStatus) {
+            pinOnlyStatus.style.color = '#1a7f43';
+            pinOnlyStatus.textContent = '¡Listo! Entrando…';
+        }
+        (window.top || window).location.href = data.redirect || resolveAllowedLandingRoute(data.user);
+    } catch (error) {
+        if (pinOnlyStatus) {
+            pinOnlyStatus.style.color = '#b94848';
+            pinOnlyStatus.textContent = 'No fue posible conectar. Intenta de nuevo.';
+        }
+        pinOnlyDigits = '';
+        pinOnlySubmitting = false;
+    }
+}
+
+// Muchas tabletas de planta tienen un teclado numérico físico conectado y la gente
+// ya está acostumbrada a escribir el PIN ahí en vez de tocar los botones en pantalla.
+function onPinOnlyPhysicalKey(event) {
+    if (!pinOnlyStage?.classList.contains('active')) return;
+    if (/^[0-9]$/.test(event.key)) {
+        onPinOnlyKeyPress(event.key);
+        event.preventDefault();
+    } else if (event.key === 'Backspace' || event.key === 'Delete') {
+        onPinOnlyKeyPress('⌫');
+        event.preventDefault();
+    }
+}
+
+function setupTabletPinLogin() {
+    document.body.classList.add('login-tablet-mode');
+    pinOnlyStage?.classList.add('active');
+    renderPinOnlyKeypad();
+    document.addEventListener('keydown', onPinOnlyPhysicalKey);
+}
+
 async function handleLogin(event) {
     event.preventDefault();
     const username = loginUsername.value.trim();
     const password = loginPassword.value;
 
     if (!username || !password) {
-        loginStatus.textContent = 'Ingresa usuario y contraseña.';
+        loginStatus.textContent = loginPinMode ? 'Ingresa usuario y PIN.' : 'Ingresa usuario y contraseña.';
+        return;
+    }
+    if (loginPinMode && !/^\d{4}$/.test(password)) {
+        loginStatus.textContent = 'El PIN debe tener 4 dígitos.';
         return;
     }
 
     loginStatus.textContent = 'Validando acceso...';
 
     try {
-        const response = await fetch(LOGIN_AUTH_ENDPOINT, {
+        const response = await fetch(loginPinMode ? LOGIN_PIN_ENDPOINT : LOGIN_AUTH_ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify(loginPinMode ? { username, pin: password } : { username, password })
         });
         const data = await readLoginResponse(response);
         if (response.status === 423) {
@@ -635,7 +781,7 @@ async function handleLogin(event) {
         persistRememberedCredentials();
         setStoredSession(data.user, loginRemember.checked);
         loginStatus.textContent = '';
-        window.location.href = data.redirect || resolveAllowedLandingRoute(data.user);
+        (window.top || window).location.href = data.redirect || resolveAllowedLandingRoute(data.user);
     } catch (error) {
         loginStatus.textContent = error.message || 'No fue posible iniciar sesión.';
     }
@@ -656,6 +802,9 @@ async function readLoginResponse(response) {
 }
 
 async function bootLogin() {
+    if (detectDeviceKind() === 'tablet') {
+        setupTabletPinLogin();
+    }
     renderLoginPasswordToggle();
     loginPasswordToggle?.addEventListener('click', () => {
         loginPasswordVisible = !loginPasswordVisible;
@@ -667,8 +816,14 @@ async function bootLogin() {
     loadRememberedCredentials();
     const existingSession = getStoredSession();
     if (existingSession?.username && window.location.search.includes('continue=1')) {
-        window.location.href = resolveAllowedLandingRoute(existingSession);
+        (window.top || window).location.href = resolveAllowedLandingRoute(existingSession);
         return;
+    }
+    const expiredReason = new URLSearchParams(window.location.search).get('expired');
+    if (expiredReason && loginStatus) {
+        loginStatus.textContent = expiredReason === 'inactivity'
+            ? 'Tu sesión caducó por inactividad. Vuelve a iniciar sesión.'
+            : 'Tu sesión ya no es válida. Vuelve a iniciar sesión.';
     }
     try {
         await showCachedLoginLogo();

@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
     <title>Control de Inventario - Tintas</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <link rel="stylesheet" href="/tintas/styles.css?v=20260905-sellos">
 </head>
 <body>
     <main class="workspace workspace-quote quote-browser-main tintas-shell">
@@ -14,12 +16,12 @@
                 <button class="tintas-tab is-active" onclick="switchTab('existencias',this)">Existencias</button>
                 <button class="tintas-tab" onclick="switchTab('vencer',this)">Próximos a Vencer</button>
             </div>
-            <div class="tintas-toolbar">
-                <div class="tintas-toolbar-actions">
+            <div class="tintas-toolbar" style="margin-right: 80px;">
+                <div class="tintas-toolbar-actions tintas-toolbar-actions-right">
+                    <span class="tintas-toolbar-search-inline">
+                        <input id="searchProd" class="tintas-search-input" type="search" placeholder="Buscar producto...">
+                    </span>
                     <button class="tintas-btn" onclick="cargarExistencias()">Actualizar</button>
-                </div>
-                <div class="tintas-toolbar-search">
-                    <input id="searchProd" class="tintas-search-input" type="search" placeholder="Buscar producto...">
                 </div>
             </div>
             <div class="tintas-table-wrap">

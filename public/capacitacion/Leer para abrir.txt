@@ -1,0 +1,4 @@
+Correr en powershell
+
+
+npx serve E:\Github\Adicionales\Capacitacion -l 8770

@@ -1,9 +1,11 @@
 const { ErrorAplicacion } = require('./tintas-errors');
+const { buscarSimilares, normalizarHex } = require('./color-similitud');
+const { completarColor, convertir: convertirColor, clasificacionDeltaE, deltaE76, deltaE2000, hexALab, normalizarHex: normHex } = require('./color-utilidades');
 
 // ─── CONVERSION DE UNIDADES ───────────────────────────────────────────────
 
-const FAMILIA = { G: 'PESO', KG: 'PESO', LB: 'PESO', OZ: 'PESO', ML: 'VOLUMEN', L: 'VOLUMEN', GAL: 'VOLUMEN' };
-const A_BASE = { G: 1, KG: 1000, LB: 453.59237, OZ: 28.349523125, ML: 1, L: 1000, GAL: 3785.411784 };
+const FAMILIA = { G: 'PESO', KG: 'PESO', OZ: 'PESO', ML: 'VOLUMEN', L: 'VOLUMEN', GAL: 'VOLUMEN' };
+const A_BASE = { G: 1, KG: 1000, OZ: 28.349523125, ML: 1, L: 1000, GAL: 3785.411784 };
 
 function familiaDe(unidad) {
   const u = String(unidad).toUpperCase();
@@ -38,6 +40,39 @@ function calcularComponentes(componentes, cantidadTotal, unidadTotal, unidadSali
 
 function schema() { return 'tintas'; }
 
+// Campos de identificacion de color / colorimetria / datos espectrales del catalogo.
+const PRODUCTO_CAMPOS_COLOR = [
+  'color_hex', 'rgb_r', 'rgb_g', 'rgb_b', 'cmyk_c', 'cmyk_m', 'cmyk_y', 'cmyk_k',
+  'lab_l', 'lab_a', 'lab_b', 'croma_c', 'matiz_h',
+  'origen_color', 'metodo_obtencion', 'color_medido',
+  'fuerza_tintorea', 'opacidad_pct', 'transparencia_pct', 'concentracion_pct',
+  'densidad', 'viscosidad', 'ph',
+  'espectro_instrumento', 'espectro_modelo', 'espectro_numero_serie',
+  'espectro_iluminante', 'espectro_observador', 'espectro_geometria',
+  'espectro_condicion', 'espectro_sustrato', 'curva_espectral'
+];
+
+const RECETA_CAMPOS_OBJETIVO = [
+  'tipo_formula', 'color_objetivo_hex', 'objetivo_rgb_r', 'objetivo_rgb_g', 'objetivo_rgb_b',
+  'objetivo_cmyk_c', 'objetivo_cmyk_m', 'objetivo_cmyk_y', 'objetivo_cmyk_k',
+  'objetivo_lab_l', 'objetivo_lab_a', 'objetivo_lab_b', 'objetivo_c', 'objetivo_h',
+  'delta_e_objetivo', 'fuente_objetivo', 'color_final_hex',
+  'final_lab_l', 'final_lab_a', 'final_lab_b', 'delta_e_inicial', 'delta_e_final', 'motivo_cambio'
+];
+
+// Si vienen color hex/rgb/cmyk/lab, completa los valores derivados (C*, h°, etc.).
+function aplicarColorCalculado(datos) {
+  const tieneColor = ['color_hex', 'rgb_r', 'cmyk_c', 'lab_l'].some((c) => datos[c] !== undefined && datos[c] !== null && datos[c] !== '');
+  if (!tieneColor) return;
+  const completo = completarColor({
+    hex: datos.color_hex,
+    rgb: datos.rgb_r !== undefined && datos.rgb_r !== null ? { r: datos.rgb_r, g: datos.rgb_g, b: datos.rgb_b } : undefined,
+    cmyk: datos.cmyk_c !== undefined && datos.cmyk_c !== null ? { c: datos.cmyk_c, m: datos.cmyk_m, y: datos.cmyk_y, k: datos.cmyk_k } : undefined,
+    lab: datos.lab_l !== undefined && datos.lab_l !== null ? { L: datos.lab_l, a: datos.lab_a, b: datos.lab_b } : undefined
+  });
+  for (const [k, v] of Object.entries(completo)) if (v !== null && v !== undefined) datos[k] = v;
+}
+
 // ─── PRODUCTOS SERVICE ─────────────────────────────────────────────────────
 
 async function listarProductos(pgQuery, filtros = {}) {
@@ -66,17 +101,23 @@ async function crearProducto(pgQuery, withTransaction, datos, usuarioId) {
   return withTransaction(async (client) => {
     const { codigo_sap, codigo_interno, origen_inventario = 'ERP_LOCAL', nombre, tipo, familia_id, fabricante_id, marca_id, proveedor_id, color, pantone_base_id, unidad_medida_base = 'KG', peso_por_envase, vida_util_dias, costo_promedio = 0, costo_ultimo = 0, ubicacion_defecto_id, equivalencias, configuraciones, observaciones } = datos;
     if (!codigo_interno || !nombre || !tipo) throw new ErrorAplicacion('codigo_interno, nombre y tipo son obligatorios.', 422);
+    aplicarColorCalculado(datos);
+    const colsColor = PRODUCTO_CAMPOS_COLOR.filter((c) => datos[c] !== undefined);
+    const cols = ['codigo_sap', 'codigo_interno', 'origen_inventario', 'nombre', 'tipo', 'familia_id', 'fabricante_id', 'marca_id', 'proveedor_id', 'color', 'pantone_base_id', 'unidad_medida_base', 'peso_por_envase', 'vida_util_dias', 'costo_promedio', 'costo_ultimo', 'ubicacion_defecto_id', 'equivalencias', 'configuraciones', 'observaciones', ...colsColor];
+    const vals = [codigo_sap, codigo_interno, origen_inventario, nombre, tipo, familia_id, fabricante_id, marca_id, proveedor_id, color, pantone_base_id, unidad_medida_base, peso_por_envase, vida_util_dias, costo_promedio, costo_ultimo, ubicacion_defecto_id, equivalencias, configuraciones, observaciones, ...colsColor.map((c) => datos[c])];
+    vals.push(usuarioId); cols.push('creado_por', 'actualizado_por');
+    const uidIdx = vals.length;
+    const placeholders = vals.map((_, i) => `$${i + 1}`).join(', ') + `, $${uidIdx}`;
     const { rows } = await client.query(
-      `INSERT INTO tintas.productos (codigo_sap, codigo_interno, origen_inventario, nombre, tipo, familia_id, fabricante_id, marca_id, proveedor_id, color, pantone_base_id, unidad_medida_base, peso_por_envase, vida_util_dias, costo_promedio, costo_ultimo, ubicacion_defecto_id, equivalencias, configuraciones, observaciones, creado_por, actualizado_por)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$21) RETURNING *`,
-      [codigo_sap, codigo_interno, origen_inventario, nombre, tipo, familia_id, fabricante_id, marca_id, proveedor_id, color, pantone_base_id, unidad_medida_base, peso_por_envase, vida_util_dias, costo_promedio, costo_ultimo, ubicacion_defecto_id, equivalencias, configuraciones, observaciones, usuarioId]);
+      `INSERT INTO tintas.productos (${cols.join(', ')}) VALUES (${placeholders}) RETURNING *`, vals);
     return rows[0];
   });
 }
 
 async function actualizarProducto(pgQuery, withTransaction, id, datos, usuarioId) {
   return withTransaction(async (client) => {
-    const campos = ['nombre','tipo','familia_id','fabricante_id','marca_id','proveedor_id','color','pantone_base_id','peso_por_envase','vida_util_dias','ubicacion_defecto_id','equivalencias','configuraciones','observaciones','estado','costo_promedio','costo_ultimo'];
+    const campos = ['nombre','tipo','familia_id','fabricante_id','marca_id','proveedor_id','color','pantone_base_id','peso_por_envase','vida_util_dias','ubicacion_defecto_id','equivalencias','configuraciones','observaciones','estado','costo_promedio','costo_ultimo', ...PRODUCTO_CAMPOS_COLOR];
+    aplicarColorCalculado(datos);
     const sets = []; const params = [];
     for (const c of campos) {
       if (Object.prototype.hasOwnProperty.call(datos, c)) { params.push(datos[c]); sets.push(`${c} = $${params.length}`); }
@@ -109,10 +150,11 @@ async function crearLote(pgQuery, withTransaction, datos, usuarioId) {
     if (!producto_id || !lote || !peso_neto) throw new ErrorAplicacion('producto_id, lote y peso_neto son obligatorios.', 422);
     const { rows } = await client.query(
       `INSERT INTO tintas.lotes (producto_id, lote, sap_codigo_lote, fecha_fabricacion, fecha_vencimiento, peso_neto, peso_disponible, unidad_medida, costo_lote, ubicacion_id, origen_inventario, observaciones, creado_por, actualizado_por)
-       VALUES ($1,$2,$3,$4,$5,$6,$6,$7,$8,$9,$10,$11,$12,$12) RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5,$6,0,$7,$8,$9,$10,$11,$12,$12) RETURNING *`,
       [producto_id, lote, sap_codigo_lote, fecha_fabricacion, fecha_vencimiento, peso_neto, unidad_medida, costo_lote, ubicacion_id, origen_inventario, observaciones, usuarioId]);
     await registrarMovimiento(client, { producto_id, lote_id: rows[0].id, tipo: 'ENTRADA', cantidad: peso_neto, unidad_medida, costo_unitario: costo_lote, ubicacion_destino_id: ubicacion_id, referencia_documento, usuario_id: usuarioId, observaciones: 'Alta de lote' });
-    return rows[0];
+    const { rows: actualizado } = await client.query(`SELECT * FROM tintas.lotes WHERE id = $1`, [rows[0].id]);
+    return actualizado[0];
   });
 }
 
@@ -168,6 +210,62 @@ async function seleccionarLotesFIFO(client, producto_id, cantidadNecesaria) {
   return asignaciones;
 }
 
+// ─── CATALOGOS DE APOYO (marcas, familias, fabricantes, ubicaciones) ───────
+
+async function listarMarcas(pgQuery) {
+  const { rows } = await pgQuery(`SELECT * FROM tintas.marcas WHERE activo = TRUE ORDER BY nombre`);
+  return rows;
+}
+async function crearMarca(pgQuery, withTransaction, { nombre }) {
+  if (!nombre) throw new ErrorAplicacion('nombre es obligatorio.', 422);
+  return withTransaction(async (client) => {
+    const { rows } = await client.query(
+      `INSERT INTO tintas.marcas (nombre) VALUES ($1) ON CONFLICT (nombre) DO UPDATE SET nombre = EXCLUDED.nombre RETURNING *`, [nombre]);
+    return rows[0];
+  });
+}
+
+async function listarFamilias(pgQuery) {
+  const { rows } = await pgQuery(`SELECT * FROM tintas.familias WHERE activo = TRUE ORDER BY nombre`);
+  return rows;
+}
+async function crearFamilia(pgQuery, withTransaction, { nombre, descripcion }) {
+  if (!nombre) throw new ErrorAplicacion('nombre es obligatorio.', 422);
+  return withTransaction(async (client) => {
+    const { rows } = await client.query(
+      `INSERT INTO tintas.familias (nombre, descripcion) VALUES ($1,$2) ON CONFLICT (nombre) DO UPDATE SET nombre = EXCLUDED.nombre RETURNING *`, [nombre, descripcion || null]);
+    return rows[0];
+  });
+}
+
+async function listarFabricantes(pgQuery) {
+  const { rows } = await pgQuery(`SELECT * FROM tintas.fabricantes WHERE activo = TRUE ORDER BY nombre`);
+  return rows;
+}
+async function crearFabricante(pgQuery, withTransaction, { nombre, pais, contacto, telefono, email }) {
+  if (!nombre) throw new ErrorAplicacion('nombre es obligatorio.', 422);
+  return withTransaction(async (client) => {
+    const { rows } = await client.query(
+      `INSERT INTO tintas.fabricantes (nombre, pais, contacto, telefono, email) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [nombre, pais || null, contacto || null, telefono || null, email || null]);
+    return rows[0];
+  });
+}
+
+async function listarUbicaciones(pgQuery) {
+  const { rows } = await pgQuery(`SELECT * FROM tintas.ubicaciones WHERE activo = TRUE ORDER BY codigo`);
+  return rows;
+}
+async function crearUbicacion(pgQuery, withTransaction, { codigo, descripcion, bodega }) {
+  if (!codigo || !descripcion) throw new ErrorAplicacion('codigo y descripcion son obligatorios.', 422);
+  return withTransaction(async (client) => {
+    const { rows } = await client.query(
+      `INSERT INTO tintas.ubicaciones (codigo, descripcion, bodega) VALUES ($1,$2,$3) ON CONFLICT (codigo) DO UPDATE SET descripcion = EXCLUDED.descripcion RETURNING *`,
+      [codigo, descripcion, bodega || null]);
+    return rows[0];
+  });
+}
+
 // ─── PANTONES SERVICE ──────────────────────────────────────────────────────
 
 async function buscarBiblioteca(pgQuery, filtros = {}) {
@@ -182,11 +280,17 @@ async function buscarBiblioteca(pgQuery, filtros = {}) {
 
 async function crearPantone(pgQuery, withTransaction, datos, usuarioId) {
   return withTransaction(async (client) => {
-    const { codigo_pantone, nombre, color_hex, descripcion } = datos;
+    const { codigo_pantone, nombre, descripcion, fuente, iluminante, observador } = datos;
     if (!codigo_pantone) throw new ErrorAplicacion('codigo_pantone es obligatorio.', 422);
+    aplicarColorCalculado(datos);
+    const colsColor = ['rgb_r','rgb_g','rgb_b','cmyk_c','cmyk_m','cmyk_y','cmyk_k','lab_l','lab_a','lab_b','croma_c','matiz_h'].filter((c) => datos[c] !== undefined);
+    const cols = ['codigo_pantone', 'nombre', 'color_hex', 'descripcion', 'fuente', 'iluminante', 'observador', 'fecha_actualizacion', ...colsColor];
+    const vals = [codigo_pantone, nombre, datos.color_hex || null, descripcion, fuente || null, iluminante || null, observador || null, new Date().toISOString().slice(0, 10), ...colsColor.map((c) => datos[c])];
+    vals.push(usuarioId); cols.push('creado_por', 'actualizado_por');
+    const uidIdx = vals.length;
+    const placeholders = vals.map((_, i) => `$${i + 1}`).join(', ') + `, $${uidIdx}`;
     const { rows } = await client.query(
-      `INSERT INTO tintas.pantones_biblioteca (codigo_pantone, nombre, color_hex, descripcion, creado_por, actualizado_por) VALUES ($1,$2,$3,$4,$5,$5) RETURNING *`,
-      [codigo_pantone, nombre, color_hex, descripcion, usuarioId]);
+      `INSERT INTO tintas.pantones_biblioteca (${cols.join(', ')}) VALUES (${placeholders}) RETURNING *`, vals);
     return rows[0];
   });
 }
@@ -199,32 +303,81 @@ async function obtenerReceta(pgQuery, receta_id) {
   return { ...r[0], componentes: c };
 }
 
+// costo_kg_ponderado: SUMA(porcentaje/100 x costo_promedio del componente) — el costo/kg real de
+// una tinta Directa formulada, derivado de su fórmula (tintas.pantones_receta_componentes) y del
+// costo de cada componente en el catálogo (tintas.productos), no un valor fijo arbitrario.
 async function listarRecetas(pgQuery, filtros = {}) {
   const condiciones = ['1=1']; const params = [];
-  if (filtros.pantone_id) { params.push(filtros.pantone_id); condiciones.push(`pantone_id = $${params.length}`); }
-  if (filtros.cliente_id) { params.push(filtros.cliente_id); condiciones.push(`cliente_id = $${params.length}`); }
-  if (filtros.producto_id) { params.push(filtros.producto_id); condiciones.push(`producto_id = $${params.length}`); }
-  if (filtros.estado) { params.push(filtros.estado); condiciones.push(`estado = $${params.length}`); }
-  const { rows } = await pgQuery(`SELECT * FROM tintas.pantones_recetas WHERE ${condiciones.join(' AND ')} ORDER BY creado_en DESC`, params);
+  if (filtros.pantone_id) { params.push(filtros.pantone_id); condiciones.push(`r.pantone_id = $${params.length}`); }
+  if (filtros.cliente_id) { params.push(filtros.cliente_id); condiciones.push(`r.cliente_id = $${params.length}`); }
+  if (filtros.producto_id) { params.push(filtros.producto_id); condiciones.push(`r.producto_id = $${params.length}`); }
+  if (filtros.estado) { params.push(filtros.estado); condiciones.push(`r.estado = $${params.length}`); }
+  const { rows } = await pgQuery(
+    `SELECT r.*, COALESCE((
+       SELECT SUM((rc.porcentaje / 100.0) * p.costo_promedio)
+       FROM tintas.pantones_receta_componentes rc
+       JOIN tintas.productos p ON p.id = rc.producto_tinta_id
+       WHERE rc.receta_id = r.id
+     ), 0) AS costo_kg_ponderado
+     FROM tintas.pantones_recetas r WHERE ${condiciones.join(' AND ')} ORDER BY r.creado_en DESC`, params);
   return rows;
 }
+
+const RECETA_CAMPOS_DETALLE_NUEVOS = [
+  'nombre_comercial', 'cliente_nota', 'codigo_cliente', 'marca_id', 'familia_id', 'descripcion',
+  'confidencialidad', 'origen', 'codigo_pantone', 'codigo_fabricante', 'acabado', 'color_hex',
+  'sustrato', 'maquina_nombre', 'anilox', 'tecnologia', 'aprobado_xrite', 'disponible_gramos',
+  'cantidad_base', 'unidad_base', 'orden_mezcla', 'tiempo_mezclado_min', 'velocidad_agitacion',
+  'temperatura_c', 'tiempo_reposo_min', 'filtrado', 'malla', 'instrucciones', 'viscosidad', 'ph',
+  'densidad', 'brillo', 'opacidad', 'tiempo_secado', 'vida_util',
+  ...RECETA_CAMPOS_OBJETIVO
+];
+const RECETA_CAMPOS_DETALLE = RECETA_CAMPOS_DETALLE_NUEVOS;
 
 async function crearReceta(pgQuery, withTransaction, datos, usuarioId) {
   return withTransaction(async (client) => {
     const { codigo_interno, nombre, pantone_id, cliente_id, producto_id, orden_produccion_id, estado = 'BORRADOR', observaciones, componentes } = datos;
     if (!codigo_interno || !nombre) throw new ErrorAplicacion('codigo_interno y nombre son obligatorios.', 422);
     if (!componentes || !componentes.length) throw new ErrorAplicacion('La receta necesita al menos un componente.', 422);
+    // Si viene pantone_id y no hay color objetivo, heredar el color de biblioteca.
+    if (pantone_id && !datos.color_objetivo_hex) {
+      const { rows: pant } = await client.query(`SELECT * FROM tintas.pantones_biblioteca WHERE id = $1`, [pantone_id]);
+      if (pant[0]) {
+        const heredado = completarColor({ hex: pant[0].color_hex });
+        if (heredado.hex && datos.color_objetivo_hex === undefined) datos.color_objetivo_hex = heredado.hex;
+        if (heredado.lab_l !== undefined) {
+          if (datos.objetivo_lab_l === undefined) { datos.objetivo_lab_l = heredado.lab_l; datos.objetivo_lab_a = heredado.lab_a; datos.objetivo_lab_b = heredado.lab_b; }
+          if (datos.objetivo_c === undefined) { datos.objetivo_c = heredado.croma_c; datos.objetivo_h = heredado.matiz_h; }
+        }
+        if (datos.objetivo_rgb_r === undefined && heredado.rgb_r !== undefined) { datos.objetivo_rgb_r = heredado.rgb_r; datos.objetivo_rgb_g = heredado.rgb_g; datos.objetivo_rgb_b = heredado.rgb_b; }
+        if (datos.objetivo_cmyk_c === undefined && heredado.cmyk_c !== undefined) { datos.objetivo_cmyk_c = heredado.cmyk_c; datos.objetivo_cmyk_m = heredado.cmyk_m; datos.objetivo_cmyk_y = heredado.cmyk_y; datos.objetivo_cmyk_k = heredado.cmyk_k; }
+      }
+    }
+    const detalleCols = RECETA_CAMPOS_DETALLE.filter(c => Object.prototype.hasOwnProperty.call(datos, c) && datos[c] !== undefined);
+    const baseCols = ['codigo_interno', 'nombre', 'pantone_id', 'cliente_id', 'producto_id', 'orden_produccion_id', 'version', 'estado', 'usuario_creador_id', 'observaciones', ...detalleCols];
+    const baseVals = [codigo_interno, nombre, pantone_id, cliente_id, producto_id, orden_produccion_id, 1, estado, usuarioId, observaciones, ...detalleCols.map(c => datos[c])];
+    const placeholders = baseVals.map((_, i) => `$${i + 1}`).join(',');
     const { rows } = await client.query(
-      `INSERT INTO tintas.pantones_recetas (codigo_interno, nombre, pantone_id, cliente_id, producto_id, orden_produccion_id, version, estado, usuario_creador_id, observaciones) VALUES ($1,$2,$3,$4,$5,$6,1,$7,$8,$9) RETURNING *`,
-      [codigo_interno, nombre, pantone_id, cliente_id, producto_id, orden_produccion_id, estado, usuarioId, observaciones]);
+      `INSERT INTO tintas.pantones_recetas (${baseCols.join(', ')}) VALUES (${placeholders}) RETURNING *`,
+      baseVals);
+    // Si todos los componentes vienen con cantidad, el porcentaje se calcula:
+    // % = (cantidad del ingrediente / SUMA(cantidades)) x 100
+    const todosConCantidad = componentes.every((c) => c.cantidad !== undefined && c.cantidad !== null && Number(c.cantidad) > 0);
+    const totalCantidades = todosConCantidad ? componentes.reduce((a, c) => a + Number(c.cantidad), 0) : 0;
     let orden = 0;
     for (const c of componentes) {
       orden += 1;
+      const pct = todosConCantidad
+        ? Number((Number(c.cantidad) / totalCantidades * 100).toFixed(3))
+        : Number(c.porcentaje);
+      if (!Number.isFinite(pct) || pct <= 0) throw new ErrorAplicacion('Cada componente necesita porcentaje o cantidad mayor a cero.', 422);
       await client.query(
-        `INSERT INTO tintas.pantones_receta_componentes (receta_id, producto_tinta_id, porcentaje, orden, observaciones) VALUES ($1,$2,$3,$4,$5)`,
-        [rows[0].id, c.producto_tinta_id, c.porcentaje, c.orden || orden, c.observaciones || null]);
+        `INSERT INTO tintas.pantones_receta_componentes (receta_id, producto_tinta_id, porcentaje, cantidad, unidad, funcion, orden, observaciones) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [rows[0].id, c.producto_tinta_id, pct, c.cantidad || null, c.unidad || null, c.funcion || null, c.orden || orden, c.observaciones || null]);
     }
-    return obtenerReceta(pgQuery, rows[0].id);
+    const { rows: comp } = await client.query(
+      `SELECT rc.*, p.nombre, p.codigo_interno, p.unidad_medida_base FROM tintas.pantones_receta_componentes rc JOIN tintas.productos p ON p.id = rc.producto_tinta_id WHERE rc.receta_id = $1 ORDER BY rc.orden`, [rows[0].id]);
+    return { ...rows[0], componentes: comp };
   });
 }
 
@@ -237,10 +390,22 @@ async function duplicarReceta(pgQuery, withTransaction, receta_id, usuarioId) {
     const { rows } = await client.query(
       `INSERT INTO tintas.pantones_recetas (codigo_interno, nombre, pantone_id, cliente_id, producto_id, orden_produccion_id, version, receta_padre_id, estado, usuario_creador_id, observaciones) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'BORRADOR',$9,$10) RETURNING *`,
       [`${original.codigo_interno}-v${nv}`, original.nombre, original.pantone_id, original.cliente_id, original.producto_id, original.orden_produccion_id, nv, cadenaRaiz, usuarioId, original.observaciones]);
-    for (const c of original.componentes) {
-      await client.query(`INSERT INTO tintas.pantones_receta_componentes (receta_id, producto_tinta_id, porcentaje, orden) VALUES ($1,$2,$3,$4)`, [rows[0].id, c.producto_tinta_id, c.porcentaje, c.orden || 1]);
+    const objetivoCols = RECETA_CAMPOS_OBJETIVO.filter((c) => original[c] !== undefined && original[c] !== null);
+    if (objetivoCols.length) {
+      const sets = objetivoCols.map((c, i) => `${c} = $${i + 2}`).join(', ');
+      await client.query(`UPDATE tintas.pantones_recetas SET ${sets} WHERE id = $1`, [rows[0].id, ...objetivoCols.map((c) => original[c])]);
     }
-    return obtenerReceta(pgQuery, rows[0].id);
+    for (const c of original.componentes) {
+      await client.query(`INSERT INTO tintas.pantones_receta_componentes (receta_id, producto_tinta_id, porcentaje, cantidad, unidad, funcion, orden, observaciones) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [rows[0].id, c.producto_tinta_id, c.porcentaje, c.cantidad || null, c.unidad || null, c.funcion || null, c.orden || 1, c.observaciones || null]);
+    }
+    await client.query(
+      `INSERT INTO tintas.formulaciones_historial (receta_id, fase, descripcion, snapshot, observaciones)
+       VALUES ($1, 'VERSION', $2, $3, $4)`,
+      [rows[0].id, `Version ${nv} creada a partir de v${original.version}`, JSON.stringify({ componentes: original.componentes, motivo: original.motivo_cambio || null }), original.motivo_cambio || null]);
+    const { rows: nueva } = await client.query(`SELECT * FROM tintas.pantones_recetas WHERE id = $1`, [rows[0].id]);
+    const { rows: comp } = await client.query(
+      `SELECT rc.*, p.nombre, p.codigo_interno, p.unidad_medida_base FROM tintas.pantones_receta_componentes rc JOIN tintas.productos p ON p.id = rc.producto_tinta_id WHERE rc.receta_id = $1 ORDER BY rc.orden`, [rows[0].id]);
+    return { ...nueva[0], componentes: comp };
   });
 }
 
@@ -252,6 +417,149 @@ async function marcarRecetaVigente(pgQuery, withTransaction, receta_id, usuarioI
     await client.query(`UPDATE tintas.pantones_recetas SET es_vigente=FALSE, estado=CASE WHEN estado='VIGENTE' THEN 'ARCHIVADO' ELSE estado END, actualizado_por=$1, actualizado_en=now() WHERE (id=$2 OR receta_padre_id=$2) AND id<>$3`, [usuarioId, cr, receta_id]);
     const { rows: u } = await client.query(`UPDATE tintas.pantones_recetas SET es_vigente=TRUE, estado='VIGENTE', actualizado_por=$1, actualizado_en=now() WHERE id=$2 RETURNING *`, [usuarioId, receta_id]);
     return u[0];
+  });
+}
+
+async function obtenerVersiones(pgQuery, receta_id) {
+  const { rows: base } = await pgQuery(`SELECT id, receta_padre_id FROM tintas.pantones_recetas WHERE id = $1`, [receta_id]);
+  if (!base[0]) throw new ErrorAplicacion('Receta no encontrada', 404);
+  const raiz = base[0].receta_padre_id || base[0].id;
+  const { rows } = await pgQuery(
+    `SELECT id, codigo_interno, nombre, version, estado, es_vigente, fecha, usuario_creador_id, motivo_cambio, delta_e_final, creado_en
+     FROM tintas.pantones_recetas WHERE id = $1 OR receta_padre_id = $1 ORDER BY version`, [raiz]);
+  return rows;
+}
+
+// Formulacion sugerida / referencia: tintas candidatas por familia, formulas
+// historicas similares y combinaciones. Nunca una "formula correcta".
+async function sugerirFormulacion(pgQuery, params) {
+  const { lab_l, lab_a, lab_b, hex, limite = 10 } = params;
+  let objetivoLab = null;
+  if (lab_l !== undefined && lab_l !== null && lab_l !== '') objetivoLab = { L: Number(lab_l), a: Number(lab_a || 0), b: Number(lab_b || 0) };
+  else if (hex) objetivoLab = hexALab(normHex(hex) || '');
+  if (!objetivoLab) throw new ErrorAplicacion('Se requiere un color objetivo (LAB o HEX).', 422);
+
+  const { rows: tintas } = await pgQuery(
+    `SELECT id::text, codigo_interno, nombre, tipo::text AS tipo, color_hex, familia_id
+     FROM tintas.productos WHERE estado = 'ACTIVO' AND color_hex IS NOT NULL AND color_hex <> ''`);
+  const candidatas = tintas.map((t) => {
+    const lab = hexALab(t.color_hex);
+    if (!lab) return null;
+    const de00 = deltaE2000(objetivoLab, lab);
+    const de76 = deltaE76(objetivoLab, lab);
+    return { ...t, delta_e00: Math.round(de00 * 100) / 100, delta_e76: Math.round(de76 * 100) / 100, clasificacion: clasificacionDeltaE(de00) };
+  }).filter(Boolean).sort((a, b) => a.delta_e00 - b.delta_e00).slice(0, Number(limite));
+
+  const { rows: recetas } = await pgQuery(
+    `SELECT r.id::text, r.codigo_interno, r.nombre, r.version, r.estado::text AS estado, r.color_objetivo_hex, r.color_hex, r.objetivo_lab_l, r.objetivo_lab_a, r.objetivo_lab_b
+     FROM tintas.pantones_recetas r
+     WHERE (r.color_objetivo_hex IS NOT NULL AND r.color_objetivo_hex <> '') OR (r.color_hex IS NOT NULL AND r.color_hex <> '')`);
+  const recetasSimilares = recetas.map((r) => {
+    const hexRef = r.color_objetivo_hex || r.color_hex;
+    const lab = hexALab(hexRef);
+    if (!lab) return null;
+    const de00 = deltaE2000(objetivoLab, lab);
+    return { ...r, delta_e00: Math.round(de00 * 100) / 100, clasificacion: clasificacionDeltaE(de00) };
+  }).filter(Boolean).sort((a, b) => a.delta_e00 - b.delta_e00).slice(0, Number(limite));
+
+  return {
+    nota: 'Formulacion sugerida / referencia. La formulacion calculada es orientativa y nunca sustituye la validacion fisica de la tinta sobre el sustrato y bajo las condiciones reales de impresion.',
+    objetivo: { lab: objetivoLab },
+    tintas_candidatas: candidatas,
+    formulas_similares: recetasSimilares
+  };
+}
+
+async function listarValidaciones(pgQuery, receta_id) {
+  const { rows } = await pgQuery(`SELECT * FROM tintas.receta_validaciones WHERE receta_id = $1 ORDER BY fecha DESC, creado_en DESC`, [receta_id]);
+  return rows;
+}
+
+async function crearValidacion(pgQuery, withTransaction, datos, usuarioId) {
+  return withTransaction(async (client) => {
+    const { receta_id } = datos;
+    if (!receta_id) throw new ErrorAplicacion('receta_id es obligatorio.', 422);
+    const { rows: r } = await client.query(`SELECT * FROM tintas.pantones_recetas WHERE id = $1`, [receta_id]);
+    if (!r[0]) throw new ErrorAplicacion('Receta no encontrada', 404);
+    const objetivo = datos.objetivo_lab_l !== undefined && datos.objetivo_lab_l !== null
+      ? { L: Number(datos.objetivo_lab_l), a: Number(datos.objetivo_lab_a || 0), b: Number(datos.objetivo_lab_b || 0) }
+      : (r[0].objetivo_lab_l != null ? { L: Number(r[0].objetivo_lab_l), a: Number(r[0].objetivo_lab_a || 0), b: Number(r[0].objetivo_lab_b || 0) } : null);
+    const obtenido = { L: Number(datos.obtenido_lab_l), a: Number(datos.obtenido_lab_a || 0), b: Number(datos.obtenido_lab_b || 0) };
+    if (!Number.isFinite(obtenido.L)) throw new ErrorAplicacion('obtenido_lab_l es obligatorio.', 422);
+    let de76 = null, de00 = null;
+    if (objetivo) {
+      de76 = Math.round(deltaE76(objetivo, obtenido) * 1000) / 1000;
+      de00 = Math.round(deltaE2000(objetivo, obtenido) * 1000) / 1000;
+    }
+    const derivado = completarColor({ lab: obtenido });
+    const cols = ['receta_id', 'objetivo_lab_l', 'objetivo_lab_a', 'objetivo_lab_b', 'obtenido_lab_l', 'obtenido_lab_a', 'obtenido_lab_b', 'hex_obtenido', 'rgb_obtenido_r', 'rgb_obtenido_g', 'rgb_obtenido_b', 'cmyk_obtenido_c', 'cmyk_obtenido_m', 'cmyk_obtenido_y', 'cmyk_obtenido_k', 'delta_e76', 'delta_e00', 'instrumento', 'modelo', 'numero_serie', 'iluminante', 'observador', 'geometria', 'modo_medicion', 'fecha', 'operador', 'sustrato', 'maquina', 'anilox', 'bcm', 'viscosidad', 'velocidad', 'observaciones', 'curva_espectral', 'creado_por'];
+    const vals = [receta_id,
+      objetivo ? objetivo.L : null, objetivo ? objetivo.a : null, objetivo ? objetivo.b : null,
+      obtenido.L, obtenido.a, obtenido.b,
+      derivado.hex || null, derivado.rgb_r || null, derivado.rgb_g || null, derivado.rgb_b || null,
+      derivado.cmyk_c ?? null, derivado.cmyk_m ?? null, derivado.cmyk_y ?? null, derivado.cmyk_k ?? null,
+      de76, de00,
+      datos.instrumento || null, datos.modelo || null, datos.numero_serie || null,
+      datos.iluminante || null, datos.observador || null, datos.geometria || null, datos.modo_medicion || null,
+      datos.fecha || new Date().toISOString().slice(0, 10),
+      datos.operador || null, datos.sustrato || null, datos.maquina || null, datos.anilox || null,
+      datos.bcm || null, datos.viscosidad || null, datos.velocidad || null, datos.observaciones || null,
+      datos.curva_espectral || null, usuarioId];
+    const placeholders = vals.map((_, i) => `$${i + 1}`).join(', ');
+    const { rows: v } = await client.query(`INSERT INTO tintas.receta_validaciones (${cols.join(', ')}) VALUES (${placeholders}) RETURNING *`, vals);
+    // Actualizar color final medido de la receta y registrar en el historial.
+    await client.query(`UPDATE tintas.pantones_recetas SET color_final_hex = $1, final_lab_l = $2, final_lab_a = $3, final_lab_b = $4, delta_e_final = $5, actualizado_en = now() WHERE id = $6`,
+      [derivado.hex || null, obtenido.L, obtenido.a, obtenido.b, de00, receta_id]);
+    await client.query(
+      `INSERT INTO tintas.formulaciones_historial (receta_id, fase, descripcion, lab_l, lab_a, lab_b, delta_e, maquina, sustrato, anilox, observaciones)
+       VALUES ($1, 'MEDICION', $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [receta_id, 'Medicion con espectrofotometro', obtenido.L, obtenido.a, obtenido.b, de00,
+       datos.maquina || null, datos.sustrato || null, datos.anilox || null, datos.observaciones || null]);
+    return v[0];
+  });
+}
+
+async function obtenerCondiciones(pgQuery, receta_id) {
+  const { rows } = await pgQuery(`SELECT * FROM tintas.receta_condiciones WHERE receta_id = $1`, [receta_id]);
+  return rows[0] || null;
+}
+
+async function guardarCondiciones(pgQuery, withTransaction, receta_id, datos) {
+  return withTransaction(async (client) => {
+    const { rows: r } = await client.query(`SELECT id FROM tintas.pantones_recetas WHERE id = $1`, [receta_id]);
+    if (!r[0]) throw new ErrorAplicacion('Receta no encontrada', 404);
+    const campos = ['bcm', 'lineatura_anilox', 'viscosidad', 'ph', 'velocidad_maquina', 'sustrato', 'tratamiento_sustrato', 'tipo_plancha', 'lineatura_plancha', 'deposito_pelicula', 'numero_pasadas', 'temperatura_ambiente', 'humedad_relativa'];
+    const presentes = campos.filter((c) => datos[c] !== undefined);
+    const cols = ['receta_id', ...presentes];
+    const vals = [receta_id, ...presentes.map((c) => datos[c])];
+    const placeholders = vals.map((_, i) => `$${i + 1}`).join(', ');
+    const actualizaciones = presentes.map((c, i) => `${c} = $${i + 2}`).join(', ');
+    const { rows } = await client.query(
+      `INSERT INTO tintas.receta_condiciones (${cols.join(', ')}) VALUES (${placeholders})
+       ON CONFLICT (receta_id) DO UPDATE SET ${actualizaciones || 'receta_id = EXCLUDED.receta_id'}, actualizado_en = now()
+       RETURNING *`, vals);
+    return rows[0];
+  });
+}
+
+async function listarHistorial(pgQuery, receta_id) {
+  const { rows } = await pgQuery(
+    `SELECT h.*, u.full_name AS usuario_nombre FROM tintas.formulaciones_historial h
+     LEFT JOIN admin_users u ON u.id = h.usuario_id
+     WHERE h.receta_id = $1 ORDER BY h.creado_en ASC`, [receta_id]);
+  return rows;
+}
+
+async function agregarHistorial(pgQuery, withTransaction, datos, usuarioId) {
+  return withTransaction(async (client) => {
+    const { receta_id, fase = 'CORRECCION' } = datos;
+    if (!receta_id) throw new ErrorAplicacion('receta_id es obligatorio.', 422);
+    const { rows } = await client.query(
+      `INSERT INTO tintas.formulaciones_historial (receta_id, fase, descripcion, lab_l, lab_a, lab_b, delta_e, maquina, sustrato, anilox, observaciones, usuario_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [receta_id, fase, datos.descripcion || null, datos.lab_l || null, datos.lab_a || null, datos.lab_b || null,
+       datos.delta_e || null, datos.maquina || null, datos.sustrato || null, datos.anilox || null, datos.observaciones || null, usuarioId]);
+    return rows[0];
   });
 }
 
@@ -470,6 +778,32 @@ function registerTintasRoutes({ app, pgQuery, withTransaction }) {
     } catch (e) { res.status(e.status||500).json({ error: e.message }); }
   });
 
+  // ─── Catalogos de apoyo ─────────────────────────────────────────────────
+  app.get(api + '/marcas', async (req, res) => {
+    try { res.json(await listarMarcas(pgQuery)); } catch (e) { res.status(e.status||500).json({ error: e.message }); }
+  });
+  app.post(api + '/marcas', async (req, res) => {
+    try { res.status(201).json(await crearMarca(pgQuery, withTransaction, req.body)); } catch (e) { res.status(e.status||500).json({ error: e.message }); }
+  });
+  app.get(api + '/familias', async (req, res) => {
+    try { res.json(await listarFamilias(pgQuery)); } catch (e) { res.status(e.status||500).json({ error: e.message }); }
+  });
+  app.post(api + '/familias', async (req, res) => {
+    try { res.status(201).json(await crearFamilia(pgQuery, withTransaction, req.body)); } catch (e) { res.status(e.status||500).json({ error: e.message }); }
+  });
+  app.get(api + '/fabricantes', async (req, res) => {
+    try { res.json(await listarFabricantes(pgQuery)); } catch (e) { res.status(e.status||500).json({ error: e.message }); }
+  });
+  app.post(api + '/fabricantes', async (req, res) => {
+    try { res.status(201).json(await crearFabricante(pgQuery, withTransaction, req.body)); } catch (e) { res.status(e.status||500).json({ error: e.message }); }
+  });
+  app.get(api + '/ubicaciones', async (req, res) => {
+    try { res.json(await listarUbicaciones(pgQuery)); } catch (e) { res.status(e.status||500).json({ error: e.message }); }
+  });
+  app.post(api + '/ubicaciones', async (req, res) => {
+    try { res.status(201).json(await crearUbicacion(pgQuery, withTransaction, req.body)); } catch (e) { res.status(e.status||500).json({ error: e.message }); }
+  });
+
   // ─── Pantones ───────────────────────────────────────────────────────────
   app.get(api + '/pantones/biblioteca', async (req, res) => {
     try { res.json(await buscarBiblioteca(pgQuery, req.query)); } catch (e) { res.status(e.status||500).json({ error: e.message }); }
@@ -482,6 +816,83 @@ function registerTintasRoutes({ app, pgQuery, withTransaction }) {
   });
   app.get(api + '/pantones/biblioteca/:id/trazabilidad', async (req, res) => {
     try { res.json(await trazabilidadPantone(pgQuery, req.params.id)); } catch (e) { res.status(e.status||500).json({ error: e.message }); }
+  });
+
+  // ─── Calculadora de color / buscador de similares ampliado ───────────────
+  app.post(api + '/color/convertir', async (req, res) => {
+    try {
+      const r = convertirColor(req.body || {});
+      if (!r) return res.status(422).json({ error: 'Forma no soportada. Usar forma=HEX|RGB|CMYK|LAB con valores.' });
+      res.json(r);
+    } catch (e) { res.status(e.status||500).json({ error: e.message }); }
+  });
+  app.get(api + '/color/similares-ampliado', async (req, res) => {
+    try {
+      const { hex, lab_l, lab_a, lab_b, limite = 10 } = req.query;
+      let objetivoLab = null;
+      if (lab_l !== undefined && lab_l !== null && lab_l !== '') objetivoLab = { L: Number(lab_l), a: Number(lab_a || 0), b: Number(lab_b || 0) };
+      else if (hex) objetivoLab = hexALab(normalizarHex(hex) || '');
+      if (!objetivoLab) return res.status(422).json({ error: 'Se requiere hex o lab_l/lab_a/lab_b.' });
+      const opciones = { limite: Number(limite) > 0 ? Math.floor(Number(limite)) : 10 };
+      const [tintasRes, biblioRes, recetasRes] = await Promise.all([
+        pgQuery(`SELECT id::text, codigo_interno, nombre, tipo::text AS tipo, color_hex FROM tintas.productos WHERE estado = 'ACTIVO' AND color_hex IS NOT NULL AND color_hex <> ''`),
+        pgQuery(`SELECT id::text, codigo_pantone, nombre, color_hex FROM tintas.pantones_biblioteca WHERE activo = true AND color_hex IS NOT NULL AND color_hex <> ''`),
+        pgQuery(`SELECT id::text, codigo_interno, nombre, color_hex, codigo_pantone FROM tintas.pantones_recetas WHERE color_hex IS NOT NULL AND color_hex <> ''`)
+      ]);
+      const comparar = (candidatos) => candidatos.map((c) => {
+        const lab = hexALab(c.color_hex);
+        if (!lab) return null;
+        const de00 = deltaE2000(objetivoLab, lab);
+        const de76 = deltaE76(objetivoLab, lab);
+        return { ...c, delta_e00: Math.round(de00 * 100) / 100, delta_e76: Math.round(de76 * 100) / 100, clasificacion: clasificacionDeltaE(de00) };
+      }).filter(Boolean).sort((a, b) => a.delta_e00 - b.delta_e00).slice(0, opciones.limite);
+      res.json({
+        objetivo: { lab: objetivoLab },
+        tintas: comparar(tintasRes.rows),
+        biblioteca: comparar(biblioRes.rows),
+        recetas: comparar(recetasRes.rows)
+      });
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+  });
+
+  // ─── Formulacion sugerida (inversa) ───────────────────────────────────
+  app.get(api + '/formulacion/sugerir', async (req, res) => {
+    try { res.json(await sugerirFormulacion(pgQuery, req.query)); } catch (e) { res.status(e.status||500).json({ error: e.message }); }
+  });
+
+  // ─── Versiones de receta ──────────────────────────────────────────────
+  app.get(api + '/pantones/recetas/:id/versiones', async (req, res) => {
+    try { res.json(await obtenerVersiones(pgQuery, req.params.id)); } catch (e) { res.status(e.status||500).json({ error: e.message }); }
+  });
+
+  // ─── Validaciones del color ───────────────────────────────────────────
+  app.get(api + '/pantones/recetas/:id/validaciones', async (req, res) => {
+    try { res.json(await listarValidaciones(pgQuery, req.params.id)); } catch (e) { res.status(e.status||500).json({ error: e.message }); }
+  });
+  app.post(api + '/pantones/recetas/:id/validaciones', async (req, res) => {
+    try {
+      const uid = req.body.usuario_id || req.headers['x-usuario-id'];
+      res.status(201).json(await crearValidacion(pgQuery, withTransaction, { ...req.body, receta_id: req.params.id }, uid));
+    } catch (e) { res.status(e.status||500).json({ error: e.message }); }
+  });
+
+  // ─── Condiciones de impresion ─────────────────────────────────────────
+  app.get(api + '/pantones/recetas/:id/condiciones', async (req, res) => {
+    try { res.json(await obtenerCondiciones(pgQuery, req.params.id)); } catch (e) { res.status(e.status||500).json({ error: e.message }); }
+  });
+  app.put(api + '/pantones/recetas/:id/condiciones', async (req, res) => {
+    try { res.json(await guardarCondiciones(pgQuery, withTransaction, req.params.id, req.body)); } catch (e) { res.status(e.status||500).json({ error: e.message }); }
+  });
+
+  // ─── Historial de formulaciones ───────────────────────────────────────
+  app.get(api + '/pantones/recetas/:id/historial', async (req, res) => {
+    try { res.json(await listarHistorial(pgQuery, req.params.id)); } catch (e) { res.status(e.status||500).json({ error: e.message }); }
+  });
+  app.post(api + '/pantones/recetas/:id/historial', async (req, res) => {
+    try {
+      const uid = req.body.usuario_id || req.headers['x-usuario-id'];
+      res.status(201).json(await agregarHistorial(pgQuery, withTransaction, { ...req.body, receta_id: req.params.id }, uid));
+    } catch (e) { res.status(e.status||500).json({ error: e.message }); }
   });
 
   // ─── Recetas ────────────────────────────────────────────────────────────
@@ -518,6 +929,33 @@ function registerTintasRoutes({ app, pgQuery, withTransaction }) {
       if (!cantidad || !unidad) return res.status(422).json({ error: 'cantidad y unidad son obligatorios.' });
       res.json(await calcularProduccion(pgQuery, req.params.id, Number(cantidad), unidad, unidad_salida));
     } catch (e) { res.status(e.status||500).json({ error: e.message }); }
+  });
+
+  // ─── Similitud de color ────────────────────────────────────────────────
+  app.get(api + '/color/similares', async (req, res) => {
+    try {
+      const hex = normalizarHex(req.query.hex || '');
+      if (!hex) return res.status(422).json({ error: 'El parametro hex es obligatorio y debe ser un color hexadecimal valido (#RRGGBB).' });
+      const opciones = {
+        limite: Number(req.query.limite) > 0 ? Math.floor(Number(req.query.limite)) : 20,
+        umbralAlta: req.query.umbralAlta !== undefined ? Number(req.query.umbralAlta) : undefined,
+        umbralMedia: req.query.umbralMedia !== undefined ? Number(req.query.umbralMedia) : undefined
+      };
+      const [recetasRes, bibliotecaRes] = await Promise.all([
+        pgQuery(`SELECT id::text, codigo_interno, nombre, color_hex, codigo_pantone, estado::text AS estado, es_vigente
+                 FROM tintas.pantones_recetas WHERE color_hex IS NOT NULL AND color_hex <> ''`),
+        pgQuery(`SELECT id::text, codigo_pantone, nombre, color_hex
+                 FROM tintas.pantones_biblioteca WHERE activo = true AND color_hex IS NOT NULL AND color_hex <> ''`)
+      ]);
+      const recetas = buscarSimilares(hex, recetasRes.rows, opciones);
+      const biblioteca = buscarSimilares(hex, bibliotecaRes.rows, opciones);
+      res.json({
+        objetivo: recetas.objetivo,
+        umbrales: recetas.umbrales,
+        recetas: recetas.resultados,
+        biblioteca: biblioteca.resultados
+      });
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
   // ─── Consumo ────────────────────────────────────────────────────────────

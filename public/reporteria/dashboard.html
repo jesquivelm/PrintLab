@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reporter&iacute;a - PrintLab</title>
+<link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+<link rel="stylesheet" href="/reporteria.css?v=20260908c3-kpis-flexo">
+<script src="/theme.js"></script>
+<style>
+body { margin:0; background:transparent; }
+</style>
+</head>
+<body>
+<section class="reporteria-menu-grid" id="reporteriaGrid"></section>
+<script>
+const CONFIG_ENDPOINT = '/api/config/shell';
+const REPORTES = [
+  { ruta:'/reporteria/kpis-flexo', etiqueta:'KPIs Flexo Semanal', claveIcono:'reporteriaKpisFlexo', respaldo:'▥' },
+  { ruta:'/reporteria/gerencial', etiqueta:'Reportería Gerencial', claveIcono:'reporteriaGerencial', respaldo:'▤' },
+  { ruta:'/reporteria/rentabilidad', etiqueta:'Rentabilidad de Cotizaciones', claveIcono:'reporteriaRentabilidad', respaldo:'◰' },
+  { ruta:'/reporteria/materia-prima', etiqueta:'Análisis de Materia Prima', claveIcono:'reporteriaMateriaPrima', respaldo:'▦' }
+];
+
+let configCargada = {};
+
+function escaparHtml(texto) {
+  const d = document.createElement('div');
+  d.textContent = texto;
+  return d.innerHTML;
+}
+
+function marcadoIcono(valor, textoAlt, claseExtra) {
+  const normalizado = String(valor || '').trim().toLowerCase();
+  if (normalizado.startsWith('data:image/svg+xml') || /\.svg(\?|#|$)/i.test(normalizado)) {
+    return '<span class="icon-svg-mask ' + (claseExtra || '') + '" role="img" aria-label="' + escaparHtml(textoAlt) + '" style="-webkit-mask-image:url(\'' + escaparHtml(valor) + '\');mask-image:url(\'' + escaparHtml(valor) + '\');"></span>';
+  }
+  if (normalizado.startsWith('data:image') || /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(normalizado)) {
+    return '<img src="' + escaparHtml(valor) + '" alt="' + escaparHtml(textoAlt) + '" class="icon-image ' + (claseExtra || '') + '">';
+  }
+  return '<span class="icon-glyph ' + (claseExtra || '') + '">' + escaparHtml(valor || '') + '</span>';
+}
+
+function renderizarTarjetas() {
+  const grid = document.getElementById('reporteriaGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  REPORTES.forEach(function(rep) {
+    const tarjeta = document.createElement('button');
+    tarjeta.type = 'button';
+    tarjeta.className = 'reporteria-menu-card';
+    tarjeta.dataset.route = rep.ruta;
+    tarjeta.dataset.label = rep.etiqueta;
+    tarjeta.dataset.iconKey = rep.claveIcono;
+
+    const valorIcono = (configCargada.icons && configCargada.icons[rep.claveIcono]) || rep.respaldo;
+    const sufijo = rep.claveIcono.charAt(0).toUpperCase() + rep.claveIcono.slice(1);
+    const color = (configCargada.general && configCargada.general['iconColor' + sufijo]) || '#0b81b8';
+    const hover = (configCargada.general && configCargada.general['iconColorHover' + sufijo]) || color || '#0b81b8';
+    const tamanoConfigurado = Number((configCargada.general && configCargada.general['iconSize' + sufijo])) || 38;
+
+    const spanIcono = document.createElement('span');
+    spanIcono.className = 'reporteria-menu-card-icon';
+    spanIcono.innerHTML = marcadoIcono(valorIcono, rep.etiqueta, 'table-icon-media');
+    spanIcono.style.setProperty('--icon-base-color', color);
+    spanIcono.style.setProperty('--icon-hover-color', hover);
+
+    const spanTitulo = document.createElement('span');
+    spanTitulo.className = 'reporteria-menu-card-title';
+    spanTitulo.textContent = rep.etiqueta;
+
+    tarjeta.appendChild(spanIcono);
+    tarjeta.appendChild(spanTitulo);
+
+    tarjeta.addEventListener('click', function() {
+      const padre = window.parent;
+      if (padre && padre !== window) {
+        padre.postMessage({ type:'erp-open-tab', route:rep.ruta, label:rep.etiqueta }, window.location.origin);
+      } else {
+        window.location.href = rep.ruta;
+      }
+    });
+
+    grid.appendChild(tarjeta);
+
+    requestAnimationFrame(function() {
+      const anchoTarjeta = tarjeta.clientWidth || 190;
+      const tamano = Math.max(24, Math.min(tamanoConfigurado, Math.max(42, Math.min(84, Math.floor(anchoTarjeta * 0.42)))));
+      const tamanoTile = Math.max(56, Math.min(anchoTarjeta - 28, tamano + 18));
+      spanIcono.style.setProperty('--config-icon-size', tamano + 'px');
+      spanIcono.style.width = tamanoTile + 'px';
+      spanIcono.style.height = tamanoTile + 'px';
+      spanIcono.style.flexBasis = tamanoTile + 'px';
+    });
+  });
+}
+
+async function cargarConfig() {
+  try {
+    const respuesta = await fetch(CONFIG_ENDPOINT, { cache:'no-cache' });
+    if (respuesta.ok) {
+      configCargada = await respuesta.json();
+    }
+  } catch(e) {}
+  renderizarTarjetas();
+}
+
+function manejarMensaje(evento) {
+  if (evento.origin !== window.location.origin) return;
+  const data = evento.data || {};
+  if (data.type === 'erp-general-config-updated') {
+    if (data.config && typeof data.config === 'object') {
+      configCargada = data.config;
+    } else {
+      cargarConfig();
+      return;
+    }
+    renderizarTarjetas();
+  }
+}
+
+window.addEventListener('message', manejarMensaje);
+document.addEventListener('DOMContentLoaded', cargarConfig);
+if (document.readyState !== 'loading') cargarConfig();
+</script>
+</body>
+</html>

@@ -127,7 +127,6 @@ CREATE TABLE IF NOT EXISTS business_partners (
     allowed_percentage NUMERIC(12,4),
     client_type TEXT,
     creation_date DATE,
-    raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -147,7 +146,6 @@ CREATE TABLE IF NOT EXISTS business_partner_contacts (
     country TEXT,
     state_province TEXT,
     county TEXT,
-    raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -162,7 +160,6 @@ CREATE TABLE IF NOT EXISTS business_partner_addresses (
     district TEXT,
     address_line TEXT,
     zip_code TEXT,
-    raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -220,6 +217,7 @@ CREATE TABLE IF NOT EXISTS maquina (
   factor_tiraje               DECIMAL(10,4) NOT NULL DEFAULT 1,
   factor_montaje_estacion     DECIMAL(10,4) NOT NULL DEFAULT 0,
   factor_preparacion          DECIMAL(10,4) NOT NULL DEFAULT 10,
+  lavado_por_estacion         DECIMAL(12,4) NOT NULL DEFAULT 0,
   macula_default_pies         INT NOT NULL DEFAULT 100,
   factor_tiraje_digital       DECIMAL(10,4),
   especificaciones            JSONB DEFAULT '{}'::jsonb,
@@ -392,7 +390,6 @@ CREATE TABLE IF NOT EXISTS flexo_products (
     length_inches NUMERIC(12,4),
     price_unit NUMERIC(14,4),
     total_price NUMERIC(14,4),
-    raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -438,9 +435,9 @@ CREATE TABLE IF NOT EXISTS costo_general (
   tinta_bcm_generico             DECIMAL(10,4) NOT NULL DEFAULT 2,
   tinta_cobertura_pct            DECIMAL(10,4) NOT NULL DEFAULT 30,
   tinta_densidad                 DECIMAL(10,4) NOT NULL DEFAULT 1.5,
-  tinta_costo_lb_cmyk            DECIMAL(12,4) NOT NULL DEFAULT 25,
-  tinta_costo_lb_blanco          DECIMAL(12,4) NOT NULL DEFAULT 30,
-  tinta_costo_lb_pantone         DECIMAL(12,4) NOT NULL DEFAULT 35,
+  tinta_costo_kg_cmyk             DECIMAL(12,4) NOT NULL DEFAULT 55.1156,
+  tinta_costo_kg_blanco           DECIMAL(12,4) NOT NULL DEFAULT 66.1387,
+  tinta_costo_kg_pantone          DECIMAL(12,4) NOT NULL DEFAULT 77.1618,
   rebobinado_tiempo_montaje      DECIMAL(10,4) NOT NULL DEFAULT 10,
   rebobinado_waste_feet          DECIMAL(10,4) NOT NULL DEFAULT 30,
   rebobinado_waste_pct           DECIMAL(10,4) NOT NULL DEFAULT 0.5,
@@ -484,10 +481,17 @@ CREATE TABLE IF NOT EXISTS quotes (
     email TEXT,
     salesperson_name TEXT,
     phone TEXT,
+    phone_secondary TEXT,
     status TEXT,
     created_on DATE,
     due_on DATE,
-    raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+    clave_solicitud TEXT,
+    exchange_sale NUMERIC(12,4),
+    exchange_buy NUMERIC(12,4),
+    footer_dates TEXT,
+    footer_exchange TEXT,
+    payment_terms_quote TEXT,
+    delivery_time_quote TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -736,17 +740,17 @@ CREATE TABLE IF NOT EXISTS flexo_calculations (
     discount_amount NUMERIC(14,4),
     tax_percent NUMERIC(8,4),
     tax_amount NUMERIC(14,4),
-    consumo_tinta_por_color_lb NUMERIC(14,6),
-    consumo_tinta_total_lb NUMERIC(14,6),
-    costo_tinta_por_libra NUMERIC(14,6),
+    consumo_tinta_por_color_kg NUMERIC(14,6),
+    consumo_tinta_total_kg NUMERIC(14,6),
+    costo_tinta_por_kg NUMERIC(14,6),
     material_tinta_id TEXT,
     cobertura_tinta_pct NUMERIC(8,4),
     bcm_anilox NUMERIC(12,4),
     factor_transferencia NUMERIC(8,6),
     densidad_tinta NUMERIC(8,4),
-    costo_libra_cmyk NUMERIC(14,6),
-    costo_libra_blanco NUMERIC(14,6),
-    costo_libra_pantone NUMERIC(14,6),
+    costo_kg_cmyk NUMERIC(14,6),
+    costo_kg_blanco NUMERIC(14,6),
+    costo_kg_pantone NUMERIC(14,6),
     subtotal_tinta NUMERIC(14,6),
     merma_arranque_pies NUMERIC(14,4),
     merma_tiraje_pies NUMERIC(14,4),
@@ -772,11 +776,10 @@ CREATE TABLE IF NOT EXISTS flexo_calculations (
     barniz_zonificado BOOLEAN DEFAULT false,
     barniz_comentario TEXT,
     barniz_costo_total NUMERIC(14,6),
-    barniz_consumo_kg NUMERIC(14,6),
-    barniz_consumo_lb NUMERIC(14,6),
+barniz_consumo_kg NUMERIC(14,6),
     barniz_tiempo_montaje_min NUMERIC(12,4),
     laminado_material_id TEXT,
-    laminado_costo_por_pie_lineal NUMERIC(14,6),
+    laminado_costo_por_metro_lineal NUMERIC(14,6),
     laminado_tiempo_montaje_min NUMERIC(14,4),
     laminado_comentario TEXT,
     laminado_costo_total NUMERIC(14,6),
@@ -812,6 +815,7 @@ CREATE TABLE IF NOT EXISTS flexo_calculations (
     empaque_adjunto TEXT,
     empaque_horas NUMERIC(12,4),
     empaque_costo_total NUMERIC(14,6),
+    empaque_kg_por_caja NUMERIC(14,4),
     merma_total_pies NUMERIC(14,4),
     merma_total_costo NUMERIC(14,6),
     subtotal_financiero NUMERIC(14,6),
@@ -908,17 +912,17 @@ CREATE TABLE IF NOT EXISTS flexo_orders (
     material_feet NUMERIC(14,4),
     material_msi NUMERIC(14,4),
     material_m2 NUMERIC(14,4),
-    consumo_tinta_por_color_lb NUMERIC(14,6),
-    consumo_tinta_total_lb NUMERIC(14,6),
-    costo_tinta_por_libra NUMERIC(14,6),
+    consumo_tinta_por_color_kg NUMERIC(14,6),
+    consumo_tinta_total_kg NUMERIC(14,6),
+    costo_tinta_por_kg NUMERIC(14,6),
     material_tinta_id TEXT,
     cobertura_tinta_pct NUMERIC(8,4),
     bcm_anilox NUMERIC(12,4),
     factor_transferencia NUMERIC(8,6),
     densidad_tinta NUMERIC(8,4),
-    costo_libra_cmyk NUMERIC(14,6),
-    costo_libra_blanco NUMERIC(14,6),
-    costo_libra_pantone NUMERIC(14,6),
+    costo_kg_cmyk NUMERIC(14,6),
+    costo_kg_blanco NUMERIC(14,6),
+    costo_kg_pantone NUMERIC(14,6),
     subtotal_tinta NUMERIC(14,6),
     merma_arranque_pies NUMERIC(14,4),
     merma_tiraje_pies NUMERIC(14,4),
@@ -944,11 +948,10 @@ CREATE TABLE IF NOT EXISTS flexo_orders (
     barniz_zonificado BOOLEAN DEFAULT false,
     barniz_comentario TEXT,
     barniz_costo_total NUMERIC(14,6),
-    barniz_consumo_kg NUMERIC(14,6),
-    barniz_consumo_lb NUMERIC(14,6),
+barniz_consumo_kg NUMERIC(14,6),
     barniz_tiempo_montaje_min NUMERIC(12,4),
     laminado_material_id TEXT,
-    laminado_costo_por_pie_lineal NUMERIC(14,6),
+    laminado_costo_por_metro_lineal NUMERIC(14,6),
     laminado_tiempo_montaje_min NUMERIC(14,6),
     laminado_comentario TEXT,
     laminado_costo_total NUMERIC(14,6),
@@ -984,6 +987,7 @@ CREATE TABLE IF NOT EXISTS flexo_orders (
     empaque_adjunto TEXT,
     empaque_horas NUMERIC(12,4),
     empaque_costo_total NUMERIC(14,6),
+    empaque_kg_por_caja NUMERIC(14,4),
     merma_total_pies NUMERIC(14,4),
     merma_total_costo NUMERIC(14,6),
     subtotal_financiero NUMERIC(14,6),
@@ -1244,7 +1248,7 @@ CREATE TABLE IF NOT EXISTS production_station_configs (
     order_code TEXT NOT NULL REFERENCES flexo_orders(order_code) ON DELETE CASCADE,
     product_code TEXT,
     machine_name TEXT,
-    slot_number INTEGER NOT NULL CHECK (slot_number >= 1 AND slot_number <= 8),
+    slot_number INTEGER NOT NULL CHECK (slot_number >= 1 AND slot_number <= 10),
     ink_type TEXT NOT NULL DEFAULT 'empty',
     viscosity NUMERIC(8,2),
     temperature NUMERIC(8,2),
@@ -1255,6 +1259,7 @@ CREATE TABLE IF NOT EXISTS production_station_configs (
     barniz_zona TEXT,
     uv_power TEXT,
     uv_temp TEXT,
+    lamp_on BOOLEAN DEFAULT false,
     operator_name TEXT,
     notes TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -1280,7 +1285,7 @@ DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tinta_tipo_pro
 END IF; END $$;
 
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tinta_unidad_medida') THEN
-  CREATE TYPE tintas_unidad_medida AS ENUM ('KG','G','LB','OZ','L','ML','GAL');
+  CREATE TYPE tintas_unidad_medida AS ENUM ('KG','G','OZ','L','ML','GAL');
 END IF; END $$;
 
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tinta_estado_producto') THEN

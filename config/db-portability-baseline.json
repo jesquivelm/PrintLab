@@ -96,26 +96,6 @@
       "postgres_gen_random_uuid": 1,
       "postgres_timestamptz": 2
     },
-    "integrations/exchange-rate-service.js": {
-      "postgres_on_conflict": 2,
-      "postgres_jsonb_cast": 10,
-      "postgres_jsonb_type": 14,
-      "postgres_timestamptz": 8
-    },
-    "integrations/sap-service-layer.js": {
-      "postgres_ilike": 11,
-      "postgres_on_conflict": 8,
-      "postgres_jsonb_cast": 23,
-      "postgres_jsonb_type": 32,
-      "postgres_timestamptz": 16
-    },
-    "integrations/erp-impresion/database/flexo-core-postgres.sql": {
-      "postgres_jsonb_type": 1,
-      "postgres_gen_random_uuid": 12,
-      "postgres_enum_type": 10,
-      "postgres_do_block": 1,
-      "postgres_timestamptz": 27
-    },
     "sql/bootstrap_postgres.sql": {
       "postgres_do_block": 1
     },

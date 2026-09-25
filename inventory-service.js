@@ -9,7 +9,10 @@ const INVENTORY_TYPES = {
     maquinas: 'maquinas',
     procesos: 'procesos',
     tiposSalida: 'tipos-salida',
-    planchas: 'planchas'
+    tiposTrabajo: 'tipos-trabajo',
+    sellos: 'sellos',
+    cilindros: 'cilindros',
+    anilox: 'anilox'
 };
 const TROQUEL_IMAGE_SOURCE_DIR = 'C:\\Users\\jesqu\\Desktop\\Imagenes';
 const TROQUEL_IMAGE_PUBLIC_DIR = path.join(__dirname, 'public', 'uploads', 'troqueles');
@@ -48,11 +51,12 @@ function asNumber(value, fallback = 0) {
         return Number.isFinite(value) ? value : fallback;
     }
 
-    const normalized = String(value)
-        .trim()
-        .replace(/\s+/g, '')
-        .replace(/\.(?=\d{3}(\D|$))/g, '')
-        .replace(',', '.');
+    let normalized = String(value).trim().replace(/\s+/g, '');
+    if (normalized.includes(',')) {
+        // Formato europeo (ej. "1.234,56"): el punto es separador de miles, la coma es el decimal.
+        // Solo se aplica cuando hay coma; un número con punto decimal solo (ej. "0.125") no se debe tocar.
+        normalized = normalized.replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.');
+    }
     const parsed = Number(normalized);
     return Number.isFinite(parsed) ? parsed : fallback;
 }
@@ -191,7 +195,7 @@ function normalizeMaterialFamily(value) {
     if (normalized.includes('foil') || normalized.includes('estamp')) return 'foil';
     if (normalized.includes('core') || normalized.includes('nucleo') || normalized.includes('núcleo')) return 'core';
     if (normalized.includes('tinta')) return 'tinta';
-    if (normalized.includes('plancha') || normalized.includes('cliche') || normalized.includes('cliché') || normalized.includes('fotopol')) return 'plancha';
+    if (normalized.includes('sello') || normalized.includes('cliche') || normalized.includes('cliché') || normalized.includes('fotopol')) return 'sello';
     if (normalized.includes('sustrat') || normalized.includes('papel') || normalized.includes('film') || normalized.includes('bopp') || normalized.includes('pet') || normalized.includes('opp')) return 'sustrato';
     return normalized;
 }
@@ -312,8 +316,8 @@ function mapMachineProcessProfile(value) {
     if (normalized.includes('montadora') || normalized.includes('cliche')) {
         return {
             tipo: 'Convencional',
-            clasificacion: 'planchas',
-            proceso: 'Planchas',
+            clasificacion: 'sellos',
+            proceso: 'Sellos',
             subproceso: 'Montaje de Cliches'
         };
     }
@@ -514,6 +518,9 @@ await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS sustrato_setup_
 await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS sustrato_montaje_merma_cantidad DECIMAL(12,4) DEFAULT 0`);
 await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS sustrato_montaje_merma_unidad VARCHAR(20) DEFAULT 'pies'`);
 await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS sustrato_montaje_merma_base VARCHAR(20) DEFAULT 'trabajo'`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS lavado_por_estacion DECIMAL(12,4) DEFAULT 0`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS volteadora BOOLEAN DEFAULT FALSE`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS volteadora_setup_min DECIMAL(12,4) DEFAULT 30`);
   await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS largo_mm DECIMAL(12,4)`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS costo_x_lamina DECIMAL(12,6)`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS costo_x_libra DECIMAL(12,6)`);
@@ -547,9 +554,51 @@ await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS comentario_anc
   await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS comentario_compatible_convencional TEXT`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS comentario_compatible_digital TEXT`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS comentario_tipo_proforma TEXT`);
+    // Ficha técnica de la goma para estampado (materia prima clasificada "adicionales").
+    // Mismos números que el barniz, pero viven solo en la línea de inventario.
+    await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS goma_cobertura_pct DECIMAL(10,4)`);
+    await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS goma_bcm_anilox DECIMAL(10,4)`);
+    await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS goma_lineatura_anilox DECIMAL(10,4)`);
+    await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS goma_factor_transferencia DECIMAL(10,4)`);
+    await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS goma_densidad DECIMAL(10,4)`);
+    await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS goma_carga_minima_kg DECIMAL(12,6)`);
     await client.query(`ALTER TABLE maquina_capacidad ADD COLUMN IF NOT EXISTS ancho_max_in DECIMAL(10,4)`);
     await client.query(`
-        CREATE TABLE IF NOT EXISTS plancha (
+        CREATE TABLE IF NOT EXISTS maquina_mantenimiento (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            maquina_id UUID NOT NULL REFERENCES maquina(id) ON DELETE CASCADE,
+            frecuencia VARCHAR(20) NOT NULL DEFAULT 'bisemanal',
+            dia_semana INTEGER NOT NULL DEFAULT 1,
+            semana_mes INTEGER NOT NULL DEFAULT 1,
+            fecha_inicio DATE NOT NULL,
+            fecha_fin DATE,
+            duracion_horas NUMERIC(8,2) NOT NULL DEFAULT 5,
+            activo BOOLEAN NOT NULL DEFAULT TRUE,
+            creado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
+            actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
+            CONSTRAINT uq_maquina_mantenimiento UNIQUE (maquina_id),
+            CONSTRAINT ck_maquina_mantenimiento_frecuencia CHECK (frecuencia IN ('semanal', 'bisemanal', 'mensual')),
+            CONSTRAINT ck_maquina_mantenimiento_dia CHECK (dia_semana BETWEEN 1 AND 7),
+            CONSTRAINT ck_maquina_mantenimiento_semana CHECK (semana_mes BETWEEN 1 AND 5)
+        )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_maquina_mantenimiento_maquina ON maquina_mantenimiento(maquina_id)`);
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS maquina_mantenimiento_excepcion (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            maquina_id UUID NOT NULL REFERENCES maquina(id) ON DELETE CASCADE,
+            fecha_original DATE NOT NULL,
+            tipo VARCHAR(20) NOT NULL DEFAULT 'desactivar',
+            fecha_nueva DATE,
+            creado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
+            actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
+            CONSTRAINT uq_maquina_mantenimiento_excepcion UNIQUE (maquina_id, fecha_original),
+            CONSTRAINT ck_maquina_mantenimiento_excepcion_tipo CHECK (tipo IN ('desactivar', 'mover'))
+        )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_maquina_mantenimiento_excepcion_maquina ON maquina_mantenimiento_excepcion(maquina_id, fecha_original)`);
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS sello (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
             codigo VARCHAR(60) NOT NULL,
@@ -583,30 +632,198 @@ await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS comentario_tip
             UNIQUE (tenant_id, codigo)
         )
     `);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_plancha_tenant ON plancha(tenant_id, activo)`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS cliente VARCHAR(200)`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS producto VARCHAR(200)`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS trabajo VARCHAR(200)`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS orden VARCHAR(80)`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS cotizacion VARCHAR(80)`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS tipo VARCHAR(80)`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS marca VARCHAR(120)`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS modelo VARCHAR(120)`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS proveedor VARCHAR(200)`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS alto_mm DECIMAL(10,2) DEFAULT 0`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS espesor_mm DECIMAL(10,4) DEFAULT 0`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS espesor_in VARCHAR(20)`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS costo DECIMAL(12,4) DEFAULT 0`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS estado VARCHAR(40) DEFAULT 'Disponible'`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS usos INT DEFAULT 0`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS vida_util INT DEFAULT 40`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS ubicacion VARCHAR(120)`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS responsable VARCHAR(120)`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS fecha_creacion DATE`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS fecha_ultimo_uso VARCHAR(20) DEFAULT '—'`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS troquel_ref VARCHAR(200)`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS notas TEXT`);
-    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS codigo VARCHAR(60) NOT NULL DEFAULT ''`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_sello_tenant ON sello(tenant_id, activo)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS cliente VARCHAR(200)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS producto VARCHAR(200)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS trabajo VARCHAR(200)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS orden VARCHAR(80)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS cotizacion VARCHAR(80)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS tipo VARCHAR(80)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS marca VARCHAR(120)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS modelo VARCHAR(120)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS proveedor VARCHAR(200)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS alto_mm DECIMAL(10,2) DEFAULT 0`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS espesor_mm DECIMAL(10,4) DEFAULT 0`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS espesor_in VARCHAR(20)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS costo DECIMAL(12,4) DEFAULT 0`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS estado VARCHAR(40) DEFAULT 'Disponible'`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS usos INT DEFAULT 0`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS vida_util INT DEFAULT 40`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS ubicacion VARCHAR(120)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS responsable VARCHAR(120)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS fecha_creacion DATE`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS fecha_ultimo_uso VARCHAR(20) DEFAULT '—'`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS troquel_ref VARCHAR(200)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS notas TEXT`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS codigo VARCHAR(60) NOT NULL DEFAULT ''`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS tecnologia VARCHAR(80)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS dureza_shore NUMERIC(6,2)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS relieve_mm NUMERIC(8,4)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS lineatura_lpi NUMERIC(8,2)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS resolucion_dpi NUMERIC(10,2)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS punto_minimo_pct NUMERIC(6,2)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS tipo_punto VARCHAR(40)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS factor_distorsion NUMERIC(10,6)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS undercut_mm NUMERIC(8,4)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS stickyback_espesor_mm NUMERIC(8,4)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS stickyback_tipo VARCHAR(80)`);
+    await client.query(`ALTER TABLE sello ADD COLUMN IF NOT EXISTS stickyback_dureza VARCHAR(60)`);
+
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS cilindro (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+            codigo VARCHAR(60) NOT NULL,
+            nombre VARCHAR(200),
+            tipo VARCHAR(80),
+            dientes INT NOT NULL DEFAULT 0,
+            paso_in DECIMAL(10,4) NOT NULL DEFAULT 0,
+            paso_mm DECIMAL(10,3) NOT NULL DEFAULT 0,
+            circunferencia_in DECIMAL(10,4) NOT NULL DEFAULT 0,
+            desarrollo_mm DECIMAL(10,2) NOT NULL DEFAULT 0,
+            ancho_util_mm DECIMAL(10,2) NOT NULL DEFAULT 0,
+            ancho_total_mm DECIMAL(10,2) NOT NULL DEFAULT 0,
+            fabricante VARCHAR(120),
+            modelo VARCHAR(120),
+            numero_serie VARCHAR(120),
+            estado VARCHAR(40) NOT NULL DEFAULT 'Disponible',
+            ubicacion VARCHAR(120),
+            fecha_adquisicion DATE,
+            ultimo_mantenimiento VARCHAR(20) DEFAULT '—',
+            notas TEXT,
+            activo BOOLEAN NOT NULL DEFAULT TRUE,
+            creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            actualizado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE (tenant_id, codigo)
+        )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_cilindro_tenant ON cilindro(tenant_id, activo)`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS nombre VARCHAR(200)`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS tipo VARCHAR(80)`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS dientes INT DEFAULT 0`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS paso_in DECIMAL(10,4) DEFAULT 0`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS paso_mm DECIMAL(10,3) DEFAULT 0`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS circunferencia_in DECIMAL(10,4) DEFAULT 0`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS desarrollo_mm DECIMAL(10,2) DEFAULT 0`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS ancho_util_mm DECIMAL(10,2) DEFAULT 0`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS ancho_total_mm DECIMAL(10,2) DEFAULT 0`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS fabricante VARCHAR(120)`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS modelo VARCHAR(120)`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS numero_serie VARCHAR(120)`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS estado VARCHAR(40) DEFAULT 'Disponible'`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS ubicacion VARCHAR(120)`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS fecha_adquisicion DATE`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS ultimo_mantenimiento VARCHAR(20) DEFAULT '—'`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS notas TEXT`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS codigo VARCHAR(60) NOT NULL DEFAULT ''`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS cantidad_cilindros_regulares NUMERIC(10,2) NOT NULL DEFAULT 0`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS cantidad_cilindros_magneticos NUMERIC(10,2) NOT NULL DEFAULT 0`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS cantidad_recibida NUMERIC(10,2)`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS elongacion_pct_config_a NUMERIC(6,2)`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS encogimiento_config_a NUMERIC(10,4)`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS elongacion_pct_config_b NUMERIC(6,2)`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS encogimiento_config_b NUMERIC(10,4)`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS configuracion_a_nombre VARCHAR(120)`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS configuracion_b_nombre VARCHAR(120)`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS sin_existencia BOOLEAN NOT NULL DEFAULT false`);
+    await client.query(`ALTER TABLE cilindro ADD COLUMN IF NOT EXISTS encogimiento DECIMAL(10,4)`);
+
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS cilindro_uso (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+            cilindro_id UUID NOT NULL REFERENCES cilindro(id) ON DELETE CASCADE,
+            orden_produccion_id UUID,
+            orden_codigo TEXT,
+            producto_id UUID,
+            producto_codigo TEXT,
+            motivo_version TEXT,
+            fecha_uso DATE,
+            maquina_id UUID,
+            maquina_nombre TEXT,
+            estacion_numero INTEGER,
+            desarrollo_utilizado_in DECIMAL(12,4),
+            metros_producidos DECIMAL(18,4),
+            metros_procesados DECIMAL(18,4),
+            cantidad_producida DECIMAL(18,4),
+            observaciones TEXT,
+            creado_por BIGINT,
+            creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_cilindro_uso_cilindro ON cilindro_uso(cilindro_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_cilindro_uso_tenant ON cilindro_uso(tenant_id, creado_en)`);
+
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS anilox (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+            codigo VARCHAR(60) NOT NULL,
+            lineatura INT NOT NULL DEFAULT 0,
+            bcm DECIMAL(10,3) NOT NULL DEFAULT 0,
+            ancho_util_mm DECIMAL(10,2),
+            diametro_mm DECIMAL(10,2),
+            longitud_mm DECIMAL(10,2),
+            fabricante VARCHAR(120),
+            tipo_recubrimiento VARCHAR(80),
+            estado VARCHAR(40) NOT NULL DEFAULT 'Disponible',
+            fecha_compra DATE,
+            vida_util DECIMAL(14,2),
+            desgaste DECIMAL(10,2),
+            modelo VARCHAR(120),
+            numero_serie VARCHAR(120),
+            ubicacion VARCHAR(120),
+            ultimo_mantenimiento VARCHAR(20) DEFAULT '—',
+            notas TEXT,
+            activo BOOLEAN NOT NULL DEFAULT TRUE,
+            creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            actualizado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE (tenant_id, codigo)
+        )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_anilox_tenant ON anilox(tenant_id, activo)`);
+    await client.query(`ALTER TABLE anilox ADD COLUMN IF NOT EXISTS lineatura INT NOT NULL DEFAULT 0`);
+    await client.query(`ALTER TABLE anilox ADD COLUMN IF NOT EXISTS bcm DECIMAL(10,3) NOT NULL DEFAULT 0`);
+    await client.query(`ALTER TABLE anilox ADD COLUMN IF NOT EXISTS ancho_util_mm DECIMAL(10,2)`);
+    await client.query(`ALTER TABLE anilox ADD COLUMN IF NOT EXISTS diametro_mm DECIMAL(10,2)`);
+    await client.query(`ALTER TABLE anilox ADD COLUMN IF NOT EXISTS longitud_mm DECIMAL(10,2)`);
+    await client.query(`ALTER TABLE anilox ADD COLUMN IF NOT EXISTS fabricante VARCHAR(120)`);
+    await client.query(`ALTER TABLE anilox ADD COLUMN IF NOT EXISTS tipo_recubrimiento VARCHAR(80)`);
+    await client.query(`ALTER TABLE anilox ADD COLUMN IF NOT EXISTS estado VARCHAR(40) NOT NULL DEFAULT 'Disponible'`);
+    await client.query(`ALTER TABLE anilox ADD COLUMN IF NOT EXISTS fecha_compra DATE`);
+    await client.query(`ALTER TABLE anilox ADD COLUMN IF NOT EXISTS vida_util DECIMAL(14,2)`);
+    await client.query(`ALTER TABLE anilox ADD COLUMN IF NOT EXISTS desgaste DECIMAL(10,2)`);
+    await client.query(`ALTER TABLE anilox ADD COLUMN IF NOT EXISTS modelo VARCHAR(120)`);
+    await client.query(`ALTER TABLE anilox ADD COLUMN IF NOT EXISTS numero_serie VARCHAR(120)`);
+    await client.query(`ALTER TABLE anilox ADD COLUMN IF NOT EXISTS ubicacion VARCHAR(120)`);
+    await client.query(`ALTER TABLE anilox ADD COLUMN IF NOT EXISTS ultimo_mantenimiento VARCHAR(20) DEFAULT '—'`);
+    await client.query(`ALTER TABLE anilox ADD COLUMN IF NOT EXISTS notas TEXT`);
+    await client.query(`ALTER TABLE anilox ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE`);
+
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS anilox_uso (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+            anilox_id UUID NOT NULL REFERENCES anilox(id) ON DELETE CASCADE,
+            orden_produccion_id UUID,
+            orden_codigo TEXT,
+            producto_id UUID,
+            producto_codigo TEXT,
+            motivo_version TEXT,
+            fecha_uso DATE,
+            maquina_id UUID,
+            maquina_nombre TEXT,
+            estacion_numero INTEGER,
+            metros_producidos DECIMAL(18,4),
+            metros_procesados DECIMAL(18,4),
+            cantidad_producida DECIMAL(18,4),
+            observaciones TEXT,
+            creado_por BIGINT,
+            creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_anilox_uso_anilox ON anilox_uso(anilox_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_anilox_uso_tenant ON anilox_uso(tenant_id, creado_en)`);
 
     const tenantId = await getPrimaryTenantId(client);
     await client.query(
@@ -614,8 +831,8 @@ await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS comentario_tip
             tenant_id, codigo, nombre, ancho_mm, largo_mm, costo_x_lamina, tipo_proforma,
             compatible_convencional, compatible_digital, activo
          ) VALUES
-            ($1, 'PL-CYREL-3040', 'Plancha DuPont Cyrel 1000 30 x 40 in', 762, 1016, 50, 'Planchas', true, false, true),
-            ($1, 'PL-CYREL-4260', 'Plancha DuPont Cyrel 1000 42 x 60 in', 1066.8, 1524, 95, 'Planchas', true, false, true)
+            ($1, 'PL-CYREL-3040', 'Sello DuPont Cyrel 1000 30 x 40 in', 762, 1016, 50, 'Sellos', true, false, true),
+            ($1, 'PL-CYREL-4260', 'Sello DuPont Cyrel 1000 42 x 60 in', 1066.8, 1524, 95, 'Sellos', true, false, true)
          ON CONFLICT (tenant_id, codigo) DO UPDATE SET
             nombre = EXCLUDED.nombre,
             ancho_mm = EXCLUDED.ancho_mm,
@@ -675,10 +892,10 @@ await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS comentario_tip
             orden_base: 20
         },
         {
-            codigo: 'PLANCHAS',
-            nombre: 'Planchas',
-            categoria: 'planchas',
-            descripcion: 'Grabado o exposicion de planchas',
+            codigo: 'SELLOS',
+            nombre: 'Sellos',
+            categoria: 'sellos',
+            descripcion: 'Grabado o exposicion de sellos',
             modo_recurso: 'mixto',
             cantidad_personas: 1,
             tiempo_fijo_min: 10,
@@ -858,25 +1075,25 @@ await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS comentario_tip
         );
     }
 
-    const planchaCount = await client.query(
-        `SELECT COUNT(*)::int AS total FROM plancha WHERE tenant_id = $1`,
+    const selloCount = await client.query(
+        `SELECT COUNT(*)::int AS total FROM sello WHERE tenant_id = $1`,
         [tenantId]
     );
 
-    if (planchaCount.rows[0].total === 0) {
-        const planchasDemo = [
-            { codigo: 'PL-2026-0001', descripcion: 'Plancha empaque flexible caja plegadiza cereal 500g, 4 tintas', cliente: 'Empaques del Valle S.A.', producto: 'Caja Cereal FrutiMax 500g', trabajo: 'OT-1145 Impresión Cajas FrutiMax', orden: 'OC-3321', cotizacion: 'COT-2201', tipo: 'Fotopolímero Digital', marca: 'DuPont', modelo: 'Cyrel DPR', proveedor: 'Flexo Insumos CR', ancho_mm: 1067, alto_mm: 762, espesor_mm: 1.70, espesor_in: '.067"', costo: 185.0, estado: 'En uso', usos: 12, vida_util: 40, ubicacion: 'Estante A-3', responsable: 'J. Salas', fecha_creacion: '2025-11-02', fecha_ultimo_uso: '2026-07-14', troquel_ref: 'TRQ-0456 · Caja plegadiza 500g', notas: 'Registrar recubrimiento anti-adherente cada 15 tirajes.' },
-            { codigo: 'PL-2026-0002', descripcion: 'Plancha etiqueta autoadhesiva sleeve, 2 tintas + barniz', cliente: 'Lácteos Monteverde', producto: 'Etiqueta Yogurt Griego 150g', trabajo: 'OT-1150 Etiquetas Línea Griego', orden: 'OC-3327', cotizacion: 'COT-2209', tipo: 'Plancha Sleeve', marca: 'MacDermid', modelo: 'ITP60', proveedor: 'MacDermid Centroamérica', ancho_mm: 520, alto_mm: 340, espesor_mm: 1.14, espesor_in: '.045"', costo: 92.5, estado: 'Disponible', usos: 4, vida_util: 35, ubicacion: 'Estante B-1', responsable: 'M. Rojas', fecha_creacion: '2026-01-14', fecha_ultimo_uso: '2026-05-02', troquel_ref: 'TRQ-0512 · Sleeve 150g', notas: '' },
-            { codigo: 'PL-2026-0003', descripcion: 'Plancha bolsa café molido 340g, 6 tintas alta definición', cliente: 'Café Volcán Export', producto: 'Bolsa Café Molido 340g', trabajo: 'OT-1132 Bolsas Café Reserva', orden: 'OC-3298', cotizacion: 'COT-2154', tipo: 'Fotopolímero Digital', marca: 'Asahi Photoproducts', modelo: 'AWP DEW', proveedor: 'Flexo Insumos CR', ancho_mm: 1200, alto_mm: 900, espesor_mm: 2.84, espesor_in: '.112"', costo: 245.0, estado: 'Dañada', usos: 28, vida_util: 30, ubicacion: 'Estante A-1', responsable: 'J. Salas', fecha_creacion: '2025-08-19', fecha_ultimo_uso: '2026-06-30', troquel_ref: 'TRQ-0388 · Bolsa doypack 340g', notas: 'Corte superficial en zona de arrastre, evaluar reposición.' },
-            { codigo: 'PL-2026-0004', descripcion: 'Plancha caja display promocional, 3 tintas', cliente: 'Snacks La Cosecha', producto: 'Display Papas Artesanales', trabajo: 'OT-1160 Display Punto de Venta', orden: 'OC-3340', cotizacion: 'COT-2233', tipo: 'Fotopolímero Analógico', marca: 'Flint Group', modelo: 'nyloflex FTF', proveedor: 'Grupo Gráfico Andino', ancho_mm: 900, alto_mm: 600, espesor_mm: 1.70, espesor_in: '.067"', costo: 138.0, estado: 'En reparación', usos: 19, vida_util: 35, ubicacion: 'Taller de mantenimiento', responsable: 'M. Rojas', fecha_creacion: '2025-12-05', fecha_ultimo_uso: '2026-06-11', troquel_ref: 'TRQ-0470 · Display piso', notas: 'Pendiente reemplazo de cinta base.' },
-            { codigo: 'PL-2026-0005', descripcion: 'Plancha frasco etiqueta farmacéutica, 2 tintas + código', cliente: 'Farmacéutica BioSalud', producto: 'Etiqueta Jarabe BioTos 120ml', trabajo: 'OT-1170 Etiquetas Lote BioTos', orden: 'OC-3355', cotizacion: 'COT-2260', tipo: 'Fotopolímero Digital', marca: 'DuPont', modelo: 'Cyrel EASY', proveedor: 'Flexo Insumos CR', ancho_mm: 400, alto_mm: 260, espesor_mm: 1.14, espesor_in: '.045"', costo: 76.0, estado: 'Reservada', usos: 0, vida_util: 40, ubicacion: 'Estante B-4', responsable: 'J. Salas', fecha_creacion: '2026-07-02', fecha_ultimo_uso: '—', troquel_ref: 'TRQ-0540 · Etiqueta frasco 120ml', notas: 'Reservada para arranque de producción el 22/07.' },
-            { codigo: 'PL-2026-0006', descripcion: 'Plancha etiqueta botella agua 600ml, 1 tinta', cliente: 'Aguas Puras del Cerro', producto: 'Etiqueta Botella 600ml', trabajo: 'OT-1120 Etiquetas Línea Estándar', orden: 'OC-3270', cotizacion: 'COT-2098', tipo: 'Plancha Sólida', marca: 'Toyobo', modelo: 'Cosmolight QH', proveedor: 'Preprensa Digital S.A.', ancho_mm: 300, alto_mm: 180, espesor_mm: 1.14, espesor_in: '.045"', costo: 48.0, estado: 'Descartada', usos: 62, vida_util: 50, ubicacion: 'Baja de inventario', responsable: 'M. Rojas', fecha_creacion: '2025-03-22', fecha_ultimo_uso: '2026-04-18', troquel_ref: 'TRQ-0290 · Etiqueta cilíndrica 600ml', notas: 'Vida útil superada, sustituida por PL-2026-0009.' },
-            { codigo: 'PL-2026-0007', descripcion: 'Plancha bolsa pan artesanal 400g, 2 tintas', cliente: 'Panificadora San José', producto: 'Bolsa Pan Artesanal 400g', trabajo: 'OT-1155 Bolsas Línea Artesanal', orden: 'OC-3332', cotizacion: 'COT-2219', tipo: 'Fotopolímero Analógico', marca: 'MacDermid', modelo: 'LUX FAH', proveedor: 'MacDermid Centroamérica', ancho_mm: 700, alto_mm: 500, espesor_mm: 1.70, espesor_in: '.067"', costo: 110.0, estado: 'Disponible', usos: 7, vida_util: 35, ubicacion: 'Estante A-2', responsable: 'J. Salas', fecha_creacion: '2026-02-27', fecha_ultimo_uso: '2026-06-20', troquel_ref: 'TRQ-0498 · Bolsa fuelle 400g', notas: '' },
-            { codigo: 'PL-2026-0008', descripcion: 'Plancha caja distribución tropical 1kg, 5 tintas', cliente: 'Distribuidora Tropical', producto: 'Caja Frutas Selectas 1kg', trabajo: 'OT-1140 Cajas Exportación', orden: 'OC-3315', cotizacion: 'COT-2190', tipo: 'Fotopolímero Digital', marca: 'Asahi Photoproducts', modelo: 'AWP DEW', proveedor: 'Grupo Gráfico Andino', ancho_mm: 1300, alto_mm: 950, espesor_mm: 2.84, espesor_in: '.112"', costo: 268.0, estado: 'En uso', usos: 15, vida_util: 30, ubicacion: 'Estante A-4', responsable: 'M. Rojas', fecha_creacion: '2025-10-08', fecha_ultimo_uso: '2026-07-16', troquel_ref: 'TRQ-0421 · Caja exportación 1kg', notas: '' },
+    if (selloCount.rows[0].total === 0) {
+        const sellosDemo = [
+            { codigo: 'PL-2026-0001', descripcion: 'Sello empaque flexible caja plegadiza cereal 500g, 4 tintas', cliente: 'Empaques del Valle S.A.', producto: 'Caja Cereal FrutiMax 500g', trabajo: 'OT-1145 Impresión Cajas FrutiMax', orden: 'OC-3321', cotizacion: 'COT-2201', tipo: 'Fotopolímero Digital', marca: 'DuPont', modelo: 'Cyrel DPR', proveedor: 'Flexo Insumos CR', ancho_mm: 1067, alto_mm: 762, espesor_mm: 1.70, espesor_in: '.067"', costo: 185.0, estado: 'En uso', usos: 12, vida_util: 40, ubicacion: 'Estante A-3', responsable: 'J. Salas', fecha_creacion: '2025-11-02', fecha_ultimo_uso: '2026-07-14', troquel_ref: 'TRQ-0456 · Caja plegadiza 500g', notas: 'Registrar recubrimiento anti-adherente cada 15 tirajes.' },
+            { codigo: 'PL-2026-0002', descripcion: 'Sello etiqueta autoadhesiva sleeve, 2 tintas + barniz', cliente: 'Lácteos Monteverde', producto: 'Etiqueta Yogurt Griego 150g', trabajo: 'OT-1150 Etiquetas Línea Griego', orden: 'OC-3327', cotizacion: 'COT-2209', tipo: 'Sello Sleeve', marca: 'MacDermid', modelo: 'ITP60', proveedor: 'MacDermid Centroamérica', ancho_mm: 520, alto_mm: 340, espesor_mm: 1.14, espesor_in: '.045"', costo: 92.5, estado: 'Disponible', usos: 4, vida_util: 35, ubicacion: 'Estante B-1', responsable: 'M. Rojas', fecha_creacion: '2026-01-14', fecha_ultimo_uso: '2026-05-02', troquel_ref: 'TRQ-0512 · Sleeve 150g', notas: '' },
+            { codigo: 'PL-2026-0003', descripcion: 'Sello bolsa café molido 340g, 6 tintas alta definición', cliente: 'Café Volcán Export', producto: 'Bolsa Café Molido 340g', trabajo: 'OT-1132 Bolsas Café Reserva', orden: 'OC-3298', cotizacion: 'COT-2154', tipo: 'Fotopolímero Digital', marca: 'Asahi Photoproducts', modelo: 'AWP DEW', proveedor: 'Flexo Insumos CR', ancho_mm: 1200, alto_mm: 900, espesor_mm: 2.84, espesor_in: '.112"', costo: 245.0, estado: 'Dañada', usos: 28, vida_util: 30, ubicacion: 'Estante A-1', responsable: 'J. Salas', fecha_creacion: '2025-08-19', fecha_ultimo_uso: '2026-06-30', troquel_ref: 'TRQ-0388 · Bolsa doypack 340g', notas: 'Corte superficial en zona de arrastre, evaluar reposición.' },
+            { codigo: 'PL-2026-0004', descripcion: 'Sello caja display promocional, 3 tintas', cliente: 'Snacks La Cosecha', producto: 'Display Papas Artesanales', trabajo: 'OT-1160 Display Punto de Venta', orden: 'OC-3340', cotizacion: 'COT-2233', tipo: 'Fotopolímero Analógico', marca: 'Flint Group', modelo: 'nyloflex FTF', proveedor: 'Grupo Gráfico Andino', ancho_mm: 900, alto_mm: 600, espesor_mm: 1.70, espesor_in: '.067"', costo: 138.0, estado: 'En reparación', usos: 19, vida_util: 35, ubicacion: 'Taller de mantenimiento', responsable: 'M. Rojas', fecha_creacion: '2025-12-05', fecha_ultimo_uso: '2026-06-11', troquel_ref: 'TRQ-0470 · Display piso', notas: 'Pendiente reemplazo de cinta base.' },
+            { codigo: 'PL-2026-0005', descripcion: 'Sello frasco etiqueta farmacéutica, 2 tintas + código', cliente: 'Farmacéutica BioSalud', producto: 'Etiqueta Jarabe BioTos 120ml', trabajo: 'OT-1170 Etiquetas Lote BioTos', orden: 'OC-3355', cotizacion: 'COT-2260', tipo: 'Fotopolímero Digital', marca: 'DuPont', modelo: 'Cyrel EASY', proveedor: 'Flexo Insumos CR', ancho_mm: 400, alto_mm: 260, espesor_mm: 1.14, espesor_in: '.045"', costo: 76.0, estado: 'Reservada', usos: 0, vida_util: 40, ubicacion: 'Estante B-4', responsable: 'J. Salas', fecha_creacion: '2026-07-02', fecha_ultimo_uso: '—', troquel_ref: 'TRQ-0540 · Etiqueta frasco 120ml', notas: 'Reservada para arranque de producción el 22/07.' },
+            { codigo: 'PL-2026-0006', descripcion: 'Sello etiqueta botella agua 600ml, 1 tinta', cliente: 'Aguas Puras del Cerro', producto: 'Etiqueta Botella 600ml', trabajo: 'OT-1120 Etiquetas Línea Estándar', orden: 'OC-3270', cotizacion: 'COT-2098', tipo: 'Sello Sólida', marca: 'Toyobo', modelo: 'Cosmolight QH', proveedor: 'Preprensa Digital S.A.', ancho_mm: 300, alto_mm: 180, espesor_mm: 1.14, espesor_in: '.045"', costo: 48.0, estado: 'Descartada', usos: 62, vida_util: 50, ubicacion: 'Baja de inventario', responsable: 'M. Rojas', fecha_creacion: '2025-03-22', fecha_ultimo_uso: '2026-04-18', troquel_ref: 'TRQ-0290 · Etiqueta cilíndrica 600ml', notas: 'Vida útil superada, sustituida por PL-2026-0009.' },
+            { codigo: 'PL-2026-0007', descripcion: 'Sello bolsa pan artesanal 400g, 2 tintas', cliente: 'Panificadora San José', producto: 'Bolsa Pan Artesanal 400g', trabajo: 'OT-1155 Bolsas Línea Artesanal', orden: 'OC-3332', cotizacion: 'COT-2219', tipo: 'Fotopolímero Analógico', marca: 'MacDermid', modelo: 'LUX FAH', proveedor: 'MacDermid Centroamérica', ancho_mm: 700, alto_mm: 500, espesor_mm: 1.70, espesor_in: '.067"', costo: 110.0, estado: 'Disponible', usos: 7, vida_util: 35, ubicacion: 'Estante A-2', responsable: 'J. Salas', fecha_creacion: '2026-02-27', fecha_ultimo_uso: '2026-06-20', troquel_ref: 'TRQ-0498 · Bolsa fuelle 400g', notas: '' },
+            { codigo: 'PL-2026-0008', descripcion: 'Sello caja distribución tropical 1kg, 5 tintas', cliente: 'Distribuidora Tropical', producto: 'Caja Frutas Selectas 1kg', trabajo: 'OT-1140 Cajas Exportación', orden: 'OC-3315', cotizacion: 'COT-2190', tipo: 'Fotopolímero Digital', marca: 'Asahi Photoproducts', modelo: 'AWP DEW', proveedor: 'Grupo Gráfico Andino', ancho_mm: 1300, alto_mm: 950, espesor_mm: 2.84, espesor_in: '.112"', costo: 268.0, estado: 'En uso', usos: 15, vida_util: 30, ubicacion: 'Estante A-4', responsable: 'M. Rojas', fecha_creacion: '2025-10-08', fecha_ultimo_uso: '2026-07-16', troquel_ref: 'TRQ-0421 · Caja exportación 1kg', notas: '' },
         ];
-        for (const p of planchasDemo) {
+        for (const p of sellosDemo) {
             await client.query(
-                `INSERT INTO plancha (tenant_id, codigo, descripcion, cliente, producto, trabajo, orden, cotizacion, tipo, marca, modelo, proveedor, ancho_mm, alto_mm, espesor_mm, espesor_in, costo, estado, usos, vida_util, ubicacion, responsable, fecha_creacion, fecha_ultimo_uso, troquel_ref, notas, activo)
+                `INSERT INTO sello (tenant_id, codigo, descripcion, cliente, producto, trabajo, orden, cotizacion, tipo, marca, modelo, proveedor, ancho_mm, alto_mm, espesor_mm, espesor_in, costo, estado, usos, vida_util, ubicacion, responsable, fecha_creacion, fecha_ultimo_uso, troquel_ref, notas, activo)
                  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,true)
                  ON CONFLICT (tenant_id, codigo) DO UPDATE SET actualizado_en = NOW()`,
                 [tenantId, p.codigo, p.descripcion, p.cliente, p.producto, p.trabajo, p.orden, p.cotizacion, p.tipo, p.marca, p.modelo, p.proveedor, p.ancho_mm, p.alto_mm, p.espesor_mm, p.espesor_in, p.costo, p.estado, p.usos, p.vida_util, p.ubicacion, p.responsable, p.fecha_creacion, p.fecha_ultimo_uso, p.troquel_ref, p.notas]
@@ -909,6 +1126,12 @@ async function listMaterials({ q = '', limit = 300 } = {}) {
             costo_x_unidad,
             costo_x_pie,
             costo_x_metro,
+            goma_cobertura_pct,
+            goma_bcm_anilox,
+            goma_lineatura_anilox,
+            goma_factor_transferencia,
+            goma_densidad,
+            goma_carga_minima_kg,
             merma_pct,
             rendimiento_g_ft2,
             temperatura_aplicacion_c,
@@ -945,6 +1168,9 @@ async function listMaterials({ q = '', limit = 300 } = {}) {
             OR COALESCE(clasificacion, '') ILIKE $1
             OR COALESCE(familia_proceso, '') ILIKE $1
             OR COALESCE(tipo_proforma, '') ILIKE $1
+            OR COALESCE(gramaje_g_m2::text, '') ILIKE $1
+            OR COALESCE(ancho_mm::text, '') ILIKE $1
+            OR COALESCE(largo_mm::text, '') ILIKE $1
          ORDER BY nombre, codigo
          LIMIT $2`,
         [search, cappedLimit]
@@ -1009,7 +1235,15 @@ async function listTroqueles({ q = '', limit = 300 } = {}) {
              OR codigo ILIKE $1
              OR COALESCE(descripcion, '') ILIKE $1
              OR COALESCE(estado, '') ILIKE $1
-         ORDER BY codigo
+             OR COALESCE(clasificacion, '') ILIKE $1
+             OR COALESCE(ancho_mm::text, '') ILIKE $1
+             OR COALESCE(largo_mm::text, '') ILIKE $1
+             OR COALESCE(desarrollo_cm::text, '') ILIKE $1
+             OR COALESCE(cantidad_filas::text, '') ILIKE $1
+             OR COALESCE(dientes::text, '') ILIKE $1
+             OR COALESCE(repeticiones::text, '') ILIKE $1
+             OR COALESCE(proveedor_troquel, '') ILIKE $1
+          ORDER BY codigo
          LIMIT $2`,
         [search, cappedLimit]
     );
@@ -1118,10 +1352,13 @@ async function listMaquinas({ q = '', limit = 300 } = {}) {
             m.sustrato_setup_merma_cantidad,
             m.sustrato_setup_merma_unidad,
             m.sustrato_setup_merma_base,
-            m.sustrato_montaje_merma_cantidad,
-            m.sustrato_montaje_merma_unidad,
-            m.sustrato_montaje_merma_base,
-            m.creado_en AS created_at,
+    m.sustrato_montaje_merma_cantidad,
+    m.sustrato_montaje_merma_unidad,
+    m.sustrato_montaje_merma_base,
+    m.lavado_por_estacion,
+    m.volteadora,
+    m.volteadora_setup_min,
+    m.creado_en AS created_at,
             COALESCE(m.especificaciones, '{}'::jsonb) AS especificaciones,
             COALESCE(
                 json_agg(
@@ -1183,7 +1420,11 @@ async function listMaquinas({ q = '', limit = 300 } = {}) {
             espec_num_cabezales: espec.num_cabezales ?? '',
             espec_tinta_base: espec.tinta_base ?? '',
             espec_resolucion_dpi: espec.resolucion_dpi ?? '',
+            espec_lpi: espec.lpi ?? '',
             espec_velocidad_max_fpm: espec.velocidad_max_fpm ?? '',
+            espec_velocidad_min_fpm: espec.velocidad_min_fpm ?? '',
+            espec_paso_engranaje_troquel_in: espec.paso_engranaje_troquel_in ?? '',
+            espec_paso_engranaje_troquel_mm: espec.paso_engranaje_troquel_mm ?? '',
             espec_ancho_banda_max_mm: espec.ancho_banda_max_mm ?? '',
             espec_troquel: espec.troquel ?? '',
             espec_uv: espec.uv ?? '',
@@ -1200,7 +1441,7 @@ async function listMaquinas({ q = '', limit = 300 } = {}) {
     });
 }
 
-async function listPlanchas({ q = '', limit = 300 } = {}) {
+async function listSellos({ q = '', limit = 300 } = {}) {
     const search = `%${String(q || '').trim()}%`;
     const cappedLimit = Math.min(Math.max(Number(limit) || 300, 1), 5000);
     const result = await pgQuery(
@@ -1231,9 +1472,21 @@ async function listPlanchas({ q = '', limit = 300 } = {}) {
             fecha_ultimo_uso,
             troquel_ref,
             notas,
+            tecnologia,
+            dureza_shore,
+            relieve_mm,
+            lineatura_lpi,
+            resolucion_dpi,
+            punto_minimo_pct,
+            tipo_punto,
+            factor_distorsion,
+            undercut_mm,
+            stickyback_espesor_mm,
+            stickyback_tipo,
+            stickyback_dureza,
             activo,
             creado_en AS created_at
-         FROM plancha
+         FROM sello
          WHERE $1 = '%%'
             OR codigo ILIKE $1
             OR COALESCE(cliente, '') ILIKE $1
@@ -1243,6 +1496,99 @@ async function listPlanchas({ q = '', limit = 300 } = {}) {
             OR COALESCE(marca, '') ILIKE $1
             OR COALESCE(estado, '') ILIKE $1
          ORDER BY codigo
+         LIMIT $2`,
+        [search, cappedLimit]
+    );
+    return result.rows;
+}
+
+async function listCilindros({ q = '', limit = 300 } = {}) {
+    const search = `%${String(q || '').trim()}%`;
+    const cappedLimit = Math.min(Math.max(Number(limit) || 300, 1), 5000);
+    const result = await pgQuery(
+        `SELECT
+            id::text,
+            codigo,
+            nombre,
+            tipo,
+            dientes,
+            paso_in,
+            paso_mm,
+            circunferencia_in,
+            desarrollo_mm,
+            ancho_util_mm,
+            ancho_total_mm,
+            fabricante,
+            modelo,
+            numero_serie,
+            estado,
+            ubicacion,
+            fecha_adquisicion,
+            ultimo_mantenimiento,
+            notas,
+            cantidad_cilindros_regulares,
+            cantidad_cilindros_magneticos,
+            cantidad_recibida,
+            encogimiento,
+            elongacion_pct_config_a,
+            encogimiento_config_a,
+            elongacion_pct_config_b,
+            encogimiento_config_b,
+            configuracion_a_nombre,
+            configuracion_b_nombre,
+            sin_existencia,
+            activo,
+            creado_en AS created_at
+         FROM cilindro
+         WHERE $1 = '%%'
+            OR codigo ILIKE $1
+            OR COALESCE(nombre, '') ILIKE $1
+            OR COALESCE(tipo, '') ILIKE $1
+            OR COALESCE(fabricante, '') ILIKE $1
+            OR COALESCE(modelo, '') ILIKE $1
+            OR COALESCE(numero_serie, '') ILIKE $1
+            OR COALESCE(estado, '') ILIKE $1
+         ORDER BY codigo
+         LIMIT $2`,
+        [search, cappedLimit]
+    );
+    return result.rows;
+}
+
+async function listAnilox({ q = '', limit = 300 } = {}) {
+    const search = `%${String(q || '').trim()}%`;
+    const cappedLimit = Math.min(Math.max(Number(limit) || 300, 1), 5000);
+    const result = await pgQuery(
+        `SELECT
+            id::text,
+            codigo,
+            lineatura,
+            bcm,
+            ancho_util_mm,
+            diametro_mm,
+            longitud_mm,
+            fabricante,
+            tipo_recubrimiento,
+            estado,
+            fecha_compra,
+            vida_util,
+            desgaste,
+            modelo,
+            numero_serie,
+            ubicacion,
+            ultimo_mantenimiento,
+            notas,
+            activo,
+            creado_en AS created_at
+         FROM anilox
+         WHERE $1 = '%%'
+            OR codigo ILIKE $1
+            OR COALESCE(fabricante, '') ILIKE $1
+            OR COALESCE(modelo, '') ILIKE $1
+            OR COALESCE(numero_serie, '') ILIKE $1
+            OR COALESCE(tipo_recubrimiento, '') ILIKE $1
+            OR COALESCE(estado, '') ILIKE $1
+         ORDER BY lineatura, bcm, codigo
          LIMIT $2`,
         [search, cappedLimit]
     );
@@ -1322,13 +1668,39 @@ async function listOutputTypes({ q = '', limit = 300 } = {}) {
         .slice(0, cappedLimit);
 }
 
+async function listTiposTrabajo({ q = '', limit = 300 } = {}) {
+    const search = normalizeText(q);
+    const cappedLimit = Math.min(Math.max(Number(limit) || 300, 1), 5000);
+    const result = await pgQuery(
+        `SELECT id::text, codigo, nombre, descripcion, activo, created_at
+           FROM tipotrabajo
+          WHERE ($1 = '' OR LOWER(codigo) LIKE '%' || $1 || '%'
+                     OR LOWER(nombre) LIKE '%' || $1 || '%'
+                     OR LOWER(descripcion) LIKE '%' || $1 || '%')
+          ORDER BY codigo
+          LIMIT $2`,
+        [search, cappedLimit]
+    );
+    return result.rows.map((row) => ({
+        id: row.id,
+        codigo: asText(row.codigo),
+        nombre: asText(row.nombre),
+        descripcion: asText(row.descripcion),
+        activo: asBoolean(row.activo, true),
+        created_at: row.created_at || ''
+    }));
+}
+
 async function listInventory(kind, options = {}) {
     if (kind === INVENTORY_TYPES.materiales) return listMaterials(options);
     if (kind === INVENTORY_TYPES.troqueles) return listTroqueles(options);
     if (kind === INVENTORY_TYPES.maquinas) return listMaquinas(options);
     if (kind === INVENTORY_TYPES.procesos) return listProcesos(options);
     if (kind === INVENTORY_TYPES.tiposSalida) return listOutputTypes(options);
-    if (kind === INVENTORY_TYPES.planchas) return listPlanchas(options);
+    if (kind === INVENTORY_TYPES.tiposTrabajo) return listTiposTrabajo(options);
+    if (kind === INVENTORY_TYPES.sellos) return listSellos(options);
+    if (kind === INVENTORY_TYPES.cilindros) return listCilindros(options);
+    if (kind === INVENTORY_TYPES.anilox) return listAnilox(options);
     throw new Error('Tipo de inventario no soportado.');
 }
 
@@ -1381,7 +1753,13 @@ async function saveMaterial(payload) {
             asBoolean(payload.compatible_convencional, true),
             asBoolean(payload.compatible_digital, true),
             asText(payload.tipo_proforma),
-            asBoolean(payload.activo, true)
+            asBoolean(payload.activo, true),
+            asNullableNumber(payload.goma_cobertura_pct),
+            asNullableNumber(payload.goma_bcm_anilox),
+            asNullableNumber(payload.goma_lineatura_anilox),
+            asNullableNumber(payload.goma_factor_transferencia),
+            asNullableNumber(payload.goma_densidad),
+            asNullableNumber(payload.goma_carga_minima_kg)
         ];
 
         if (!values[1] || !values[2]) {
@@ -1436,6 +1814,12 @@ async function saveMaterial(payload) {
                         compatible_digital = $44,
                         tipo_proforma = $45,
                         activo = $46,
+                        goma_cobertura_pct = $47,
+                        goma_bcm_anilox = $48,
+                        goma_lineatura_anilox = $49,
+                        goma_factor_transferencia = $50,
+                        goma_densidad = $51,
+                        goma_carga_minima_kg = $52,
                         actualizado_en = NOW()
                   WHERE id = $1::uuid
                   RETURNING id::text`,
@@ -1459,9 +1843,10 @@ async function saveMaterial(payload) {
                 comentario_costo_x_lamina, comentario_costo_x_msi, comentario_costo_x_m2, comentario_costo_x_kg,
                 comentario_costo_x_libra, comentario_peso_capa_gsm, comentario_rendimiento_g_ft2,
                 comentario_compatible_convencional, comentario_compatible_digital, comentario_tipo_proforma,
-                compatible_convencional, compatible_digital, tipo_proforma, activo
+                compatible_convencional, compatible_digital, tipo_proforma, activo,
+                goma_cobertura_pct, goma_bcm_anilox, goma_lineatura_anilox, goma_factor_transferencia, goma_densidad, goma_carga_minima_kg
              ) VALUES (
-                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52
              )
              ON CONFLICT (tenant_id, codigo) DO UPDATE SET
                 nombre = EXCLUDED.nombre,
@@ -1508,6 +1893,12 @@ async function saveMaterial(payload) {
                 compatible_digital = EXCLUDED.compatible_digital,
                 tipo_proforma = EXCLUDED.tipo_proforma,
                 activo = EXCLUDED.activo,
+                goma_cobertura_pct = EXCLUDED.goma_cobertura_pct,
+                goma_bcm_anilox = EXCLUDED.goma_bcm_anilox,
+                goma_lineatura_anilox = EXCLUDED.goma_lineatura_anilox,
+                goma_factor_transferencia = EXCLUDED.goma_factor_transferencia,
+                goma_densidad = EXCLUDED.goma_densidad,
+                goma_carga_minima_kg = EXCLUDED.goma_carga_minima_kg,
                 actualizado_en = NOW()
              RETURNING id::text`,
             values
@@ -1760,6 +2151,9 @@ async function saveMachine(payload) {
             asNumber(payload.sustrato_montaje_merma_cantidad, 0),
             asText(payload.sustrato_montaje_merma_unidad || 'pies'),
             asText(payload.sustrato_montaje_merma_base || 'trabajo'),
+            asNumber(payload.lavado_por_estacion, 0),
+            asBoolean(payload.volteadora, false),
+            asNumber(payload.volteadora_setup_min, 30),
             payload.especificaciones || {}
         ];
 
@@ -1824,7 +2218,10 @@ async function saveMachine(payload) {
                         sustrato_montaje_merma_cantidad = $37,
                         sustrato_montaje_merma_unidad = $38,
                         sustrato_montaje_merma_base = $39,
-                        especificaciones = $40::jsonb,
+                        lavado_por_estacion = $40,
+                        volteadora = $41,
+                        volteadora_setup_min = $42,
+                        especificaciones = $43::jsonb,
                         actualizado_en = NOW()
                   WHERE id = $1::uuid
                   RETURNING id::text`,
@@ -1846,9 +2243,9 @@ async function saveMachine(payload) {
                     digital_factor_merma, digital_costo_lavado_especial, digital_premier_modo, digital_premier_setup_min,
                     digital_premier_costo_mantenimiento, digital_premier_costo_offline_m, sustrato_consumo_unidad,
                     sustrato_setup_merma_cantidad, sustrato_setup_merma_unidad, sustrato_setup_merma_base,
-                    sustrato_montaje_merma_cantidad, sustrato_montaje_merma_unidad, sustrato_montaje_merma_base, especificaciones
+                    sustrato_montaje_merma_cantidad, sustrato_montaje_merma_unidad, sustrato_montaje_merma_base, lavado_por_estacion, volteadora, volteadora_setup_min, especificaciones
                  ) VALUES (
-                    $1,$2,$3,$4,$5::proceso_productivo,$6,$7,$11,$12,$13,$14,$15,$16,$8,$9,$10,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40::jsonb
+                    $1,$2,$3,$4,$5::proceso_productivo,$6,$7,$11,$12,$13,$14,$15,$16,$8,$9,$10,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43::jsonb
                  )
                  RETURNING id::text`,
                 machineValues
@@ -1896,7 +2293,7 @@ async function saveMachine(payload) {
     });
 }
 
-async function savePlancha(payload) {
+async function saveSello(payload) {
     return withTransaction(async (client) => {
         const tenantId = await getPrimaryTenantId(client);
         const values = [
@@ -1926,16 +2323,28 @@ async function savePlancha(payload) {
             asText(payload.fecha_ultimo_uso || '—'),
             asText(payload.troquel_ref),
             asText(payload.notas),
-            asBoolean(payload.activo, true)
+            asBoolean(payload.activo, true),
+            asText(payload.tecnologia),
+            payload.dureza_shore === '' || payload.dureza_shore == null ? null : asNumber(payload.dureza_shore, 0),
+            payload.relieve_mm === '' || payload.relieve_mm == null ? null : asNumber(payload.relieve_mm, 0),
+            payload.lineatura_lpi === '' || payload.lineatura_lpi == null ? null : asNumber(payload.lineatura_lpi, 0),
+            payload.resolucion_dpi === '' || payload.resolucion_dpi == null ? null : asNumber(payload.resolucion_dpi, 0),
+            payload.punto_minimo_pct === '' || payload.punto_minimo_pct == null ? null : asNumber(payload.punto_minimo_pct, 0),
+            asText(payload.tipo_punto),
+            payload.factor_distorsion === '' || payload.factor_distorsion == null ? null : asNumber(payload.factor_distorsion, 0),
+            payload.undercut_mm === '' || payload.undercut_mm == null ? null : asNumber(payload.undercut_mm, 0),
+            payload.stickyback_espesor_mm === '' || payload.stickyback_espesor_mm == null ? null : asNumber(payload.stickyback_espesor_mm, 0),
+            asText(payload.stickyback_tipo),
+            asText(payload.stickyback_dureza)
         ];
 
         if (!values[1]) {
-            throw new Error('El código de plancha es obligatorio.');
+            throw new Error('El código de sello es obligatorio.');
         }
 
         if (payload.id) {
             const result = await client.query(
-                `UPDATE plancha
+                `UPDATE sello
                     SET codigo = $2,
                         descripcion = $3,
                         cliente = $4,
@@ -1962,26 +2371,41 @@ async function savePlancha(payload) {
                         troquel_ref = $25,
                         notas = $26,
                         activo = $27,
+                        tecnologia = $28,
+                        dureza_shore = $29,
+                        relieve_mm = $30,
+                        lineatura_lpi = $31,
+                        resolucion_dpi = $32,
+                        punto_minimo_pct = $33,
+                        tipo_punto = $34,
+                        factor_distorsion = $35,
+                        undercut_mm = $36,
+                        stickyback_espesor_mm = $37,
+                        stickyback_tipo = $38,
+                        stickyback_dureza = $39,
                         actualizado_en = NOW()
                   WHERE id = $1::uuid
                   RETURNING id::text`,
                 [payload.id, ...values.slice(1)]
             );
             if (!result.rows.length) {
-                throw new Error('No se encontró la plancha a actualizar.');
+                throw new Error('No se encontró el sello a actualizar.');
             }
             return result.rows[0].id;
         }
 
         const result = await client.query(
-            `INSERT INTO plancha (
+            `INSERT INTO sello (
                 tenant_id, codigo, descripcion, cliente, producto, trabajo, orden, cotizacion,
                 tipo, marca, modelo, proveedor, ancho_mm, alto_mm, espesor_mm, espesor_in,
                 costo, estado, usos, vida_util, ubicacion, responsable,
-                fecha_creacion, fecha_ultimo_uso, troquel_ref, notas, activo
+                fecha_creacion, fecha_ultimo_uso, troquel_ref, notas, activo,
+                tecnologia, dureza_shore, relieve_mm, lineatura_lpi, resolucion_dpi,
+                punto_minimo_pct, tipo_punto, factor_distorsion, undercut_mm,
+                stickyback_espesor_mm, stickyback_tipo, stickyback_dureza
              ) VALUES (
                 $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
-                $21,$22,$23,$24,$25,$26,$27
+                $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39
              )
              ON CONFLICT (tenant_id, codigo) DO UPDATE SET
                 descripcion = EXCLUDED.descripcion,
@@ -2007,6 +2431,268 @@ async function savePlancha(payload) {
                 fecha_creacion = EXCLUDED.fecha_creacion,
                 fecha_ultimo_uso = EXCLUDED.fecha_ultimo_uso,
                 troquel_ref = EXCLUDED.troquel_ref,
+                notas = EXCLUDED.notas,
+                activo = EXCLUDED.activo,
+                tecnologia = EXCLUDED.tecnologia,
+                dureza_shore = EXCLUDED.dureza_shore,
+                relieve_mm = EXCLUDED.relieve_mm,
+                lineatura_lpi = EXCLUDED.lineatura_lpi,
+                resolucion_dpi = EXCLUDED.resolucion_dpi,
+                punto_minimo_pct = EXCLUDED.punto_minimo_pct,
+                tipo_punto = EXCLUDED.tipo_punto,
+                factor_distorsion = EXCLUDED.factor_distorsion,
+                undercut_mm = EXCLUDED.undercut_mm,
+                stickyback_espesor_mm = EXCLUDED.stickyback_espesor_mm,
+                stickyback_tipo = EXCLUDED.stickyback_tipo,
+                stickyback_dureza = EXCLUDED.stickyback_dureza,
+                actualizado_en = NOW()
+             RETURNING id::text`,
+            values
+        );
+        return result.rows[0].id;
+    });
+}
+
+async function saveCilindro(payload) {
+    return withTransaction(async (client) => {
+        const tenantId = await getPrimaryTenantId(client);
+        const values = [
+            tenantId,
+            asText(payload.codigo),
+            asText(payload.nombre),
+            asText(payload.tipo),
+            Math.max(0, Math.round(asNumber(payload.dientes, 0))),
+            asNumber(payload.paso_in, 0),
+            asNumber(payload.paso_mm, 0),
+            asNumber(payload.circunferencia_in, 0),
+            asNumber(payload.desarrollo_mm, 0),
+            asNumber(payload.ancho_util_mm, 0),
+            asNumber(payload.ancho_total_mm, 0),
+            asText(payload.fabricante),
+            asText(payload.modelo),
+            asText(payload.numero_serie),
+            asText(payload.estado || 'Disponible'),
+            asText(payload.ubicacion),
+            payload.fecha_adquisicion || null,
+            asText(payload.ultimo_mantenimiento || '—'),
+            asText(payload.notas),
+            asNumber(payload.cantidad_cilindros_regulares, 0),
+            asNumber(payload.cantidad_cilindros_magneticos, 0),
+            payload.cantidad_recibida === '' || payload.cantidad_recibida === undefined || payload.cantidad_recibida === null
+                ? null
+                : asNumber(payload.cantidad_recibida, 0),
+            payload.elongacion_pct_config_a === '' || payload.elongacion_pct_config_a === undefined || payload.elongacion_pct_config_a === null
+                ? null
+                : asNumber(payload.elongacion_pct_config_a, 0),
+            payload.encogimiento_config_a === '' || payload.encogimiento_config_a === undefined || payload.encogimiento_config_a === null
+                ? null
+                : asNumber(payload.encogimiento_config_a, 0),
+            payload.elongacion_pct_config_b === '' || payload.elongacion_pct_config_b === undefined || payload.elongacion_pct_config_b === null
+                ? null
+                : asNumber(payload.elongacion_pct_config_b, 0),
+            payload.encogimiento_config_b === '' || payload.encogimiento_config_b === undefined || payload.encogimiento_config_b === null
+                ? null
+                : asNumber(payload.encogimiento_config_b, 0),
+            asText(payload.configuracion_a_nombre),
+            asText(payload.configuracion_b_nombre),
+            asBoolean(payload.sin_existencia, false),
+            asBoolean(payload.activo, true),
+            payload.encogimiento === '' || payload.encogimiento === undefined || payload.encogimiento === null
+                ? null
+                : asNumber(payload.encogimiento, 0)
+        ];
+
+        if (!values[1] && !payload.id) {
+            values[1] = await generarCodigoCilindro(client, tenantId, values[3], values[4]);
+        }
+        if (!values[1]) {
+            throw new Error('El código de cilindro es obligatorio.');
+        }
+
+        if (payload.id) {
+            const result = await client.query(
+                `UPDATE cilindro
+                    SET codigo = $2,
+                        nombre = $3,
+                        tipo = $4,
+                        dientes = $5,
+                        paso_in = $6,
+                        paso_mm = $7,
+                        circunferencia_in = $8,
+                        desarrollo_mm = $9,
+                        ancho_util_mm = $10,
+                        ancho_total_mm = $11,
+                        fabricante = $12,
+                        modelo = $13,
+                        numero_serie = $14,
+                        estado = $15,
+                        ubicacion = $16,
+                        fecha_adquisicion = $17,
+                        ultimo_mantenimiento = $18,
+                        notas = $19,
+                        cantidad_cilindros_regulares = $20,
+                        cantidad_cilindros_magneticos = $21,
+                        cantidad_recibida = $22,
+                        elongacion_pct_config_a = $23,
+                        encogimiento_config_a = $24,
+                        elongacion_pct_config_b = $25,
+                        encogimiento_config_b = $26,
+                        configuracion_a_nombre = $27,
+                        configuracion_b_nombre = $28,
+                        sin_existencia = $29,
+                        activo = $30,
+                        encogimiento = $31,
+                        actualizado_en = NOW()
+                  WHERE id = $1::uuid
+                  RETURNING id::text`,
+                [payload.id, ...values.slice(1)]
+            );
+            if (!result.rows.length) {
+                throw new Error('No se encontró el cilindro a actualizar.');
+            }
+            return result.rows[0].id;
+        }
+
+        const result = await client.query(
+            `INSERT INTO cilindro (
+                tenant_id, codigo, nombre, tipo, dientes, paso_in, paso_mm, circunferencia_in,
+                desarrollo_mm, ancho_util_mm, ancho_total_mm, fabricante, modelo, numero_serie,
+                estado, ubicacion, fecha_adquisicion, ultimo_mantenimiento, notas,
+                cantidad_cilindros_regulares, cantidad_cilindros_magneticos, cantidad_recibida,
+                elongacion_pct_config_a, encogimiento_config_a, elongacion_pct_config_b, encogimiento_config_b,
+                configuracion_a_nombre, configuracion_b_nombre, sin_existencia, activo, encogimiento
+             ) VALUES (
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
+                $20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31
+             )
+             ON CONFLICT (tenant_id, codigo) DO UPDATE SET
+                nombre = EXCLUDED.nombre,
+                tipo = EXCLUDED.tipo,
+                dientes = EXCLUDED.dientes,
+                paso_in = EXCLUDED.paso_in,
+                paso_mm = EXCLUDED.paso_mm,
+                circunferencia_in = EXCLUDED.circunferencia_in,
+                desarrollo_mm = EXCLUDED.desarrollo_mm,
+                ancho_util_mm = EXCLUDED.ancho_util_mm,
+                ancho_total_mm = EXCLUDED.ancho_total_mm,
+                fabricante = EXCLUDED.fabricante,
+                modelo = EXCLUDED.modelo,
+                numero_serie = EXCLUDED.numero_serie,
+                estado = EXCLUDED.estado,
+                ubicacion = EXCLUDED.ubicacion,
+                fecha_adquisicion = EXCLUDED.fecha_adquisicion,
+                ultimo_mantenimiento = EXCLUDED.ultimo_mantenimiento,
+                notas = EXCLUDED.notas,
+                cantidad_cilindros_regulares = EXCLUDED.cantidad_cilindros_regulares,
+                cantidad_cilindros_magneticos = EXCLUDED.cantidad_cilindros_magneticos,
+                cantidad_recibida = EXCLUDED.cantidad_recibida,
+                elongacion_pct_config_a = EXCLUDED.elongacion_pct_config_a,
+                encogimiento_config_a = EXCLUDED.encogimiento_config_a,
+                elongacion_pct_config_b = EXCLUDED.elongacion_pct_config_b,
+                encogimiento_config_b = EXCLUDED.encogimiento_config_b,
+                configuracion_a_nombre = EXCLUDED.configuracion_a_nombre,
+                configuracion_b_nombre = EXCLUDED.configuracion_b_nombre,
+                sin_existencia = EXCLUDED.sin_existencia,
+                activo = EXCLUDED.activo,
+                encogimiento = EXCLUDED.encogimiento,
+                actualizado_en = NOW()
+             RETURNING id::text`,
+            values
+        );
+        return result.rows[0].id;
+    });
+}
+
+async function saveAnilox(payload) {
+    return withTransaction(async (client) => {
+        const tenantId = await getPrimaryTenantId(client);
+        const lineatura = Math.max(0, Math.round(asNumber(payload.lineatura, 0)));
+        const bcm = asNumber(payload.bcm, 0);
+        const values = [
+            tenantId,
+            asText(payload.codigo),
+            lineatura,
+            bcm,
+            asNullableNumber(payload.ancho_util_mm),
+            asNullableNumber(payload.diametro_mm),
+            asNullableNumber(payload.longitud_mm),
+            asText(payload.fabricante),
+            asText(payload.tipo_recubrimiento),
+            asText(payload.estado || 'Disponible'),
+            payload.fecha_compra || null,
+            asNullableNumber(payload.vida_util),
+            asNullableNumber(payload.desgaste),
+            asText(payload.modelo),
+            asText(payload.numero_serie),
+            asText(payload.ubicacion),
+            asText(payload.ultimo_mantenimiento || '—'),
+            asText(payload.notas),
+            asBoolean(payload.activo, true)
+        ];
+
+        if (!values[1] && !payload.id) {
+            values[1] = await generarCodigoAnilox(client, tenantId, lineatura, bcm);
+        }
+        if (!values[1]) {
+            throw new Error('El código del anilox es obligatorio.');
+        }
+
+        if (payload.id) {
+            const result = await client.query(
+                `UPDATE anilox
+                    SET codigo = $2,
+                        lineatura = $3,
+                        bcm = $4,
+                        ancho_util_mm = $5,
+                        diametro_mm = $6,
+                        longitud_mm = $7,
+                        fabricante = $8,
+                        tipo_recubrimiento = $9,
+                        estado = $10,
+                        fecha_compra = $11,
+                        vida_util = $12,
+                        desgaste = $13,
+                        modelo = $14,
+                        numero_serie = $15,
+                        ubicacion = $16,
+                        ultimo_mantenimiento = $17,
+                        notas = $18,
+                        activo = $19,
+                        actualizado_en = NOW()
+                  WHERE id = $1::uuid
+                  RETURNING id::text`,
+                [payload.id, ...values.slice(1)]
+            );
+            if (!result.rows.length) {
+                throw new Error('No se encontró el anilox a actualizar.');
+            }
+            return result.rows[0].id;
+        }
+
+        const result = await client.query(
+            `INSERT INTO anilox (
+                tenant_id, codigo, lineatura, bcm, ancho_util_mm, diametro_mm, longitud_mm,
+                fabricante, tipo_recubrimiento, estado, fecha_compra, vida_util, desgaste,
+                modelo, numero_serie, ubicacion, ultimo_mantenimiento, notas, activo
+             ) VALUES (
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
+             )
+             ON CONFLICT (tenant_id, codigo) DO UPDATE SET
+                lineatura = EXCLUDED.lineatura,
+                bcm = EXCLUDED.bcm,
+                ancho_util_mm = EXCLUDED.ancho_util_mm,
+                diametro_mm = EXCLUDED.diametro_mm,
+                longitud_mm = EXCLUDED.longitud_mm,
+                fabricante = EXCLUDED.fabricante,
+                tipo_recubrimiento = EXCLUDED.tipo_recubrimiento,
+                estado = EXCLUDED.estado,
+                fecha_compra = EXCLUDED.fecha_compra,
+                vida_util = EXCLUDED.vida_util,
+                desgaste = EXCLUDED.desgaste,
+                modelo = EXCLUDED.modelo,
+                numero_serie = EXCLUDED.numero_serie,
+                ubicacion = EXCLUDED.ubicacion,
+                ultimo_mantenimiento = EXCLUDED.ultimo_mantenimiento,
                 notas = EXCLUDED.notas,
                 activo = EXCLUDED.activo,
                 actualizado_en = NOW()
@@ -2155,7 +2841,10 @@ async function saveInventory(kind, payload) {
     if (kind === INVENTORY_TYPES.maquinas) return saveMachine(payload);
     if (kind === INVENTORY_TYPES.procesos) return saveProceso(payload);
     if (kind === INVENTORY_TYPES.tiposSalida) return saveOutputType(payload);
-    if (kind === INVENTORY_TYPES.planchas) return savePlancha(payload);
+    if (kind === INVENTORY_TYPES.tiposTrabajo) return saveTipotrabajo(payload);
+    if (kind === INVENTORY_TYPES.sellos) return saveSello(payload);
+    if (kind === INVENTORY_TYPES.cilindros) return saveCilindro(payload);
+    if (kind === INVENTORY_TYPES.anilox) return saveAnilox(payload);
     throw new Error('Tipo de inventario no soportado.');
 }
 
@@ -2220,21 +2909,219 @@ async function deleteMachine(id) {
     });
 }
 
-async function deletePlancha(id) {
-    const planchaId = asText(id);
-    if (!planchaId) {
-        throw new Error('Debes indicar la plancha a eliminar.');
+async function deleteSello(id) {
+    const selloId = asText(id);
+    if (!selloId) {
+        throw new Error('Debes indicar el sello a eliminar.');
     }
     return withTransaction(async (client) => {
         const result = await client.query(
-            `DELETE FROM plancha
+            `DELETE FROM sello
               WHERE id = $1::uuid
               RETURNING id::text, codigo`,
-            [planchaId]
+            [selloId]
         );
         if (!result.rows.length) {
-            throw new Error('No se encontró la plancha a eliminar.');
+            throw new Error('No se encontró el sello a eliminar.');
         }
+        return result.rows[0];
+    });
+}
+
+async function deleteCilindro(id) {
+    const cilindroId = asText(id);
+    if (!cilindroId) {
+        throw new Error('Debes indicar el cilindro a eliminar.');
+    }
+    return withTransaction(async (client) => {
+        const result = await client.query(
+            `DELETE FROM cilindro
+              WHERE id = $1::uuid
+              RETURNING id::text, codigo`,
+            [cilindroId]
+        );
+        if (!result.rows.length) {
+            throw new Error('No se encontró el cilindro a eliminar.');
+        }
+        return result.rows[0];
+    });
+}
+
+async function deleteAnilox(id) {
+    const aniloxId = asText(id);
+    if (!aniloxId) {
+        throw new Error('Debes indicar el anilox a eliminar.');
+    }
+    return withTransaction(async (client) => {
+        const result = await client.query(
+            `DELETE FROM anilox
+              WHERE id = $1::uuid
+              RETURNING id::text, codigo`,
+            [aniloxId]
+        );
+        if (!result.rows.length) {
+            throw new Error('No se encontró el anilox a eliminar.');
+        }
+        return result.rows[0];
+    });
+}
+
+async function listAniloxUso(aniloxId) {
+    const id = asText(aniloxId);
+    if (!id) throw new Error('Debes indicar el anilox.');
+    const result = await pgQuery(
+        `SELECT
+            u.id::text,
+            u.anilox_id::text,
+            u.orden_produccion_id::text,
+            u.orden_codigo,
+            u.producto_id::text,
+            u.producto_codigo,
+            u.motivo_version,
+            u.fecha_uso,
+            u.maquina_id::text,
+            u.maquina_nombre,
+            u.estacion_numero,
+            u.metros_producidos,
+            u.metros_procesados,
+            u.cantidad_producida,
+            u.observaciones,
+            u.creado_por,
+            u.creado_en
+         FROM anilox_uso u
+         WHERE u.anilox_id = $1::uuid
+         ORDER BY COALESCE(u.fecha_uso, u.creado_en::date) DESC, u.creado_en DESC`,
+        [id]
+    );
+    const totales = await pgQuery(
+        `SELECT
+            COUNT(*)::int AS trabajos,
+            COALESCE(SUM(metros_producidos), 0) AS metros_producidos,
+            COALESCE(SUM(metros_procesados), 0) AS metros_procesados,
+            COALESCE(SUM(cantidad_producida), 0) AS cantidad_producida,
+            MAX(COALESCE(fecha_uso, creado_en::date)) AS ultimo_uso
+         FROM anilox_uso
+         WHERE anilox_id = $1::uuid`,
+        [id]
+    );
+    return { items: result.rows, totales: totales.rows[0] };
+}
+
+async function saveAniloxUso(aniloxId, payload = {}) {
+    const id = asText(aniloxId);
+    if (!id) throw new Error('Debes indicar el anilox.');
+    return withTransaction(async (client) => {
+        const tenantId = await getPrimaryTenantId(client);
+        const existe = await client.query(`SELECT id FROM anilox WHERE id = $1::uuid AND tenant_id = $2`, [id, tenantId]);
+        if (!existe.rows.length) throw new Error('No se encontró el anilox.');
+        const result = await client.query(
+            `INSERT INTO anilox_uso (
+                tenant_id, anilox_id, orden_produccion_id, orden_codigo, producto_id, producto_codigo,
+                motivo_version, fecha_uso, maquina_id, maquina_nombre, estacion_numero,
+                metros_producidos, metros_procesados, cantidad_producida,
+                observaciones, creado_por
+             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+             RETURNING id::text`,
+            [
+                tenantId, id,
+                payload.orden_produccion_id || null,
+                asText(payload.orden_codigo) || null,
+                payload.producto_id || null,
+                asText(payload.producto_codigo) || null,
+                asText(payload.motivo_version) || null,
+                payload.fecha_uso || null,
+                payload.maquina_id || null,
+                asText(payload.maquina_nombre) || null,
+                payload.estacion_numero === '' || payload.estacion_numero === undefined || payload.estacion_numero === null
+                    ? null : Math.round(asNumber(payload.estacion_numero, 0)),
+                asNullableNumber(payload.metros_producidos),
+                asNullableNumber(payload.metros_procesados),
+                asNullableNumber(payload.cantidad_producida),
+                asText(payload.observaciones) || null,
+                payload.creado_por || null
+            ]
+        );
+        return result.rows[0];
+    });
+}
+
+async function listCilindroUso(cilindroId) {
+    const id = asText(cilindroId);
+    if (!id) throw new Error('Debes indicar el cilindro.');
+    const result = await pgQuery(
+        `SELECT
+            u.id::text,
+            u.cilindro_id::text,
+            u.orden_produccion_id::text,
+            u.orden_codigo,
+            u.producto_id::text,
+            u.producto_codigo,
+            u.motivo_version,
+            u.fecha_uso,
+            u.maquina_id::text,
+            u.maquina_nombre,
+            u.estacion_numero,
+            u.desarrollo_utilizado_in,
+            u.metros_producidos,
+            u.metros_procesados,
+            u.cantidad_producida,
+            u.observaciones,
+            u.creado_por,
+            u.creado_en
+         FROM cilindro_uso u
+         WHERE u.cilindro_id = $1::uuid
+         ORDER BY COALESCE(u.fecha_uso, u.creado_en::date) DESC, u.creado_en DESC`,
+        [id]
+    );
+    const totales = await pgQuery(
+        `SELECT
+            COUNT(*)::int AS trabajos,
+            COALESCE(SUM(metros_producidos), 0) AS metros_producidos,
+            COALESCE(SUM(metros_procesados), 0) AS metros_procesados,
+            COALESCE(SUM(cantidad_producida), 0) AS cantidad_producida,
+            MAX(COALESCE(fecha_uso, creado_en::date)) AS ultimo_uso
+         FROM cilindro_uso
+         WHERE cilindro_id = $1::uuid`,
+        [id]
+    );
+    return { items: result.rows, totales: totales.rows[0] };
+}
+
+async function saveCilindroUso(cilindroId, payload = {}) {
+    const id = asText(cilindroId);
+    if (!id) throw new Error('Debes indicar el cilindro.');
+    return withTransaction(async (client) => {
+        const tenantId = await getPrimaryTenantId(client);
+        const existe = await client.query(`SELECT id FROM cilindro WHERE id = $1::uuid AND tenant_id = $2`, [id, tenantId]);
+        if (!existe.rows.length) throw new Error('No se encontró el cilindro.');
+        const result = await client.query(
+            `INSERT INTO cilindro_uso (
+                tenant_id, cilindro_id, orden_produccion_id, orden_codigo, producto_id, producto_codigo,
+                motivo_version, fecha_uso, maquina_id, maquina_nombre, estacion_numero,
+                desarrollo_utilizado_in, metros_producidos, metros_procesados, cantidad_producida,
+                observaciones, creado_por
+             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+             RETURNING id::text`,
+            [
+                tenantId, id,
+                payload.orden_produccion_id || null,
+                asText(payload.orden_codigo) || null,
+                payload.producto_id || null,
+                asText(payload.producto_codigo) || null,
+                asText(payload.motivo_version) || null,
+                payload.fecha_uso || null,
+                payload.maquina_id || null,
+                asText(payload.maquina_nombre) || null,
+                payload.estacion_numero === '' || payload.estacion_numero === undefined || payload.estacion_numero === null
+                    ? null : Math.round(asNumber(payload.estacion_numero, 0)),
+                asNullableNumber(payload.desarrollo_utilizado_in),
+                asNullableNumber(payload.metros_producidos),
+                asNullableNumber(payload.metros_procesados),
+                asNullableNumber(payload.cantidad_producida),
+                asText(payload.observaciones) || null,
+                payload.creado_por || null
+            ]
+        );
         return result.rows[0];
     });
 }
@@ -2242,7 +3129,10 @@ async function deletePlancha(id) {
 async function deleteInventory(kind, id) {
     if (kind === INVENTORY_TYPES.materiales) return deleteMaterial(id);
     if (kind === INVENTORY_TYPES.maquinas) return deleteMachine(id);
-    if (kind === INVENTORY_TYPES.planchas) return deletePlancha(id);
+    if (kind === INVENTORY_TYPES.sellos) return deleteSello(id);
+    if (kind === INVENTORY_TYPES.cilindros) return deleteCilindro(id);
+    if (kind === INVENTORY_TYPES.anilox) return deleteAnilox(id);
+    if (kind === INVENTORY_TYPES.tiposTrabajo) return deleteTipotrabajo(id);
     throw new Error('El borrado no está disponible para este tipo de inventario.');
 }
 
@@ -2270,6 +3160,69 @@ async function saveOutputType(payload) {
     return normalized.id;
 }
 
+async function saveTipotrabajo(payload) {
+    const codigo = asText(payload.codigo).trim();
+    const nombre = asText(payload.nombre || codigo).trim();
+    if (!codigo || !nombre) {
+        throw new Error('Código y nombre son obligatorios en tipo de trabajo.');
+    }
+
+    return withTransaction(async (client) => {
+        const tenantId = await getPrimaryTenantId(client);
+
+        if (payload.id) {
+            const result = await client.query(
+                `UPDATE tipotrabajo
+                    SET codigo = $3,
+                        nombre = $4,
+                        descripcion = $5,
+                        activo = $6,
+                        actualizado_en = NOW()
+                  WHERE id = $1::uuid
+                    AND tenant_id = $2
+                  RETURNING id::text`,
+                [payload.id, tenantId, codigo, nombre, asText(payload.descripcion), asBoolean(payload.activo, true)]
+            );
+            if (!result.rows.length) {
+                throw new Error('No se encontró el tipo de trabajo a actualizar.');
+            }
+            return result.rows[0].id;
+        }
+
+        const result = await client.query(
+            `INSERT INTO tipotrabajo (tenant_id, codigo, nombre, descripcion, activo)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (tenant_id, codigo) DO UPDATE SET
+                nombre = EXCLUDED.nombre,
+                descripcion = EXCLUDED.descripcion,
+                activo = EXCLUDED.activo,
+                actualizado_en = NOW()
+             RETURNING id::text`,
+            [tenantId, codigo, nombre, asText(payload.descripcion), asBoolean(payload.activo, true)]
+        );
+        return result.rows[0].id;
+    });
+}
+
+async function deleteTipotrabajo(id) {
+    const trabajoId = asText(id);
+    if (!trabajoId) {
+        throw new Error('Debes indicar el tipo de trabajo a eliminar.');
+    }
+    return withTransaction(async (client) => {
+        const result = await client.query(
+            `DELETE FROM tipotrabajo
+              WHERE id = $1::uuid
+              RETURNING id::text, codigo, nombre`,
+            [trabajoId]
+        );
+        if (!result.rows.length) {
+            throw new Error('No se encontró el tipo de trabajo a eliminar.');
+        }
+        return result.rows[0];
+    });
+}
+
 function parseWorkbook(buffer) {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const firstSheet = workbook.SheetNames[0];
@@ -2286,7 +3239,7 @@ function mapMaterialRow(row) {
         largo_mm: asNullableNumber(pickValue(index, 'largo_mm', 'largo mm', 'largo')),
         gramaje_g_m2: asNullableNumber(pickValue(index, 'gramaje_g_m2', 'gramaje', 'gramaje g m2')),
         calibre_micras: asNullableNumber(pickValue(index, 'calibre_micras', 'calibre')),
-        costo_x_lamina: asNullableNumber(pickValue(index, 'costo_x_lamina', 'costo lamina', 'costo por lamina', 'precio lamina', 'costo lamina plancha')),
+        costo_x_lamina: asNullableNumber(pickValue(index, 'costo_x_lamina', 'costo lamina', 'costo por lamina', 'precio lamina', 'costo lamina sello')),
         costo_x_msi: asNumber(pickValue(index, 'costo_x_msi', 'costo msi', 'precio por msi', 'precio msi')),
         costo_x_m2: asNumber(pickValue(index, 'costo_x_m2', 'costo m2', 'precio por m2')),
         costo_x_kg: asNumber(pickValue(index, 'costo_x_kg', 'costo kg', 'precio por kg')),
@@ -2448,17 +3401,17 @@ function mapOutputTypeRow(row) {
     };
 }
 
-function mapPlanchaRow(row) {
+function mapSelloRow(row) {
     const index = buildRowIndex(row);
     return {
-        codigo: asText(pickValue(index, 'codigo', 'codigo plancha', 'id plancha')),
-        descripcion: asText(pickValue(index, 'descripcion', 'descripcion plancha')),
+        codigo: asText(pickValue(index, 'codigo', 'codigo sello', 'id sello')),
+        descripcion: asText(pickValue(index, 'descripcion', 'descripcion sello')),
         cliente: asText(pickValue(index, 'cliente', 'cliente')),
         producto: asText(pickValue(index, 'producto')),
         trabajo: asText(pickValue(index, 'trabajo', 'ot', 'orden trabajo')),
         orden: asText(pickValue(index, 'orden', 'oc', 'orden compra')),
         cotizacion: asText(pickValue(index, 'cotizacion', 'cotización', 'cot')),
-        tipo: asText(pickValue(index, 'tipo', 'tipo plancha')),
+        tipo: asText(pickValue(index, 'tipo', 'tipo sello')),
         marca: asText(pickValue(index, 'marca')),
         modelo: asText(pickValue(index, 'modelo')),
         proveedor: asText(pickValue(index, 'proveedor')),
@@ -2467,16 +3420,174 @@ function mapPlanchaRow(row) {
         espesor_mm: asNumber(pickValue(index, 'espesor_mm', 'espesor mm')),
         espesor_in: asText(pickValue(index, 'espesor_in', 'espesor in')),
         costo: asNumber(pickValue(index, 'costo', 'costo usd')),
-        estado: asText(pickValue(index, 'estado', 'estado plancha'), 'Disponible'),
-        usos: Math.max(0, Math.round(asNumber(pickValue(index, 'usos', 'usos plancha'), 0))),
+        estado: asText(pickValue(index, 'estado', 'estado sello'), 'Disponible'),
+        usos: Math.max(0, Math.round(asNumber(pickValue(index, 'usos', 'usos sello'), 0))),
         vida_util: Math.max(0, Math.round(asNumber(pickValue(index, 'vida_util', 'vida util'), 40))),
-        ubicacion: asText(pickValue(index, 'ubicacion', 'ubicacion plancha')),
+        ubicacion: asText(pickValue(index, 'ubicacion', 'ubicacion sello')),
         responsable: asText(pickValue(index, 'responsable')),
         fecha_creacion: asText(pickValue(index, 'fecha_creacion', 'fecha creacion')),
         fecha_ultimo_uso: asText(pickValue(index, 'fecha_ultimo_uso', 'fecha ultimo uso'), '—'),
         troquel_ref: asText(pickValue(index, 'troquel_ref', 'troquel referencia', 'troquel ref')),
-        notas: asText(pickValue(index, 'notas', 'observaciones', 'notas plancha')),
+        notas: asText(pickValue(index, 'notas', 'observaciones', 'notas sello')),
+        tecnologia: asText(pickValue(index, 'tecnologia', 'tecnología')),
+        dureza_shore: asNumber(pickValue(index, 'dureza_shore', 'dureza shore', 'shore')),
+        relieve_mm: asNumber(pickValue(index, 'relieve_mm', 'relieve mm', 'relieve')),
+        lineatura_lpi: asNumber(pickValue(index, 'lineatura_lpi', 'lineatura lpi', 'lineatura')),
+        resolucion_dpi: asNumber(pickValue(index, 'resolucion_dpi', 'resolucion dpi', 'resolucion')),
+        punto_minimo_pct: asNumber(pickValue(index, 'punto_minimo_pct', 'punto minimo', 'minimo punto', 'min dot')),
+        tipo_punto: asText(pickValue(index, 'tipo_punto', 'tipo punto', 'forma punto', 'dot shape')),
+        factor_distorsion: asNumber(pickValue(index, 'factor_distorsion', 'factor distorsion', 'distorsion', 'k factor')),
+        undercut_mm: asNumber(pickValue(index, 'undercut_mm', 'undercut mm', 'undercut')),
+        stickyback_espesor_mm: asNumber(pickValue(index, 'stickyback_espesor_mm', 'stickyback espesor', 'espesor stickyback')),
+        stickyback_tipo: asText(pickValue(index, 'stickyback_tipo', 'stickyback tipo', 'tipo stickyback')),
+        stickyback_dureza: asText(pickValue(index, 'stickyback_dureza', 'stickyback dureza', 'dureza stickyback', 'cushion')),
         activo: asBoolean(pickValue(index, 'activo'), true)
+    };
+}
+
+function prefijoCilindro(tipo) {
+    const t = normalizeText(tipo);
+    if (t.startsWith('magnet') || t === 'm') return 'M';
+    return 'R';
+}
+
+function formatoCodigoCilindro(prefijo, dientes, correlativo) {
+    return `CIL-${prefijo}-${dientes}-${String(correlativo).padStart(3, '0')}`;
+}
+
+async function generarCodigoCilindro(client, tenantId, tipo, dientes) {
+    const prefijo = prefijoCilindro(tipo);
+    const dientesInt = Math.max(0, Math.round(asNumber(dientes, 0)));
+    if (!dientesInt) {
+        throw new Error('No se puede generar el código del cilindro sin la cantidad de dientes.');
+    }
+    const { rows } = await client.query(
+        `SELECT codigo FROM cilindro WHERE tenant_id = $1 AND codigo LIKE $2`,
+        [tenantId, `CIL-${prefijo}-${dientesInt}-%`]
+    );
+    let max = 0;
+    for (const r of rows) {
+        const m = /-(\d{3,})$/.exec(String(r.codigo || ''));
+        if (m) max = Math.max(max, parseInt(m[1], 10));
+    }
+    return formatoCodigoCilindro(prefijo, dientesInt, max + 1);
+}
+
+function formatoBcmCodigo(bcm) {
+    const n = asNumber(bcm, 0);
+    const s = (Math.round(n * 1000) / 1000).toString();
+    return s.replace('.', ',');
+}
+
+function formatoCodigoAnilox(lineatura, bcm, correlativo) {
+    return `ANI-${lineatura}-${formatoBcmCodigo(bcm)}-${String(correlativo).padStart(2, '0')}`;
+}
+
+async function generarCodigoAnilox(client, tenantId, lineatura, bcm) {
+    const lineaturaInt = Math.max(0, Math.round(asNumber(lineatura, 0)));
+    if (!lineaturaInt) {
+        throw new Error('No se puede generar el código del anilox sin la lineatura.');
+    }
+    const bcmStr = formatoBcmCodigo(bcm);
+    const { rows } = await client.query(
+        `SELECT codigo FROM anilox WHERE tenant_id = $1 AND codigo LIKE $2`,
+        [tenantId, `ANI-${lineaturaInt}-${bcmStr}-%`]
+    );
+    let max = 0;
+    for (const r of rows) {
+        const m = /-(\d{2,})$/.exec(String(r.codigo || ''));
+        if (m) max = Math.max(max, parseInt(m[1], 10));
+    }
+    return formatoCodigoAnilox(lineaturaInt, bcm, max + 1);
+}
+
+function mapAniloxRow(row) {
+    const index = buildRowIndex(row);
+    return {
+        codigo: asText(pickValue(index, 'codigo', 'id', 'codigo anilox')),
+        lineatura: Math.max(0, Math.round(asNumber(pickValue(index, 'lineatura', 'lineatura', 'lpi'), 0))),
+        bcm: asNumber(pickValue(index, 'bcm', 'volumen', 'volumen bcm'), 0),
+        ancho_util_mm: asNullableNumber(pickValue(index, 'ancho_util_mm', 'ancho util', 'ancho util mm', 'usable width')),
+        diametro_mm: asNullableNumber(pickValue(index, 'diametro_mm', 'diametro', 'diameter')),
+        longitud_mm: asNullableNumber(pickValue(index, 'longitud_mm', 'longitud', 'largo', 'length')),
+        fabricante: asText(pickValue(index, 'fabricante', 'manufacturer')),
+        tipo_recubrimiento: asText(pickValue(index, 'tipo_recubrimiento', 'tipo de recubrimiento', 'recubrimiento', 'coating')),
+        estado: asText(pickValue(index, 'estado', 'status'), 'Disponible'),
+        fecha_compra: asText(pickValue(index, 'fecha_compra', 'fecha de compra', 'purchase date')),
+        vida_util: asNullableNumber(pickValue(index, 'vida_util', 'vida util', 'vida util anilox', 'life')),
+        desgaste: asNullableNumber(pickValue(index, 'desgaste', 'wear')),
+        modelo: asText(pickValue(index, 'modelo', 'model')),
+        numero_serie: asText(pickValue(index, 'numero_serie', 'numero de serie', 'serial number')),
+        ubicacion: asText(pickValue(index, 'ubicacion', 'location')),
+        ultimo_mantenimiento: asText(pickValue(index, 'ultimo_mantenimiento', 'ultimo mantenimiento', 'last maintenance'), '—'),
+        notas: asText(pickValue(index, 'notas', 'observaciones', 'notes')),
+        activo: asBoolean(pickValue(index, 'activo'), true)
+    };
+}
+
+// Valor de encogimiento fuera del rango físico razonable (mm) => en la fuente
+// perdió el separador decimal (familia 123 dientes: 380635 -> 380.635).
+function corregirEncogimientoImportado(value) {
+    if (value === null || typeof value === 'undefined' || value === '') {
+        return { valor: null, corregido: false, original: null };
+    }
+    const original = value;
+    let num = asNumber(value, null);
+    if (num === null) return { valor: null, corregido: false, original };
+    let corregido = false;
+    while (num >= 100000) {
+        num = num / 1000;
+        corregido = true;
+    }
+    return { valor: num, corregido, original };
+}
+
+function elongacionImportada(value) {
+    if (value === null || typeof value === 'undefined' || value === '') return null;
+    return asNumber(String(value).replace('%', ''), null);
+}
+
+function mapCilindroRow(row) {
+    const index = buildRowIndex(row);
+    const dientes = Math.max(0, Math.round(asNumber(pickValue(index, 'dientes', 'numero de dientes', 'teeth'), 0)));
+    const encA = corregirEncogimientoImportado(pickValue(index, 'encogimiento_1', 'encogimiento_config_a', 'encogimiento a'));
+    const encB = corregirEncogimientoImportado(pickValue(index, 'encogimiento_2', 'encogimiento_config_b', 'encogimiento b'));
+    const avisos = [];
+    if (encA.corregido) avisos.push(`ENCOGIMIENTO config A en la fuente venía sin separador decimal (${encA.original}); normalizado a ${encA.valor}.`);
+    if (encB.corregido) avisos.push(`ENCOGIMIENTO config B en la fuente venía sin separador decimal (${encB.original}); normalizado a ${encB.valor}.`);
+    const notasFuente = asText(pickValue(index, 'notas', 'observaciones', 'notes'));
+    return {
+        codigo: asText(pickValue(index, 'codigo', 'codigo cilindro', 'id')),
+        nombre: asText(pickValue(index, 'nombre')),
+        tipo: asText(pickValue(index, 'tipo', 'tipo de cilindro', 'tipo cilindro')),
+        dientes,
+        paso_in: asNullableNumber(pickValue(index, 'paso_in', 'paso', 'pitch')),
+        paso_mm: asNullableNumber(pickValue(index, 'paso_mm', 'paso mm')),
+        circunferencia_in: asNullableNumber(pickValue(index, 'circunferencia_in', 'circunferencia', 'circumference', 'pulgadas')),
+        desarrollo_mm: asNullableNumber(pickValue(index, 'desarrollo_mm', 'desarrollo', 'repeat', 'mm')),
+        ancho_util_mm: asNullableNumber(pickValue(index, 'ancho_util_mm', 'ancho util', 'usable width')),
+        ancho_total_mm: asNullableNumber(pickValue(index, 'ancho_total_mm', 'ancho total', 'total width')),
+        fabricante: asText(pickValue(index, 'fabricante', 'manufacturer')),
+        modelo: asText(pickValue(index, 'modelo', 'model')),
+        numero_serie: asText(pickValue(index, 'numero_serie', 'numero de serie', 'serial number')),
+        estado: asText(pickValue(index, 'estado', 'status'), 'Disponible'),
+        ubicacion: asText(pickValue(index, 'ubicacion', 'location')),
+        fecha_adquisicion: asText(pickValue(index, 'fecha_adquisicion', 'fecha de adquisicion', 'acquisition date')),
+        ultimo_mantenimiento: asText(pickValue(index, 'ultimo_mantenimiento', 'ultimo mantenimiento', 'last maintenance'), '—'),
+        notas: [notasFuente, ...avisos].filter(Boolean).join(' '),
+        encogimiento: asNullableNumber(pickValue(index, 'encogimiento', 'encogimiento suministrado', 'encogimiento base')),
+        cantidad_cilindros_regulares: asNumber(pickValue(index, 'cantidad_cilindros_regulares', 'cantidad cilindros regulares', 'cantidad regulares'), 0),
+        cantidad_cilindros_magneticos: asNumber(pickValue(index, 'cantidad_cilindros_magneticos', 'cantidad cilindros magneticos', 'cantidad magneticos'), 0),
+        cantidad_recibida: asNullableNumber(pickValue(index, 'cantidad_recibida', 'cantidad recibida')),
+        elongacion_pct_config_a: elongacionImportada(pickValue(index, 'elongacion_pct_config_a', 'elongacion config a', '% elongacion a', '% elongacion')),
+        encogimiento_config_a: encA.valor,
+        elongacion_pct_config_b: elongacionImportada(pickValue(index, 'elongacion_pct_config_b', 'elongacion config b', '% elongacion b', '% elongacion_1')),
+        encogimiento_config_b: encB.valor,
+        configuracion_a_nombre: asText(pickValue(index, 'configuracion_a_nombre', 'configuracion a')),
+        configuracion_b_nombre: asText(pickValue(index, 'configuracion_b_nombre', 'configuracion b')),
+        sin_existencia: asBoolean(pickValue(index, 'sin_existencia', 'no se solicito'), false),
+        activo: asBoolean(pickValue(index, 'activo'), true),
+        _avisos: avisos
     };
 }
 
@@ -2557,15 +3668,102 @@ async function importInventory(kind, buffer) {
         return { imported };
     }
 
-    if (kind === INVENTORY_TYPES.planchas) {
+    if (kind === INVENTORY_TYPES.sellos) {
         let imported = 0;
         for (const row of rows) {
-            const payload = mapPlanchaRow(row);
+            const payload = mapSelloRow(row);
             if (!payload.codigo) continue;
-            await savePlancha(payload);
+            await saveSello(payload);
             imported += 1;
         }
         return { imported };
+    }
+
+    if (kind === INVENTORY_TYPES.cilindros) {
+        let imported = 0;
+        const warnings = [];
+        const secuencia = new Map();
+
+        // Primera pasada: por familia (cantidad de dientes) recolectar el valor
+        // conocido de cada dato técnico común, para rellenar celdas vacías de una
+        // unidad con el de sus hermanas de familia (no con cero).
+        const FAMILIA_CAMPOS = ['circunferencia_in', 'desarrollo_mm', 'paso_in', 'paso_mm', 'ancho_util_mm', 'ancho_total_mm',
+            'encogimiento', 'encogimiento_config_a', 'encogimiento_config_b', 'elongacion_pct_config_a', 'elongacion_pct_config_b'];
+        const familia = new Map();
+        const parsed = rows.map(mapCilindroRow);
+        for (const p of parsed) {
+            if (!p.dientes) continue;
+            const ref = familia.get(p.dientes) || {};
+            for (const campo of FAMILIA_CAMPOS) {
+                if ((ref[campo] === undefined || ref[campo] === null) && p[campo] !== null && p[campo] !== undefined && p[campo] !== '') {
+                    ref[campo] = p[campo];
+                }
+            }
+            familia.set(p.dientes, ref);
+        }
+
+        for (const payload of parsed) {
+            if (!payload.dientes) {
+                if (payload.codigo || payload.tipo) {
+                    warnings.push(`Fila omitida (sin cantidad de dientes): ${payload.codigo || payload.tipo || 'desconocida'}.`);
+                }
+                continue;
+            }
+            const prefijo = prefijoCilindro(payload.tipo);
+            const clave = `${prefijo}-${payload.dientes}`;
+            const correlativo = (secuencia.get(clave) || 0) + 1;
+            secuencia.set(clave, correlativo);
+            const codigoOriginal = payload.codigo;
+            payload.codigo = formatoCodigoCilindro(prefijo, payload.dientes, correlativo);
+            if (codigoOriginal && codigoOriginal !== payload.codigo) {
+                warnings.push(`Código regenerado: "${codigoOriginal}" -> "${payload.codigo}" (regla TIPO+DIENTES+correlativo).`);
+            }
+
+            // Rellenar celdas vacías de esta unidad con el dato de su familia (misma
+            // cantidad de dientes). Si la familia entera no lo trae, queda vacío/NULL.
+            const ref = familia.get(payload.dientes) || {};
+            for (const campo of FAMILIA_CAMPOS) {
+                if ((payload[campo] === null || payload[campo] === undefined || payload[campo] === '')
+                    && ref[campo] !== undefined && ref[campo] !== null) {
+                    payload[campo] = ref[campo];
+                    warnings.push(`${payload.codigo}: "${campo}" sin valor en la fila; se toma el de la familia de ${payload.dientes} dientes (${ref[campo]}).`);
+                }
+            }
+            if (payload.encogimiento === null || payload.encogimiento === undefined) {
+                warnings.push(`${payload.codigo}: ENCOGIMIENTO base sin valor en la fuente ni en la familia; se guarda vacío.`);
+            }
+            (payload._avisos || []).forEach((a) => warnings.push(`${payload.codigo}: ${a}`));
+            await saveCilindro(payload);
+            imported += 1;
+        }
+        return { imported, warnings };
+    }
+
+    if (kind === INVENTORY_TYPES.anilox) {
+        let imported = 0;
+        const warnings = [];
+        const secuencia = new Map();
+        const parsed = rows.map(mapAniloxRow);
+        for (const payload of parsed) {
+            if (!payload.lineatura || !payload.bcm) {
+                if (payload.codigo) {
+                    warnings.push(`Fila omitida (sin lineatura o BCM): ${payload.codigo}.`);
+                }
+                continue;
+            }
+            const bcmStr = formatoBcmCodigo(payload.bcm);
+            const clave = `${payload.lineatura}-${bcmStr}`;
+            const correlativo = (secuencia.get(clave) || 0) + 1;
+            secuencia.set(clave, correlativo);
+            const codigoOriginal = payload.codigo;
+            payload.codigo = formatoCodigoAnilox(payload.lineatura, payload.bcm, correlativo);
+            if (codigoOriginal && codigoOriginal !== payload.codigo) {
+                warnings.push(`Código regenerado: "${codigoOriginal}" -> "${payload.codigo}" (regla LINEATURA+BCM+correlativo).`);
+            }
+            await saveAnilox(payload);
+            imported += 1;
+        }
+        return { imported, warnings };
     }
 
     if (kind === INVENTORY_TYPES.procesos) {
@@ -2718,7 +3916,7 @@ function flattenExportRows(kind, items) {
         }));
     }
 
-    if (kind === INVENTORY_TYPES.planchas) {
+    if (kind === INVENTORY_TYPES.sellos) {
         return items.map((item) => ({
             id: item.id,
             codigo: item.codigo,
@@ -2745,6 +3943,78 @@ function flattenExportRows(kind, items) {
             fecha_creacion: item.fecha_creacion,
             fecha_ultimo_uso: item.fecha_ultimo_uso,
             troquel_ref: item.troquel_ref,
+            notas: item.notas,
+            tecnologia: item.tecnologia,
+            dureza_shore: item.dureza_shore,
+            relieve_mm: item.relieve_mm,
+            lineatura_lpi: item.lineatura_lpi,
+            resolucion_dpi: item.resolucion_dpi,
+            punto_minimo_pct: item.punto_minimo_pct,
+            tipo_punto: item.tipo_punto,
+            factor_distorsion: item.factor_distorsion,
+            undercut_mm: item.undercut_mm,
+            stickyback_espesor_mm: item.stickyback_espesor_mm,
+            stickyback_tipo: item.stickyback_tipo,
+            stickyback_dureza: item.stickyback_dureza,
+            activo: item.activo
+        }));
+    }
+
+    if (kind === INVENTORY_TYPES.cilindros) {
+        return items.map((item) => ({
+            id: item.id,
+            codigo: item.codigo,
+            nombre: item.nombre,
+            tipo: item.tipo,
+            dientes: item.dientes,
+            paso_in: item.paso_in,
+            paso_mm: item.paso_mm,
+            circunferencia_in: item.circunferencia_in,
+            desarrollo_mm: item.desarrollo_mm,
+            ancho_util_mm: item.ancho_util_mm,
+            ancho_total_mm: item.ancho_total_mm,
+            fabricante: item.fabricante,
+            modelo: item.modelo,
+            numero_serie: item.numero_serie,
+            estado: item.estado,
+            ubicacion: item.ubicacion,
+            fecha_adquisicion: item.fecha_adquisicion,
+            ultimo_mantenimiento: item.ultimo_mantenimiento,
+            notas: item.notas,
+            cantidad_cilindros_regulares: item.cantidad_cilindros_regulares,
+            cantidad_cilindros_magneticos: item.cantidad_cilindros_magneticos,
+            cantidad_recibida: item.cantidad_recibida,
+            encogimiento: item.encogimiento,
+            elongacion_pct_config_a: item.elongacion_pct_config_a,
+            encogimiento_config_a: item.encogimiento_config_a,
+            elongacion_pct_config_b: item.elongacion_pct_config_b,
+            encogimiento_config_b: item.encogimiento_config_b,
+            configuracion_a_nombre: item.configuracion_a_nombre,
+            configuracion_b_nombre: item.configuracion_b_nombre,
+            sin_existencia: item.sin_existencia,
+            activo: item.activo
+        }));
+    }
+
+    if (kind === INVENTORY_TYPES.anilox) {
+        return items.map((item) => ({
+            id: item.id,
+            codigo: item.codigo,
+            lineatura: item.lineatura,
+            bcm: item.bcm,
+            ancho_util_mm: item.ancho_util_mm,
+            diametro_mm: item.diametro_mm,
+            longitud_mm: item.longitud_mm,
+            fabricante: item.fabricante,
+            tipo_recubrimiento: item.tipo_recubrimiento,
+            estado: item.estado,
+            fecha_compra: item.fecha_compra,
+            vida_util: item.vida_util,
+            desgaste: item.desgaste,
+            modelo: item.modelo,
+            numero_serie: item.numero_serie,
+            ubicacion: item.ubicacion,
+            ultimo_mantenimiento: item.ultimo_mantenimiento,
             notas: item.notas,
             activo: item.activo
         }));
@@ -2812,6 +4082,10 @@ module.exports = {
     saveInventory,
     deleteInventory,
     importInventory,
-    exportInventoryWorkbook
+    exportInventoryWorkbook,
+    listCilindroUso,
+    saveCilindroUso,
+    listAniloxUso,
+    saveAniloxUso
 };
 

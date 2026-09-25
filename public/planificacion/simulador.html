@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="/theme.js"></script>
+<script src="/desplegable.js?v=20260924-desplegable-v5"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Simulador de Capacidad</title>
 <style>
@@ -19,7 +20,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;bord
 </style>
 </head>
 <body>
-<header class="bar"><div><h1>Simulador de Capacidad</h1><div class="sub">Compara cambios sin modificar la programación vigente</div></div><div class="actions"><span data-theme-toggle-slot></span><a class="btn" href="/planificacion/recursos">Recursos</a><a class="btn" href="/planificacion/capacidad">Volver</a></div></header>
+<header class="bar"><div><h1>Simulador de Capacidad</h1><div class="sub">Compara cambios sin modificar la programación vigente</div></div><div class="actions"><span data-theme-toggle-slot></span><a class="btn" href="/planificacion/recursos" onclick="return navShellAware(event,'/planificacion/recursos','Recursos')">Recursos</a><a class="btn" href="/planificacion/capacidad" onclick="return navShellAware(event,'/planificacion/capacidad','Capacidad')">Volver</a></div></header>
 <div class="layout">
   <aside class="side">
     <div class="section">
@@ -46,6 +47,14 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;bord
   <main class="main"><div id="result" class="empty">Configura un escenario para estimar su impacto.</div></main>
 </div>
 <script>
+function navShellAware(e,route,label){
+  if(window.parent&&window.parent!==window&&window.location.search.includes('shell=1')){
+    e.preventDefault();
+    window.parent.postMessage({type:'erp-open-tab',route:route+(route.includes('?')?'&':'?')+'shell=1',label:label},window.location.origin);
+    return false;
+  }
+  return true;
+}
 const API='/api/planificacion';let resources=[];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function init(){const [r,p]=await Promise.all([fetch(`${API}/recursos`).then(x=>x.json()),fetch(`${API}/procesos`).then(x=>x.json())]);resources=r.data||[];resource.innerHTML=resources.map(x=>`<option value="${x.id}">${esc(x.resource_name)} · ${esc(x.process_key)}</option>`).join('');newProcess.innerHTML=(p.data||[]).map(x=>`<option value="${esc(x.process_key)}">${esc(x.nombre)}</option>`).join('');syncResource()}

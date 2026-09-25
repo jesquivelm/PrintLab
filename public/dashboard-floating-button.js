@@ -387,7 +387,16 @@
          */
         showBridge(visible) {
             if (!this.bridge) return;
-            this.bridge.hidden = !visible;
+            window.clearTimeout(this.bridgeCloseTimer);
+            if (visible) {
+                this.bridge.hidden = false;
+                requestAnimationFrame(() => requestAnimationFrame(() => this.bridge.classList.add('is-open')));
+                return;
+            }
+            this.bridge.classList.remove('is-open');
+            this.bridgeCloseTimer = window.setTimeout(() => {
+                if (!this.bridge.classList.contains('is-open')) this.bridge.hidden = true;
+            }, 260);
         }
 
         /**

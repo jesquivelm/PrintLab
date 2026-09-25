@@ -586,3 +586,133 @@ button {
         grid-template-columns: 1fr;
     }
 }
+
+.wizard-progress {
+    margin-bottom: 16px;
+}
+
+.wizard-steps {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+}
+
+.wizard-steps::before {
+    content: '';
+    position: absolute;
+    top: 12px;
+    left: 10%;
+    right: 10%;
+    height: 2px;
+    background: var(--mobile-border);
+    z-index: 0;
+}
+
+.wizard-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    position: relative;
+    z-index: 1;
+}
+
+.wizard-step-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--mobile-surface-tint);
+    border: 2px solid var(--mobile-border);
+    color: var(--mobile-text-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    transition: all 0.2s ease;
+}
+
+.wizard-step.active .wizard-step-circle {
+    background: var(--mobile-accent);
+    border-color: var(--mobile-accent);
+    color: #fff;
+}
+
+.wizard-step.completed .wizard-step-circle {
+    background: var(--mobile-success);
+    border-color: var(--mobile-success);
+    color: #fff;
+}
+
+.wizard-step-label {
+    font-size: 10px;
+    color: var(--mobile-text-soft);
+    text-align: center;
+    white-space: nowrap;
+}
+
+.wizard-step.active .wizard-step-label {
+    color: var(--mobile-accent);
+    font-weight: 600;
+}
+
+.wizard-step-panel {
+    animation: stepFadeIn 0.2s ease;
+}
+
+@keyframes stepFadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.wizard-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--mobile-border);
+}
+
+.wizard-btn-prev {
+    background: var(--mobile-surface-tint);
+    color: var(--mobile-text);
+}
+
+.wizard-btn-next,
+.wizard-btn-submit {
+    flex: 1;
+    margin-left: 10px;
+}
+
+.required {
+    color: var(--mobile-danger);
+    margin-left: 2px;
+}
+
+.alerts-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: var(--mobile-danger);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono, "JetBrains Mono", monospace);
+}
+
+.module-icon {
+    position: relative;
+}
+
+.alert-section h4 {
+    font-weight: 600;
+}

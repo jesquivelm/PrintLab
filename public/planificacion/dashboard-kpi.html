@@ -116,7 +116,7 @@ body{font-family:var(--font-sans);font-size:13px;color:var(--color-text-primary)
   </div>
 </div>
 
-<script src="/access-control.js"></script>
+<script src="/access-control.js?v=20260923-mensajes-carga"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 const API = '/api/planificacion';
@@ -188,7 +188,7 @@ function renderSummary() {
     <div class="kpi-card"><div class="kpi-label">OEE promedio planta</div><div class="kpi-val">${pct(summary.oeeAverage)}</div><div class="kpi-sub">Basado en rutas y merma registrada</div></div>
     <div class="kpi-card"><div class="kpi-label">Disponibilidad</div><div class="kpi-val">${pct(summary.availabilityAverage)}</div><div class="kpi-sub">Rutas sin paro activo</div></div>
     <div class="kpi-card"><div class="kpi-label">Rendimiento</div><div class="kpi-val">${pct(summary.performanceAverage)}</div><div class="kpi-sub">Velocidad final vs nominal</div></div>
-    <div class="kpi-card"><div class="kpi-label">Calidad</div><div class="kpi-val">${pct(summary.qualityAverage)}</div><div class="kpi-sub">Pies útiles / consumidos</div></div>
+    <div class="kpi-card"><div class="kpi-label">Calidad</div><div class="kpi-val">${pct(summary.qualityAverage)}</div><div class="kpi-sub">Metros útiles / consumidos</div></div>
   `;
 
   const tbody = document.getElementById('oee-table-body');

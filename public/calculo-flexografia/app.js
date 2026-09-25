@@ -1,6 +1,7 @@
 const params = new URLSearchParams(window.location.search);
 
 const DEFAULT_PRODUCT_TYPES = ["Etiquetas", "Cinta Continua", "Empaque Flexible", "Mangas"];
+let productTypesList = null;
 const DEFAULT_APPLICATION_OPTIONS = ["Botella", "Caja", "Carton", "Envase", "Frasco", "Pouch", "Tapa", "Vidrio"];
 const DEFAULT_SURFACE_OPTIONS = ["Lisa", "Rugosa", "Porosa", "Húmeda"];
 const WORK_TYPES = ["Nuevo", "Repetición", "Repetición por Error", "Validación", "Muestra", "Regalía", "Proyecto"];
@@ -16,14 +17,14 @@ const DEFAULT_OUTPUT_TYPES = [
   { id: "INDIFERENTE", name: "IND", shortName: "IND", description: "La salida puede definirse mas adelante" }
 ];
 const PLATE_KEYS = [
-  { key: "virgin", label: "Plancha Virgen", machine: "Inventario", keywords: ["plancha", "cyrel", "cliche"], materialOnly: true },
+  { key: "virgin", label: "Sello Virgen", machine: "Inventario", keywords: ["sello", "cyrel", "cliche"], materialOnly: true },
   { key: "laser", label: "Grabado Láser", machine: "CDI Esko", keywords: ["grabado", "laser", "cdi"] },
   { key: "develop", label: "Revelado", machine: "Procesadora", keywords: ["revelado", "revel"] },
-  { key: "clean", label: "Limpieza", machine: "Limpieza", keywords: ["limpieza"] },
+  { key: "clean", label: "Lavado Estación", machine: "Lavado Estación", keywords: ["limpieza", "lavado"] },
   { key: "dry", label: "Secado / Curado", machine: "Secado / Curado", keywords: ["secado", "curado"] }
 ];
 const PLATE_MODE_OPTIONS = [
-  { key: "inventory", label: "Planchas en Inventario" },
+  { key: "inventory", label: "Sellos en Inventario" },
   { key: "external", label: "Costo Externo" }
 ];
 const DIE_MODE_OPTIONS = [
@@ -35,9 +36,9 @@ const INLINE_PRINT_SLOTS = [
   { key: "barniz", label: "Barniz", keywords: ["barniz"], materialFamily: "barniz", materialKeywords: ["barniz"] },
   { key: "laminado", label: "Laminado", keywords: ["laminado"], materialFamily: "laminado", materialKeywords: ["laminado", "laminante", "overtape", "arclad", "graf depot"], usesMaterial: true },
   { key: "estampado", label: "Estampado", keywords: ["estampado", "foil"], materialFamily: "foil", materialKeywords: ["foil", "stamp", "estamp"], usesMaterial: true },
-  { key: "embosado", label: "Embosado", keywords: ["embosado", "relieve", "emboss"], usesPlateCost: true },
+  { key: "embosado", label: "Embosado", keywords: ["embosado", "relieve", "emboss"], usesPlateCost: true, hidden: true },
   { key: "troquelado", label: "Troquelado", keywords: ["troquel"] },
-  { key: "numerado", label: "Numerado", keywords: ["numerado", "numero"] }
+  { key: "numerado", label: "Numerado", keywords: ["numerado", "numero"], hidden: true }
 ];
 const EXTERNAL_FINISH_SLOTS = [
   { key: "barnizado", label: "Barnizado", keywords: ["barnizado", "barniz"], materialFamily: "barniz", materialKeywords: ["barniz"], usesMaterial: true, usesWeightMaterial: true },
@@ -62,7 +63,7 @@ const PROCESS_MENU = [
   { key: "sustrato", label: "Sustrato", locked: true, repeatable: false, helper: "Material base obligatorio", order: 20 },
   { key: "diseno", label: "Diseño", locked: false, repeatable: false, helper: "Arte y cambios", order: 30 },
   { key: "preprensa", label: "Preprensa", locked: true, repeatable: false, helper: "Preparación técnica obligatoria", order: 40 },
-  { key: "planchas", label: "Planchas", locked: false, repeatable: false, helper: "Subprocesos de plancha", order: 50 },
+  { key: "sellos", label: "Sellos", locked: false, repeatable: false, helper: "Subprocesos de sello", order: 50 },
   { key: "impresion", label: "Impresión", locked: false, repeatable: true, helper: "Puedes agregar varias", order: 60 },
   { key: "barnizado", label: "Barnizado", locked: false, repeatable: false, helper: "Proceso aparte", order: 69 },
   { key: "laminado", label: "Laminado", locked: false, repeatable: false, helper: "Proceso aparte", order: 70 },
@@ -79,9 +80,10 @@ const PROCESS_CONFIG_FALLBACK = PROCESS_MENU.map((item) => ({
   key: item.key,
   label: item.label,
   active: true,
-  createEnabled: !["troquel", "sustrato", "planchas", "troquelado", "adicionales"].includes(item.key),
+  createEnabled: !["troquel", "sustrato", "sellos", "troquelado", "adicionales"].includes(item.key),
   locked: Boolean(item.locked),
   repeatable: Boolean(item.repeatable),
+  visibleBotonFlotante: true,
   order: Number(item.order || 999),
   minimumCost: 0
 }));
@@ -95,6 +97,7 @@ const els = {
   brandFallback: document.getElementById("brandFallback"),
   pageTitle: document.getElementById("pageTitle"),
   customerNameDisplay: document.getElementById("customerNameDisplay"),
+  contactNameDisplay: document.getElementById("contactNameDisplay"),
   salespersonDisplay: document.getElementById("salespersonDisplay"),
   favoriteDocumentButton: document.getElementById("favoriteDocumentButton"),
   favoriteDocumentIcon: document.getElementById("favoriteDocumentIcon"),
@@ -102,22 +105,43 @@ const els = {
   refreshCostsIcon: document.getElementById("refreshCostsIcon"),
   customerCode: document.getElementById("customerCode"),
   customerName: document.getElementById("customerName"),
+  codigoCliente: document.getElementById("codigoCliente"),
+  productCode: document.getElementById("productCode"),
   productType: document.getElementById("productType"),
   jobName: document.getElementById("jobName"),
   salespersonName: document.getElementById("salespersonName"),
   workType: document.getElementById("workType"),
+  referencia: document.getElementById("referencia"),
+  referenciaSearchBtn: document.getElementById("referenciaSearchBtn"),
+  referenciaSearchIcon: document.getElementById("referenciaSearchIcon"),
+  referenciaChangesField: document.getElementById("referenciaChangesField"),
+  referenciaCambioMedidas: document.getElementById("referenciaCambioMedidas"),
+  referenciaCambioArte: document.getElementById("referenciaCambioArte"),
+  referenciaCambioTextos: document.getElementById("referenciaCambioTextos"),
+  referenciaCambioOtros: document.getElementById("referenciaCambioOtros"),
+  referenciaComentario: document.getElementById("referenciaComentario"),
+  insumoArteDigital: document.getElementById("insumoArteDigital"),
+  insumoMuestrasFisicas: document.getElementById("insumoMuestrasFisicas"),
+  insumoEnvase: document.getElementById("insumoEnvase"),
   labelWidthIn: document.getElementById("labelWidthIn"),
   labelHeightIn: document.getElementById("labelHeightIn"),
+  dimensionBlockBanner: document.getElementById("dimensionBlockBanner"),
   embeddedLabelWidth: document.getElementById("embeddedLabelWidth"),
   embeddedLabelHeight: document.getElementById("embeddedLabelHeight"),
+  embeddedLabelWidthDisplay: document.getElementById("embeddedLabelWidthDisplay"),
+  embeddedLabelHeightDisplay: document.getElementById("embeddedLabelHeightDisplay"),
   rollWidthIn: document.getElementById("rollWidthIn"),
   coreDiameter: document.getElementById("coreDiameter"),
+  coreType: document.getElementById("coreType"),
+  coreTypeDisplay: document.getElementById("coreTypeDisplay"),
   labelWidthInDisplay: document.getElementById("labelWidthInDisplay"),
   labelHeightInDisplay: document.getElementById("labelHeightInDisplay"),
   rollWidthInDisplay: document.getElementById("rollWidthInDisplay"),
   coreDiameterDisplay: document.getElementById("coreDiameterDisplay"),
   labelsPerRoll: document.getElementById("labelsPerRoll"),
   labelsPerRollDisplay: document.getElementById("labelsPerRollDisplay"),
+  productosPorCaja: document.getElementById("productosPorCaja"),
+  productosPorCajaDisplay: document.getElementById("productosPorCajaDisplay"),
   applicationType: document.getElementById("applicationType"),
   applicationEnvironment: document.getElementById("applicationEnvironment"),
   applicationEnvironmentPanel: document.getElementById("applicationEnvironmentPanel"),
@@ -156,9 +180,7 @@ const els = {
   changesByTypes: document.getElementById("changesByTypes"),
   quantityChanges: document.getElementById("quantityChanges"),
   totalChanges: document.getElementById("totalChanges"),
-  typesDetailList: document.getElementById("typesDetailList"),
   typesQuantitiesWarning: document.getElementById("typesQuantitiesWarning"),
-  typesInfoTrigger: document.getElementById("typesInfoTrigger"),
   changesByTypesInfoTrigger: document.getElementById("changesByTypesInfoTrigger"),
   changesAdditionalInfoTrigger: document.getElementById("changesAdditionalInfoTrigger"),
   pantoneCount: document.getElementById("pantoneCount"),
@@ -168,7 +190,6 @@ const els = {
   noPrint: document.getElementById("noPrint"),
   technicalDataCard: document.getElementById("technicalDataCard"),
   technicalCollapsedSummary: document.getElementById("technicalCollapsedSummary"),
-  printConfigCard: document.getElementById("printConfigCard"),
   quantityCard: document.getElementById("quantityCard"),
   frontBackElementsCard: document.getElementById("frontBackElementsCard"),
   frontBackElementsBody: document.getElementById("frontBackElementsBody"),
@@ -179,6 +200,9 @@ const els = {
   quoteTrackingPanelMount: document.getElementById("quoteTrackingPanelMount"),
   detailsCostTable: document.getElementById("detailsCostTable"),
   detailsProformaButton: document.getElementById("detailsProformaButton"),
+  profitabilityStatus: document.getElementById("profitabilityStatus"),
+  profitabilityRows: document.getElementById("profitabilityRows"),
+  profitabilityNote: document.getElementById("profitabilityNote"),
   contextRows: document.getElementById("contextRows"),
   automaticSummaryRows: document.getElementById("automaticSummaryRows"),
   overheadPct: document.getElementById("overheadPct"),
@@ -192,7 +216,9 @@ const els = {
   sapPreviewOrder: document.getElementById("sapPreviewOrder"),
   sapPreviewBom: document.getElementById("sapPreviewBom"),
   sapPreviewSendButton: document.getElementById("sapPreviewSendButton"),
-  sapPreviewOpenOutputButton: document.getElementById("sapPreviewOpenOutputButton")
+  sapPreviewOpenOutputButton: document.getElementById("sapPreviewOpenOutputButton"),
+  calcAdjuntosToggle: document.getElementById("calcAdjuntosToggle"),
+  calcAdjuntosModal: document.getElementById("calcAdjuntosModal")
 };
 
 const state = {
@@ -202,7 +228,7 @@ const state = {
   sapProductionCostCenter: null,
   context: null,
   costsConfig: null,
-  catalogs: { materials: [], troqueles: [], machines: [], machineCategories: {}, processes: [] },
+  catalogs: { materials: [], troqueles: [], machines: [], machineCategories: {}, processes: [], pantones: [] },
   form: null,
   notifications: [],
   saveTimer: null,
@@ -222,7 +248,11 @@ const state = {
   draggingProcessKey: "",
   launcherDrag: null,
   suppressLauncherClick: false,
-  processPickerOpen: false
+  processPickerOpen: false,
+  motivosOpen: {},
+  motivosViewMode: {},
+  motivoProductPickerOpen: {},
+  motivosStationsOpen: {}
 };
 
 function findSapSalespersonConfigByName(name) {
@@ -243,7 +273,21 @@ const MM_PER_INCH = 25.4;
 
 function n(value, fallback = 0) {
   if (typeof value === "number") return Number.isFinite(value) ? value : fallback;
-  const normalized = String(value ?? "").replace(/[^\d.,-]/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(/,/g, ".");
+  let normalized = String(value ?? "").trim().replace(/[^\d.,-]/g, "");
+  if (normalized.includes(",") && normalized.includes(".")) {
+    // Formato europeo con punto de miles y coma decimal (1.234.567,89): el punto es miles, la coma
+    // es el decimal.
+    normalized = normalized.replace(/\./g, "").replace(",", ".");
+  } else if (/\.\d{3}\./.test(normalized)) {
+    // Varios grupos de 3 dígitos separados por punto (1.234.567) → separador de miles.
+    normalized = normalized.replace(/\./g, "");
+  } else {
+    // Un solo separador: la coma se toma como decimal; el punto se deja tal cual como decimal —
+    // el sistema muestra los decimales con punto (2.5591 in, $ 33.53), así que "1.969" es 1.969,
+    // no 1969. (Antes se borraba el punto seguido de 3 dígitos y "1.969" / "0.125" se volvían
+    // 1969 / 125.)
+    normalized = normalized.replace(/,/g, ".");
+  }
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : fallback;
 }
@@ -306,10 +350,6 @@ function plateModeOptions() {
 function normalizeDieMode(value) {
   const key = String(value || "").trim().toLowerCase();
   return DIE_MODE_OPTIONS.some((item) => item.key === key) ? key : "";
-}
-
-function dieModeOptions() {
-  return DIE_MODE_OPTIONS;
 }
 
 function emptyPlateBreakdown(reason = "Costo = 0.") {
@@ -680,6 +720,36 @@ async function completeQuoteTrackingMilestone(index) {
   }
 }
 
+function confirmarQuitarCantidadAceptada(cantidad) {
+  return new Promise((resolve) => {
+    document.querySelector(".quitar-cantidad-aceptada-dialog")?.remove();
+    document.body.classList.add("popover-open");
+    const overlay = document.createElement("div");
+    overlay.className = "quote-order-quantity-dialog quitar-cantidad-aceptada-dialog";
+    overlay.innerHTML = `<div class="quote-order-quantity-panel" role="dialog" aria-modal="true" aria-label="Quitar Finalización Comercial">
+      <div class="quote-order-quantity-title">Quitar Finalización Comercial</div>
+      <p style="font-size:13px;color:var(--app-text-muted,#94a3b8);line-height:1.5;">Al quitar esta marca también se eliminará la cantidad aceptada (${esc(formatInteger(cantidad))} unidades). Podrás volver a elegirla cuando marques de nuevo la cotización como aceptada.</p>
+      <div class="quote-order-quantity-actions">
+        <button type="button" class="action-btn" data-action="cancelar">Cancelar</button>
+        <button type="button" class="action-btn action-btn-primary" data-action="quitar">Quitar Marca</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    const cerrar = (resultado) => {
+      overlay.remove();
+      document.body.classList.remove("popover-open");
+      resolve(resultado);
+    };
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay || event.target.closest("[data-action='cancelar']")) {
+        cerrar(false);
+        return;
+      }
+      if (event.target.closest("[data-action='quitar']")) cerrar(true);
+    });
+  });
+}
+
 async function undoQuoteTrackingMilestone(index) {
   const item = state.quoteTracking.milestones?.[index];
   if (!item) return;
@@ -688,6 +758,9 @@ async function undoQuoteTrackingMilestone(index) {
     showCenterMessage("No fue posible actualizar el seguimiento: la cotización aún no tiene una base guardada.");
     return;
   }
+  const quitaCierre = (state.quoteTracking.milestones || []).slice(index).some((entry) => entry?.key === "cierre" && entry.done && !entry.fixed);
+  const cantidadAceptada = cantidadAceptadaVigente();
+  if (quitaCierre && cantidadAceptada && !(await confirmarQuitarCantidadAceptada(cantidadAceptada))) return;
   await postJson(`/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/seguimiento`, { milestoneKey: item.key, action: "undo" });
   const reverted = (state.quoteTracking.milestones || [])
     .slice(index)
@@ -701,8 +774,13 @@ async function undoQuoteTrackingMilestone(index) {
     entry.date = null;
     entry.formOpen = false;
   }
+  if (quitaCierre) {
+    state.quoteTracking.closure = null;
+    state.quoteTracking.pendingOutcome = null;
+  }
   state.quoteTracking.formOpenKey = "";
   syncLineStatusFromTracking();
+  marcarCantidadAceptada();
   renderDetailsDemo(totals());
   scheduleSave();
   reverted.forEach((item) => {
@@ -771,7 +849,31 @@ function quoteClosureFormMarkup(index, outcomeType) {
   if (outcomeType === 'expired') {
     return `<div class="tracking-close-form tracking-close-form-dialog"><div class="tracking-close-dialog-head"><strong>Confirmar expiración</strong><span>La cotización será marcada como expirada / sin respuesta.</span></div><label><span>Observaciones</span><textarea id="quoteTrackingCloseComments" class="cr-textarea" placeholder="Observaciones opcionales" data-tracking-close-input></textarea></label><div class="tracking-close-actions"><button type="button" class="btn-cancel" data-close-calc-message>Cancelar</button><button type="button" class="btn-submit" data-tracking-submit-close="${index}"><i class="ti ti-send" style="font-size:12px;" aria-hidden="true"></i>Confirmar</button></div></div>`;
   }
-  return `<div class="tracking-close-form tracking-close-form-dialog"><div class="tracking-close-dialog-head"><strong>Confirmar aceptación</strong><span>La cotización será marcada como aceptada. Las acciones operativas se habilitarán.</span></div><div class="tracking-close-actions"><button type="button" class="btn-cancel" data-close-calc-message>Cancelar</button><button type="button" class="btn-submit" data-tracking-submit-close="${index}"><i class="ti ti-send" style="font-size:12px;" aria-hidden="true"></i>Confirmar</button></div></div>`;
+  const cantidades = cantidadesDelCalculo();
+  const eleccionCantidad = cantidades.length > 1
+    ? `<div class="tracking-close-cantidades" role="radiogroup" aria-label="Cantidad aceptada"><span>¿Qué cantidad aceptó el cliente?</span><div class="tracking-close-cantidades-opciones">${cantidades.map((valor, i) => `<label class="tracking-close-cantidad-opcion"><input type="radio" name="quoteTrackingCantidadAceptada" value="${esc(valor)}"${i === 0 ? " checked" : ""} data-tracking-close-input><span>${esc(formatInteger(valor))}</span></label>`).join("")}</div><small>Esta será la cantidad principal del cálculo y la que se usará para producir.</small></div>`
+    : "";
+  return `<div class="tracking-close-form tracking-close-form-dialog"><div class="tracking-close-dialog-head"><strong>Confirmar aceptación</strong><span>La cotización será marcada como aceptada. Las acciones operativas se habilitarán.</span></div>${eleccionCantidad}<div class="tracking-close-actions"><button type="button" class="btn-cancel" data-close-calc-message>Cancelar</button><button type="button" class="btn-submit is-aceptar" data-tracking-submit-close="${index}"><i class="ti ti-check" style="font-size:13px;" aria-hidden="true"></i>Confirmar</button></div></div>`;
+}
+
+function cantidadesDelCalculo() {
+  return normalizeQuantities(state.form?.header?.quantities).map((item) => n(item.value, 0)).filter((valor) => valor > 0);
+}
+
+function cantidadAceptadaVigente() {
+  const cierre = state.quoteTracking?.closure;
+  const cierreHecho = (state.quoteTracking?.milestones || []).some((item) => item.key === "cierre" && item.done);
+  return cierreHecho && cierre?.outcome === "accepted" && n(cierre.cantidadAceptada, 0) > 0 ? n(cierre.cantidadAceptada, 0) : 0;
+}
+
+function hacerCantidadPrincipal(valor) {
+  const cantidades = normalizeQuantities(state.form.header.quantities);
+  const posicion = cantidades.findIndex((item) => n(item.value, 0) === valor);
+  if (posicion <= 0) return;
+  const [elegida] = cantidades.splice(posicion, 1);
+  cantidades.unshift(elegida);
+  state.form.header.quantities = cantidades;
+  state.form.header.quantity = currentQuantity(state.form);
 }
 
 function quoteTrackingCloseActionsMarkup(index) {
@@ -817,11 +919,22 @@ async function submitQuoteClosureReason(index) {
   }
   if (await showQuoteProformaBlockMessageIfNeeded()) return false;
   const outcome = outcomeType === 'accepted' ? 'accepted' : outcomeType === 'expired' ? 'expired' : 'lost';
+  let cantidadAceptada = null;
+  if (outcome === 'accepted') {
+    const cantidades = cantidadesDelCalculo();
+    const elegida = n(document.querySelector('input[name="quoteTrackingCantidadAceptada"]:checked')?.value, 0);
+    cantidadAceptada = elegida > 0 ? elegida : (cantidades[0] || null);
+    if (cantidadAceptada) {
+      hacerCantidadPrincipal(cantidadAceptada);
+      renderQuantities();
+    }
+  }
   state.quoteTracking.closure = {
     outcome,
     outcomeType,
     reason: outcomeType === 'rejected' ? reason : (outcomeType === 'expired' ? 'Expirada' : 'Aceptada'),
     comments,
+    cantidadAceptada,
     by: currentTrackingUser(),
     date: trackingStampNow()
   };
@@ -836,7 +949,8 @@ async function submitQuoteClosureReason(index) {
     outcome: outcome === "lost" ? "rejected" : outcome,
     reason: state.quoteTracking.closure.reason,
     comments: state.quoteTracking.closure.comments,
-    orderCode: state.quoteTracking.closure?.orderCode || ""
+    orderCode: state.quoteTracking.closure?.orderCode || "",
+    cantidadAceptada
   });
   await persistTrackingClosure();
   const eventType = outcome === 'accepted' ? 'cierre-aceptado' : outcome === 'expired' ? 'cierre-expirado' : 'cierre-descartado';
@@ -887,8 +1001,8 @@ function askCalcProductionOrderQuantity(quantities) {
     var defaultUnit = totalsData.unit || 0;
     var firstQty = quantities[0] || {};
     var unit0 = firstQty.unitPrice || defaultUnit;
-    function formatMoney(val) { return '\u20A1' + Number(val || 0).toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-    function formatNumber(val, dec) { return Number(val || 0).toLocaleString('es-CR', { minimumFractionDigits: dec || 0, maximumFractionDigits: dec || 0 }); }
+    function formatMoney(val) { return '\u20A1' + formatoNumeroApp(Number(val || 0), 2); }
+    function formatNumber(val, dec) { return formatoNumeroApp(Number(val || 0), dec || 0, { minimoDecimales: 0 }); }
     var optionsHtml = quantities.map(function (q, i) {
       return '<option value="' + i + '"' + (i === 0 ? ' selected' : '') + '>' + esc(n(q.quantity, 0)) + ' unidades</option>';
     }).join('');
@@ -955,6 +1069,801 @@ function askCalcProductionOrderQuantity(quantities) {
   });
 }
 
+var CALC_SOCIO_FIELD_TO_COLUMN = {
+  manejoExcedentes: 'manejo_excedentes',
+  allowedPercentage: 'allowed_percentage',
+  manejoAdelantos: 'manejo_adelantos',
+  adelantosPorcentaje: 'porcentaje_adelantos',
+  manejoFaltantes: 'manejo_faltantes',
+  faltantesPorcentaje: 'porcentaje_faltantes',
+  entregaMuestras: 'entrega_muestras',
+  indicacionesEntrega: 'entrega_indicaciones',
+  contactoVB: 'contacto_vb_tipo',
+  contactoVBTelefono: 'contacto_vb_telefono',
+  contactoVBCorreo: 'contacto_vb_correo',
+  indicacionesVB: 'contacto_vb_detalle',
+  contactoProducto: 'contacto_producto_tipo',
+  contactoProductoTelefono: 'contacto_producto_telefono',
+  contactoProductoCorreo: 'contacto_producto_correo',
+  indicacionesProducto: 'contacto_producto_detalle'
+};
+
+// SIN USO: el alta/solicitud del socio se hace ahora desde el módulo de Socios.
+// El flujo de crear orden usa askCalcOrderGate(). Se conserva temporalmente.
+async function askCalcSocioPreOrder(customerCode) {
+  if (!customerCode) return true;
+  var socio = null;
+  var contactos = [];
+  var direcciones = [];
+  var generalConfig = {};
+  try {
+    var socioResponse = await fetch('/api/socios/' + encodeURIComponent(customerCode));
+    if (!socioResponse.ok) return true;
+    var socioPayload = await socioResponse.json();
+    socio = socioPayload.socio || null;
+    contactos = socioPayload.contactos || [];
+    direcciones = Array.isArray(socioPayload.direcciones) ? socioPayload.direcciones : [];
+    if (!socio) return true;
+    var configResponse = await fetch('/api/config/general');
+    if (configResponse.ok) {
+      var configPayload = await configResponse.json();
+      generalConfig = configPayload.general || configPayload || {};
+    }
+  } catch (e) {
+    console.warn('No fue posible cargar los datos del socio antes de crear la orden:', e);
+    return true;
+  }
+
+  function parseJsonList(value) {
+    if (!value) return [];
+    try {
+      var parsed = typeof value === 'string' ? JSON.parse(value) : value;
+      return Array.isArray(parsed) ? parsed.filter(function (v) { return typeof v === 'string' && v.trim() !== ''; }) : [];
+    } catch (e) { return []; }
+  }
+
+  return new Promise(function (resolve) {
+    var existing = document.querySelector('.quote-order-socio-dialog');
+    if (existing) existing.remove();
+    document.body.classList.add('popover-open');
+
+    var excessOptions = parseJsonList(generalConfig.handlingExcessOptionsJson);
+    var advanceOptions = parseJsonList(generalConfig.handlingAdvanceOptionsJson);
+    var shortageOptions = parseJsonList(generalConfig.handlingShortageOptionsJson);
+    var sampleModes = parseJsonList(generalConfig.deliverySampleModesJson);
+    var contactNames = contactos.map(function (c) {
+      return c.contact_name || [c.first_name, c.last_name].filter(Boolean).join(' ');
+    }).filter(Boolean);
+
+    function datalistHtml(id, options) {
+      return '<datalist id="' + id + '">' + options.map(function (opt) {
+        return '<option value="' + esc(opt) + '"></option>';
+      }).join('') + '</datalist>';
+    }
+    function fieldHtml(dataField, label, listId) {
+      var value = esc(socio[CALC_SOCIO_FIELD_TO_COLUMN[dataField]] || '');
+      var listAttr = listId ? ' list="' + listId + '"' : '';
+      return '<label class="quote-order-quantity-field"><span>' + label + '</span>' +
+        '<input type="text" class="quote-order-socio-input" data-field="' + dataField + '" value="' + value + '"' + listAttr + '></label>';
+    }
+    function termRowHtml(termField, pctField, label, listId) {
+      var termValue = esc(socio[CALC_SOCIO_FIELD_TO_COLUMN[termField]] || '');
+      var pctRaw = socio[CALC_SOCIO_FIELD_TO_COLUMN[pctField]];
+      var pctValue = pctRaw != null ? esc(String(pctRaw)) : '';
+      return '<div class="quote-order-socio-term-row">' +
+        '<label class="quote-order-quantity-field quote-order-socio-term-name"><span>' + esc(label) + '</span>' +
+          '<input type="text" class="quote-order-socio-input" data-field="' + termField + '" value="' + termValue + '" list="' + listId + '"></label>' +
+        '<label class="quote-order-quantity-field quote-order-socio-term-pct"><span>Porcentaje</span>' +
+          '<span class="quote-order-socio-pct-wrap">' +
+            '<input type="number" min="0" step="0.01" class="quote-order-socio-input" data-field="' + pctField + '" value="' + pctValue + '"></span>' +
+        '</label>' +
+      '</div>';
+    }
+
+    function parseJsonObjs(value) {
+      try {
+        var parsed = typeof value === 'string' ? JSON.parse(value) : value;
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) { return []; }
+    }
+    // Catálogo geográfico nuevo (tabla divisiones_geograficas). Se carga una vez
+    // y se mantiene la misma interfaz (departamentos/zonas) que usaba el catálogo
+    // viejo de Guatemala para no tocar el resto del código.
+    var locationCatalog = { departamentos: [], zonas: [] };
+    (async function cargarCatalogoGeo() {
+      try {
+        var respuesta = await fetch('/api/geografia/GT/primer-nivel');
+        if (!respuesta.ok) return;
+        var divisiones = (await respuesta.json()).divisiones || [];
+        locationCatalog.departamentos = divisiones.map(function (d) { return { nombre: d.nombre }; });
+        for (var i = 0; i < divisiones.length; i++) {
+          var hijosResp = await fetch('/api/geografia/GT/hijos/' + encodeURIComponent(divisiones[i].id_origen));
+          if (!hijosResp.ok) continue;
+          ((await hijosResp.json()).divisiones || []).forEach(function (m) {
+            locationCatalog.zonas.push({ nombre: m.nombre, departamento: divisiones[i].nombre });
+          });
+        }
+      } catch (e) { /* catálogo vacío: los desplegables quedan en blanco */ }
+    })();
+    function departamentoOptions(selected) {
+      return '<option value=""></option>' + locationCatalog.departamentos.map(function (dep) {
+        return '<option value="' + esc(dep.nombre) + '"' + (dep.nombre === selected ? ' selected' : '') + '>' + esc(dep.nombre) + '</option>';
+      }).join('');
+    }
+    function zonaOptions(departamento, selected) {
+      if (!departamento) return '<option value=""></option>';
+      return '<option value=""></option>' + locationCatalog.zonas
+        .filter(function (zona) { return zona.departamento === departamento; })
+        .map(function (zona) {
+          return '<option value="' + esc(zona.nombre) + '"' + (zona.nombre === selected ? ' selected' : '') + '>' + esc(zona.nombre) + '</option>';
+        }).join('');
+    }
+    function zonasAplican(departamento) {
+      return !!departamento && locationCatalog.zonas.some(function (zona) { return zona.departamento === departamento; });
+    }
+    function addressPickOptions(selectedId) {
+      return '<option value="">Seleccionar dirección o crear nueva</option>' + direcciones.map(function (a) {
+        var label = a.address_name || [a.address_line, a.district, a.state_province].filter(Boolean).join(', ') || ('Dirección ' + a.id);
+        return '<option value="' + esc(String(a.id)) + '"' + (String(a.id) === String(selectedId) ? ' selected' : '') + '>' + esc(label) + '</option>';
+      }).join('');
+    }
+    function defaultAddressFor(cacheValue) {
+      var v = String(cacheValue || '').trim();
+      if (v) {
+        var match = direcciones.filter(function (a) { return String(a.address_line || '').trim() === v; })[0];
+        if (match) return match;
+      }
+      return direcciones[0] || {};
+    }
+    function addressBlockHtml(prefix, addr) {
+      addr = addr || {};
+      var dep = addr.state_province || '';
+      var zonaOK = zonasAplican(dep);
+      return '<div class="quote-order-socio-address" data-address-prefix="' + prefix + '">' +
+        '<div class="quote-order-socio-address-head">' +
+          '<span class="quote-order-socio-subgroup-title">Dirección</span>' +
+          '<select class="quote-order-socio-input quote-order-socio-address-pick" data-address-field="pick">' + addressPickOptions(addr.id) + '</select>' +
+        '</div>' +
+        '<div class="quote-order-socio-grid">' +
+          '<label class="quote-order-quantity-field"><span>Nombre</span>' +
+            '<input type="text" class="quote-order-socio-input" data-address-field="addressName" value="' + esc(addr.address_name || '') + '"></label>' +
+          '<label class="quote-order-quantity-field"><span>Tipo</span>' +
+            '<input type="text" class="quote-order-socio-input" data-address-field="addressType" value="' + esc(addr.address_type || '') + '"></label>' +
+          '<label class="quote-order-quantity-field"><span>País</span>' +
+            '<input type="text" class="quote-order-socio-input" data-address-field="country" value="' + esc(addr.country || '') + '"></label>' +
+          '<label class="quote-order-quantity-field"><span>Departamento</span>' +
+            '<select class="quote-order-socio-input" data-address-field="stateProvince">' + departamentoOptions(dep) + '</select></label>' +
+          '<label class="quote-order-quantity-field"><span>Zona</span>' +
+            '<select class="quote-order-socio-input" data-address-field="district"' + (zonaOK ? '' : ' disabled') + '>' + zonaOptions(dep, addr.district || '') + '</select></label>' +
+          '<label class="quote-order-quantity-field"><span>Código Postal</span>' +
+            '<input type="text" class="quote-order-socio-input" data-address-field="zipCode" value="' + esc(addr.zip_code || '') + '"></label>' +
+        '</div>' +
+        '<label class="quote-order-quantity-field"><span>Dirección Exacta</span>' +
+          '<input type="text" class="quote-order-socio-input" data-address-field="addressLine" value="' + esc(addr.address_line || '') + '"></label>' +
+        '<input type="hidden" data-address-field="id" value="' + esc(addr.id != null ? String(addr.id) : '') + '">' +
+      '</div>';
+    }
+    var vbAddress = defaultAddressFor(socio.contacto_vb_direccion);
+    var productoAddress = defaultAddressFor(socio.contacto_producto_direccion);
+
+    var sapBannerHtml = socio.sap_card_code
+      ? '<div class="quote-order-socio-sap-banner is-ok">Socio en SAP: <strong>' + esc(socio.sap_card_code) + '</strong></div>'
+      : '';
+
+    var socioEnSap = !!socio.sap_card_code;
+    var DOC_TIPOS = [
+      ['formulario_cliente', 'Formulario de Cliente'],
+      ['solicitud_credito', 'Solicitud de Crédito'],
+      ['patentes', 'Patentes'],
+      ['representante_legal', 'Datos del Representante Legal'],
+      ['rtu', 'RTU (Cédula Jurídica)']
+    ];
+    var wizardSteps = socioEnSap ? [1, 2] : [0, 1, 2, 3];
+    var wizardIdx = 0;
+
+    var avisoStepHtml =
+      '<div class="quote-order-socio-step" data-wizard-step="0" hidden>' +
+        '<div class="quote-order-socio-subtitle">Para crear la orden y poder facturar, primero hay que completar la información de <strong>' + esc(socio.partner_name || customerCode) + '</strong> y enviarlo a SAP para obtener su ID de socio. A continuación se te pedirá:</div>' +
+        '<ul class="quote-order-socio-aviso-list">' +
+          '<li>Porcentajes de manejo: excedentes, adelantos y faltantes.</li>' +
+          '<li>Direcciones de entrega: Visto Bueno y Producto (país, departamento, zona, dirección exacta).</li>' +
+          '<li>Documentación para trazar al cliente: Formulario de Cliente, Solicitud de Crédito, Patentes, Datos del Representante Legal y RTU (Cédula Jurídica).</li>' +
+        '</ul>' +
+        '<div class="quote-order-socio-subtitle">Podés continuar o cancelar la creación de la orden.</div>' +
+      '</div>';
+
+    var docsStepHtml =
+      '<div class="quote-order-socio-step" data-wizard-step="3" hidden>' +
+        '<div class="quote-order-socio-section-title">Documentación del Cliente</div>' +
+        '<div class="quote-order-socio-subtitle">Los 5 documentos son obligatorios. Se envían a Finanzas junto con la solicitud de creación del socio.</div>' +
+        '<div class="quote-order-socio-docs">' +
+          DOC_TIPOS.map(function (d) {
+            return '<label class="quote-order-socio-doc"><span>' + esc(d[1]) + ' *</span>' +
+              '<input type="file" data-doc-tipo="' + d[0] + '" accept=".pdf,.jpg,.jpeg,.png">' +
+              '<span class="quote-order-socio-doc-name" data-doc-name="' + d[0] + '"></span></label>';
+          }).join('') +
+        '</div>' +
+      '</div>';
+
+    var overlay = document.createElement('div');
+    overlay.className = 'quote-order-quantity-dialog quote-order-socio-dialog';
+    overlay.innerHTML = '<div class="quote-order-quantity-panel quote-order-socio-panel" role="dialog" aria-modal="true" aria-label="Información requerida">' +
+      '<div class="quote-order-quantity-title">Información Requerida</div>' +
+      sapBannerHtml +
+      avisoStepHtml +
+      '<div class="quote-order-socio-step" data-wizard-step="1" hidden>' +
+        '<div class="quote-order-socio-section">' +
+          '<div class="quote-order-socio-section-title">Manejo de Excedentes</div>' +
+          '<div class="quote-order-socio-terms">' +
+            termRowHtml('manejoExcedentes', 'allowedPercentage', 'Excedentes', 'calcExcedentesList') +
+            termRowHtml('manejoAdelantos', 'adelantosPorcentaje', 'Adelantos', 'calcAdelantosList') +
+            termRowHtml('manejoFaltantes', 'faltantesPorcentaje', 'Faltantes', 'calcFaltantesList') +
+          '</div>' +
+          datalistHtml('calcExcedentesList', excessOptions) +
+          datalistHtml('calcAdelantosList', advanceOptions) +
+          datalistHtml('calcFaltantesList', shortageOptions) +
+        '</div>' +
+      '</div>' +
+      '<div class="quote-order-socio-step" data-wizard-step="2" hidden>' +
+        '<div class="quote-order-socio-section">' +
+          '<div class="quote-order-socio-section-title">Entrega</div>' +
+          '<div class="quote-order-socio-grid">' +
+            fieldHtml('entregaMuestras', 'Entrega Muestras', 'calcMuestrasList') +
+            fieldHtml('indicacionesEntrega', 'Indicaciones', '') +
+          '</div>' +
+          datalistHtml('calcMuestrasList', sampleModes) +
+          '<div class="quote-order-socio-subgroup">' +
+            '<div class="quote-order-socio-subgroup-title">Visto Bueno</div>' +
+            '<div class="quote-order-socio-grid">' +
+              fieldHtml('contactoVB', 'Contacto', 'calcContactosList') +
+              fieldHtml('contactoVBTelefono', 'Teléfono', '') +
+              fieldHtml('contactoVBCorreo', 'Correo', '') +
+              fieldHtml('indicacionesVB', 'Detalle', '') +
+            '</div>' +
+            addressBlockHtml('vb', vbAddress) +
+          '</div>' +
+          '<div class="quote-order-socio-subgroup">' +
+            '<div class="quote-order-socio-subgroup-title">Producto</div>' +
+            '<div class="quote-order-socio-grid">' +
+              fieldHtml('contactoProducto', 'Contacto', 'calcContactosList') +
+              fieldHtml('contactoProductoTelefono', 'Teléfono', '') +
+              fieldHtml('contactoProductoCorreo', 'Correo', '') +
+              fieldHtml('indicacionesProducto', 'Detalle', '') +
+            '</div>' +
+            addressBlockHtml('producto', productoAddress) +
+          '</div>' +
+          datalistHtml('calcContactosList', contactNames) +
+        '</div>' +
+      '</div>' +
+      docsStepHtml +
+      '<div class="quote-order-socio-wizard-progress" data-wizard-progress></div>' +
+      '<div class="quote-order-quantity-actions">' +
+        '<button type="button" class="action-btn" data-action="cancel">Cancelar</button>' +
+        '<button type="button" class="action-btn" data-action="back" hidden>Atrás</button>' +
+        '<button type="button" class="action-btn action-btn-primary" data-action="next">Continuar</button>' +
+      '</div>' +
+    '</div>';
+
+    function close(value) {
+      overlay.remove();
+      document.body.classList.remove('popover-open');
+      resolve(value);
+    }
+
+    var docFiles = {};
+
+    function renderWizard() {
+      var current = wizardSteps[wizardIdx];
+      overlay.querySelectorAll('[data-wizard-step]').forEach(function (el) {
+        el.hidden = Number(el.dataset.wizardStep) !== current;
+      });
+      var backBtn = overlay.querySelector('[data-action="back"]');
+      var nextBtn = overlay.querySelector('[data-action="next"]');
+      var progress = overlay.querySelector('[data-wizard-progress]');
+      var isLast = wizardIdx === wizardSteps.length - 1;
+      if (backBtn) backBtn.hidden = wizardIdx === 0;
+      if (nextBtn) {
+        nextBtn.textContent = current === 0 ? 'Continuar' : (isLast ? 'Crear Orden' : 'Siguiente');
+        nextBtn.disabled = isLast && !socioEnSap && !DOC_TIPOS.every(function (d) { return docFiles[d[0]]; });
+      }
+      if (progress) {
+        if (current === 0) { progress.textContent = ''; }
+        else {
+          var total = socioEnSap ? wizardSteps.length : wizardSteps.length - 1;
+          var num = socioEnSap ? wizardIdx + 1 : wizardIdx;
+          progress.textContent = 'Paso ' + num + ' de ' + total;
+        }
+      }
+    }
+
+    async function finalizarWizard(nextBtn) {
+      nextBtn.disabled = true;
+      try {
+        var vbInput = overlay.querySelector('[data-field="contactoVB"]');
+        var productoInput = overlay.querySelector('[data-field="contactoProducto"]');
+        var contactRoles = [
+          { nameInput: vbInput, phoneInput: overlay.querySelector('[data-field="contactoVBTelefono"]'), emailInput: overlay.querySelector('[data-field="contactoVBCorreo"]') },
+          { nameInput: productoInput, phoneInput: overlay.querySelector('[data-field="contactoProductoTelefono"]'), emailInput: overlay.querySelector('[data-field="contactoProductoCorreo"]') }
+        ];
+        for (var _i = 0; _i < contactRoles.length; _i++) {
+          var role = contactRoles[_i];
+          var nombre = role.nameInput ? role.nameInput.value.trim() : '';
+          if (!nombre) continue;
+          var telefono = role.phoneInput ? role.phoneInput.value.trim() : '';
+          var correo = role.emailInput ? role.emailInput.value.trim() : '';
+          // Si ya existe un contacto con ese nombre (p.ej. el mismo "Andres Solano"
+          // capturado como Contacto Principal, sin teléfono/correo todavía),
+          // actualizamos ese contacto en vez de saltarlo — si no, el teléfono/correo
+          // capturado aquí solo quedaba en las columnas sueltas de business_partners
+          // y nunca llegaba al contacto real que se muestra en el socio.
+          var existente = contactos.filter(function (c) {
+            var cn = c.contact_name || [c.first_name, c.last_name].filter(Boolean).join(' ');
+            return cn.trim().toLowerCase() === nombre.toLowerCase();
+          })[0];
+          try {
+            if (existente) {
+              if (telefono || correo) {
+                var updatePayload = {};
+                if (telefono) updatePayload.phone = telefono;
+                if (correo) updatePayload.email = correo;
+                await fetch('/api/socios/' + encodeURIComponent(customerCode) + '/contactos/' + encodeURIComponent(existente.id), {
+                  method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatePayload)
+                });
+              }
+            } else {
+              await fetch('/api/socios/' + encodeURIComponent(customerCode) + '/contactos', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contactName: nombre, phone: telefono || undefined, email: correo || undefined })
+              });
+              contactNames.push(nombre);
+            }
+          } catch (e) {}
+        }
+
+        var updates = {};
+        overlay.querySelectorAll('[data-field]').forEach(function (input) {
+          var field = input.dataset.field;
+          if (!(field in CALC_SOCIO_FIELD_TO_COLUMN)) return;
+          var v = input.value.trim();
+          if (v !== '') updates[field] = v;
+        });
+        if (Object.keys(updates).length) {
+          try {
+            await fetch('/api/socios/' + encodeURIComponent(customerCode), {
+              method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates)
+            });
+          } catch (e) {}
+        }
+
+        var addressBlocks = overlay.querySelectorAll('.quote-order-socio-address');
+        var addressCache = {};
+        for (var _a = 0; _a < addressBlocks.length; _a++) {
+          var blk = addressBlocks[_a];
+          var prefix = blk.dataset.addressPrefix;
+          var addrPayload = {
+            addressName: addressBlockValue(blk, 'addressName'),
+            addressType: addressBlockValue(blk, 'addressType'),
+            country: addressBlockValue(blk, 'country'),
+            stateProvince: addressBlockValue(blk, 'stateProvince'),
+            district: addressBlockValue(blk, 'district'),
+            addressLine: addressBlockValue(blk, 'addressLine'),
+            zipCode: addressBlockValue(blk, 'zipCode')
+          };
+          var anyValue = false;
+          for (var _k in addrPayload) { if (addrPayload[_k] !== '') { anyValue = true; break; } }
+          if (!anyValue) continue;
+          var existingId = addressBlockValue(blk, 'id');
+          if (!existingId) {
+            var dup = direcciones.filter(function (a) {
+              return String(a.address_line || '').trim().toLowerCase() === addrPayload.addressLine.toLowerCase()
+                && String(a.state_province || '').trim() === addrPayload.stateProvince;
+            })[0];
+            if (dup) existingId = String(dup.id);
+          }
+          try {
+            if (existingId) {
+              await fetch('/api/socios/' + encodeURIComponent(customerCode) + '/direcciones/' + encodeURIComponent(existingId), {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(addrPayload)
+              });
+            } else {
+              await fetch('/api/socios/' + encodeURIComponent(customerCode) + '/direcciones', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(addrPayload)
+              });
+            }
+          } catch (e) {}
+          addressCache[prefix === 'vb' ? 'contactoVBDireccion' : 'contactoProductoDireccion'] = addrPayload.addressLine;
+        }
+        if (Object.keys(addressCache).length) {
+          try {
+            await fetch('/api/socios/' + encodeURIComponent(customerCode), {
+              method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(addressCache)
+            });
+          } catch (e) {}
+        }
+
+        if (!socioEnSap) {
+          var faltan = DOC_TIPOS.filter(function (d) { return !docFiles[d[0]]; });
+          if (faltan.length) {
+            window.alert('Faltan documentos: ' + faltan.map(function (d) { return d[1]; }).join(', '));
+            nextBtn.disabled = false;
+            return;
+          }
+          try {
+            var fd = new FormData();
+            DOC_TIPOS.forEach(function (d) { fd.append(d[0], docFiles[d[0]]); });
+            var docRes = await fetch('/api/socios/' + encodeURIComponent(customerCode) + '/solicitud-cliente', { method: 'POST', body: fd });
+            if (!docRes.ok) {
+              var dj = await docRes.json().catch(function () { return {}; });
+              throw new Error(dj.error || 'No fue posible enviar la documentación.');
+            }
+          } catch (e) {
+            window.alert((e.message || 'No fue posible enviar la documentación a Finanzas.') + '\n\nLa orden no se creó. Volvé a intentarlo.');
+            nextBtn.disabled = false;
+            return;
+          }
+          try { await fetch('/api/socios/' + encodeURIComponent(customerCode) + '/encolar-sap', { method: 'POST' }); } catch (e) {}
+        }
+      } catch (e) {
+        console.warn('No fue posible guardar los datos del socio antes de crear la orden:', e);
+      }
+      close(true);
+    }
+
+    overlay.addEventListener('click', async function (event) {
+      if (event.target === overlay) { close(false); return; }
+      var action = event.target.closest('[data-action]')?.dataset.action;
+      if (!action) return;
+      if (action === 'cancel') { close(false); return; }
+      if (action === 'back') {
+        if (wizardIdx > 0) { wizardIdx--; renderWizard(); }
+        return;
+      }
+      if (action === 'next') {
+        var nextBtn = event.target.closest('[data-action="next"]');
+        if (wizardIdx < wizardSteps.length - 1) { wizardIdx++; renderWizard(); return; }
+        await finalizarWizard(nextBtn);
+      }
+    });
+
+    overlay.addEventListener('change', function (event) {
+      var input = event.target;
+      if (input && input.dataset && input.dataset.docTipo) {
+        var tipo = input.dataset.docTipo;
+        docFiles[tipo] = input.files && input.files[0] ? input.files[0] : null;
+        var nameEl = overlay.querySelector('[data-doc-name="' + tipo + '"]');
+        if (nameEl) nameEl.textContent = docFiles[tipo] ? docFiles[tipo].name : '';
+        renderWizard();
+      }
+    });
+
+    function addressBlockValue(block, name) {
+      var el = block.querySelector('[data-address-field="' + name + '"]');
+      return el ? String(el.value || '').trim() : '';
+    }
+
+    function setAddressBlock(block, addr) {
+      if (!block) return;
+      addr = addr || {};
+      function set(name, val) {
+        var el = block.querySelector('[data-address-field="' + name + '"]');
+        if (el) el.value = val || '';
+      }
+      set('id', addr.id != null ? String(addr.id) : '');
+      set('addressName', addr.address_name);
+      set('addressType', addr.address_type);
+      set('country', addr.country);
+      set('zipCode', addr.zip_code);
+      set('addressLine', addr.address_line);
+      var depSel = block.querySelector('[data-address-field="stateProvince"]');
+      if (depSel) depSel.value = addr.state_province || '';
+      var zSel = block.querySelector('[data-address-field="district"]');
+      if (zSel) {
+        zSel.innerHTML = zonaOptions(addr.state_province || '', addr.district || '');
+        zSel.disabled = !zonasAplican(addr.state_province || '');
+      }
+    }
+
+    function fillFromContact(prefix) {
+      var nameInput = overlay.querySelector('[data-field="contacto' + prefix + '"]');
+      if (!nameInput) return;
+      var name = nameInput.value.trim().toLowerCase();
+      if (!name) return;
+      var contact = contactos.filter(function (x) {
+        var n = (x.contact_name || [x.first_name, x.last_name].filter(Boolean).join(' ') || '').trim().toLowerCase();
+        return n === name;
+      })[0];
+      if (!contact) return;
+      var tel = overlay.querySelector('[data-field="contacto' + prefix + 'Telefono"]');
+      var cor = overlay.querySelector('[data-field="contacto' + prefix + 'Correo"]');
+      if (tel && !tel.value.trim()) tel.value = contact.phone || contact.mobile || '';
+      if (cor && !cor.value.trim()) cor.value = contact.email || '';
+    }
+
+    overlay.addEventListener('change', function (event) {
+      var target = event.target;
+      if (!target || !target.dataset) return;
+      var af = target.dataset.addressField;
+      if (af === 'pick') {
+        var block = target.closest('.quote-order-socio-address');
+        var picked = direcciones.filter(function (a) { return String(a.id) === String(target.value); })[0] || {};
+        setAddressBlock(block, picked);
+        return;
+      }
+      if (af === 'stateProvince') {
+        var block2 = target.closest('.quote-order-socio-address');
+        var zSel = block2 && block2.querySelector('[data-address-field="district"]');
+        if (zSel) {
+          zSel.innerHTML = zonaOptions(target.value, '');
+          zSel.disabled = !zonasAplican(target.value);
+        }
+        return;
+      }
+      if (target.dataset.field === 'contactoVB') fillFromContact('VB');
+      if (target.dataset.field === 'contactoProducto') fillFromContact('Producto');
+    });
+
+    document.body.appendChild(overlay);
+    wizardIdx = 0;
+    renderWizard();
+  });
+}
+
+// Puerta previa a crear la orden desde Seguimiento (reemplaza al wizard de alta de socio,
+// que ahora vive en el módulo de Socios): 1) verifica que el socio tenga ID de SAP —
+// si no, bloquea y ofrece ir a su ficha para solicitar la creación a Crédito;
+// 2) si el socio ya está en SAP, pide confirmación (Crear / Crear e Ir).
+// Devuelve { proceed: boolean, go: boolean } o null si se cancela.
+async function askCalcOrderGate(customerCode) {
+  let socio = null;
+  if (customerCode) {
+    try {
+      const resp = await fetch('/api/socios/' + encodeURIComponent(customerCode));
+      if (resp.ok) {
+        const payload = await resp.json();
+        socio = payload.socio || null;
+      }
+    } catch (e) {
+      console.warn('No fue posible verificar el socio antes de crear la orden:', e);
+    }
+  }
+  // Un socio sin estado_socio ya vino importado de SAP: su código de socio ES su ID de SAP.
+  // sap_card_code solo se exige a los prospectos creados en PrintLab (estado_socio con valor).
+  var socioEsProspecto = !!(socio && String(socio.estado_socio || '').trim());
+  if (customerCode && (!socio || (socioEsProspecto && !socio.sap_card_code))) {
+    await showCalcSocioSapBlock(socio, customerCode);
+    return null;
+  }
+  return await askCalcOrderConfirm(socio);
+}
+
+function showCalcSocioSapBlock(socio, customerCode) {
+  return new Promise((resolve) => {
+    const existing = document.querySelector('.calc-socio-sap-dialog');
+    if (existing) existing.remove();
+    document.body.classList.add('popover-open');
+    const nombre = esc(socio?.partner_name || customerCode);
+    const overlay = document.createElement('div');
+    overlay.className = 'quote-order-quantity-dialog calc-socio-sap-dialog';
+    overlay.innerHTML = '<div class="quote-order-quantity-panel" role="dialog" aria-modal="true" aria-label="Socio no registrado en SAP">' +
+      '<div class="quote-order-quantity-title">Socio No Registrado en SAP</div>' +
+      '<div class="quote-order-socio-subtitle">El socio <strong>' + nombre + '</strong> todavía no tiene ID de SAP, así que no se puede crear la orden.</div>' +
+      '<div class="quote-order-socio-subtitle">Andá a la ficha del socio y enviá la solicitud al departamento de Crédito para que analice su creación. Cuando el socio ya tenga su ID de SAP vas a poder crear la orden.</div>' +
+      '<div class="quote-order-quantity-actions">' +
+        '<button type="button" class="action-btn" data-sap-action="cancel">Cancelar</button>' +
+        '<button type="button" class="action-btn action-btn-primary" data-sap-action="go">Ir al Socio</button>' +
+      '</div>' +
+    '</div>';
+    function close() {
+      overlay.remove();
+      document.body.classList.remove('popover-open');
+      resolve();
+    }
+    overlay.addEventListener('click', function (event) {
+      if (event.target === overlay) { close(); return; }
+      const action = event.target.closest('[data-sap-action]')?.dataset.sapAction;
+      if (!action) return;
+      if (action === 'go') {
+        const route = '/socios-documento.html?codigo=' + encodeURIComponent(customerCode);
+        if (!openRouteInShell(route, 'Socio ' + customerCode)) window.location.href = route;
+      }
+      close();
+    });
+    document.body.appendChild(overlay);
+  });
+}
+
+function askCalcOrderConfirm(socio) {
+  return new Promise((resolve) => {
+    const existing = document.querySelector('.calc-order-confirm-dialog');
+    if (existing) existing.remove();
+    document.body.classList.add('popover-open');
+    const header = state.form?.header || {};
+    const rows = [
+      ['Cotización', header.quoteCode || ''],
+      ['Línea', header.lineCode || ''],
+      ['Cliente', header.customerName || socio?.partner_name || '']
+    ].filter(function (row) { return row[1]; });
+    const summary = rows.map(function (row) {
+      return '<div class="calc-order-confirm-row"><span>' + esc(row[0]) + '</span><strong>' + esc(String(row[1])) + '</strong></div>';
+    }).join('');
+    const overlay = document.createElement('div');
+    overlay.className = 'quote-order-quantity-dialog calc-order-confirm-dialog';
+    overlay.innerHTML = '<div class="quote-order-quantity-panel" role="dialog" aria-modal="true" aria-label="Crear orden de producción">' +
+      '<div class="quote-order-quantity-title">Crear Orden de Producción</div>' +
+      '<div class="quote-order-socio-subtitle">¿Confirmás la creación de la orden de producción?</div>' +
+      '<div class="calc-order-confirm-summary">' + summary + '</div>' +
+      '<div class="quote-order-quantity-actions">' +
+        '<button type="button" class="action-btn" data-confirm-action="cancel">Cancelar</button>' +
+        '<button type="button" class="action-btn action-btn-primary" data-confirm-action="create">Crear Orden</button>' +
+        '<button type="button" class="action-btn action-btn-primary" data-confirm-action="create-go">Crear Orden e Ir</button>' +
+      '</div>' +
+    '</div>';
+    function close(result) {
+      overlay.remove();
+      document.body.classList.remove('popover-open');
+      resolve(result);
+    }
+    overlay.addEventListener('click', function (event) {
+      if (event.target === overlay) { close(null); return; }
+      const action = event.target.closest('[data-confirm-action]')?.dataset.confirmAction;
+      if (!action) return;
+      if (action === 'cancel') { close(null); return; }
+      close({ proceed: true, go: action === 'create-go' });
+    });
+    document.body.appendChild(overlay);
+  });
+}
+
+// Entradas motivo/versión del cálculo con su estado de producto. Alineadas por índice
+// con state.form.types (mismo criterio que convertMotivoToProduct).
+function calcMotivoProductEntries() {
+  const rows = (typeof calcTypes === 'function' ? calcTypes().rows : null) || [];
+  const entries = [];
+  rows.forEach(function (row, index) {
+    const type = state.form?.types?.[index] || {};
+    const motivoNombre = row.nombre_motivo || row.name || ('Arte ' + (index + 1));
+    const versions = Array.isArray(row.versions) && row.versions.length ? row.versions : null;
+    const hasMultiple = Boolean(versions && versions.length > 1);
+    if (hasMultiple) {
+      versions.forEach(function (version, vIndex) {
+        const tv = (Array.isArray(type.versions) && type.versions[vIndex]) || version || {};
+        entries.push({
+          motivoIndex: index,
+          versionIndex: vIndex,
+          label: motivoNombre + ' — ' + (version.name || ('Versión ' + (vIndex + 1))),
+          productCode: tv.productCode || '',
+          productSku: tv.productSku || ''
+        });
+      });
+    } else {
+      entries.push({
+        motivoIndex: index,
+        versionIndex: 0,
+        label: motivoNombre,
+        productCode: type.motivoProductCode || row.motivoProductCode || '',
+        productSku: type.motivoProductSku || row.motivoProductSku || ''
+      });
+    }
+  });
+  return entries;
+}
+
+// Timeline de productos ya creados, con el mismo formato visual que el flujo de la Orden
+// de Producción (CSS portado a .calc-product-flow en public/styles.css).
+function calcProductFlowHtml(entries) {
+  if (!Array.isArray(entries) || !entries.length) return '';
+  const rows = entries.map(function (entry, idx) {
+    const isLast = idx === entries.length - 1;
+    const connector = isLast ? '' : '<div class="tl-connector solid"></div>';
+    const title = esc(entry.productSku || entry.productCode);
+    const metaBits = [esc(entry.label)];
+    if (entry.productCode && entry.productSku) metaBits.push(esc(entry.productCode));
+    return '<div class="tl-row">' +
+      '<div class="tl-col-left">' +
+        '<span class="tl-node done" aria-hidden="true"><i class="ti ti-box" style="font-size:20px;"></i>' +
+          '<span class="tl-node-badge"><i class="ti ti-check" style="font-size:12px;"></i></span></span>' +
+        connector +
+      '</div>' +
+      '<div class="tl-content"><div class="tl-step-grid"><div class="tl-step-main">' +
+        '<a class="tl-step-title done" href="/productos" data-route="/productos" data-label="Productos">' + title + '</a>' +
+        '<div class="tl-step-meta">' + metaBits.join(' · ') + '</div>' +
+      '</div></div></div>' +
+    '</div>';
+  }).join('');
+  return '<div class="calc-product-flow">' +
+    '<div class="calc-product-flow-head">Producto' + (entries.length > 1 ? 's' : '') + ' creado' + (entries.length > 1 ? 's' : '') + '</div>' +
+    rows +
+  '</div>';
+}
+
+// Modal para elegir el motivo (y versión, si tiene) a convertir en producto.
+// Devuelve { motivoIndex, versionIndex, go } o null si se cancela.
+function askCalcProductPick(entries) {
+  return new Promise((resolve) => {
+    const existing = document.querySelector('.calc-product-pick-dialog');
+    if (existing) existing.remove();
+    document.body.classList.add('popover-open');
+    const pending = entries.filter(function (entry) { return !entry.productCode; });
+    const single = pending.length === 1 ? pending[0] : null;
+    const multi = pending.some(function (entry) {
+      return pending.filter(function (other) { return other.motivoIndex === entry.motivoIndex; }).length > 1;
+    });
+    const listHtml = pending.map(function (entry) {
+      const value = entry.motivoIndex + ':' + entry.versionIndex;
+      if (single) {
+        return '<div class="calc-product-pick-row">' +
+          '<span class="calc-product-pick-name">' + esc(entry.label) + '</span>' +
+          '<span class="calc-product-pick-pending">Sin producto</span>' +
+        '</div>';
+      }
+      return '<label class="calc-product-pick-row">' +
+        '<span class="calc-product-pick-name"><input type="radio" name="calcProductPick" value="' + esc(value) + '"> ' + esc(entry.label) + '</span>' +
+        '<span class="calc-product-pick-pending">Sin producto</span>' +
+      '</label>';
+    }).join('');
+    const overlay = document.createElement('div');
+    overlay.className = 'quote-order-quantity-dialog calc-product-pick-dialog';
+    const subtitle = single
+      ? 'Se creará el producto del arte <strong>' + esc(single.label) + '</strong>.'
+      : 'Elegí el arte' + (multi ? ' o la versión' : '') + ' que querés convertir en producto.';
+    overlay.innerHTML = '<div class="quote-order-quantity-panel" role="dialog" aria-modal="true" aria-label="Crear producto">' +
+      '<div class="quote-order-quantity-title">Crear Producto</div>' +
+      '<div class="quote-order-socio-subtitle">' + subtitle + '</div>' +
+      '<div class="calc-product-pick-list">' + listHtml + '</div>' +
+      '<div class="quote-order-quantity-actions">' +
+        '<button type="button" class="action-btn" data-pick-action="cancel">Cancelar</button>' +
+        '<button type="button" class="action-btn action-btn-primary" data-pick-action="create"' + (single ? '' : ' disabled') + '>Crear</button>' +
+        '<button type="button" class="action-btn action-btn-primary" data-pick-action="create-go"' + (single ? '' : ' disabled') + '>Crear e Ir a Productos</button>' +
+      '</div>' +
+    '</div>';
+    function close(result) {
+      overlay.remove();
+      document.body.classList.remove('popover-open');
+      resolve(result);
+    }
+    overlay.addEventListener('change', function (event) {
+      if (event.target && event.target.name === 'calcProductPick') {
+        overlay.querySelectorAll('[data-pick-action="create"],[data-pick-action="create-go"]').forEach(function (btn) { btn.disabled = false; });
+      }
+    });
+    overlay.addEventListener('click', function (event) {
+      if (event.target === overlay) { close(null); return; }
+      const action = event.target.closest('[data-pick-action]')?.dataset.pickAction;
+      if (!action) return;
+      if (action === 'cancel') { close(null); return; }
+      if (single) {
+        close({ motivoIndex: single.motivoIndex, versionIndex: single.versionIndex, go: action === 'create-go' });
+        return;
+      }
+      const picked = overlay.querySelector('input[name="calcProductPick"]:checked');
+      if (!picked) return;
+      const parts = picked.value.split(':');
+      close({ motivoIndex: Number(parts[0]), versionIndex: Number(parts[1]), go: action === 'create-go' });
+    });
+    document.body.appendChild(overlay);
+  });
+}
+
+async function openCalcProductPicker() {
+  const entries = calcMotivoProductEntries();
+  if (!entries.length) {
+    showCenterMessage('Este cálculo no tiene artes para convertir en producto.');
+    return;
+  }
+  if (!entries.some(function (entry) { return !entry.productCode; })) {
+    showCenterMessage('Todos los artes y versiones ya tienen producto.');
+    return;
+  }
+  const choice = await askCalcProductPick(entries);
+  if (!choice) return;
+  await convertMotivoToProduct(choice.motivoIndex, choice.versionIndex);
+  await renderDetailsDemo(totals());
+  if (choice.go) {
+    const route = '/productos';
+    if (!openRouteInShell(route, 'Productos', { reload: true })) window.location.href = route;
+  }
+}
+
 async function createProductionOrderFromTracking(index) {
   ensureCalculationReadyForOutput();
   const item = state.quoteTracking.milestones?.[index];
@@ -976,7 +1885,9 @@ async function createProductionOrderFromTracking(index) {
 
   // Quantity selection when multiple tiers exist
   var body = {};
-  try {
+  var cantidadAceptada = cantidadAceptadaVigente();
+  if (cantidadAceptada) body.quantity = cantidadAceptada;
+  if (!cantidadAceptada) try {
     var header = state.context?.calculo?.raw_data?.['Estado_UI']?.header || {};
     var rawQty = Array.isArray(header.quantities) ? header.quantities : [];
     var quantities = rawQty.filter(function (q) { return q && Number(q.quantity) > 0; });
@@ -988,8 +1899,22 @@ async function createProductionOrderFromTracking(index) {
     }
   } catch (e) {}
 
-  const payload = await postJson(`/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/orden-produccion`, body);
+  const customerCodeForOrder = state.form?.header?.customerCode || "";
+  const orderGate = await askCalcOrderGate(customerCodeForOrder);
+  if (!orderGate || !orderGate.proceed) return;
+
+  const payload = await crearOrdenProduccionConTroquel(quoteCode, lineCode, body);
+  if (!payload?.orden) return;
   const orderCode = payload?.orden?.order_code || "";
+  if (orderCode) {
+    // Envío automático a SAP: si SAP no responde, el endpoint lo deja en la cola
+    // (Configuración → Seguridad → SAP → Envíos) y el worker reintenta. Sin prompts.
+    try {
+      await fetch("/api/ordenes-produccion/" + encodeURIComponent(orderCode) + "/orden-venta-sap", { method: "POST" });
+    } catch (ovError) {
+      console.warn("Orden de Venta a SAP quedará en cola:", ovError);
+    }
+  }
   state.quoteTracking.closure = {
     outcome: "accepted",
     reason: "Orden creada",
@@ -997,6 +1922,7 @@ async function createProductionOrderFromTracking(index) {
     by: currentTrackingUser(),
     date: trackingStampNow(),
     orderCode,
+    cantidadAceptada: cantidadAceptada || null,
     sapPrepared,
     sapError
   };
@@ -1009,18 +1935,21 @@ async function createProductionOrderFromTracking(index) {
     outcome: "accepted",
     reason: "Orden creada",
     comments: "",
-    orderCode
+    orderCode,
+    cantidadAceptada: cantidadAceptada || null
   });
   await persistCalculationForOrder();
   await notifyQuoteTrackingEvent(item, "orden-produccion", orderCode ? `Orden de producción ${orderCode} creada.` : "Orden de producción creada.");
   renderDetailsDemo(totals());
   scheduleSave();
-  if (orderCode) {
+  if (orderCode && orderGate.go) {
     const route = `/orden-produccion/${encodeURIComponent(orderCode)}`;
     if (!openRouteInShell(route, `Orden ${orderCode}`)) window.location.href = route;
   }
 }
 
+// SIN USO: la creación de producto es ahora por motivo/versión vía openCalcProductPicker().
+// Se conserva temporalmente el crear-producto-de-la-línea-entera.
 async function createProductFromCurrentLine() {
   const { quoteCode, lineCode } = currentQuoteLineIdentity();
   if (!quoteCode || !lineCode) throw new Error("Debes tener una cotización y una línea activas para crear el producto.");
@@ -1036,7 +1965,58 @@ async function createProductFromCurrentLine() {
   }
   els.calcStatus.textContent = productCode ? `Producto ${productCode} creado.` : "Producto creado.";
   const route = "/productos";
-  if (!openRouteInShell(route, "Productos")) window.location.href = route;
+  if (!openRouteInShell(route, "Productos", { reload: true })) window.location.href = route;
+}
+
+async function convertMotivoToProduct(index, versionIndex = 0) {
+  const type = state.form.types?.[index];
+  if (!type) return;
+  const { quoteCode, lineCode } = currentQuoteLineIdentity();
+  if (!quoteCode || !lineCode) throw new Error("Debes tener una cotización y una línea activas para crear el producto.");
+  await persistCalculation();
+  const row = calcTypes().rows[index];
+  if (!row) return;
+  const versions = Array.isArray(row.versions) && row.versions.length ? row.versions : null;
+  const hasMultipleVersions = Boolean(versions && versions.length > 1);
+  const version = versions ? (versions[versionIndex] || versions[0]) : null;
+  const motivoNombre = row.nombre_motivo || row.name || `Arte ${index + 1}`;
+  const versionNombre = hasMultipleVersions ? String(version?.name || `Versión ${versionIndex + 1}`) : "";
+  // Con varias versiones, cada una crea su propio producto con SU cantidad — el precio unitario
+  // del motivo es el mismo para todas (mismo costo por unidad), el total de la versión es ese
+  // precio unitario por su propia cantidad, no el total agregado del motivo.
+  const versionQuantity = hasMultipleVersions ? Math.max(0, n(version?.quantity, 0)) : row.quantity;
+  const versionTotal = hasMultipleVersions ? r(n(row.unit, 0) * versionQuantity, 2) : row.total;
+  const payload = await postJson(`/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/motivos/${index}/producto`, {
+    motivoNombre,
+    versionIndice: versionIndex,
+    versionNombre,
+    quantity: versionQuantity,
+    colors: row.colors,
+    blancas: Math.max(0, n(row.blancas, 0)),
+    unitPrice: row.unit,
+    totalPrice: versionTotal
+  });
+  const producto = payload?.producto || {};
+  let skuLabel = "";
+  if (hasMultipleVersions) {
+    ensureVersionsList(type);
+    if (!type.versions[versionIndex]) type.versions[versionIndex] = { ...version };
+    type.versions[versionIndex].productCode = producto.product_code || "";
+    type.versions[versionIndex].productSku = producto.finished_product_sku || "";
+    skuLabel = type.versions[versionIndex].productSku;
+  } else {
+    type.motivoProductCode = producto.product_code || "";
+    type.motivoProductSku = producto.finished_product_sku || "";
+    skuLabel = type.motivoProductSku;
+  }
+  // Persistir la asociación motivo→producto para que sobreviva a recargas (el botón
+  // "Registrar Producto" del Seguimiento se oculta cuando ya no queda ningún motivo pendiente).
+  await persistCalculation();
+  if (els.typesDetailList) els.typesDetailList.innerHTML = typesInfoTableHtml(calcTypes());
+  const label = hasMultipleVersions ? `${motivoNombre} - ${versionNombre}` : motivoNombre;
+  els.calcStatus.textContent = skuLabel
+    ? `Producto de "${label}" creado. SKU: ${skuLabel}.`
+    : `Producto de "${label}" creado.`;
 }
 
 function isShellEmbedded() {
@@ -1053,15 +2033,18 @@ function withShellParam(route) {
   }
 }
 
-function openRouteInShell(route, label) {
+function openRouteInShell(route, label, options) {
   if (!isShellEmbedded()) return false;
-  window.parent.postMessage({ type: "erp-open-tab", route: withShellParam(route), label }, window.location.origin);
+  const message = { type: "erp-open-tab", route: withShellParam(route), label };
+  if (options && options.reload) message.reload = true;
+  if (options && options.flotante) message.flotante = true;
+  window.parent.postMessage(message, window.location.origin);
   return true;
 }
 
-function openAppRoute(route, label) {
+function openAppRoute(route, label, options) {
   if (!route) return;
-  if (!openRouteInShell(route, label)) {
+  if (!openRouteInShell(route, label, options)) {
     window.location.href = withShellParam(route);
   }
 }
@@ -1224,7 +2207,7 @@ function buildBdfgContext() {
   const lineCode = String(state.form?.header?.lineCode || "").trim();
   const activeKeys = new Set(state.form?.activeProcessKeys || []);
   const processItems = configuredProcessDefinitions()
-    .filter((item) => isProcessAllowedForCurrentFrontBackContext(item.key))
+    .filter((item) => item.visibleBotonFlotante !== false && isProcessAllowedForCurrentFrontBackContext(item.key))
     .map((item) => ({
       id: item.key,
       name: item.label,
@@ -1316,11 +2299,14 @@ function applyCostsConfigToCurrentLine(force = false) {
     stage.bcmGenerico = force ? inkDefaults.bcmGenerico : (n(stage.bcmGenerico, 0) > 0 ? n(stage.bcmGenerico, 0) : inkDefaults.bcmGenerico);
     stage.transferFactor = force ? 0.3 : (n(stage.transferFactor, 0) > 0 ? n(stage.transferFactor, 0) : 0.3);
     stage.inkDensity = force ? inkDefaults.densidadUv : (n(stage.inkDensity, 0) > 0 ? n(stage.inkDensity, 0) : inkDefaults.densidadUv);
-    stage.inkCostPerLb = force ? inkDefaults.costoLbCmyk : (n(stage.inkCostPerLb, 0) > 0 ? n(stage.inkCostPerLb, 0) : inkDefaults.costoLbCmyk);
-    stage.whiteInkCostPerLb = force ? inkDefaults.costoLbBlanco : (n(stage.whiteInkCostPerLb, 0) > 0 ? n(stage.whiteInkCostPerLb, 0) : inkDefaults.costoLbBlanco);
-    stage.pantoneInkCostPerLb = force ? inkDefaults.costoLbPantone : (n(stage.pantoneInkCostPerLb, 0) > 0 ? n(stage.pantoneInkCostPerLb, 0) : inkDefaults.costoLbPantone);
+    stage.inkCostPerKg = force ? inkDefaults.costoKgCmyk : (n(stage.inkCostPerKg, 0) > 0 ? n(stage.inkCostPerKg, 0) : legacyInkCostPerKg(0, stage.inkCostPerLb, inkDefaults.costoKgCmyk));
+    stage.whiteInkCostPerKg = force ? inkDefaults.costoKgBlanco : (n(stage.whiteInkCostPerKg, 0) > 0 ? n(stage.whiteInkCostPerKg, 0) : legacyInkCostPerKg(0, stage.whiteInkCostPerLb, inkDefaults.costoKgBlanco));
+    stage.pantoneInkCostPerKg = force ? inkDefaults.costoKgPantone : (n(stage.pantoneInkCostPerKg, 0) > 0 ? n(stage.pantoneInkCostPerKg, 0) : legacyInkCostPerKg(0, stage.pantoneInkCostPerLb, inkDefaults.costoKgPantone));
+    delete stage.inkCostPerLb;
+    delete stage.whiteInkCostPerLb;
+    delete stage.pantoneInkCostPerLb;
     stage.mountingMinutes = force ? inlineFinishSetupMinutes("impresion") : (n(stage.mountingMinutes, 0) > 0 ? n(stage.mountingMinutes, 0) : inlineFinishSetupMinutes("impresion"));
-    stage.maculaSetupFeet = force ? defaultPrintMaculaSetupFeet(stage.machineId) : (n(stage.maculaSetupFeet, 0) > 0 ? n(stage.maculaSetupFeet, 0) : defaultPrintMaculaSetupFeet(stage.machineId));
+    stage.maculaSetupMeters = force ? defaultPrintMaculaSetupMeters(stage.machineId) : (n(stage.maculaSetupMeters, 0) > 0 ? n(stage.maculaSetupMeters, 0) : defaultPrintMaculaSetupMeters(stage.machineId));
     stage.inkProfiles = inkDefaults.depositos.map((item, index) => ({
       id: first(item?.id, `deposito-${index + 1}`),
       tipo: first(item?.tipo, ""),
@@ -1332,7 +2318,7 @@ function applyCostsConfigToCurrentLine(force = false) {
       const inline = stage.inlineFinishes?.[slot.key];
       if (!inline) return;
       inline.setupMinutes = force ? inlineFinishSetupMinutes(slot.key) : (n(inline.setupMinutes, 0) > 0 ? n(inline.setupMinutes, 0) : inlineFinishSetupMinutes(slot.key));
-      inline.setupWasteFeet = force ? inlineFinishSetupWasteFeet(slot.key) : (n(inline.setupWasteFeet, 0) > 0 ? n(inline.setupWasteFeet, 0) : inlineFinishSetupWasteFeet(slot.key));
+      inline.setupWasteMeters = force ? inlineFinishSetupWasteMeters(slot.key) : (n(inline.setupWasteMeters, 0) > 0 ? n(inline.setupWasteMeters, 0) : inlineFinishSetupWasteMeters(slot.key));
       if (slot.key === "barniz") {
         inline.varnishBcm = force ? inkDefaults.barnizBcm : (n(inline.varnishBcm, 0) > 0 ? n(inline.varnishBcm, 0) : inkDefaults.barnizBcm);
         inline.coveragePct = force ? inkDefaults.barnizCoveragePct : (n(inline.coveragePct, 0) > 0 ? n(inline.coveragePct, 0) : inkDefaults.barnizCoveragePct);
@@ -1374,11 +2360,14 @@ function applyCostsConfigToCurrentLine(force = false) {
     if (!finish || typeof finish !== "object") return;
     const wasteDefaults = finishWasteDefault(finish.processKey);
     const machine = findMachine(finish.machineId);
-    const machineWaste = firstPositiveNumber(machine?.sustratoSetupMermaCantidad, 0);
-    finish.setupWasteFeet = n(finish.setupWasteFeet, 0) > 0 ? n(finish.setupWasteFeet, 0) : (machineWaste > 0 ? machineWaste : wasteDefaults.setupWasteFeet);
+    // Merma de montaje de la máquina (por estación): campo sustrato_montaje_merma_* de la máquina.
+    const machineWaste = firstPositiveNumber(machine?.sustratoMontajeMermaCantidad, 0);
+    finish.setupWasteMeters = n(finish.setupWasteMeters, 0) > 0 ? n(finish.setupWasteMeters, 0) : (machineWaste > 0 ? machineWaste : wasteDefaults.setupWasteMeters);
     finish.operationWastePct = wasteDefaults.operationWastePct;
   };
 
+  const boxCostDefault = n(state.costsConfig?.general?.defaultBoxCost, 0);
+  state.form.packaging.costoCaja = force ? boxCostDefault : (n(state.form.packaging.costoCaja, 0) > 0 ? n(state.form.packaging.costoCaja, 0) : boxCostDefault);
   applyStageDefaults(state.form.print);
   activePrintStages().forEach(applyStageDefaults);
   (state.form.finishes || []).forEach(applyFinishWaste);
@@ -1395,7 +2384,7 @@ async function refreshCostsForCurrentLine() {
     const costsConfig = await getJson("/api/costos-config");
     state.costsConfig = costsConfig;
     applyCostsConfigToCurrentLine(true);
-    ensureActiveProcessKeys(false);
+    ensureActiveProcessKeys();
     ensureConfiguredProcessInstances();
     activePrintStages().forEach((stage, stageIndex) => {
       INLINE_PRINT_SLOTS.forEach((slot) => {
@@ -1416,11 +2405,11 @@ async function refreshCostsForCurrentLine() {
 }
 
 function num(value, maximumFractionDigits = 2) {
-  return new Intl.NumberFormat("es-CR", { maximumFractionDigits }).format(Number(value || 0));
+  return formatoNumeroApp(Number(value || 0), maximumFractionDigits, { minimoDecimales: 0 });
 }
 
 function formatInteger(value) {
-  return new Intl.NumberFormat("es-CR", { maximumFractionDigits: 0 }).format(Math.max(0, Math.trunc(Number(value || 0))));
+  return formatoNumeroApp(Math.max(0, Math.trunc(Number(value || 0))), 0);
 }
 
 function esc(value) {
@@ -1578,11 +2567,11 @@ function storedLineRoute(line = {}) {
 }
 
 function frontBackSharedProcessKeys() {
-  return new Set(["sustrato", "preprensa", "planchas", "impresion", "barnizado", "laminado", "estampado", "embosado", "troquelado", "rebobinado", "empaque"]);
+  return new Set(["sustrato", "preprensa", "sellos", "impresion", "barnizado", "laminado", "estampado", "embosado", "troquelado", "rebobinado", "empaque"]);
 }
 
 function isProcessAllowedForCurrentFrontBackContext(key = "") {
-  if (isFrontBackEmbeddedElementContext() && ["troquel", "sustrato", "impresion", "planchas", "empaque"].includes(norm(key))) return false;
+  if (isFrontBackEmbeddedElementContext() && ["troquel", "sustrato", "impresion", "sellos", "empaque"].includes(norm(key))) return false;
   return true;
 }
 
@@ -1928,6 +2917,7 @@ function openInfoPopover(trigger) {
     state.infoPopover.body.textContent = body || "";
   }
   panel.classList.toggle("info-popover-panel-wide", Boolean(trigger?.dataset.infoWide));
+  panel.classList.toggle("motivo-station-audit-panel", Boolean(trigger?.dataset.infoAudit));
   trigger.setAttribute("aria-expanded", "true");
   panel.hidden = false;
   requestAnimationFrame(() => positionInfoPopover(trigger));
@@ -1962,6 +2952,28 @@ function getProcessDeleteIconConfig() {
     primary: general.iconColorQuoteRequestAttachmentDelete || general.iconColorLineDelete || "#b94848",
     hover: general.iconColorHoverQuoteRequestAttachmentDelete || general.iconColorHoverLineDelete || "#d03535",
     size: Number(general.iconSizeQuoteRequestAttachmentDelete || general.iconSizeLineDelete) || 18
+  };
+}
+
+function getMotivoProductIconConfig() {
+  const icons = state.config?.icons || {};
+  const general = state.config?.general || {};
+  return {
+    value: icons.motivoCreateProduct || icons.lineCreateProduct || "▣",
+    primary: general.iconColorMotivoCreateProduct || general.iconColorLineCreateProduct || "#0b81b8",
+    hover: general.iconColorHoverMotivoCreateProduct || general.iconColorHoverLineCreateProduct || "#0b81b8",
+    size: Number(general.iconSizeMotivoCreateProduct || general.iconSizeLineCreateProduct) || 18
+  };
+}
+
+function getMotivoDeleteIconConfig() {
+  const icons = state.config?.icons || {};
+  const general = state.config?.general || {};
+  return {
+    value: icons.motivoDelete || icons.lineDelete || "🗑",
+    primary: general.iconColorMotivoDelete || general.iconColorLineDelete || "#b94848",
+    hover: general.iconColorHoverMotivoDelete || general.iconColorHoverLineDelete || "#d03535",
+    size: Number(general.iconSizeMotivoDelete || general.iconSizeLineDelete) || 18
   };
 }
 
@@ -2006,8 +3018,7 @@ function normalizeMaculaMontajeRows(rows = []) {
     id: first(row?.id, `macula-montaje-${index + 1}`),
     detalle: first(row?.detalle, ""),
     porEstacion: n(row?.porEstacion, 0),
-    cantidadTintas: n(row?.cantidadTintas, 0),
-    totalPies: n(row?.totalPies, 0) > 0 ? n(row?.totalPies, 0) : r(n(row?.porEstacion, 0) * n(row?.cantidadTintas, 0), 2)
+    totalMetros: n(row?.totalMetros, 0) > 0 ? n(row?.totalMetros, 0) : n(row?.porEstacion, 0)
   }));
 }
 
@@ -2034,17 +3045,54 @@ function defaultMaculaConfig() {
   };
 }
 
-function machineStartupWasteFeet(machineId = "") {
-  const machine = findMachine(machineId);
-  return firstPositiveNumber(machine?.maculaDefaultFeet, machine?.macula_default_pies, machine?.sustratoSetupMermaCantidad, machine?.startupWasteFeet, machine?.setupWasteFeet, 0);
+// Merma de MONTAJE de la máquina (metros de sustrato por estación al armar cada torre).
+// Fuente: campo sustrato_montaje_merma_* de la máquina en Inventario de Máquinas.
+function machineSetupWasteMetersEfectivo(machine = {}) {
+  const unit = first(machine?.sustratoMontajeMermaUnidad, machine?.sustrato_montaje_merma_unidad, "pies");
+  const raw = firstPositiveNumber(machine?.sustratoMontajeMermaCantidad, machine?.sustrato_montaje_merma_cantidad, 0);
+  if (raw <= 0) return 0;
+  return String(unit || "pies").toLowerCase().startsWith("metro") ? raw : r(raw * 0.3048, 4);
 }
 
-function defaultPrintMaculaSetupFeet(machineId = "") {
-  const machineFeet = machineStartupWasteFeet(machineId);
-  if (machineFeet > 0) return machineFeet;
+// Merma de SETUP de la máquina (metros de sustrato una sola vez por trabajo: registro,
+// color, tensión, secado, pruebas). Fuente: campo sustrato_setup_merma_* de la máquina.
+function machineSetupTrabajoWasteMeters(machine = {}) {
+  const unit = first(machine?.sustratoSetupMermaUnidad, machine?.sustrato_setup_merma_unidad, "pies");
+  const raw = firstPositiveNumber(machine?.sustratoSetupMermaCantidad, machine?.sustrato_setup_merma_cantidad, 0);
+  if (raw <= 0) return 0;
+  return String(unit || "pies").toLowerCase().startsWith("metro") ? raw : r(raw * 0.3048, 4);
+}
+
+function machineStartupWasteMeters(machineId = "") {
+  const machine = findMachine(machineId);
+  if (!machine) return 0;
+  const directMeters = firstPositiveNumber(machine?.startupWasteMeters, machine?.setupWasteMeters, 0);
+  if (directMeters > 0) return directMeters;
+  const fromSetup = machineSetupWasteMetersEfectivo(machine);
+  if (fromSetup > 0) return fromSetup;
+  const raw = firstPositiveNumber(machine?.maculaDefaultFeet, machine?.macula_default_pies, 0);
+  return raw > 0 ? r(raw * 0.3048, 4) : 0;
+}
+
+function defaultPrintMaculaSetupMeters(machineId = "") {
+  const machineMeters = machineStartupWasteMeters(machineId);
+  if (machineMeters > 0) return machineMeters;
   const config = defaultMaculaConfig();
   const row = (config.montajeRows || []).find((item) => normalizeMaculaProcessKey(item.detalle) === "impresion");
-  return n(row?.totalPies, 0);
+  return n(row?.porEstacion, 0);
+}
+
+function legacyInkCostPerKg(kgValue, lbValue, fallback = 0) {
+  const kg = n(kgValue, 0);
+  if (kg > 0) return kg;
+  const lb = n(lbValue, 0);
+  if (lb > 0) return r(lb / 0.45359237, 6);
+  return fallback;
+}
+
+function legacyInkConsumptionKg(lbValue) {
+  const lb = n(lbValue, 0);
+  return lb > 0 ? lb * 0.45359237 : 0;
 }
 
 function conventionalInkDefaults() {
@@ -2067,9 +3115,9 @@ function conventionalInkDefaults() {
     bcmGenerico: n(defaults.bcmGenerico, 2),
     coberturaTintaPct: n(defaults.coberturaTintaPct, 30),
     densidadUv: n(defaults.densidadUv, 1.5),
-    costoLbCmyk: n(defaults.costoLbCmyk, 25),
-    costoLbBlanco: n(defaults.costoLbBlanco, 30),
-    costoLbPantone: n(defaults.costoLbPantone, 35),
+    costoKgCmyk: legacyInkCostPerKg(defaults.costoKgCmyk, defaults.costoLbCmyk, 55.1156),
+    costoKgBlanco: legacyInkCostPerKg(defaults.costoKgBlanco, defaults.costoLbBlanco, 66.1387),
+    costoKgPantone: legacyInkCostPerKg(defaults.costoKgPantone, defaults.costoLbPantone, 77.1618),
     cmykBcm: n(cmykDeposito?.bcm, n(defaults.bcmGenerico, 2)),
     cmykCoveragePct: inferCoveragePct(cmykDeposito, n(defaults.coberturaTintaPct, 30)),
     cmykGsm: n(cmykDeposito?.gsm, 1),
@@ -2133,13 +3181,13 @@ function inlineFinishSetupMinutes(processKey = "") {
   return n(row?.minutosPorEstacion, 5);
 }
 
-function inlineFinishSetupWasteFeet(processKey = "") {
+function inlineFinishSetupWasteMeters(processKey = "") {
   const rows = state.costsConfig?.convencional?.inlineFinishSetup || [];
   const target = normalizeMaculaProcessKey(processKey);
   const row = rows.find((item) => normalizeMaculaProcessKey(item?.proceso) === target)
     || rows.find((item) => target.includes(normalizeMaculaProcessKey(item?.proceso)))
     || rows.find((item) => normalizeMaculaProcessKey(item?.proceso).includes(target));
-  return n(row?.setupWasteFeet, 0);
+  return n(row?.setupWasteMeters, 0);
 }
 
 function applyInlineFinishSetupDefaults(stageIndex, inlineKey, force = false) {
@@ -2151,29 +3199,52 @@ function applyInlineFinishSetupDefaults(stageIndex, inlineKey, force = false) {
     ? inlineFinishSetupMinutes(inlineKey)
     : n(inline.setupMinutes, 0);
   const stageMachine = findMachine(stage.machineId);
-  inline.setupWasteFeet = force || n(inline.setupWasteFeet, 0) <= 0
-    ? firstPositiveNumber(stageMachine?.sustratoSetupMermaCantidad, inlineFinishSetupWasteFeet(inlineKey), 0)
-    : n(inline.setupWasteFeet, 0);
+  inline.setupWasteMeters = force || n(inline.setupWasteMeters, 0) <= 0
+    ? firstPositiveNumber(machineSetupWasteMetersEfectivo(stageMachine), inlineFinishSetupWasteMeters(inlineKey), 0)
+    : n(inline.setupWasteMeters, 0);
   if (inlineKey === "barniz") {
+    // La ficha técnica del barniz vive en Costos › Acabados › Barniz: se toma la fila del
+    // Material elegido, o la primera del catálogo como respaldo para que ningún campo quede
+    // en 0 por falta de selección. El Material lo elige el usuario, no se autoselecciona.
+    const barnizRows = Array.isArray(state.costsConfig?.acabados?.barniz) ? state.costsConfig.acabados.barniz : [];
+    const barnizItem = barnizRows.find((b) => String(b.id || b.nombre) === String(inline.materialId)) || barnizRows[0] || {};
     inline.varnishBcm = force || n(inline.varnishBcm, 0) <= 0
-      ? inkDefaults.barnizBcm
+      ? firstPositiveNumber(n(barnizItem.bcmAnilox, 0), inkDefaults.barnizBcm)
       : n(inline.varnishBcm, 0);
     inline.coveragePct = force || n(inline.coveragePct, 0) <= 0
-      ? inkDefaults.barnizCoveragePct
+      ? firstPositiveNumber(n(barnizItem.porcentajeCobertura, 0), inkDefaults.barnizCoveragePct)
       : n(inline.coveragePct, 0);
     inline.layerGsm = force || n(inline.layerGsm, 0) <= 0
       ? inkDefaults.barnizGsm
       : n(inline.layerGsm, 0);
+    inline.factorTransferencia = force || n(inline.factorTransferencia, 0) <= 0
+      ? firstPositiveNumber(n(barnizItem.factorTransferencia, 0), 0.35)
+      : n(inline.factorTransferencia, 0);
+    inline.densidad = force || n(inline.densidad, 0) <= 0
+      ? firstPositiveNumber(n(barnizItem.densidad, 0), 1.05)
+      : n(inline.densidad, 0);
+    inline.visc = force || n(inline.visc, 0) <= 0
+      ? firstPositiveNumber(n(barnizItem.visc, 0), 18)
+      : n(inline.visc, 0);
+    inline.costPerKg = force || n(inline.costPerKg, 0) <= 0
+      ? n(barnizItem.costoPorKilo, 0)
+      : n(inline.costPerKg, 0);
   }
 }
 
 function finishWasteDefault(processKey = "") {
-  const rows = state.costsConfig?.convencional?.finishWaste || [];
   const target = norm(processKey);
+  if (target.includes("rebob")) {
+    return {
+      setupWasteMeters: n(state.costsConfig?.general?.defaultRebobinadoWasteFeet, 0),
+      operationWastePct: n(state.costsConfig?.general?.defaultRebobinadoWastePct, 0)
+    };
+  }
+  const rows = state.costsConfig?.convencional?.finishWaste || [];
   const row = rows.find((item) => norm(item?.proceso).includes(target))
     || rows.find((item) => target.includes(norm(item?.proceso)));
   return {
-    setupWasteFeet: n(row?.setupWasteFeet, 0),
+    setupWasteMeters: n(row?.setupWasteMeters, 0),
     operationWastePct: n(row?.operationWastePct, 0)
   };
 }
@@ -2194,6 +3265,9 @@ function configuredProcessDefinitions() {
       || item?.create === true
       || String(item?.createEnabled ?? item?.create ?? fallback.createEnabled ?? "").trim().toLowerCase() === "true";
     const repeatable = item?.repeatable === true || String(item?.repeatable || "").trim().toLowerCase() === "true";
+    const visibleBotonFlotante = item?.visibleBotonFlotante === true
+      || String(item?.visibleBotonFlotante ?? "").trim().toLowerCase() === "true"
+      || (item?.visibleBotonFlotante !== false && String(item?.visibleBotonFlotante ?? "").trim() === "");
     return {
       ...PROCESS_MENU_BY_KEY[key],
       key,
@@ -2202,6 +3276,7 @@ function configuredProcessDefinitions() {
       active,
       createEnabled: active ? createEnabled : false,
       repeatable,
+      visibleBotonFlotante,
       order: n(item?.order, fallback.order),
       minimumCost: Math.max(0, n(item?.minimumCost, 0))
     };
@@ -2220,7 +3295,7 @@ function localProcessCategory(key = "") {
   const normalized = norm(key);
   if (["diseno"].includes(normalized)) return "diseno";
   if (["preprensa"].includes(normalized)) return "preprensa";
-  if (["planchas"].includes(normalized)) return "planchas";
+  if (["sellos"].includes(normalized)) return "sellos";
   if (["impresion"].includes(normalized)) return "impresion";
   if (["barnizado", "laminado", "estampado", "embosado", "troquelado", "rebobinado"].includes(normalized)) return "acabados";
   if (["empaque"].includes(normalized)) return "empaque";
@@ -2306,6 +3381,10 @@ function processMinimumCost(key = "") {
   return Math.max(0, n(processMeta(key)?.minimumCost, 0));
 }
 
+function processTimeBufferHours(key = "") {
+  return Math.max(0, n(processMeta(key)?.timeBufferMinutes, 0)) / 60;
+}
+
 function processCreateEnabled(key = "") {
   const target = norm(key);
   if (target === "macula") return true;
@@ -2341,14 +3420,12 @@ function sortActiveProcessKeys(keys = []) {
     .sort((left, right) => processDisplayOrder(left) - processDisplayOrder(right));
 }
 
-function ensureActiveProcessKeys(expanded = false) {
+function ensureActiveProcessKeys() {
   const current = Array.isArray(state.form.activeProcessKeys) ? state.form.activeProcessKeys : [];
   const configuredAlwaysOn = configuredProcessDefinitions()
     .filter((item) => item.active || item.locked)
     .map((item) => item.key);
-  const demoKeys = ["diseno", "planchas", "impresion", "barnizado", "laminado", "estampado", "embosado", "troquelado", "rebobinado", "empaque", "adicionales"];
-  const next = sortActiveProcessKeys(expanded ? current.concat(configuredAlwaysOn, demoKeys) : current.concat(configuredAlwaysOn));
-  state.form.activeProcessKeys = next;
+  state.form.activeProcessKeys = sortActiveProcessKeys(current.concat(configuredAlwaysOn));
 }
 
 function hasActiveProcess(key) {
@@ -2421,7 +3498,7 @@ function isOptionalPlateCostProcess(key) {
 }
 
 function generateInkStations(form) {
-  const header = form.header;
+  const header = form?.header || {};
   if (header.noPrint) return [];
   const inkDefaults = conventionalInkDefaults();
   const tintaOptions = conventionalInkMaterialOptions();
@@ -2441,8 +3518,8 @@ function generateInkStations(form) {
         aniloxBcm: inkDefaults.bcmGenerico,
         transferFactor: 0.3,
         inkDensity: inkDefaults.densidadUv,
-        inkMaterialId: cmykMaterial.id || '',
-        inkCostPerLb: inkDefaults.costoLbCmyk,
+inkMaterialId: cmykMaterial.id || '',
+        inkCostPerKg: inkDefaults.costoKgCmyk,
         active: true
       });
     });
@@ -2458,21 +3535,22 @@ function generateInkStations(form) {
       transferFactor: 0.35,
       inkDensity: inkDefaults.densidadUv,
       inkMaterialId: whiteMaterial.id || '',
-      inkCostPerLb: inkDefaults.costoLbBlanco,
+      inkCostPerKg: inkDefaults.costoKgBlanco,
       active: true
     });
   }
+  var directNames = Array.isArray(header.directColorNames) ? header.directColorNames : [];
   for (var p = 0; p < pantoneCount && stations.length < 9; p++) {
     stations.push({
       id: 'station-' + (stations.length + 1),
-      inkLabel: 'Pantone ' + (p + 1),
+      inkLabel: directNames[p] ? directNames[p] : 'Pantone ' + (p + 1),
       inkType: 'pantone',
       coveragePct: 25,
       aniloxBcm: inkDefaults.bcmGenerico,
       transferFactor: 0.3,
       inkDensity: inkDefaults.densidadUv,
       inkMaterialId: '',
-      inkCostPerLb: inkDefaults.costoLbPantone,
+      inkCostPerKg: inkDefaults.costoKgPantone,
       active: true
     });
   }
@@ -2507,33 +3585,201 @@ function motivoInkStations(type, index, form = state.form) {
   return Array.isArray(type?.inkStations) ? type.inkStations : [];
 }
 
-function calcMotivoInkStationRow(printedAreaIn2, station) {
+// Proporción de merma para consumo de tinta: la misma que ya usa Sustrato (longitud total con
+// merma de montaje+tiraje / longitud neta) — Sustrato, Barniz, Laminado y Estampado ya facturan
+// sobre esta longitud "con todo y merma"; Tinta no lo hacía (calculaba solo sobre la cantidad neta
+// a entregar), lo cual la dejaba por debajo del consumo real. 1 = sin merma (falta algún dato).
+function inkMermaRatio(form = state.form) {
+  const base = metrics(form);
+  if (base.linealMeters <= 0) return 1;
+  const macula = hasActiveProcess("impresion") ? documentMaculaFromStages(base) : { totalMeters: 0 };
+  const totalLengthMeters = base.linealMeters + n(macula.totalMeters, 0);
+  return totalLengthMeters > 0 ? r(totalLengthMeters / base.linealMeters, 6) : 1;
+}
+
+// mermaRatio > 1 multiplica el área neta para reflejar que también se imprime tinta sobre la
+// merma (arranque + tiraje), igual que Sustrato ya hace con la longitud. consumptionKg/subtotal
+// quedan con todo y merma (lo que realmente se consume/factura); net*/merma* separan cuánto de
+// eso es producto real vs. merma, para el desglose que pide auditoría.
+function calcMotivoInkStationRow(printedAreaIn2, station, mermaRatio = 1) {
   const sc = n(station.coveragePct, 0) / 100;
   const sb = n(station.aniloxBcm, 0);
   const st = n(station.transferFactor, 0);
   const sd = n(station.inkDensity, 0);
-  const scost = n(station.inkCostPerLb, 0);
-  const consumptionLb = r((printedAreaIn2 * sc * sb * st * sd * 0.001) / 453.59237, 6);
-  const subtotal = r(consumptionLb * scost);
-  return { ...station, coveragePct: n(station.coveragePct, 0), aniloxBcm: sb, transferFactor: st, inkDensity: sd, inkCostPerLb: scost, consumptionLb, subtotal };
+  const scost = legacyInkCostPerKg(station.inkCostPerKg, station.inkCostPerLb);
+  const ratio = n(mermaRatio, 1) > 0 ? n(mermaRatio, 1) : 1;
+  const netConsumptionKg = r((printedAreaIn2 * sc * sb * st * sd * 0.001) / 1000, 6);
+  const consumptionKg = r(netConsumptionKg * ratio, 6);
+  const mermaConsumptionKg = r(consumptionKg - netConsumptionKg, 6);
+  const netSubtotal = r(netConsumptionKg * scost);
+  const subtotal = r(consumptionKg * scost);
+  const mermaSubtotal = r(subtotal - netSubtotal);
+  return { ...station, coveragePct: n(station.coveragePct, 0), aniloxBcm: sb, transferFactor: st, inkDensity: sd, inkCostPerKg: scost, mermaRatio: ratio, netConsumptionKg, consumptionKg, mermaConsumptionKg, netSubtotal, subtotal, mermaSubtotal };
+}
+
+// Suma de consumo/costo de las estaciones de un Tipo dentro de un motivo (para el resumen
+// Proceso/Directo/Adicional de la tabla de Motivos) — reutiliza calcMotivoInkStationRow, la misma
+// fórmula que ya usa el modal de estaciones, así ambas pantallas nunca pueden desacordar.
+function motivoTipoAggregate(stations, tipo, printedAreaIn2, mermaRatio = 1) {
+  const filtered = (Array.isArray(stations) ? stations : []).filter((s) => s.tipo === tipo);
+  let consumption = 0;
+  let subtotal = 0;
+  let netConsumption = 0;
+  let mermaConsumption = 0;
+  let mermaSubtotal = 0;
+  filtered.forEach((station) => {
+    const detail = calcMotivoInkStationRow(printedAreaIn2, station, mermaRatio);
+    consumption += n(detail.consumptionKg, 0);
+    subtotal += n(detail.subtotal, 0);
+    netConsumption += n(detail.netConsumptionKg, 0);
+    mermaConsumption += n(detail.mermaConsumptionKg, 0);
+    mermaSubtotal += n(detail.mermaSubtotal, 0);
+  });
+  return { count: filtered.length, consumption: r(consumption, 6), subtotal: r(subtotal), netConsumption: r(netConsumption, 6), mermaConsumption: r(mermaConsumption, 6), mermaSubtotal: r(mermaSubtotal) };
+}
+
+// Área impresa unitaria (in²) que se multiplica por la cantidad para el consumo de tinta.
+// Normal: Ancho × Largo de la etiqueta. En Frente y Dorso la base no tiene un tamaño único
+// de producto (las caras pueden ser distintas), así que se usa la geometría compartida real
+// de la corrida: ancho del sustrato × (desarrollo del troquel ÷ etiquetas al través). Si falta
+// alguno de esos datos, cae al Ancho × Largo.
+function inkUnitAreaIn2(form = state.form) {
+  const labelAreaIn2 = r(n(form?.header?.labelWidthIn, 0) * n(form?.header?.labelHeightIn, 0), 6);
+  if (!isFrontBackGroupContext()) return labelAreaIn2;
+  const troquel = form?.troquel || {};
+  const webWidthIn = n(form?.header?.rollWidthIn, 0);
+  const developmentIn = firstPositiveNumber(
+    troquel.cylinderDevelopmentIn,
+    troquel.developmentIn,
+    troquel.desarrolloIn,
+    troquel.desarrollo,
+    n(troquel.lengthIn, 0) * Math.max(1, n(troquel.repeats, 0))
+  );
+  const acrossCount = Math.max(1, n(first(troquel.acrossCount, troquel.rows), 0));
+  if (webWidthIn > 0 && developmentIn > 0) return r((webWidthIn * developmentIn) / acrossCount, 6);
+  return labelAreaIn2;
 }
 
 function calcMotivoInkTotals(form = state.form) {
-  const areaIn2 = r(n(form.header?.labelWidthIn, 0) * n(form.header?.labelHeightIn, 0), 6);
+  const areaIn2 = inkUnitAreaIn2(form);
   const types = ensureTypesList(form);
+  const mermaRatio = inkMermaRatio(form);
   let totalConsumption = 0;
   let totalSubtotal = 0;
+  let totalMermaConsumption = 0;
+  let totalMermaSubtotal = 0;
   const byType = types.map((type, index) => {
     const printedAreaIn2 = form.header?.noPrint ? 0 : r(areaIn2 * Math.max(0, n(type.quantity, 0)), 6);
     const stations = motivoInkStations(type, index, form).filter((station) => station.active !== false);
-    const stationRows = stations.map((station) => calcMotivoInkStationRow(printedAreaIn2, station));
-    const consumption = r(stationRows.reduce((sum, row) => sum + n(row.consumptionLb, 0), 0), 6);
+    const stationRows = stations.map((station) => calcMotivoInkStationRow(printedAreaIn2, station, mermaRatio));
+    const consumption = r(stationRows.reduce((sum, row) => sum + n(row.consumptionKg, 0), 0), 6);
     const subtotal = r(stationRows.reduce((sum, row) => sum + n(row.subtotal, 0), 0));
+    const mermaConsumption = r(stationRows.reduce((sum, row) => sum + n(row.mermaConsumptionKg, 0), 0), 6);
+    const mermaSubtotal = r(stationRows.reduce((sum, row) => sum + n(row.mermaSubtotal, 0), 0));
     totalConsumption += consumption;
     totalSubtotal += subtotal;
-    return { index, name: type.name, quantity: n(type.quantity, 0), stations: stationRows, consumption, subtotal };
+    totalMermaConsumption += mermaConsumption;
+    totalMermaSubtotal += mermaSubtotal;
+    return { index, name: type.name, quantity: n(type.quantity, 0), stations: stationRows, consumption, subtotal, mermaConsumption, mermaSubtotal };
   });
-  return { consumption: r(totalConsumption, 6), subtotal: r(totalSubtotal), byType };
+  return { consumption: r(totalConsumption, 6), subtotal: r(totalSubtotal), mermaConsumption: r(totalMermaConsumption, 6), mermaSubtotal: r(totalMermaSubtotal), mermaRatio, byType };
+}
+
+// Multi-barniz: cada estación tipo "barniz" de cada motivo se cobra por separado, con la misma
+// fórmula del barniz en línea (Área de banda in² × Cobertura × BCM × Factor Transferencia ×
+// Densidad × 10⁻⁶ → kg × $/kg), pero sobre los metros que le tocan a SU motivo (proporción por
+// cantidad del motivo sobre la cantidad total). La suma de todas las instancias, con un único
+// barniz por motivo y los mismos parámetros, equivale al barniz único anterior sobre el total del
+// trabajo; las estaciones de barniz adicionales (brillante + mate, etc.) suman encima.
+// fallbackInline = form.printStages[0].inlineFinishes.barniz (interruptor + parámetros por defecto).
+// Además del barniz principal, la pantalla del barniz permite un 2º y un 3º barniz (paneles
+// inlineFinishes.barniz2 / barniz3): cuando están activos y ya hay al menos una estación de barniz
+// real, cada uno agrega su propia instancia de costo con sus parámetros (misma fórmula).
+const BARNIZ_PANEL_KEYS = ["barniz", "barniz2", "barniz3"];
+function calcMotivoBarnizInstances(form, totalLengthMeters, webWidthIn, fallbackInline) {
+  const types = ensureTypesList(form);
+  const totalQty = types.reduce((sum, t) => sum + Math.max(0, n(t.quantity, 0)), 0);
+  const barnizRows = Array.isArray(state.costsConfig?.acabados?.barniz) ? state.costsConfig.acabados.barniz : [];
+  const inlineFinishes = form?.printStages?.[0]?.inlineFinishes || {};
+  // Panel por índice de barniz: 0 = barniz principal (fallbackInline), 1 = barniz2, 2 = barniz3.
+  const paneles = [
+    fallbackInline || inlineFinishes.barniz || {},
+    inlineFinishes.barniz2 || {},
+    inlineFinishes.barniz3 || {}
+  ];
+  const fb = paneles[0];
+  const fbRow = barnizRows.find((b) => String(b.id || b.nombre) === String(fb.materialId)) || {};
+  const instances = [];
+  let subtotal = 0;
+  let consumptionKg = 0;
+  const pushInstance = (motivoIndex, type, motivoLengthMeters, areaIn2, stationIndex, panelIndex, params, catRow, materialName) => {
+    const varnishBcm = params.varnishBcm;
+    const coveragePct = params.coveragePct;
+    const factorTransferencia = params.factorTransferencia;
+    const densidad = params.densidad;
+    const costPerKg = params.costPerKg;
+    const kg = r(areaIn2 * (coveragePct / 100) * varnishBcm * factorTransferencia * densidad * 0.000001, 6);
+    const sub = r(kg * costPerKg);
+    consumptionKg += kg;
+    subtotal += sub;
+    instances.push({
+      motivoIndex,
+      stationIndex,
+      panelIndex,
+      motivoName: String(type.nombre_motivo || type.name || `Arte ${motivoIndex + 1}`).trim() || `Arte ${motivoIndex + 1}`,
+      materialName,
+      lengthMeters: motivoLengthMeters,
+      varnishAreaIn2: areaIn2,
+      coveragePct,
+      varnishBcm,
+      factorTransferencia,
+      densidad,
+      costPerKg,
+      consumptionKg: kg,
+      subtotal: sub
+    });
+  };
+  types.forEach((type, motivoIndex) => {
+    const stations = Array.isArray(type?.inkStations) ? type.inkStations : [];
+    const share = totalQty > 0
+      ? Math.max(0, n(type.quantity, 0)) / totalQty
+      : (types.length ? 1 / types.length : 0);
+    const motivoLengthMeters = r(n(totalLengthMeters, 0) * share, 6);
+    const areaIn2 = r((motivoLengthMeters / 0.0254) * n(webWidthIn, 0), 6);
+    let barnizCount = 0;
+    stations.forEach((station, stationIndex) => {
+      if (!station || station.tipo !== "barniz" || station.active === false) return;
+      const panel = paneles[barnizCount] || paneles[0];
+      const panelRow = barnizRows.find((b) => String(b.id || b.nombre) === String(panel.materialId)) || fbRow;
+      const catRow = barnizRows.find((b) => String(b.id || b.nombre) === String(station.tintaRefId)) || panelRow;
+      pushInstance(motivoIndex, type, motivoLengthMeters, areaIn2, stationIndex, barnizCount, {
+        varnishBcm: firstPositiveNumber(n(station.aniloxBcm, 0), n(catRow.bcmAnilox, 0), n(panel.varnishBcm, 0), 0),
+        coveragePct: firstPositiveNumber(n(station.coveragePct, 0), n(catRow.porcentajeCobertura, 0), n(panel.coveragePct, 0), 100),
+        factorTransferencia: firstPositiveNumber(n(station.transferFactor, 0), n(catRow.factorTransferencia, 0), n(panel.factorTransferencia, 0), 0.35),
+        densidad: firstPositiveNumber(n(station.inkDensity, 0), n(catRow.densidad, 0), n(panel.densidad, 0), 1.05),
+        costPerKg: firstPositiveNumber(n(station.inkCostPerKg, 0), n(catRow.costoPorKilo, 0), n(panel.costPerKg, 0))
+      }, catRow, station.inkLabel || catRow.nombre || "Barniz");
+      barnizCount++;
+    });
+    // Barniz 2 / 3 configurados solo desde su panel (sin estación propia todavía): agregan su
+    // instancia siempre que exista al menos un barniz real y el panel esté activo.
+    if (barnizCount > 0) {
+      for (let k = barnizCount; k < paneles.length; k++) {
+        const panel = paneles[k];
+        if (!panel || panel.active !== true) continue;
+        const panelRow = barnizRows.find((b) => String(b.id || b.nombre) === String(panel.materialId)) || {};
+        pushInstance(motivoIndex, type, motivoLengthMeters, areaIn2, n(panel.stationIndex, -1), k, {
+          varnishBcm: firstPositiveNumber(n(panel.varnishBcm, 0), n(panelRow.bcmAnilox, 0), 0),
+          coveragePct: firstPositiveNumber(n(panel.coveragePct, 0), n(panelRow.porcentajeCobertura, 0), 100),
+          factorTransferencia: firstPositiveNumber(n(panel.factorTransferencia, 0), n(panelRow.factorTransferencia, 0), 0.35),
+          densidad: firstPositiveNumber(n(panel.densidad, 0), n(panelRow.densidad, 0), 1.05),
+          costPerKg: firstPositiveNumber(n(panel.costPerKg, 0), n(panelRow.costoPorKilo, 0), 0)
+        }, panelRow, panelRow.nombre || "Barniz");
+        barnizCount++;
+      }
+    }
+  });
+  return { count: instances.length, subtotal: r(subtotal), consumptionKg: r(consumptionKg, 6), instances };
 }
 
 function createPrintStage(base = {}) {
@@ -2553,13 +3799,12 @@ function createPrintStage(base = {}) {
       setupMinutes: n(source.setupMinutes, inlineFinishSetupMinutes(slot.key)),
       costHour: n(source.costHour, 0),
       fixedCost: n(source.fixedCost, 0),
-      costPerFoot: n(source.costPerFoot, 0),
       costPerMeter: n(source.costPerMeter, 0),
       costPerMsi: n(source.costPerMsi, 0),
-      costPerFt2: n(source.costPerFt2, 0),
+      costPerM2: n(source.costPerM2, 0),
       costPerUnit: n(source.costPerUnit, 0),
       costPerKg: n(source.costPerKg, 0),
-      layerGft2: n(source.layerGft2, 0),
+      layerGm2: n(source.layerGm2, 0),
       supplyWidthIn: n(source.supplyWidthIn, 0),
       varnishBcm: n(source.varnishBcm, inkDefaults.barnizBcm),
       coveragePct: slot.key === "barniz"
@@ -2568,11 +3813,11 @@ function createPrintStage(base = {}) {
       layerGsm: slot.key === "barniz"
         ? (n(source.layerGsm, 0) > 0 ? n(source.layerGsm, 0) : inkDefaults.barnizGsm)
         : n(source.layerGsm, 0),
-      costPerLb: n(source.costPerLb, 0),
+      costPerKg: legacyInkCostPerKg(source.costPerKg, source.costPerLb),
       plateCost: n(source.plateCost, 0),
       plateWidthIn: n(source.plateWidthIn, 0),
       plateLengthIn: n(source.plateLengthIn, 0),
-      setupWasteFeet: n(source.setupWasteFeet, inlineFinishSetupWasteFeet(slot.key)),
+      setupWasteMeters: n(source.setupWasteMeters, inlineFinishSetupWasteMeters(slot.key)),
       operationWastePct: n(source.operationWastePct, 0),
       speed: n(source.speed, 0),
       costHourMachine: n(source.costHourMachine, 0),
@@ -2587,8 +3832,29 @@ function createPrintStage(base = {}) {
       attachmentName: numberingConfig?.attachmentName || "",
       attachments: numberingConfig?.attachments || [],
       detail: numberingConfig?.detail || "",
-      sonified: Boolean(source.sonified),
-      coldfoil: slot.key === "estampado" ? normalizeColdfoilData(source.coldfoil || {}) : undefined
+      sonified: Boolean(source.sonified)
+    };
+  });
+  // Barniz 2 y 3: barnices adicionales (mismos campos que el barniz principal). Nacen
+  // desactivados; la pantalla del barniz los muestra con el botón "+" y se quitan con el
+  // basurero. Cada uno guarda su propio número de estación.
+  ["barniz2", "barniz3"].forEach((k) => {
+    const src = base.inlineFinishes?.[k] || {};
+    inlineFinishes[k] = {
+      ...JSON.parse(JSON.stringify(inlineFinishes.barniz)),
+      active: src.active === true,
+      materialId: src.materialId || "",
+      varnishBcm: n(src.varnishBcm, 0),
+      coveragePct: n(src.coveragePct, 0),
+      factorTransferencia: n(src.factorTransferencia, 0),
+      densidad: n(src.densidad, 0),
+      costPerKg: legacyInkCostPerKg(src.costPerKg, src.costPerLb, 0),
+      visc: n(src.visc, 0),
+      setupMinutes: n(src.setupMinutes, 0),
+      sonified: Boolean(src.sonified),
+      comment: src.comment || "",
+      stationIndex: Number.isFinite(src.stationIndex) ? src.stationIndex : null,
+      estacionNumero: n(src.estacionNumero, 0) || ""
     };
   });
   return {
@@ -2598,12 +3864,14 @@ function createPrintStage(base = {}) {
     setupMinutes: n(base.setupMinutes, 0),
     cleaningMinutes: n(base.cleaningMinutes, 0),
     mountingMinutes: firstPositiveNumber(base.mountingMinutes, inlineFinishSetupMinutes("impresion"), 0),
+    volteadora: Boolean(base.volteadora),
+    volteadoraSetupMin: n(base.volteadoraSetupMin, 0),
     speedMetersMin: n(base.speedMetersMin, 0),
     availableColors: n(base.availableColors, 0),
     costHour: n(base.costHour, 0),
     operatorHourCost: n(base.operatorHourCost, 0),
-    maculaSetupFeet: n(base.maculaSetupFeet, 0) > 0 ? base.maculaSetupFeet : defaultPrintMaculaSetupFeet(base.machineId),
-    maculaTirajeFeet: base.maculaTirajeFeet,
+    maculaSetupMeters: n(base.maculaSetupMeters, 0) > 0 ? base.maculaSetupMeters : defaultPrintMaculaSetupMeters(base.machineId),
+    maculaTirajeMeters: base.maculaTirajeMeters,
     maculaTirajePct: base.maculaTirajePct,
     coveragePct: n(base.coveragePct, 0) > 0 ? n(base.coveragePct, 0) : inkDefaults.cmykCoveragePct,
     aniloxBcm: n(first(base.aniloxBcm, base.inkGsm), 3),
@@ -2611,13 +3879,13 @@ function createPrintStage(base = {}) {
     inkDensity: n(base.inkDensity, 1.5),
     inkMaterialId: base.inkMaterialId || tintaConvencional[0]?.id || "",
     inkMaterialDesc: base.inkMaterialDesc || "",
-    inkCostPerLb: n(base.inkCostPerLb, materialCostPerPound(findMaterial(base.inkMaterialId || tintaConvencional[0]?.id || ""))),
+    inkCostPerKg: legacyInkCostPerKg(base.inkCostPerKg, base.inkCostPerLb, materialCostPerKg(findMaterial(base.inkMaterialId || tintaConvencional[0]?.id || ""))),
     inkGsm: n(base.inkGsm, 0) > 0 ? n(base.inkGsm, 0) : inkDefaults.cmykGsm,
     bcmGenerico: n(base.bcmGenerico, 2),
     whiteInkMaterialId: base.whiteInkMaterialId || tintaBlanca[0]?.id || "",
     whiteInkMaterialDesc: base.whiteInkMaterialDesc || "",
-    whiteInkCostPerLb: n(base.whiteInkCostPerLb, materialCostPerPound(findMaterial(base.whiteInkMaterialId || tintaBlanca[0]?.id || "")) || 30),
-    pantoneInkCostPerLb: n(base.pantoneInkCostPerLb, 35),
+    whiteInkCostPerKg: legacyInkCostPerKg(base.whiteInkCostPerKg, base.whiteInkCostPerLb, materialCostPerKg(findMaterial(base.whiteInkMaterialId || tintaBlanca[0]?.id || "")) || 66.1387),
+    pantoneInkCostPerKg: legacyInkCostPerKg(base.pantoneInkCostPerKg, base.pantoneInkCostPerLb, 77.1618),
     requiresSubstrateTreatment: base.requiresSubstrateTreatment,
     digitalBillingType: first(base.digitalBillingType, digitalDefaults.billingType),
     digitalInkCostPerKg: n(base.digitalInkCostPerKg, digitalDefaults.inkCostPerKg),
@@ -2670,23 +3938,23 @@ function createFinishItem(base = {}, index = 0) {
     costHourMachine: n(first(base.costHourMachine, base.costHour), 0),
     costHourOperator: n(base.costHourOperator, 0),
     fixedCost: n(base.fixedCost, 0),
-    costPerFoot: n(base.costPerFoot, 0),
     costPerMeter: n(base.costPerMeter, 0),
     costPerMsi: n(base.costPerMsi, 0),
-    costPerFt2: n(base.costPerFt2, 0),
+    costPerM2: n(base.costPerM2, 0),
     costPerUnit: n(base.costPerUnit, 0),
     costPerKg: n(base.costPerKg, 0),
-    layerGft2: n(base.layerGft2, 0),
+    layerGm2: n(base.layerGm2, 0),
     plateCost: n(base.plateCost, 0),
     plateWidthIn: n(base.plateWidthIn, 0),
     plateLengthIn: n(base.plateLengthIn, 0),
-    setupWasteFeet: n(base.setupWasteFeet, 0),
+    setupWasteMeters: n(base.setupWasteMeters, 0),
     operationWastePct: n(base.operationWastePct, 0),
     variableBase: n(base.variableBase, 0),
     variableUnitCost: n(base.variableUnitCost, 0),
     source: base.source || base.origin || "user",
     autoManaged: base.autoManaged === true || base.source === "system" || base.origin === "system",
-    comment: base.comment || ""
+    comment: base.comment || "",
+    empalmesMaximo: n(base.empalmesMaximo, 0)
   };
 }
 
@@ -2712,21 +3980,20 @@ function ensureConfiguredProcessInstances() {
         machineName: machine ? machineDisplayName(machine) : "",
         materialId: config.usesMaterial ? (material?.id || "") : "",
         description: process?.nombre || config.label,
-        setupMinutes: firstPositiveNumber(machine?.setupBaseMinutes, capacity?.tiempo_preparacion_general, process?.tiempo_preparacion_general, 0),
+        setupMinutes: firstPositiveNumber(machine?.setupBaseMinutes, capacity?.tiempo_preparacion_general, process?.tiempo_preparacion_general, norm(meta.key).includes("rebob") ? n(state.costsConfig?.general?.defaultRebobinadoTiempoMontaje, 0) : 0),
         speed: firstPositiveNumber(machine?.productionSpeed, capacity?.velocidad_produccion, process?.velocidad_produccion, 0),
         costHour: firstPositiveNumber(machine?.hourlyMachineCost, capacity?.costo_hora_maquina, process?.costo_hora_maquina, process?.costo_hora_operario, 0),
         costHourMachine: firstPositiveNumber(machine?.hourlyMachineCost, capacity?.costo_hora_maquina, process?.costo_hora_maquina, 0),
         costHourOperator: firstPositiveNumber(machine?.hourlyOperatorCost, capacity?.costo_hora_operario, process?.costo_hora_operario, 0),
         fixedCost: n(process?.costo_fijo, 0),
         variableUnitCost: n(process?.costo_x_pie || process?.costo_x_msi || process?.costo_x_kg || process?.costo_x_millar, 0),
-        costPerFoot: costs.costPerFoot,
         costPerMeter: costs.costPerMeter,
         costPerMsi: costs.costMsi,
-        costPerFt2: n(first(material?.costo_x_ft2, material?.costoPorFt2), 0),
+        costPerM2: r(n(first(material?.costo_x_ft2, material?.costoPorFt2), 0) * 10.7639104167, 6),
         costPerUnit: n(material?.costo_x_unidad, 0),
         costPerKg: n(material?.costo_x_kg, 0),
-        layerGft2: n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0),
-        setupWasteFeet: wasteDefaults.setupWasteFeet,
+        layerGm2: r(n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0) * 10.7639104167, 4),
+        setupWasteMeters: wasteDefaults.setupWasteMeters,
         operationWastePct: wasteDefaults.operationWastePct,
         source: "system",
         autoManaged: true
@@ -2759,6 +4026,7 @@ function addProcessKey(key) {
       }
       syncPrimaryPrintStage();
       regeneratePrintStageInkStations(state.form);
+      applyAllMotivosAutoInkStations(state.form);
       return true;
     }
   if (EXTERNAL_FINISH_BY_KEY[key]) {
@@ -2779,21 +4047,20 @@ function addProcessKey(key) {
         machineName: machine ? machineDisplayName(machine) : "",
         materialId: config.usesMaterial ? (material?.id || "") : "",
         description: process?.nombre || config.label,
-        setupMinutes: firstPositiveNumber(machine?.setupBaseMinutes, capacity?.tiempo_preparacion_general, process?.tiempo_preparacion_general, 0),
+        setupMinutes: firstPositiveNumber(machine?.setupBaseMinutes, capacity?.tiempo_preparacion_general, process?.tiempo_preparacion_general, norm(key).includes("rebob") ? n(state.costsConfig?.general?.defaultRebobinadoTiempoMontaje, 0) : 0),
         speed: firstPositiveNumber(machine?.productionSpeed, capacity?.velocidad_produccion, process?.velocidad_produccion, 0),
         costHour: firstPositiveNumber(machine?.hourlyMachineCost, capacity?.costo_hora_maquina, process?.costo_hora_maquina, process?.costo_hora_operario, 0),
         costHourMachine: firstPositiveNumber(machine?.hourlyMachineCost, capacity?.costo_hora_maquina, process?.costo_hora_maquina, 0),
         costHourOperator: firstPositiveNumber(machine?.hourlyOperatorCost, capacity?.costo_hora_operario, process?.costo_hora_operario, 0),
         fixedCost: n(process?.costo_fijo, 0),
         variableUnitCost: n(process?.costo_x_pie || process?.costo_x_msi || process?.costo_x_kg || process?.costo_x_millar, 0),
-        costPerFoot: costs.costPerFoot,
         costPerMeter: costs.costPerMeter,
         costPerMsi: costs.costMsi,
-        costPerFt2: n(first(material?.costo_x_ft2, material?.costoPorFt2), 0),
+        costPerM2: r(n(first(material?.costo_x_ft2, material?.costoPorFt2), 0) * 10.7639104167, 6),
         costPerUnit: n(material?.costo_x_unidad, 0),
         costPerKg: n(material?.costo_x_kg, 0),
-        layerGft2: n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0),
-        setupWasteFeet: wasteDefaults.setupWasteFeet,
+        layerGm2: r(n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0) * 10.7639104167, 4),
+        setupWasteMeters: wasteDefaults.setupWasteMeters,
         operationWastePct: wasteDefaults.operationWastePct,
         source: "user",
         autoManaged: false
@@ -2834,7 +4101,7 @@ async function getJson(url, options) {
 }
 
 function emptyCatalogs() {
-  return { materials: [], troqueles: [], machines: [], machineCategories: {}, processes: [], outputTypes: [] };
+  return { materials: [], troqueles: [], machines: [], machineCategories: {}, processes: [], outputTypes: [], pantones: [] };
 }
 
 function withTimeout(promise, ms, fallback) {
@@ -2875,21 +4142,81 @@ async function postJson(url, body) {
   return payload;
 }
 
+function confirmarFabricacionTroquelDialog(mensaje) {
+  return new Promise((resolve) => {
+    document.querySelector(".ct-fabricacion-confirm-dialog")?.remove();
+    document.body.classList.add("popover-open");
+    const overlay = document.createElement("div");
+    overlay.className = "quote-order-quantity-dialog ct-fabricacion-confirm-dialog";
+    overlay.innerHTML = `<div class="quote-order-quantity-panel" role="dialog" aria-modal="true" aria-label="Solicitud de Fabricación de Troquel">
+      <div class="quote-order-quantity-title">Troquel Nuevo Requerido</div>
+      <p style="font-size:13px;color:var(--app-text-muted,#94a3b8);line-height:1.5;">${esc(mensaje)}</p>
+      <div class="quote-order-quantity-actions">
+        <button type="button" class="action-btn" data-action="no-continuar">No Continuar por Ahora</button>
+        <button type="button" class="action-btn action-btn-primary" data-action="continuar">Continuar con la Fabricación</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    const cerrar = (resultado) => {
+      overlay.remove();
+      document.body.classList.remove("popover-open");
+      resolve(resultado);
+    };
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay || event.target.closest("[data-action='no-continuar']")) {
+        cerrar(false);
+        return;
+      }
+      if (event.target.closest("[data-action='continuar']")) {
+        cerrar(true);
+      }
+    });
+  });
+}
+
+async function crearOrdenProduccionConTroquel(quoteCode, lineCode, body) {
+  const url = `/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/orden-produccion`;
+  let payload = await postJson(url, body);
+  if (payload?.requiere_confirmacion_troquel) {
+    const continuar = await confirmarFabricacionTroquelDialog(payload.mensaje || "Esta cotización requiere un nuevo troquel. ¿Desea continuar con la solicitud de fabricación del troquel?");
+    payload = await postJson(url, { ...body, confirmar_fabricacion_troquel: continuar });
+  }
+  return payload;
+}
+
 function fillSelect(select, options, selected = "") {
   select.innerHTML = options.map((item) => `<option value="${esc(item.value)}"${String(item.value) === String(selected) ? " selected" : ""}>${esc(item.label)}</option>`).join("");
 }
 
-function coreDiameterSelectOptions() {
+function coreTypeSelectOptions() {
   const defaults = quoteDefaultsFromConfig();
-  const options = [...defaults.coreDiameterOptions];
-  const selected = String(first(state.form?.header?.coreDiameter, defaults.coreDiameter)).trim();
-  if (selected && !options.includes(selected)) {
-    options.push(selected);
+  const optionItems = [...defaults.coreDiameterOptions];
+  const savedCoreType = state.form?.header?.coreType;
+  const savedDiam = String(first(savedCoreType?.diametro, state.form?.header?.coreDiameter, defaults.coreDiameter)).trim();
+  if (savedDiam && !optionItems.some((o) => String(o.diametro || "").trim() === savedDiam)) {
+    optionItems.push({ diametro: savedDiam, espesor: savedCoreType?.espesor || 0, precio: savedCoreType?.precio || 0, descripcion: savedCoreType?.descripcion || "" });
   }
-  return options.map((item) => {
-    const value = String(item || "").trim();
-    return { value, label: value ? `${value} in` : value };
+  return optionItems.map((item) => {
+    const diam = String(item.diametro || "").trim();
+    const thick = n(item.espesor, 0);
+    const descripcion = String(item.descripcion || "").trim();
+    const label = descripcion || (diam ? (thick > 0 ? `${diam}'' - ${thick}mm` : `${diam}''`) : "");
+    const value = JSON.stringify({ diametro: diam, espesor: thick, precio: n(item.precio, 0) });
+    return { value, label };
   });
+}
+
+function coreTypeOptionsHtml(selected) {
+  return coreTypeSelectOptions().map((item) => `<option value="${esc(item.value)}"${String(item.value) === String(selected) ? " selected" : ""}>${esc(item.label)}</option>`).join("");
+}
+
+function bolsaResumen(bolsa) {
+  if (!bolsa) return "";
+  const parts = [String(bolsa.nombre || "").trim()];
+  if (bolsa.material) parts.push(String(bolsa.material).trim());
+  if (n(bolsa.anchoCm, 0) > 0 || n(bolsa.largoCm, 0) > 0) parts.push(`${num(bolsa.anchoCm || 0, 1)}x${num(bolsa.largoCm || 0, 1)} cm`);
+  if (bolsa.color) parts.push(String(bolsa.color).trim());
+  return parts.filter(Boolean).join(" · ");
 }
 
 function processOptions(items, selected = "", placeholder = "Seleccionar...") {
@@ -2978,7 +4305,7 @@ function processKeyFromAutoSnapshot(value = "") {
   const token = norm(value);
   if (!token) return "";
   if (token.includes("preprensa")) return "preprensa";
-  if (token.includes("planch")) return "planchas";
+  if (token.includes("planch")) return "sellos";
   if (token.includes("impres")) return "impresion";
   if (token.includes("barniz")) return "barnizado";
   if (token.includes("laminad")) return "laminado";
@@ -3052,18 +4379,23 @@ function printSpeedUnit(machine) {
   const token = norm(first(machine?.speedUnit, machine?.unidad_velocidad_produccion, ""));
   if (token === "m/min" || token === "mpm" || token === "metros/min" || token === "metro/min") return "m/min";
   if (token === "ft/min" || token === "pie/min" || token === "pies/min") return "ft/min";
-  return isDigitalProductionMachine(machine) ? "m/min" : "ft/min";
+  return "m/min";
 }
 
 function printSpeedValue(value) {
   return n(value, 0);
 }
 
-function printSpeedMinutes(totalLengthFeet, totalLengthMeters, speedValue, machine) {
-  if (speedValue <= 0) return 0;
-  return printSpeedUnit(machine) === "m/min"
-    ? r(totalLengthMeters / speedValue, 4)
-    : r(totalLengthFeet / speedValue, 4);
+function normalizeSpeedToMetersMin(rawSpeed, machine) {
+  const value = n(rawSpeed, 0);
+  if (value <= 0) return 0;
+  return printSpeedUnit(machine) === "m/min" ? r(value, 4) : r(value * 0.3048, 4);
+}
+
+function printSpeedMinutes(totalLengthMeters, speedValue, machine) {
+  const speedMetersMin = normalizeSpeedToMetersMin(speedValue, machine);
+  if (speedMetersMin <= 0) return 0;
+  return r(totalLengthMeters / speedMetersMin, 4);
 }
 
 function currentPrintMachine() {
@@ -3083,7 +4415,7 @@ function digitalPlateRuleApplies() {
 
 function digitalPlateRuleMessage() {
   if (!digitalPlateRuleApplies()) return "";
-  return "Costo de planchas y preprensa desactivado por el proceso productivo digital de la máquina de impresión.";
+  return "Costo de sellos y preprensa desactivado por el proceso productivo digital de la máquina de impresión.";
 }
 
 function digitalProcessInlineNote() {
@@ -3117,7 +4449,7 @@ function inlineFinishAllowedForMachine(machine, inlineKey) {
 }
 
 function availableInlineSlotsForMachine(machine) {
-  return INLINE_PRINT_SLOTS.filter((slot) => inlineFinishAllowedForMachine(machine, slot.key));
+  return INLINE_PRINT_SLOTS.filter((slot) => !slot.hidden && inlineFinishAllowedForMachine(machine, slot.key));
 }
 
 function machineAllowsAnyInline(machine) {
@@ -3203,7 +4535,7 @@ function plateMachines(entry) {
     if (!isMachineActive(machine)) return false;
     return machineCapacities(machine).some((capacity) => {
       const haystack = capacityHaystack(machine, capacity);
-      return haystack.includes("planchas") && entry.keywords.some((keyword) => haystack.includes(norm(keyword)));
+      return haystack.includes("sellos") && entry.keywords.some((keyword) => haystack.includes(norm(keyword)));
     });
   });
 }
@@ -3211,7 +4543,7 @@ function plateMachines(entry) {
 function plateMachineCapacity(machine, entry) {
   return primaryMachineCapacity(machine, (capacity) => {
     const haystack = capacityHaystack(machine, capacity);
-    return haystack.includes("planchas") && entry.keywords.some((keyword) => haystack.includes(norm(keyword)));
+    return haystack.includes("sellos") && entry.keywords.some((keyword) => haystack.includes(norm(keyword)));
   });
 }
 
@@ -3286,11 +4618,11 @@ function materialPremierPreapplied(material) {
   return Boolean(material?.premierPreapplied || material?.premier_preaplicado);
 }
 
-function materialCostPerPound(material) {
-  const direct = n(first(material?.costoPorLibra, material?.costo_x_libra), 0);
-  if (direct > 0) return direct;
-  const perKg = n(material?.costo_x_kg, 0);
-  return perKg > 0 ? r(perKg * 0.45359237, 6) : 0;
+function materialCostPerKg(material) {
+  const perKg = n(first(material?.costoPorKg, material?.costo_x_kg, material?.costPerKgUsd), 0);
+  if (perKg > 0) return perKg;
+  const legacyLb = n(first(material?.costoPorLibra, material?.costo_x_libra, material?.costPerLbUsd), 0);
+  return legacyLb > 0 ? r(legacyLb / 0.45359237, 6) : 0;
 }
 
 function materialLayerGsm(material, fallback = 0) {
@@ -3366,7 +4698,7 @@ function materialWastePct(material) {
 function plateStockMaterials(machineId = "") {
   const machine = findMachine(machineId);
   const machineName = norm(machineDisplayName(machine));
-  const base = materialsByKeywords(["plancha", "cliche", "cliché", "fotopol", "cyrel"]);
+  const base = materialsByKeywords(["sello", "cliche", "cliché", "fotopol", "cyrel"]);
   if (!machineName) return base;
   const narrowed = base.filter((item) => {
     const haystack = norm(`${item.descripcion || ""} ${item.nombre || ""} ${item.tipo_proforma || ""}`);
@@ -3401,32 +4733,92 @@ function materialsByClassification(family = "", keywords = []) {
 function getFinishMaterialOptions(family, keywords) {
   const options = [];
   const costsConfig = state.costsConfig;
-  if (!costsConfig || !costsConfig.acabados) return options;
   const normalizedFamily = norm(family);
-  if (normalizedFamily === "barniz" && Array.isArray(costsConfig.acabados.barniz)) {
-    costsConfig.acabados.barniz.forEach((item) => {
-      if (item.nombre) {
-        options.push({ id: item.id || item.nombre, nombre: item.nombre });
-      }
-    });
-  } else if (normalizedFamily === "laminado" && Array.isArray(costsConfig.acabados.laminado)) {
-    costsConfig.acabados.laminado.forEach((item) => {
-      if (item.nombre) {
-        options.push({ id: item.id || item.nombre, nombre: item.nombre });
-      }
-    });
-  } else if ((normalizedFamily === "foil" || normalizedFamily === "estampado") && Array.isArray(costsConfig.acabados.estampado)) {
-    costsConfig.acabados.estampado.forEach((item) => {
-      if (item.tipoFoil) {
-        options.push({ id: item.id || item.tipoFoil, nombre: item.tipoFoil });
-      }
-    });
+  if (normalizedFamily === "barniz") {
+    if (costsConfig && costsConfig.acabados && Array.isArray(costsConfig.acabados.barniz)) {
+      costsConfig.acabados.barniz.forEach((item) => {
+        if (item.nombre) {
+          options.push({ id: item.id || item.nombre, nombre: item.nombre });
+        }
+      });
+    }
+    if (!options.length) {
+      [
+        { id: "Brillante UV", nombre: "Brillante UV" },
+        { id: "Mate UV", nombre: "Mate UV" },
+        { id: "Brillante Base Agua", nombre: "Brillante Base Agua" },
+        { id: "Mate Base Agua", nombre: "Mate Base Agua" },
+        { id: "UV Zonificado / Reservado", nombre: "UV Zonificado / Reservado" }
+      ].forEach((o) => options.push(o));
+    }
+    return options;
+  }
+  if (costsConfig && costsConfig.acabados) {
+    if (normalizedFamily === "laminado" && Array.isArray(costsConfig.acabados.laminado)) {
+      costsConfig.acabados.laminado.forEach((item) => {
+        if (item.nombre) {
+          options.push({ id: item.id || item.nombre, nombre: item.nombre });
+        }
+      });
+    } else if ((normalizedFamily === "foil" || normalizedFamily === "estampado") && Array.isArray(costsConfig.acabados.estampado)) {
+      costsConfig.acabados.estampado.forEach((item) => {
+        if (item.tipoFoil) {
+          options.push({ id: item.id || item.tipoFoil, nombre: item.tipoFoil });
+        }
+      });
+    }
   }
   return options;
 }
 
+// Gomas para estampado: materia prima clasificada "adicionales". Sus números técnicos
+// (cobertura, BCM, factor, densidad, carga mínima, costo/kg) viven solo en la línea de
+// inventario; el cálculo los lee de aquí por id, no los copia al formulario.
+function gomaMaterialList() {
+  return (state.catalogs.materials || []).filter((item) => {
+    const fam = norm(item.familia_proceso || item.familiaProceso || item.familia || item.clasificacion || "");
+    return fam === "adicionales";
+  });
+}
+function findGomaMaterial(id) {
+  if (id == null || id === "") return null;
+  return (state.catalogs.materials || []).find((item) => String(item.id) === String(id)) || null;
+}
+
 function substrateMaterialOptions() {
   return materialsByClassification("sustrato", ["sustrato", "papel", "film", "bopp", "opp", "pet", "vinil"]);
+}
+
+// El sustrato elegido viene de SAP y no tiene ancho de rollo / gramaje / calibre. El sistema NO
+// permite ingresar esos datos aquí: solo muestra este aviso y bloquea el cálculo del sustrato. Los
+// datos se completan en SAP y llegan por la sincronización.
+function sustratoFichaSapPanel(material) {
+  if (!material || material.source !== "sap" || !material.needsFichaTecnica) return "";
+  return `<div class="substrate-ficha-faltante" data-codigo="${esc(String(material.id || material.sap_item_code || ""))}">
+    <p class="substrate-ficha-faltante-msg">Este sustrato viene de SAP y no tiene <strong>ancho de rollo, gramaje o calibre</strong>. Sin esos datos <strong>no se puede calcular el costo</strong>, así que este sustrato queda bloqueado. Ya se avisó al encargado de inventarios para que los complete en SAP.</p>
+  </div>`;
+}
+
+// El sustrato es de SAP y le faltan datos técnicos ⇒ no se puede costear: se apagan todos los
+// subtotales, igual que con las dimensiones fuera de rango.
+function substrateDataBlocked(form = state.form) {
+  const material = findMaterial(form?.substrate?.materialId);
+  return Boolean(material && material.source === "sap" && material.needsFichaTecnica);
+}
+
+// Sustratos de SAP ya avisados a Inventarios en esta sesión (para no mandar el correo repetido).
+const sustratosFaltantesAvisados = new Set();
+
+function reportarSustratoSapSinDatos(material) {
+  if (!material || material.source !== "sap" || !material.needsFichaTecnica) return;
+  const codigo = String(material.id || material.sap_item_code || "");
+  if (!codigo || sustratosFaltantesAvisados.has(codigo)) return;
+  sustratosFaltantesAvisados.add(codigo);
+  fetch(`/api/sustrato-sap/${encodeURIComponent(codigo)}/aviso-datos-faltantes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nombreSap: material.nombre || material.name || "" })
+  }).catch(() => {});
 }
 
 function conventionalInkMaterialOptions() {
@@ -3440,6 +4832,24 @@ function whiteInkMaterialOptions() {
 }
 
 function materialUnitCosts(material, widthInches = 0) {
+  const directCostPerMeter = n(first(material?.costo_x_metro, material?.costPerMeterUsd), 0);
+  if (directCostPerMeter > 0) {
+    return {
+      costMsi: 0,
+      costPerFoot: r(directCostPerMeter * 0.3048, 6),
+      costPerMeter: r(directCostPerMeter, 6)
+    };
+  }
+  const costM2Direct = n(first(material?.costo_x_m2, material?.costPerSquareMeterUsd), 0);
+  const anchoM = firstPositiveNumber(material?.ancho_mm) / 1000;
+  if (costM2Direct > 0 && anchoM > 0) {
+    const calculatedPerMeter = r(costM2Direct * anchoM, 6);
+    return {
+      costMsi: 0,
+      costPerFoot: r(calculatedPerMeter * 0.3048, 6),
+      costPerMeter: calculatedPerMeter
+    };
+  }
   const directCostPerFoot = n(first(material?.costo_x_pie, material?.costPerFootUsd, material?.costPerFoot), 0);
   if (directCostPerFoot > 0) {
     return {
@@ -3462,8 +4872,7 @@ function materialUnitCosts(material, widthInches = 0) {
   const costPerInch = width > 0 ? r((costMsi * width) / 1000, 6) : 0;
   if (costMsi <= 0) {
     const costPerKg = n(first(material?.costo_x_kg, material?.costPerKgUsd), 0);
-    const costPerLb = n(first(material?.costo_x_libra, material?.costoPorLibra, material?.costPerLbUsd), 0);
-    if (costPerKg > 0 || costPerLb > 0) {
+    if (costPerKg > 0) {
       return {
         costMsi: 0,
         costPerFoot: 0,
@@ -3476,6 +4885,79 @@ function materialUnitCosts(material, widthInches = 0) {
     costPerFoot: r(costPerInch * 12, 6),
     costPerMeter: r(costPerInch / 0.0254, 6)
   };
+}
+
+// Aplica a un acabado en línea (Barniz/Laminado/Estampado/otros) todas las variables técnicas del
+// material elegido — mismo cálculo tanto si el usuario lo selecciona a mano como si se hereda
+// automáticamente de la solicitud (ver applyInheritedFinishesFromRequest). Una sola fuente para
+// que ambos caminos no puedan desalinearse.
+function applyInlineFinishMaterialDefaults(stageIndex, inlineKey, materialId, form = state.form) {
+  const inline = form?.printStages?.[stageIndex]?.inlineFinishes?.[inlineKey];
+  if (!inline) return;
+  const material = findMaterial(materialId);
+  if (inlineKey === "barniz") {
+    const barnizItem = (state.costsConfig?.acabados?.barniz || []).find((b) => String(b.id || b.nombre) === String(materialId));
+    const barnizCostPerKg = n(first(barnizItem?.costoPorKilo, material?.costo_x_kg, material?.costPerKgUsd), 0);
+    Object.assign(inline, {
+      costPerKg: firstPositiveNumber(barnizCostPerKg, materialCostPerKg(material)),
+      layerGm2: r(n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0) * 10.7639104167, 4),
+      varnishBcm: firstPositiveNumber(n(barnizItem?.bcmAnilox, 0), inline.varnishBcm),
+      coveragePct: firstPositiveNumber(n(barnizItem?.porcentajeCobertura, 0), inline.coveragePct),
+      factorTransferencia: firstPositiveNumber(n(barnizItem?.factorTransferencia, 0), inline.factorTransferencia, 0.35),
+      densidad: firstPositiveNumber(n(barnizItem?.densidad, 0), inline.densidad, 1.05),
+      visc: firstPositiveNumber(n(barnizItem?.visc, 0), inline.visc)
+    });
+  } else if (inlineKey === "laminado") {
+    const laminadoItem = (state.costsConfig?.acabados?.laminado || []).find((l) => String(l.id || l.nombre) === String(materialId));
+    Object.assign(inline, {
+      costPerMeter: firstPositiveNumber(n(laminadoItem?.costoPorMetroLineal, 0), inline.costPerMeter),
+      setupMinutes: firstPositiveNumber(n(laminadoItem?.tiempoMontaje, 0), inline.setupMinutes)
+    });
+  } else if (inlineKey === "estampado") {
+    const estampadoItem = (state.costsConfig?.acabados?.estampado || []).find((es) => String(es.id || es.tipoFoil) === String(materialId));
+    Object.assign(inline, {
+      costPerMeter: n(estampadoItem?.costoPorMetroLineal, 0),
+      setupMinutes: firstPositiveNumber(n(estampadoItem?.tiempoMontaje, 0), inline.setupMinutes, 0)
+    });
+  } else {
+    const costs = materialUnitCosts(material, form?.header?.rollWidthIn);
+    Object.assign(inline, {
+      costPerMeter: costs.costPerMeter,
+      costPerMsi: costs.costMsi,
+      costPerM2: r(n(first(material?.costo_x_ft2, material?.costoPorFt2), 0) * 10.7639104167, 6),
+      costPerUnit: n(material?.costo_x_unidad, 0),
+      costPerKg: n(material?.costo_x_kg, 0),
+      layerGm2: r(n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0) * 10.7639104167, 4)
+    });
+  }
+}
+
+// Hereda Barniz/Laminado/Estampado desde la solicitud de cotización: si la solicitud ya trae un
+// material elegido (raw["REQ | Barniz"], etc.) y el cálculo todavía no tiene materialId asignado
+// para ese acabado, busca la misma opción del catálogo (por nombre, igual que hace la solicitud
+// con findBarnizOptionByName/findLaminadoOptionByName/findEstampadoOptionByName) y aplica sus
+// variables — así material y números quedan idénticos entre solicitud, cálculo, orden y producto.
+function applyInheritedFinishesFromRequest(form, raw = {}) {
+  const catalogMatch = (list, name) => {
+    const target = norm(name);
+    if (!target) return null;
+    return (list || []).find((item) => norm(item?.nombre) === target || norm(item?.tipoFoil) === target) || null;
+  };
+  [
+    { key: "barniz", reqKey: "REQ | Barniz", catalog: "barniz" },
+    { key: "laminado", reqKey: "REQ | Laminado", catalog: "laminado" },
+    { key: "estampado", reqKey: "REQ | Estampado", catalog: "estampado" }
+  ].forEach(({ key, reqKey, catalog }) => {
+    const inline = form.printStages?.[0]?.inlineFinishes?.[key];
+    if (!inline || !inline.active || String(inline.materialId || "").trim()) return;
+    const requestedName = String(raw?.[reqKey] || "").trim();
+    if (!requestedName) return;
+    const match = catalogMatch(state.costsConfig?.acabados?.[catalog], requestedName);
+    if (!match) return;
+    const materialId = String(match.id || match.nombre || "");
+    inline.materialId = materialId;
+    applyInlineFinishMaterialDefaults(0, key, materialId, form);
+  });
 }
 
 function findDie(code) {
@@ -3757,6 +5239,26 @@ function maxColorsPerType(form = state.form) {
   return 4 + (pantones > 0 ? pantones : 0);
 }
 
+function motivoOneColorsFromHeader(form = state.form) {
+  return form?.header?.useCmyk ? 4 : 0;
+}
+
+function motivoOneBlancasFromHeader(form = state.form) {
+  if (!form?.header?.useWhiteInk) return 0;
+  return form?.header?.doubleWhitePass ? 2 : 1;
+}
+
+function syncMotivoOneFromHeader(form = state.form) {
+  const colors = motivoOneColorsFromHeader(form);
+  const blancas = motivoOneBlancasFromHeader(form);
+  const pantones = Math.max(0, n(form?.header?.pantoneCount, 0));
+  (form?.types || []).forEach((type) => {
+    type.colors = colors;
+    type.blancas = blancas;
+    type.pantones = pantones;
+  });
+}
+
 function normalizeQuantities(values = []) {
   const rows = Array.isArray(values) ? values : [];
   const normalized = rows.map((item, index) => ({ id: item?.id || `qty-${index + 1}`, value: Math.max(0, n(item?.value, 0)) }));
@@ -3801,23 +5303,33 @@ function totalChangesCount(quantityTypes, additionalChanges) {
 function buildTypesList(count, totalQuantity, existing = null) {
   const target = Math.max(1, Math.ceil(n(count, 1)));
   const total = Math.max(0, n(totalQuantity, 0));
-  const base = total > 0 ? Math.floor(total / target) : 0;
-  const remainder = total > 0 ? total - (base * target) : 0;
-  const colorsDefault = Math.max(0, n(state.form?.header?.pantoneCount, 0))
-    + (state.form?.header?.useCmyk ? 4 : 0)
-    + (state.form?.header?.useWhiteInk ? 1 : 0);
+  const pantoneDefault = Math.max(0, n(state.form?.header?.pantoneCount, 0));
+  const colorsDefault = motivoOneColorsFromHeader(state.form);
+  const blancasDefault = motivoOneBlancasFromHeader(state.form);
   const changeCostDefaults = changeCostAutoDefaults(state.form);
   const result = [];
   for (let index = 0; index < target; index += 1) {
     const prev = Array.isArray(existing) ? existing[index] : null;
-    const quantity = prev && n(prev.quantity, 0) > 0 ? n(prev.quantity, 0) : base + (index === target - 1 ? remainder : 0);
-    const quantities = normalizeQuantities(Array.isArray(prev?.quantities) && prev.quantities.length ? prev.quantities : [{ id: `type-${index}-qty-1`, value: quantity }]);
+    const quantity = prev && n(prev.quantity, 0) > 0 ? n(prev.quantity, 0) : (index === 0 ? total : 0);
+    const hasPositiveSlot = Array.isArray(prev?.quantities) && prev.quantities.some((slot) => n(slot?.value, 0) > 0);
+    const quantities = normalizeQuantities(hasPositiveSlot ? prev.quantities : [{ id: prev?.quantities?.[0]?.id || `type-${index}-qty-1`, value: quantity }]);
+    // El primer motivo hereda el nombre del Trabajo Principal (header.jobName) mientras el usuario
+    // no lo haya editado a mano — así nunca queda en blanco. Los motivos 2+ no tienen un origen
+    // externo equivalente, quedan vacíos hasta que el usuario los nombre.
+    const nombreMotivoManual = Boolean(prev?.nombreMotivoManual);
+    const nombreMotivo = nombreMotivoManual
+      ? String(prev?.nombre_motivo || "").trim()
+      : (index === 0 ? String(state.form?.header?.jobName || "").trim() : String(prev?.nombre_motivo || "").trim());
     const item = {
-      name: String(prev?.name || "").trim() || (target === 1 ? "Motivo Único" : `Motivo ${index + 1}`),
+      name: `Arte ${index + 1}`,
+      nombre_motivo: nombreMotivo,
+      nombreMotivoManual,
       quantity: typeEffectiveQuantity(quantities, quantity),
       quantities,
       artwork: ["none", "adapt", "full"].includes(prev?.artwork) ? prev.artwork : "none",
       colors: prev && n(prev.colors, 0) > 0 ? n(prev.colors, 0) : colorsDefault,
+      blancas: Number.isFinite(prev?.blancas) ? Math.max(0, prev.blancas) : blancasDefault,
+      pantones: Number.isFinite(prev?.pantones) ? Math.max(0, prev.pantones) : pantoneDefault,
       plates: prev && n(prev.plates, 0) > 0 ? n(prev.plates, 0) : 0
     };
     if (index === 0) {
@@ -3827,38 +5339,162 @@ function buildTypesList(count, totalQuantity, existing = null) {
       item.changeOperators = Math.max(1, n(prev?.changeOperators, changeCostDefaults.operators));
       item.changeWasteCost = n(prev?.changeWasteCost, changeCostDefaults.wasteCost);
       item.changeAdditionalPrepCost = n(prev?.changeAdditionalPrepCost, changeCostDefaults.additionalPrepCost);
-    } else {
-      item.inkStations = Array.isArray(prev?.inkStations) && prev.inkStations.length
-        ? prev.inkStations.map((station) => ({ ...station }))
-        : generateInkStations(state.form).map((station) => ({ ...station }));
     }
+    // El Motivo 1 también guarda sus propias estaciones (Fase 17, tabla de Tintas) desde
+    // type.inkStations — antes solo los motivos > 0 lo hacían aquí, así que el Motivo 1 perdía
+    // su configuración de tintas en cada recarga aunque sí se hubiera guardado en el servidor.
+    const hasPrevStations = Array.isArray(prev?.inkStations) && prev.inkStations.length;
+    item.inkStations = hasPrevStations ? prev.inkStations.map((station) => ({ ...station })) : [];
+    // Un motivo nuevo (sin estaciones guardadas) parte de la configuración completa del Motivo 1
+    // (tinta exacta de catálogo, cobertura, BCM, todo) — los motivos se montan juntos en la misma
+    // corrida física para ahorrar tiempo de montaje, así que comparten estaciones por defecto; el
+    // usuario ajusta solo lo que cambia para ese motivo en vez de reconfigurar desde cero. Motivo 1
+    // (index 0) no tiene de dónde copiar, sigue heredando CMYK/Blanca/Barniz del encabezado.
+    if (!hasPrevStations) {
+      const motivoUnoStations = index > 0 ? state.form?.types?.[0]?.inkStations : null;
+      if (Array.isArray(motivoUnoStations) && motivoUnoStations.length) {
+        item.inkStations = motivoUnoStations.map((station) => ({ ...station, id: `station-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` }));
+      } else {
+        applyAutoInkStationsToType(item, state.form);
+      }
+    }
+    if (Array.isArray(prev?.versions) && prev.versions.length) item.versions = prev.versions.map((version) => ({ ...version }));
+    if (prev?.motivoProductCode) item.motivoProductCode = prev.motivoProductCode;
+    if (prev?.motivoProductSku) item.motivoProductSku = prev.motivoProductSku;
     result.push(item);
   }
   return result;
+}
+
+// Cada estación de tinta configurada (Proceso/Directo/Adicional/Barniz) requiere su propia sello
+// — el Barniz también necesita la suya (fórmula del cliente: Proceso + Pantones/Directo + Blancas/
+// Adicional + Barniz + Estampado). Antes se sumaba colors+blancas+pantones (campos que ya no se
+// editan desde que la tabla de estaciones reemplazó esos inputs); ahora sale de la fuente real,
+// type.inkStations.
+function motivoPlatesFromCounts(type = {}) {
+  const stations = Array.isArray(type?.inkStations) ? type.inkStations : [];
+  // Cada estación de tinta y el barniz llevan su sello. Laminado no lleva sello; el estampado
+  // lo aporta type.estampadoPlates (no se cuenta aquí para no duplicarlo).
+  return stations.filter((s) => s.tipo && s.tipo !== "troquelado" && MOTIVO_STATION_INLINE_ACABADOS.indexOf(s.tipo) === -1).length;
+}
+
+// Sellos adicionales por Versión: la Versión 1 ya está cubierta por los sellos del motivo
+// (inkStations, contadas arriba en motivoPlatesFromCounts) — sumarla aquí duplicaría el cobro.
+// Solo Versión 2 en adelante puede declarar sellos adicionales propias (arte distinto = juego
+// de sellos distinto).
+function motivoVersionAdditionalPlates(type = {}) {
+  const versions = Array.isArray(type?.versions) ? type.versions : [];
+  return versions.reduce((sum, version, index) => (index === 0 ? sum : sum + Math.max(0, n(version?.additionalPlates, 0))), 0);
+}
+
+// Versión: variante de arte dentro de un Motivo que conserva su configuración productiva
+// (colores/blancas/pantones). Con una sola versión (caso por defecto, sin acción del usuario),
+// la versión sigue la cantidad del motivo tal cual funciona hoy. Al agregar una segunda versión,
+// la cantidad del motivo pasa a ser la SUMA de sus versiones (dato derivado, no editable
+// directamente) para que nunca pueda descuadrar con la suma real.
+function ensureVersionsList(type) {
+  if (!type) return [];
+  if (!Array.isArray(type.versions) || !type.versions.length) {
+    type.versions = [{ name: "", description: "", quantity: Math.max(0, n(type.quantity, 0)), additionalPlates: 0 }];
+  }
+  type.versions.forEach((version, index) => {
+    version.name = String(version?.name || "").trim();
+    version.description = String(version?.description || "").trim();
+    version.quantity = Math.max(0, n(version?.quantity, 0));
+    // Versión 1 nunca declara sellos adicionales propias — ya están contempladas en el motivo.
+    version.additionalPlates = index === 0 ? 0 : Math.max(0, Math.round(n(version?.additionalPlates, 0)));
+  });
+  if (type.versions.length === 1) {
+    type.versions[0].quantity = Math.max(0, n(type.quantity, 0));
+  } else {
+    type.quantity = type.versions.reduce((sum, version) => sum + Math.max(0, n(version.quantity, 0)), 0);
+  }
+  return type.versions;
+}
+
+function addVersion(typeIndex) {
+  const type = Array.isArray(state.form.types) ? state.form.types[typeIndex] : null;
+  if (!type) return;
+  ensureVersionsList(type);
+  type.versions.push({ name: "", description: "", quantity: 0, additionalPlates: 0 });
+  ensureVersionsList(type);
+  renderProcesses();
+  refreshCalculationValidation();
+  scheduleSave();
+}
+
+function removeVersion(typeIndex, versionIndex) {
+  const type = Array.isArray(state.form.types) ? state.form.types[typeIndex] : null;
+  if (!type || !Array.isArray(type.versions) || type.versions.length <= 1) return;
+  if (!Number.isInteger(versionIndex) || !type.versions[versionIndex]) return;
+  if (versionIndex === 0) return;
+  type.versions.splice(versionIndex, 1);
+  ensureVersionsList(type);
+  renderProcesses();
+  refreshCalculationValidation();
+  scheduleSave();
 }
 
 function ensureTypesList(form = state.form) {
   const types = Array.isArray(form?.types) ? form.types : [];
   const target = Math.max(1, n(form?.header?.quantityTypes, 1));
   if (types.length !== target) form.types = buildTypesList(target, currentQuantity(form), types);
+  syncMotivoOneFromHeader(form);
+  if (target === 1 && form.types[0]) {
+    const master = currentQuantity(form);
+    form.types[0].quantity = master;
+    form.types[0].quantities = normalizeQuantities([{ id: form.types[0].quantities?.[0]?.id || "qty-1", value: master }]);
+  }
+  const estampadoActive = estampadoPlateActive(form);
+  form.types.forEach((type, index) => {
+    ensureVersionsList(type);
+    type.inkStationPlates = motivoPlatesFromCounts(type);
+    type.versionAdditionalPlates = motivoVersionAdditionalPlates(type);
+    type.estampadoPlates = index === 0 && estampadoActive ? 1 : 0;
+    type.plates = type.inkStationPlates + type.versionAdditionalPlates + type.estampadoPlates;
+  });
+  // La Versión 1 del Motivo 1 nace con el nombre del Trabajo (header.jobName) mientras el usuario
+  // no la haya nombrado a mano — mismo criterio que nombre_motivo, para que desde la creación
+  // ambos campos vivan con ese nombre. Solo se rellena cuando está vacío (nunca pisa una edición)
+  // y solo la Versión 1 del Motivo 1: motivos/versiones adicionales no heredan.
+  const jobNameForVersion = String(form?.header?.jobName || "").trim();
+  if (jobNameForVersion && form.types[0]?.versions?.[0] && !form.types[0].versions[0].nombreManual) {
+    form.types[0].versions[0].name = jobNameForVersion;
+  }
   return form.types;
+}
+
+// Total de placas a considerar para el costeo de sellos en modo "Crear" (sello virgen/láser
+// propia): cada Versión de cada Motivo requiere su propio juego de placas, con el mismo conteo de
+// color que su Motivo padre (la versión conserva la configuración productiva — Fase 5/6 del
+// modelo Motivo→Versión). En el caso simple (1 motivo, 1 versión) esto es idéntico a
+// effectiveColors(form), porque motivo 0 ya se sincroniza con el header (syncMotivoOneFromHeader).
+// Antes de este cambio, el modo "Crear" usaba únicamente effectiveColors(form) (solo el header),
+// por lo que un segundo motivo con colores/pantones adicionales no generaba costo de sello.
+function totalPlateSetsColorCount(form = state.form) {
+  const types = ensureTypesList(form);
+  return types.reduce((sum, type) => {
+    const colorCount = motivoPlatesFromCounts(type);
+    const versionCount = Math.max(1, ensureVersionsList(type).length);
+    return sum + (colorCount * versionCount);
+  }, 0);
 }
 
 function typesQuantitySum(form = state.form) {
   return (Array.isArray(form?.types) ? form.types : []).reduce((sum, type) => sum + Math.max(0, n(type?.quantity, 0)), 0);
 }
 
-function machineChangeWasteFeet(machine = {}) {
-  const toFeet = (value, unit) => {
+function machineChangeWasteMeters(machine = {}) {
+  const toMeters = (value, unit) => {
     const amount = n(value, 0);
     if (amount <= 0) return 0;
-    return String(unit || "").toLowerCase().startsWith("metro") ? amount / 0.3048 : amount;
+    return String(unit || "").toLowerCase().startsWith("metro") ? amount : amount * 0.3048;
   };
-  const setupFeet = firstPositiveNumber(machine?.sustratoSetupMermaCantidad, machine?.sustrato_setup_merma_cantidad, machine?.macula_default_pies, machine?.maculaDefaultFeet, 0);
+  const setupValue = firstPositiveNumber(machine?.sustratoSetupMermaCantidad, machine?.sustrato_setup_merma_cantidad, machine?.macula_default_pies, machine?.maculaDefaultFeet, 0);
   const setupUnit = first(machine?.sustratoSetupMermaUnidad, machine?.sustrato_setup_merma_unidad, "pies");
-  const montajeFeet = firstPositiveNumber(machine?.sustratoMontajeMermaCantidad, machine?.sustrato_montaje_merma_cantidad, 0);
+  const montajeValue = firstPositiveNumber(machine?.sustratoMontajeMermaCantidad, machine?.sustrato_montaje_merma_cantidad, 0);
   const montajeUnit = first(machine?.sustratoMontajeMermaUnidad, machine?.sustrato_montaje_merma_unidad, "pies");
-  return toFeet(setupFeet, setupUnit) + toFeet(montajeFeet, montajeUnit);
+  return toMeters(setupValue, setupUnit) + toMeters(montajeValue, montajeUnit);
 }
 
 function machineChangeHourCosts(machine = {}) {
@@ -3875,16 +5511,41 @@ function machineChangeHourCosts(machine = {}) {
 function changeCostAutoDefaults(form = state.form) {
   const machine = primaryPrintMachineForForm(form) || {};
   const hourCosts = machineChangeHourCosts(machine);
-  const wasteFeet = machineChangeWasteFeet(machine);
-  const costPerFoot = Math.max(0, n(form?.substrate?.costPerFoot, 0));
+  const wasteMeters = machineChangeWasteMeters(machine);
+  const costPerMeter = Math.max(0, n(form?.substrate?.costPerMeter, 0));
   return {
     timeMinutes: Math.max(0, n(state.costsConfig?.convencional?.tiempoEstandarCambioMin, 0)),
     machineHourCost: Math.max(0, hourCosts.machineHourCost),
     laborHourCost: Math.max(0, hourCosts.laborHourCost),
     operators: 1,
-    wasteCost: r(wasteFeet * costPerFoot, 2),
+    wasteCost: r(wasteMeters * costPerMeter, 2),
     additionalPrepCost: 0
   };
+}
+
+// Cambio de Versión (mismo motivo, sin cambio de tinta): usa el tiempo estándar de cambio de
+// versión configurado en Configuración General → Convencional (dato estándar, no editable por
+// motivo) — las tarifas de máquina/operador y la merma de montaje se comparten con el cambio de
+// motivo porque dependen de la máquina/sustrato, no de si cambia la tinta.
+function changeVersionCostAutoDefaults(form = state.form) {
+  const machine = primaryPrintMachineForForm(form) || {};
+  const hourCosts = machineChangeHourCosts(machine);
+  const wasteMeters = machineChangeWasteMeters(machine);
+  const costPerMeter = Math.max(0, n(form?.substrate?.costPerMeter, 0));
+  return {
+    timeMinutes: Math.max(0, n(state.costsConfig?.convencional?.tiempoEstandarCambioVersionMin, 0)),
+    machineHourCost: Math.max(0, hourCosts.machineHourCost),
+    laborHourCost: Math.max(0, hourCosts.laborHourCost),
+    operators: 1,
+    wasteCost: r(wasteMeters * costPerMeter, 2),
+    additionalPrepCost: 0
+  };
+}
+
+function changeVersionCostValue(form = state.form) {
+  const cfg = changeVersionCostAutoDefaults(form);
+  const hours = cfg.timeMinutes / 60;
+  return r((hours * cfg.machineHourCost) + (hours * cfg.laborHourCost * cfg.operators) + cfg.wasteCost + cfg.additionalPrepCost, 2);
 }
 
 function refreshChangeCostFromMachine(form = state.form) {
@@ -3926,30 +5587,85 @@ function costChangesAdditionalValue(form = state.form) {
 
 function syncTypesChangesFields() {
   const types = Math.max(1, n(state.form.header.quantityTypes, 1));
-  const additional = Math.max(0, n(state.form.header.quantityChanges, 0));
+  const changes = changesByTypesCount(types);
   if (els.quantityTypes) els.quantityTypes.value = types;
-  if (els.quantityChanges) els.quantityChanges.value = additional;
-  if (els.changesByTypes) els.changesByTypes.value = changesByTypesCount(types);
-  if (els.totalChanges) els.totalChanges.value = totalChangesCount(types, additional);
+  if (els.quantityChanges) els.quantityChanges.value = changes;
+  if (els.changesByTypes) els.changesByTypes.value = changes;
+  if (els.totalChanges) els.totalChanges.value = changes;
+}
+
+function calcularRollosPorCajaAuto(form = state.form) {
+  const header = form.header || {};
+  const general = state.costsConfig?.general || {};
+  const cajaItem = (state.costsConfig?.acabados?.cajas || []).find((c) => String(c.id) === String(form.packaging?.tipoCaja || ""));
+  const margenCm = n(general.defaultMargenCajaCm, 1);
+  const largoCm = Math.max(0, n(cajaItem?.largoInternoCm, 0) - margenCm * 2);
+  const anchoCm = Math.max(0, n(cajaItem?.anchoInternoCm, 0) - margenCm * 2);
+  const altoCm = Math.max(0, n(cajaItem?.altoInternoCm, 0) - margenCm);
+  const coreDiamIn = n(header.coreDiameter, 0);
+  const anchoCoreIn = n(header.anchoCoreIn, 0);
+  const labelsPerRoll = n(header.labelsPerRoll, 0);
+  if (largoCm <= 0 || anchoCm <= 0 || altoCm <= 0 || coreDiamIn <= 0 || anchoCoreIn <= 0 || labelsPerRoll <= 0) return 0;
+  const crecimientoCm = n(general.defaultRolloCrecimientoCm, 10);
+  const crecimientoCantidad = Math.max(1, n(general.defaultRolloCrecimientoCantidad, 1000));
+  const diametroRolloCm = coreDiamIn * 2.54 + crecimientoCm * (labelsPerRoll / crecimientoCantidad);
+  const alturaRolloCm = anchoCoreIn * 2.54;
+  if (diametroRolloCm <= 0) return 0;
+  const rollosPorCapa = Math.floor(largoCm / diametroRolloCm) * Math.floor(anchoCm / diametroRolloCm);
+  const capas = Math.floor(altoCm / alturaRolloCm);
+  return Math.max(0, rollosPorCapa * capas);
+}
+
+function syncCajaAdvertencia(form = state.form) {
+  const capacidad = calcularRollosPorCajaAuto(form);
+  const actual = n(form.header?.productosPorCaja, 0);
+  form.packaging.cajaAdvertencia = (capacidad > 0 && actual > capacidad)
+    ? `La caja seleccionada no es adecuada para ${formatInteger(actual)} rollos por caja: según sus dimensiones internas solo caben ${formatInteger(capacidad)}. Considera usar la caja estándar u otra con más capacidad.`
+    : "";
+}
+
+// Aviso, no bloqueo: el Ancho de Core (Empaque) debería ser igual o mayor que el Ancho de la
+// etiqueta. Antes esto se comparaba en Troquel y detenía el cálculo; el dueño pidió que solo
+// avise aquí en Empaque, sin apagar cálculos.
+function syncCoreWidthAdvertencia(form = state.form) {
+  const anchoCoreIn = n(form.header?.anchoCoreIn, 0);
+  const labelWidthIn = n(form.header?.labelWidthIn, 0);
+  form.packaging.coreWidthAdvertencia = (anchoCoreIn > 0 && labelWidthIn > 0 && anchoCoreIn < labelWidthIn)
+    ? `El Ancho de Core (${num(anchoCoreIn, 3)} in) es menor que el Ancho de la etiqueta (${num(labelWidthIn, 3)} in). Revisa si el core elegido es el correcto.`
+    : "";
 }
 
 function syncDerivedHeaderAndPackaging(form = state.form) {
   form.header.quantityTypes = Math.max(1, n(form.header.quantityTypes, 1));
-  form.header.quantityChanges = Math.max(0, n(form.header.quantityChanges, 0));
+  form.header.quantityChanges = changesByTypesCount(form.header.quantityTypes);
   form.header.changesByTypes = changesByTypesCount(form.header.quantityTypes);
-  form.header.totalChanges = totalChangesCount(form.header.quantityTypes, form.header.quantityChanges);
+  form.header.totalChanges = changesByTypesCount(form.header.quantityTypes);
   form.header.quantity = currentQuantity(form);
+  if (!form.header.productosPorCajaManual) {
+    const auto = calcularRollosPorCajaAuto(form);
+    if (auto > 0) form.header.productosPorCaja = auto;
+  }
   form.packaging.rollCount = metrics(form).rollCount;
+  form.packaging.cajas = metrics(form).cajas;
+  syncCajaAdvertencia(form);
+  syncCoreWidthAdvertencia(form);
 }
 
 function quoteDefaultsFromConfig() {
   const general = state.costsConfig?.general || state.config?.general || {};
+  const rawOptions = Array.isArray(general.coreDiameterOptions) && general.coreDiameterOptions.length
+    ? general.coreDiameterOptions
+    : [{ diametro: "1", espesor: 0, precio: 0 }, { diametro: "1.5", espesor: 0, precio: 0 }, { diametro: "3", espesor: 0, precio: 0 }, { diametro: "6", espesor: 0, precio: 0 }];
+  const coreDiameterOptions = rawOptions.map((item) => {
+    if (item && typeof item === "object") {
+      return { diametro: String(item.diametro || "").trim(), espesor: n(item.espesor, 0), precio: n(item.precio, 0), descripcion: String(item.descripcion || "").trim() };
+    }
+    return { diametro: String(item || "").trim(), espesor: 0, precio: 0, descripcion: "" };
+  }).filter((item) => item.diametro).slice(0, 5);
   return {
     rollWidth: n(first(general.defaultRollWidth, 13), 13),
     coreDiameter: n(first(general.defaultCoreDiameter, 3), 3),
-    coreDiameterOptions: Array.isArray(general.coreDiameterOptions) && general.coreDiameterOptions.length
-      ? general.coreDiameterOptions.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 5)
-      : ["1", "1.5", "3", "6"],
+    coreDiameterOptions,
     quantityTypes: Math.max(1, n(first(general.defaultQuantityTypes, 1), 1)),
     useCmyk: String(first(general.defaultCmykEnabled, "true")).trim().toLowerCase() !== "false"
   };
@@ -3959,7 +5675,7 @@ function laserPlateMetrics(form = state.form) {
   const laser = form?.plates?.laser || {};
   const virgin = form?.plates?.virgin || {};
   const troquel = form?.troquel || {};
-  const totalColors = Math.max(0, effectiveColors(form));
+  const totalColors = Math.max(0, totalPlateSetsColorCount(form));
   const mountWidthIn = numericValue(first(troquel.mountWidthIn, troquel.widthIn, form?.header?.labelWidthIn), 0);
   const mountLengthIn = numericValue(first(troquel.mountLengthIn, troquel.lengthIn, form?.header?.labelHeightIn), 0);
   const marginIn = numericValue(first(laser.safetyMarginIn, 0.5), 0.5);
@@ -4032,39 +5748,36 @@ function laserPlateMetrics(form = state.form) {
   };
 }
 
-function calcularPlanchaSqIn() {
+// Tamaño real de cada sello, tal como lo cobra el proveedor externo por pulgada cuadrada — no el
+// ancho máximo de la máquina (eso cobraba de más). Fórmula del cliente: al desarrollo de troquel y
+// al ancho real del material se les suma el "Exceso Sellos" (Costos → Acabados → Estándar) dos
+// veces cada uno (el margen se aplica a ambos lados). El resultado es el tamaño de UN sello;
+// cuántas sellos se necesitan (Proceso+Directo+Adicional+Barniz+Estampado, por motivo) se decide
+// aparte en ensureTypesList()/motivoPlatesFromCounts().
+function calcularSelloSqIn() {
   const form = state.form;
   const troquel = form?.troquel || {};
   const header = form?.header || {};
-  const colors = Math.max(0, effectiveColors(form));
   const dieDevIn = n(troquel.cylinderDevelopmentIn, 0);
-  const machine = primaryPrintMachineForForm(form);
-  const machineMaxWidthIn = n(machine?.anchoMaxIn || machine?.ancho_max_in || 0, 0);
-  const rollWidthIn = n(header.rollWidthIn, 0);
-  const costPerSqIn = n(state.costsConfig?.convencional?.costoPlanchaIn2, 0);
+  const materialWidthIn = n(header.rollWidthIn, 0);
+  const excesoIn = n(state.costsConfig?.general?.excesoSellosIn, 0.5);
+  const costPerSqIn = n(state.costsConfig?.convencional?.costoSelloIn2, 0);
 
-  let printingSqIn = 0;
-  let stampingSqIn = 0;
-  let printingDesc = "";
-  let stampingDesc = "";
+  const plateWidthIn = dieDevIn > 0 ? r(dieDevIn + excesoIn * 2, 4) : 0;
+  const plateHeightIn = materialWidthIn > 0 ? r(materialWidthIn + excesoIn * 2, 4) : 0;
+  const plateUnitAreaIn2 = plateWidthIn > 0 && plateHeightIn > 0 ? r(plateWidthIn * plateHeightIn, 4) : 0;
 
-  if (machineMaxWidthIn > 0 && dieDevIn > 0 && colors > 0) {
-    printingSqIn = r(machineMaxWidthIn * dieDevIn * colors, 4);
-    printingDesc = `${colors} tintas × (${num(machineMaxWidthIn, 2)} in ancho máq. × ${num(dieDevIn, 3)} in desarrollo)`;
-  }
+  return { dieDevIn, materialWidthIn, excesoIn, plateWidthIn, plateHeightIn, plateUnitAreaIn2, costPerSqIn };
+}
 
-  const isEstampadoActive = (form.finishes || []).some(
-    (f) => f.processKey === "estampado" && f.active !== false
-  ) || (form.printStages?.[0]?.inlineFinishes?.estampado?.active);
-  if (isEstampadoActive && rollWidthIn > 0 && dieDevIn > 0) {
-    stampingSqIn = r(rollWidthIn * dieDevIn, 4);
-    stampingDesc = `${num(rollWidthIn, 2)} in ancho rollo × ${num(dieDevIn, 3)} in desarrollo`;
-  }
-
-  const totalSqIn = r(printingSqIn + stampingSqIn, 4);
-  const totalCost = costPerSqIn > 0 ? r(totalSqIn * costPerSqIn, 2) : 0;
-
-  return { printingSqIn, stampingSqIn, totalSqIn, costPerSqIn, totalCost, printingDesc, stampingDesc, machineMaxWidthIn, dieDevIn, colors };
+// Estampado no es una estación de tinta (no vive en type.inkStations) pero sí necesita su propia
+// sello/cliché — se le atribuye siempre al Motivo 1, igual que el resto de configuración de
+// estampado (que es de trabajo, no por motivo).
+function estampadoPlateActive(form = state.form) {
+  return Boolean(
+    (form.finishes || []).some((f) => f.processKey === "estampado" && f.active !== false) ||
+    form.printStages?.[0]?.inlineFinishes?.estampado?.active
+  );
 }
 
 function captureFocus() {
@@ -4108,7 +5821,8 @@ function renderQuantities() {
     const canRemove = isLast && quantities.length > 1 && !lockedByFrontBackGroup;
     const displayValue = item.value ? formatInteger(item.value) : "";
     const chipChars = Math.max(4, displayValue.length || 4);
-    return `<div class="quantity-card${isLast ? " is-last" : ""}" style="--qty-chars:${chipChars};">
+    const esAceptada = cantidadAceptadaVigente() > 0 && n(item.value, 0) === cantidadAceptadaVigente();
+    return `<div class="quantity-card${isLast ? " is-last" : ""}${esAceptada ? " is-aceptada" : ""}" style="--qty-chars:${chipChars};"${esAceptada ? ' title="Cantidad aceptada por el cliente"' : ""}>
       <div class="quantity-input-group">
         <input type="text" inputmode="numeric" data-quantity-index="${index}" aria-label="Cantidad ${index + 1}" value="${esc(displayValue)}"${lockedByFrontBackGroup ? ' readonly title="Cantidad definida por la línea grupo frente/dorso"' : ""}>
         ${isLast ? `<button type="button" class="quantity-inline-action quantity-inline-add qty-add-chip" data-action="add-quantity" data-index="${index}" aria-label="Agregar cantidad después de la cantidad ${index + 1}" title="Agregar cantidad" style="--quantity-add-icon-color:${esc(addIcon.color)};--quantity-add-icon-hover:${esc(addIcon.hover)};--quantity-add-icon-size:${addIcon.size}px;"${canAdd ? "" : " disabled"}>${renderIconMarkup(addIcon.value, "Agregar cantidad", "quantity-add-icon")}</button>` : ""}
@@ -4166,9 +5880,11 @@ function renderTechnicalCollapsedSummary() {
   const dimensions = !isGroupCtx && inchValue(header.labelWidthIn) && inchValue(header.labelHeightIn) ? `${inchValue(header.labelWidthIn)} x ${inchValue(header.labelHeightIn)}` : "";
   const rows = [
     ["Dimensiones", dimensions],
-    ["Ancho Core", inchLabel(header.rollWidthIn)],
+    ["Ancho Core", inchLabel(header.anchoCoreIn)],
     ["Diámetro Core", inchLabel(header.coreDiameter)],
+    ["Tipo de Core", (function() { const ct = header.coreType; return ct && ct.diametro ? (ct.espesor > 0 ? `${ct.diametro}'' - ${ct.espesor}mm` : `${ct.diametro}''`) : ""; })()],
     ["Cantidad Etiquetas por Rollo", n(header.labelsPerRoll, 0) > 0 ? formatInteger(header.labelsPerRoll) : ""],
+    ["Cantidad Productos por Caja", n(header.productosPorCaja, 0) > 0 ? formatInteger(header.productosPorCaja) : ""],
     ["Tipo Salida", outputCode],
     ["Tipo Etiquetado", selectedOptionText(els.applicationType, header.applicationType)],
     ["Aplicación", String(header.applicationEnvironment || "").trim()],
@@ -4236,7 +5952,7 @@ function displayInput(scope, field, value, options = {}) {
   } = options;
   const formattedDisplayValue = formatDisplayNumber(displayValue, { prefix, suffix, maximumFractionDigits, integer, currency });
   const unitClass = [prefix ? "has-prefix" : "", suffix ? "has-suffix" : "", currency ? "has-currency" : ""].filter(Boolean).join(" ");
-  return `<div class="display-input-wrap ${unitClass}"><input class="display-input" data-scope="${esc(scope)}" data-field="${esc(field)}" type="number" step="${esc(step)}" value="${esc(inputValue)}"><span class="display-input-mask">${esc(formattedDisplayValue)}</span></div>`;
+  return `<div class="display-input-wrap ${unitClass}"><input class="display-input" data-scope="${esc(scope)}" data-field="${esc(field)}"${integer ? ' data-integer="true"' : ""} type="number" step="${esc(step)}" value="${esc(inputValue)}"${integer ? ' title="Debe ser un número entero: se redondea hacia abajo si se escribe un decimal."' : ""} autocomplete="off" autocorrect="off" spellcheck="false"><span class="display-input-mask">${esc(formattedDisplayValue)}</span></div>`;
 }
 
 function readonlyDisplay(value) {
@@ -4255,11 +5971,22 @@ function syncHeaderUnitMasks() {
   };
   updateMask(els.labelWidthIn, els.labelWidthInDisplay, "in");
   updateMask(els.labelHeightIn, els.labelHeightInDisplay, "in");
+  updateMask(els.embeddedLabelWidth, els.embeddedLabelWidthDisplay, "in");
+  updateMask(els.embeddedLabelHeight, els.embeddedLabelHeightDisplay, "in");
   updateMask(els.rollWidthIn, els.rollWidthInDisplay, "in");
   updateMask(els.coreDiameter, els.coreDiameterDisplay, "in");
   if (els.labelsPerRollDisplay) {
     const rawValue = String(els.labelsPerRoll?.value ?? "").trim();
     els.labelsPerRollDisplay.textContent = rawValue ? formatInteger(rawValue) : "";
+  }
+  if (els.productosPorCajaDisplay) {
+    const isManual = Boolean(state.form?.header?.productosPorCajaManual);
+    if (els.productosPorCaja && !isManual && document.activeElement !== els.productosPorCaja) {
+      const autoValue = n(state.form?.header?.productosPorCaja, 0);
+      els.productosPorCaja.value = autoValue > 0 ? String(autoValue) : "";
+    }
+    const rawValue = String(els.productosPorCaja?.value ?? "").trim();
+    els.productosPorCajaDisplay.textContent = rawValue ? `${formatInteger(rawValue)}${isManual ? "" : " (aprox.)"}` : "";
   }
 }
 
@@ -4328,6 +6055,52 @@ function resolvePrimaryValidationProcessKey() {
   return orderedKeys[0] || "troquel";
 }
 
+// Antes se leían los checks de CMYK/Blanca/Doble Blanca/Pantones del encabezado; ahora que la
+// tinta se monta estación por estación en Configuración de Impresión, "hay tinta configurada"
+// significa que algún motivo tiene al menos una estación con Tipo asignado y activa.
+function formHasConfiguredInk(form = state.form) {
+  return (Array.isArray(form?.types) ? form.types : []).some((type) =>
+    Array.isArray(type?.inkStations) && type.inkStations.some((station) => station?.active !== false && String(station?.tipo || "").trim())
+  );
+}
+
+// Restricción física de las dimensiones del producto: el Largo (Alto) de la etiqueta no puede
+// superar el desarrollo del cilindro del troquel. El Ancho ya NO se compara aquí contra el Ancho
+// de Core (eso se decide después, en Empaque, y solo como advertencia — ver syncCoreWidthAdvertencia).
+// Cuando todavía no hay troquel definido se usa este tope de seguridad (aproximadamente la
+// mayor medida de cilindro/rollo del parque de máquinas; ajustar aquí si eso cambia). Un valor
+// fuera de rango es un error bloqueante: pinta el campo en rojo y apaga todos los cálculos.
+const PRODUCT_DIMENSION_ABS_MAX_IN = 14.20;
+
+function productDimensionLimits(form = state.form) {
+  const cylinderDevelopmentIn = n(form?.troquel?.cylinderDevelopmentIn, 0);
+  return {
+    maxHeightIn: cylinderDevelopmentIn > 0 ? cylinderDevelopmentIn : PRODUCT_DIMENSION_ABS_MAX_IN,
+    maxWidthIn: PRODUCT_DIMENSION_ABS_MAX_IN,
+    heightSource: cylinderDevelopmentIn > 0 ? "desarrollo del cilindro" : `tope de ${num(PRODUCT_DIMENSION_ABS_MAX_IN, 2)} in`,
+    widthSource: `tope de ${num(PRODUCT_DIMENSION_ABS_MAX_IN, 2)} in`
+  };
+}
+
+function productDimensionErrors(form = state.form) {
+  const heightIn = n(form?.header?.labelHeightIn, 0);
+  const widthIn = n(form?.header?.labelWidthIn, 0);
+  const limits = productDimensionLimits(form);
+  const EPS = 1e-6;
+  const heightInvalid = heightIn > 0 && heightIn > limits.maxHeightIn + EPS;
+  const widthInvalid = widthIn > 0 && widthIn > limits.maxWidthIn + EPS;
+  const parts = [];
+  if (heightInvalid) parts.push(`El Largo de la etiqueta (${num(heightIn, 4)} in) supera el máximo permitido (${num(limits.maxHeightIn, 4)} in: ${limits.heightSource}).`);
+  if (widthInvalid) parts.push(`El Ancho de la etiqueta (${num(widthIn, 4)} in) supera el máximo permitido (${num(limits.maxWidthIn, 4)} in: ${limits.widthSource}).`);
+  return {
+    heightInvalid,
+    widthInvalid,
+    blocked: heightInvalid || widthInvalid,
+    limits,
+    message: parts.length ? `${parts.join(" ")} Corrige las dimensiones del producto para poder calcular.` : ""
+  };
+}
+
 function buildCalculationValidationState(result = totals()) {
   const form = state.form || {};
   const alerts = {};
@@ -4356,15 +6129,26 @@ function buildCalculationValidationState(result = totals()) {
     addWhen(embeddedTarget, n(form.header?.labelWidthIn, 0) <= 0, "Falta ancho de etiqueta.");
     addWhen(embeddedTarget, n(form.header?.labelHeightIn, 0) <= 0, "Falta largo de etiqueta.");
   } else {
-    addWhen("troquel", n(form.header?.labelWidthIn, 0) <= 0, "Falta ancho de etiqueta.");
-    addWhen("troquel", n(form.header?.labelHeightIn, 0) <= 0, "Falta largo de etiqueta.");
+    addWhen(primaryTarget, !String(form.header?.jobName || "").trim(), "Falta nombre del trabajo.");
+    addWhen(primaryTarget, !String(form.header?.workType || "").trim(), "Falta tipo de trabajo.");
+    addWhen(primaryTarget, !String(form.header?.productType || "").trim(), "Falta tipo de producto.");
+    addWhen(primaryTarget, !form.header?.noPrint && !formHasConfiguredInk(form), "Falta configurar al menos una tinta en Configuración de Impresión.");
+
+    const dieLabelWidthIn = n(first(form.troquel?.productWidthIn, form.troquel?.labelWidthIn), 0);
+    const dieLabelHeightIn = n(first(form.troquel?.productLengthIn, form.troquel?.labelLengthIn), 0);
+    const isGroupCtxValidation = isFrontBackGroupContext();
+    addWhen("troquel", !isGroupCtxValidation && n(form.header?.labelWidthIn, 0) <= 0 && dieLabelWidthIn <= 0, "Falta ancho de etiqueta.");
+    addWhen("troquel", !isGroupCtxValidation && n(form.header?.labelHeightIn, 0) <= 0 && dieLabelHeightIn <= 0, "Falta largo de etiqueta.");
+    const dimErr = productDimensionErrors(form);
+    addWhen("troquel", !isGroupCtxValidation && dimErr.heightInvalid, `Largo de etiqueta fuera de rango: ${num(n(form.header?.labelHeightIn, 0), 2)} in supera ${num(dimErr.limits.maxHeightIn, 2)} in (${dimErr.limits.heightSource}). Corrige las dimensiones para poder calcular.`);
+    addWhen("troquel", !isGroupCtxValidation && dimErr.widthInvalid, `Ancho de etiqueta fuera de rango: ${num(n(form.header?.labelWidthIn, 0), 2)} in supera ${num(dimErr.limits.maxWidthIn, 2)} in (${dimErr.limits.widthSource}). Corrige las dimensiones para poder calcular.`);
     addWhen("troquel", n(form.header?.rollWidthIn, 0) <= 0, "Falta ancho de material.");
     addWhen("troquel", n(form.header?.coreDiameter, 0) <= 0, "Falta diámetro de core.");
     addWhen("troquel", n(form.header?.coreDiameter, 0) > 10, "Revisa el diámetro de core.");
     addWhen("troquel", currentQuantity(form) <= 0, "Falta cantidad a producir.");
-    addWhen("troquel", n(form.header?.quantityTypes, 0) <= 0, "Falta cantidad de tipos o motivos.");
+    addWhen("troquel", n(form.header?.quantityTypes, 0) <= 0, "Falta cantidad de tipos o artes.");
     const typesQuantityTotal = (Array.isArray(form.types) ? form.types : []).reduce((sum, type) => sum + Math.max(0, n(type?.quantity, 0)), 0);
-    addWhen("troquel", Math.abs(typesQuantityTotal - currentQuantity(form)) > 0.5, "La suma de las cantidades de los tipos o motivos debe ser igual a la cantidad total de la orden.");
+    addWhen("troquel", Math.abs(typesQuantityTotal - currentQuantity(form)) > 0.5, "La suma de las cantidades de los tipos o artes debe ser igual a la cantidad total de la orden.");
     const dieMode = normalizeDieMode(form.troquel?.dieMode);
     addWhen("troquel", dieMode !== "external" && !String(form.troquel?.dieCode || "").trim(), "Falta troquel.");
     if (dieMode === "external") {
@@ -4373,11 +6157,17 @@ function buildCalculationValidationState(result = totals()) {
     }
     addWhen(primaryTarget, !String(form.header?.applicationType || "").trim(), "Falta tipo de etiquetado.");
     addWhen(packagingTarget, n(form.header?.labelsPerRoll, 0) <= 0, "Falta etiquetas por rollo.");
+    addWhen(packagingTarget, !String(form.packaging?.tipoCaja || "").trim(), "Falta tipo de caja.");
+    addWhen(packagingTarget, n(form.header?.productosPorCaja, 0) <= 0, "Falta rollos por caja.");
+    addWhen(primaryTarget, !String(form.header?.applicationEnvironment || "").trim(), "Falta aplicación.");
+    addWhen(primaryTarget, !isGroupCtxValidation && !String(form.header?.surfaceType || "").trim(), "Falta tipo de superficie.");
 
     const substrateMaterial = selectedSubstrateMaterial(form);
     addWhen("sustrato", !substrateMaterial, "Falta sustrato.");
-    addWhen("sustrato", substrateMaterial && n(form.substrate?.costPerFoot, 0) <= 0, "Falta costo de sustrato.");
-    addWhen("planchas", !form.header?.noPrint && !hasActiveProcess("planchas"), "Falta agregar o justificar planchas.");
+    const substrateSapSinDatos = Boolean(substrateMaterial && substrateMaterial.source === "sap" && substrateMaterial.needsFichaTecnica);
+    addWhen("sustrato", substrateSapSinDatos, "El sustrato de SAP no tiene ancho de rollo, gramaje o calibre. Deben completarse en SAP; hasta entonces este sustrato no se puede cotizar.");
+    addWhen("sustrato", !substrateSapSinDatos && substrateMaterial && n(form.substrate?.costPerMeter, 0) <= 0, "Falta costo de sustrato.");
+    addWhen("sellos", !form.header?.noPrint && !hasActiveProcess("sellos"), "Falta agregar o justificar sellos.");
     addWhen("impresion", !form.header?.noPrint && !hasActiveProcess("impresion"), "Falta agregar o justificar impresión.");
 
     if (hasActiveProcess("diseno")) {
@@ -4393,34 +6183,35 @@ function buildCalculationValidationState(result = totals()) {
     addWhen("preprensa", n(form.prepress?.hourCost, 0) <= 0, "Falta costo por hora.");
   }
 
-  if (hasActiveProcess("planchas")) {
+  if (hasActiveProcess("sellos")) {
     const chargePlates = form.plates?.chargePlates !== false;
     const plateMode = normalizePlateMode(form.plates?.plateMode);
     if (chargePlates && plateMode === "external") {
       const rows = normalizePlateExternalRows(form.plates.external);
-      addWhen("planchas", rows.every((row) => n(row.cost, 0) <= 0), "Falta costo externo de planchas.");
-    } else if (chargePlates && plateMode === "create" && processCreateEnabled("planchas")) {
+      const autoRows = Array.isArray(form.plates?.rowsAuto) ? form.plates.rowsAuto : [];
+      addWhen("sellos", autoRows.every((row) => n(row.subtotal, 0) <= 0) && rows.every((row) => n(row.cost, 0) <= 0), "Falta costo externo de sellos.");
+    } else if (chargePlates && plateMode === "create" && processCreateEnabled("sellos")) {
       PLATE_KEYS.forEach((entry) => {
         const item = form.plates?.[entry.key] || {};
         if (entry.materialOnly && form.plates?.chargeVirginPlate !== false) {
-          addWhen("planchas", !String(item.materialId || "").trim(), "Falta plancha virgen de inventario.");
+          addWhen("sellos", !String(item.materialId || "").trim(), "Falta sello virgen de inventario.");
           return;
         }
-        addWhen("planchas", !String(item.processId || "").trim(), `Falta máquina de ${entry.label.toLowerCase()}.`);
+        addWhen("sellos", !String(item.processId || "").trim(), `Falta máquina de ${entry.label.toLowerCase()}.`);
       });
     } else if (chargePlates && plateMode !== "inventory") {
-      addWhen("planchas", true, "Define planchas en inventario o costo externo de planchas.");
+      addWhen("sellos", true, "Define sellos en inventario o costo externo de sellos.");
     }
   }
 
   if (hasActiveProcess("impresion")) {
     const stageWarnings = autoWarningsList();
-    const substrateTotalLengthFeet = firstPositiveNumber(calcSustrato().totalLengthFeet, 0);
+    const substrateTotalLengthMeters = firstPositiveNumber(calcSustrato().totalLengthMeters, 0);
     activePrintStages().forEach((stage, index) => {
       const key = `impresion-${stage.id || index + 1}`;
       addWhen(key, !String(stage.machineId || "").trim(), "Falta máquina de impresión.");
       addWhen(key, n(stage.setupMinutes, 0) <= 0, "Falta setup de impresión.");
-      addWhen(key, n(stage.cleaningMinutes, 0) <= 0, "Falta limpieza de impresión.");
+      addWhen(key, n(stage.cleaningMinutes, 0) <= 0, "Falta lavado de estación.");
       addWhen(key, n(stage.mountingMinutes, 0) <= 0, "Falta montaje de impresión.");
       addWhen(key, n(stage.coveragePct, 0) <= 0, "Falta cobertura.");
       addWhen(key, n(stage.aniloxBcm, 0) <= 0, "Falta BCM anilox.");
@@ -4428,34 +6219,33 @@ function buildCalculationValidationState(result = totals()) {
       addWhen(key, n(stage.transferFactor, 0) <= 0, "Falta factor de transferencia.");
       addWhen(key, n(stage.inkDensity, 0) <= 0, "Falta densidad de tinta.");
       addWhen(key, n(stage.speedMetersMin, 0) <= 0, "Falta velocidad de impresión.");
-      addWhen(key, n(stage.inkCostPerLb, 0) <= 0, "Falta costo tinta CMYK.");
-      addWhen(key, n(stage.whiteInkCostPerLb, 0) <= 0, "Falta costo tinta blanca.");
-      addWhen(key, n(stage.pantoneInkCostPerLb, 0) <= 0, "Falta costo tinta especial.");
+      addWhen(key, n(stage.inkCostPerKg, 0) <= 0, "Falta costo tinta CMYK.");
+      addWhen(key, n(stage.whiteInkCostPerKg, 0) <= 0, "Falta costo tinta blanca.");
+      addWhen(key, n(stage.pantoneInkCostPerKg, 0) <= 0, "Falta costo tinta especial.");
       addWhen(key, n(stage.availableColors, 0) <= 0, "Falta cantidad de estaciones.");
       addWhen(key, n(stage.costHour, 0) <= 0, "Falta costo hora máquina.");
       addWhen(key, n(stage.operatorHourCost, 0) <= 0, "Falta costo hora operario.");
-      addWhen(key, r(n(stage.maculaSetupFeet, 0) + n(stage.maculaTirajeFeet, 0), 2) <= 0, "Falta merma de impresión.");
+      addWhen(key, r(n(stage.maculaSetupMeters, 0) + n(stage.maculaTirajeMeters, 0), 2) <= 0, "Falta merma de impresión.");
       const numbering = stage.inlineFinishes?.numerado;
       if (numbering?.active) {
         addWhen(key, !String(numbering.numberingType || "").trim(), "Falta tipo de numerado.");
       }
       const barniz = stage.inlineFinishes?.barniz;
       if (barniz?.active) {
-        addWhen(key, substrateTotalLengthFeet <= 0, "Falta Longitud Total del sustrato para barniz.");
+        addWhen(key, substrateTotalLengthMeters <= 0, "Falta Longitud Total del sustrato para barniz.");
         addWhen(key, n(barniz.varnishBcm, 0) <= 0, "Falta BCM Anilox de barniz.");
         addWhen(key, n(barniz.coveragePct, 0) <= 0, "Falta cobertura de barniz.");
         addWhen(key, n(barniz.costPerKg, 0) <= 0, "Falta costo por kilo de barniz.");
       }
       const laminado = stage.inlineFinishes?.laminado;
       if (laminado?.active) {
-        addWhen(key, substrateTotalLengthFeet <= 0, "Falta Longitud Total del sustrato para laminado.");
-        addWhen(key, n(laminado.costPerFoot, 0) <= 0, "Falta costo por pie lineal de laminado.");
+        addWhen(key, substrateTotalLengthMeters <= 0, "Falta Longitud Total del sustrato para laminado.");
+        addWhen(key, n(laminado.costPerMeter, 0) <= 0, "Falta costo por metro lineal de laminado.");
       }
       const estampado = stage.inlineFinishes?.estampado;
       if (estampado?.active) {
-        addWhen(key, substrateTotalLengthFeet <= 0, "Falta Longitud Total del sustrato para estampado.");
-        addWhen(key, n(estampado.supplyWidthIn, 0) <= 0, "Falta ancho del rollo de estampado.");
-        addWhen(key, n(estampado.costPerFoot, 0) <= 0, "Falta costo por pie lineal de estampado.");
+        addWhen(key, substrateTotalLengthMeters <= 0, "Falta Longitud Total del sustrato para estampado.");
+        addWhen(key, n(estampado.costPerMeter, 0) <= 0, "Falta costo por metro lineal de estampado.");
       }
       if (index === 0) stageWarnings.forEach((warning) => addIssue(key, warning));
     });
@@ -4473,16 +6263,16 @@ function buildCalculationValidationState(result = totals()) {
     if (config.usesMaterial) {
       addWhen(key, !String(finish.materialId || "").trim(), `Falta material de ${config.label.toLowerCase()}.`);
       if (config.usesWeightMaterial) {
-        addWhen(key, n(finish.layerGft2, 0) <= 0, `Falta consumo de ${config.label.toLowerCase()}.`);
+        addWhen(key, n(finish.layerGm2, 0) <= 0, `Falta consumo de ${config.label.toLowerCase()}.`);
         addWhen(key, n(finish.costPerKg, 0) <= 0, `Falta costo por kg de ${config.label.toLowerCase()}.`);
       } else if (config.usesUnitMaterial) {
         addWhen(key, n(finish.costPerUnit, 0) <= 0, `Falta costo por unidad de ${config.label.toLowerCase()}.`);
       } else {
-        addWhen(key, n(finish.costPerFt2, 0) <= 0, `Falta costo material de ${config.label.toLowerCase()}.`);
+        addWhen(key, n(finish.costPerM2, 0) <= 0, `Falta costo material de ${config.label.toLowerCase()}.`);
       }
     }
     if (config.usesPlateCost && !isOptionalPlateCostProcess(finish.processKey)) {
-      addWhen(key, n(finish.plateCost, 0) <= 0, `Falta costo de plancha de ${config.label.toLowerCase()}.`);
+      addWhen(key, n(finish.plateCost, 0) <= 0, `Falta costo de sello de ${config.label.toLowerCase()}.`);
     }
   });
 
@@ -4491,6 +6281,7 @@ function buildCalculationValidationState(result = totals()) {
     addWhen("empaque", n(form.packaging?.yieldPerHour, 0) <= 0, "Falta rendimiento por hora.");
     addWhen("empaque", n(form.packaging?.operators, 0) <= 0, "Falta cantidad de operarios.");
     addWhen("empaque", n(form.packaging?.hourCost, 0) <= 0, "Falta costo hora operario.");
+    addWhen("empaque", n(form.packaging?.costoCaja, 0) <= 0, "Falta costo de caja.");
   }
 
   return {
@@ -4559,11 +6350,23 @@ function applyRequiredHighlights(result = null) {
   const quantityMissing = currentQuantity(form) <= 0;
   const coreDiameterValue = n(form.header?.coreDiameter, 0);
 
-  markRequiredNode(els.labelWidthIn, n(form.header?.labelWidthIn, 0) <= 0);
-  markRequiredNode(els.labelHeightIn, n(form.header?.labelHeightIn, 0) <= 0);
+  const troquelLabelWidthIn = n(first(form.troquel?.productWidthIn, form.troquel?.labelWidthIn), 0);
+  const troquelLabelHeightIn = n(first(form.troquel?.productLengthIn, form.troquel?.labelLengthIn), 0);
+
+  markRequiredNode(els.jobName, !String(form.header?.jobName || "").trim());
+  markRequiredNode(els.workType, !String(form.header?.workType || "").trim());
+  markRequiredNode(els.productType, !String(form.header?.productType || "").trim());
+
+  const dimErr = productDimensionErrors(form);
+  const isGroupCtxHighlight = isFrontBackGroupContext();
+  markRequiredNode(els.labelWidthIn, !isGroupCtxHighlight && ((n(form.header?.labelWidthIn, 0) <= 0 && troquelLabelWidthIn <= 0) || dimErr.widthInvalid));
+  markRequiredNode(els.labelHeightIn, !isGroupCtxHighlight && ((n(form.header?.labelHeightIn, 0) <= 0 && troquelLabelHeightIn <= 0) || dimErr.heightInvalid));
   markRequiredNode(els.rollWidthIn, n(form.header?.rollWidthIn, 0) <= 0);
   markRequiredNode(els.coreDiameter, coreDiameterValue <= 0 || coreDiameterValue > 10);
   markRequiredNode(els.labelsPerRoll, n(form.header?.labelsPerRoll, 0) <= 0);
+  markRequiredNode(els.productosPorCaja, n(form.header?.productosPorCaja, 0) <= 0);
+  markRequiredNode(els.applicationEnvironment, !String(form.header?.applicationEnvironment || "").trim());
+  markRequiredNode(els.surfaceType, !isGroupCtxHighlight && !String(form.header?.surfaceType || "").trim());
   markRequiredNode(els.applicationType, !String(form.header?.applicationType || "").trim());
   markRequiredNode(els.quantityTypes, n(form.header?.quantityTypes, 0) <= 0);
   markRequiredNode(els.quantityRepeater?.querySelectorAll("input[data-quantity-index]"), quantityMissing);
@@ -4577,7 +6380,7 @@ function applyRequiredHighlights(result = null) {
   }
   const substrateMaterial = selectedSubstrateMaterial(form);
   markRequiredScoped("substrate", "materialId", !substrateMaterial);
-  markRequiredScoped("substrate", "costPerFoot", Boolean(substrateMaterial) && n(form.substrate?.costPerFoot, 0) <= 0);
+  markRequiredScoped("substrate", "costPerMeter", Boolean(substrateMaterial) && n(form.substrate?.costPerMeter, 0) <= 0);
 
   if (hasActiveProcess("diseno")) {
     markRequiredScoped("design", "artCount", n(form.design?.artCount, 0) <= 0);
@@ -4591,14 +6394,17 @@ function applyRequiredHighlights(result = null) {
     markRequiredScoped("prepress", "hourCost", n(form.prepress?.hourCost, 0) <= 0);
   }
 
-  if (hasActiveProcess("planchas")) {
+  if (hasActiveProcess("sellos")) {
     const chargePlates = form.plates?.chargePlates !== false;
     const plateMode = normalizePlateMode(form.plates?.plateMode);
     if (chargePlates && plateMode === "external") {
-      normalizePlateExternalRows(form.plates.external).forEach((row, index) => {
-        markRequiredScoped(`plates.external.${index}`, "cost", n(row.cost, 0) <= 0);
-      });
-    } else if (chargePlates && plateMode === "create" && processCreateEnabled("planchas")) {
+      const autoRows = Array.isArray(form.plates?.rowsAuto) ? form.plates.rowsAuto : [];
+      if (autoRows.every((row) => n(row.subtotal, 0) <= 0)) {
+        normalizePlateExternalRows(form.plates.external).forEach((row, index) => {
+          markRequiredScoped(`plates.external.${index}`, "cost", n(row.cost, 0) <= 0);
+        });
+      }
+    } else if (chargePlates && plateMode === "create" && processCreateEnabled("sellos")) {
       PLATE_KEYS.forEach((entry) => {
         const item = form.plates?.[entry.key] || {};
         if (entry.materialOnly && form.plates?.chargeVirginPlate !== false) {
@@ -4622,13 +6428,13 @@ function applyRequiredHighlights(result = null) {
       markRequiredScoped(scope, "transferFactor", n(stage.transferFactor, 0) <= 0);
       markRequiredScoped(scope, "inkDensity", n(stage.inkDensity, 0) <= 0);
       markRequiredScoped(scope, "speedMetersMin", n(stage.speedMetersMin, 0) <= 0);
-      markRequiredScoped(scope, "inkCostPerLb", n(stage.inkCostPerLb, 0) <= 0);
-      markRequiredScoped(scope, "whiteInkCostPerLb", n(stage.whiteInkCostPerLb, 0) <= 0);
-      markRequiredScoped(scope, "pantoneInkCostPerLb", n(stage.pantoneInkCostPerLb, 0) <= 0);
+      markRequiredScoped(scope, "inkCostPerKg", n(stage.inkCostPerKg, 0) <= 0);
+      markRequiredScoped(scope, "whiteInkCostPerKg", n(stage.whiteInkCostPerKg, 0) <= 0);
+      markRequiredScoped(scope, "pantoneInkCostPerKg", n(stage.pantoneInkCostPerKg, 0) <= 0);
       markRequiredScoped(scope, "availableColors", n(stage.availableColors, 0) <= 0);
       markRequiredScoped(scope, "costHour", n(stage.costHour, 0) <= 0);
       markRequiredScoped(scope, "operatorHourCost", n(stage.operatorHourCost, 0) <= 0);
-      markRequiredScoped(scope, "maculaSetupFeet", r(n(stage.maculaSetupFeet, 0) + n(stage.maculaTirajeFeet, 0), 2) <= 0);
+      markRequiredScoped(scope, "maculaSetupMeters", r(n(stage.maculaSetupMeters, 0) + n(stage.maculaTirajeMeters, 0), 2) <= 0);
       const numbering = stage.inlineFinishes?.numerado;
       if (numbering?.active) {
         markRequiredScoped(`${scope}.inlineFinishes.numerado`, "numberingType", !String(numbering.numberingType || "").trim());
@@ -4641,12 +6447,11 @@ function applyRequiredHighlights(result = null) {
       }
       const laminado = stage.inlineFinishes?.laminado;
       if (laminado?.active) {
-        markRequiredScoped(`${scope}.inlineFinishes.laminado`, "costPerFoot", n(laminado.costPerFoot, 0) <= 0);
+        markRequiredScoped(`${scope}.inlineFinishes.laminado`, "costPerMeter", n(laminado.costPerMeter, 0) <= 0);
       }
       const estampado = stage.inlineFinishes?.estampado;
       if (estampado?.active) {
-        markRequiredScoped(`${scope}.inlineFinishes.estampado`, "supplyWidthIn", n(estampado.supplyWidthIn, 0) <= 0);
-        markRequiredScoped(`${scope}.inlineFinishes.estampado`, "costPerFoot", n(estampado.costPerFoot, 0) <= 0);
+        markRequiredScoped(`${scope}.inlineFinishes.estampado`, "costPerMeter", n(estampado.costPerMeter, 0) <= 0);
       }
       const emboss = stage.inlineFinishes?.embosado;
       markWarningScoped(`${scope}.inlineFinishes.embosado`, "plateCost", Boolean(emboss?.active) && n(emboss.plateCost, 0) <= 0);
@@ -4665,12 +6470,12 @@ function applyRequiredHighlights(result = null) {
     if (config.usesMaterial) {
       markRequiredScoped(scope, "materialId", !String(finish.materialId || "").trim());
       if (config.usesWeightMaterial) {
-        markRequiredScoped(scope, "layerGft2", n(finish.layerGft2, 0) <= 0);
+        markRequiredScoped(scope, "layerGm2", n(finish.layerGm2, 0) <= 0);
         markRequiredScoped(scope, "costPerKg", n(finish.costPerKg, 0) <= 0);
       } else if (config.usesUnitMaterial) {
         markRequiredScoped(scope, "costPerUnit", n(finish.costPerUnit, 0) <= 0);
       } else if (config.usesMaterial) {
-        markRequiredScoped(scope, "costPerFt2", n(finish.costPerFt2, 0) <= 0);
+        markRequiredScoped(scope, "costPerM2", n(finish.costPerM2, 0) <= 0);
       }
     }
     if (config.usesPlateCost && !isOptionalPlateCostProcess(finish.processKey)) {
@@ -4685,6 +6490,7 @@ function applyRequiredHighlights(result = null) {
     markRequiredScoped("packaging", "yieldPerHour", n(form.packaging?.yieldPerHour, 0) <= 0);
     markRequiredScoped("packaging", "operators", n(form.packaging?.operators, 0) <= 0);
     markRequiredScoped("packaging", "hourCost", n(form.packaging?.hourCost, 0) <= 0);
+    markRequiredScoped("packaging", "costoCaja", n(form.packaging?.costoCaja, 0) <= 0);
   }
 }
 
@@ -4778,12 +6584,11 @@ function metrics(form = state.form) {
   const acrossCount = Math.max(0, n(first(form.troquel?.acrossCount, form.troquel?.rows), 0));
   const development = cylinderDevelopmentIn;
   const linealIn = acrossCount > 0 ? r((qty * cylinderDevelopmentIn) / acrossCount, 6) : 0;
-  const linealFeet = r(linealIn / 12);
   const linealMeters = r(linealIn * 0.0254);
   const areaIn2 = r(n(form.header.labelWidthIn, 0) * n(form.header.labelHeightIn, 0), 6);
   const printedAreaM2 = r(areaIn2 * qty * 0.00064516, 6);
-  const printedAreaFt2 = r((areaIn2 * qty) / 144, 6);
   const rollCount = n(form.header.labelsPerRoll, 0) > 0 ? r(qty / n(form.header.labelsPerRoll, 0), 4) : 0;
+  const cajas = n(form.header.productosPorCaja, 0) > 0 ? Math.ceil(rollCount / n(form.header.productosPorCaja, 0)) : 0;
   const webWidthIn = n(form.header.rollWidthIn, 0);
   return {
     qty,
@@ -4792,12 +6597,11 @@ function metrics(form = state.form) {
     cylinderDevelopmentIn,
     development,
     linealIn,
-    linealFeet,
     linealMeters,
     areaIn2,
     printedAreaM2,
-    printedAreaFt2,
     rollCount,
+    cajas,
     webWidthIn,
     colors: effectiveColors(form)
   };
@@ -4810,18 +6614,87 @@ function inlineItemsForMacula(stage = {}) {
       key: slot.key,
       label: slot.label,
       active: Boolean(inline.active),
-      setupWasteFeet: n(inline.setupWasteFeet, 0)
+      setupWasteMeters: n(inline.setupWasteMeters, 0)
     };
   });
 }
 
+// Merma de montaje de impresión: Metros por Estación de Impresión x cantidad de tintas de cada
+// motivo (cada motivo usa exclusivamente sus propias tintas). Los acabados de una sola estación
+// (Troquelado, Laminado, Barniz, Embosado) se suman una sola vez por trabajo.
+function computeMontajeMermaPorMotivos({ metrosPorEstacionImp = 0, tintasPorMotivo = [], acabadosActivos = [] } = {}) {
+  const redondear = (value) => Math.round((Number(value) || 0) * 100) / 100;
+  const porEstacion = Number(metrosPorEstacionImp) || 0;
+  const listaTintas = Array.isArray(tintasPorMotivo) ? tintasPorMotivo : [];
+  const listaAcabados = Array.isArray(acabadosActivos) ? acabadosActivos : [];
+  const impresion = listaTintas.reduce((suma, tintas) => suma + redondear(porEstacion * Math.max(0, Number(tintas) || 0)), 0);
+  const acabados = listaAcabados.reduce((suma, item) => suma + Math.max(0, Number(item && item.metros) || 0), 0);
+  return redondear(impresion + acabados);
+}
+
+// Tintas de impresión del motivo para la merma: estaciones de tinta (proceso, pantone, blanco).
+// El barniz en estación NO cuenta: es un acabado general que se comparte entre motivos
+// (como el troquel), no una tinta que se cambie por motivo; su merma va contabilizada
+// de forma general en la merma de montaje (acabados) y en la merma porcentual de tiraje.
+function motivoTintasParaMerma(type = {}) {
+  const stations = Array.isArray(type?.inkStations) ? type.inkStations : [];
+  return stations.filter((s) => s.tipo && !esTipoAcabado(s.tipo)).length;
+}
+
+// Limpieza (lavado) se cobra en TODAS las estaciones de tinta: no hay forma de saber
+// qué trabajo viene, así que cada estación activa cobra su lavado (regla decidida).
+function motivoEstacionesParaLimpieza(type = {}) {
+  return motivoTintasParaMerma(type);
+}
+
+function motivosEstacionesParaLimpieza(form = state.form) {
+  return ensureTypesList(form).map((type) => Math.max(0, motivoEstacionesParaLimpieza(type)));
+}
+
+function motivosTintasParaMerma(form = state.form) {
+  return ensureTypesList(form).map((type) => Math.max(0, motivoTintasParaMerma(type)));
+}
+
+// Acabados en línea activos deduplicados por proceso: cada acabado se cobra una sola vez por
+// trabajo, sin importar en cuántas etapas de impresión esté activo. Solo contempla los acabados
+// INTERNOS de las máquinas de impresión; los acabados externos no se usan aquí: cada proceso
+// externo tiene su propio contador de merma de montaje y de tiraje.
+function acabadosActivosGlobales() {
+  const seen = new Set();
+  const items = [];
+  activePrintStages().forEach((stage) => {
+    inlineItemsForMacula(stage).forEach((item) => {
+      if (!item.active || item.allowedForMachine === false) return;
+      const key = normalizeMaculaProcessKey(item.key || item.label || "");
+      if (!key || key === "impresion" || seen.has(key)) return;
+      seen.add(key);
+      items.push(item);
+    });
+  });
+  return items;
+}
+
 function documentMaculaFromStages(base = metrics()) {
-  const items = activePrintStages().map((stage) => applyStageMaculaOverrides(stage, resolvePrintMacula(base, inlineItemsForMacula(stage)), base));
+  const tintasPorMotivo = motivosTintasParaMerma();
+  const acabadosGlobales = acabadosActivosGlobales();
+  const stages = activePrintStages();
+  const items = stages.map((stage, index) => applyStageMaculaOverrides(
+    stage,
+    resolvePrintMacula(base, inlineItemsForMacula(stage)),
+    base,
+    { tintasPorMotivo, acabadosActivos: index === 0 ? acabadosGlobales : [] }
+  ));
+  // Merma de SETUP: una sola vez por trabajo (registro, color, tensión, secado, pruebas).
+  // Sale de la máquina de impresión; el montaje de estaciones y el % de tiraje ya están en items.
+  const setupTrabajoMeters = r(machineSetupTrabajoWasteMeters(primaryPrintMachineForForm(state.form) || {}), 2);
+  const setupMeters = r(items.reduce((sum, item) => sum + n(item.setupMeters, 0), 0), 2);
+  const tirajeMeters = r(items.reduce((sum, item) => sum + n(item.tirajeMeters, 0), 0), 2);
   return {
     items,
-    setupFeet: r(items.reduce((sum, item) => sum + n(item.setupFeet, 0), 0), 2),
-    tirajeFeet: r(items.reduce((sum, item) => sum + n(item.tirajeFeet, 0), 0), 2),
-    totalFeet: r(items.reduce((sum, item) => sum + n(item.totalFeet, 0), 0), 2)
+    setupMeters,
+    setupTrabajoMeters,
+    tirajeMeters,
+    totalMeters: r(setupMeters + setupTrabajoMeters + tirajeMeters, 2)
   };
 }
 
@@ -4829,7 +6702,7 @@ function buildFormulaIssues({
   qty = 0,
   cylinderDevelopmentIn = 0,
   acrossCount = 0,
-  startupWasteFeet = 0,
+  startupWasteMeters = 0,
   webWidthIn = 0,
   speedFtMin = 0,
   speedMMin = 0,
@@ -4842,18 +6715,18 @@ function buildFormulaIssues({
   if (cylinderDevelopmentIn <= 0) issues.push("Falta Desarrollo del Cilindro en el troquel.");
   if (acrossCount <= 0) issues.push("Falta Cantidad de Etiquetas al Través en el troquel.");
   if (webWidthIn <= 0) issues.push("Falta Ancho de la Bobina.");
-  if (requiresWaste && startupWasteFeet <= 0) issues.push("Falta Merma activa para completar la longitud total.");
+  if (requiresWaste && startupWasteMeters <= 0) issues.push("Falta Merma activa para completar la longitud total.");
   if (requiresTime && speedFtMin <= 0 && speedMMin <= 0) issues.push("Falta Velocidad de Operación.");
   if (requiresTime && setupAdjustmentMin <= 0) issues.push("Falta Tiempo de Montaje y Ajuste.");
   return issues;
 }
 
 function substrateUnitCost(form = state.form, base = metrics(form)) {
-  return selectedSubstrateMaterial(form) ? n(form.substrate?.costPerFoot, 0) : 0;
+  return selectedSubstrateMaterial(form) ? n(form.substrate?.costPerMeter, 0) : 0;
 }
 
 function substrateConsumptionValue(form = state.form, base = metrics(form)) {
-  return base.linealFeet;
+  return base.linealMeters;
 }
 
 function selectedSubstrateMaterial(form = state.form) {
@@ -4868,6 +6741,15 @@ function syncSubstratePricingWithMaterial(form = state.form) {
   form.substrate.costPerFoot = 0;
   form.substrate.costPerMeter = 0;
   form.substrate.costPerMsi = 0;
+}
+
+// flexo_calculations.product_code cae por defecto al line_code cuando el cálculo no viene de un
+// producto existente (ver server.js pickFirstValue(payload.product_code, lineCode)) — solo es un
+// código de producto real cuando difiere del line_code.
+function realProductCodeFrom(context, raw) {
+  const productCode = String(first(context?.productCode, raw?.["CODIGO PRODUCTO"], "")).trim();
+  const lineCode = String(first(context?.lineCode, raw?.["ID LINEA"], "")).trim();
+  return productCode && productCode !== lineCode ? productCode : "";
 }
 
 function buildForm() {
@@ -4890,7 +6772,7 @@ function buildForm() {
   const processMsi = n(material?.costoMaterialPorMsi || material?.precioUnitarioCotizacionDol, 0);
   const typeOptions = outputTypesCatalog();
   const defaultOutputType = String(first(typeOptions[0]?.id, typeOptions[0]?.codigo, "INDIFERENTE")).toUpperCase();
-  const requestedOutputType = String(first(context?.outputType, defaultOutputType)).toUpperCase();
+  const requestedOutputType = String(first(context?.outputType, raw["REQ | Tipo de Salida"], defaultOutputType)).toUpperCase();
   const outputType = typeOptions.some((item) => String(item.id || item.codigo || "").toUpperCase() === requestedOutputType) ? requestedOutputType : defaultOutputType;
   const automaticRouteRequested = norm(raw["REQ | Ruta Solicitada"]).includes("automat");
   const requestedQuantities = requestedQuantitiesFromRaw(raw);
@@ -4903,31 +6785,57 @@ function buildForm() {
   const inkDefaults = conventionalInkDefaults();
   const quoteDefaults = quoteDefaultsFromConfig();
   const productTypes = resolveProductTypes();
+  // Colores directos que el vendedor eligió en la Solicitud. No traen ubicación de
+  // estación (eso lo define luego cotización/preprensa) pero SÍ se cobran: se siembran
+  // como estaciones Pantone en el primer arte.
+  const reqDirectColorNames = requestDirectColorNamesFromRaw(raw);
 
   const form = {
     header: {
       customerCode: first(quote?.customer_code, context?.customerCode),
       customerName: first(quote?.customer_name, context?.customerName),
+      contactName: first(quote?.contact_name, context?.contactName, ""),
+      codigoCliente: "",
+      productCode: first(context?.finished_product_sku, raw?.["SKU PRODUCTO TERMINADO"], raw?.line_summary?.finished_product_sku, realProductCodeFrom(context, raw)),
       productType: first(context?.productType, productTypes[0], "Etiquetas"),
       jobName: first(context?.jobName, ""),
       salespersonName: first(quote?.salesperson_name, context?.salespersonName),
       workType: first(context?.orderType, "Nuevo"),
+      referencia: "",
+      referenciaComentario: "",
+      referenciaCambios: { medidas: false, arte: false, textos: false, otros: false },
+      insumos: { arteDigital: false, muestrasFisicas: false, envase: false },
       labelWidthIn: n(context?.widthInches, 0),
       labelHeightIn: n(context?.lengthInches, 0),
-      rollWidthIn: n(first(savedUi?.header?.rollWidthIn, autoSelection?.mounting?.requiredWidthInches, autoSelection?.mounting?.usedWidthInches, context?.coreWidth, context?.materialWidth, dieMetrics.materialWidthIn, context?.widthInches, quoteDefaults.rollWidth), 0),
+      rollWidthIn: n(first(savedUi?.header?.rollWidthIn, autoSelection?.mounting?.requiredWidthInches, autoSelection?.mounting?.usedWidthInches, context?.materialWidth, dieMetrics.materialWidthIn, context?.widthInches, quoteDefaults.rollWidth), 0),
+      anchoCoreIn: n(first(savedUi?.header?.anchoCoreIn, context?.coreWidth), 0),
       coreDiameter: String(first(savedUi?.header?.coreDiameter, context?.coreDiameter, quoteDefaults.coreDiameter)).trim(),
+      coreType: (function() {
+        const saved = savedUi?.header?.coreType;
+        if (saved && typeof saved === "object" && saved.diametro) return saved;
+        const diam = String(first(context?.coreDiameter, quoteDefaults.coreDiameter)).trim();
+        const match = quoteDefaults.coreDiameterOptions.find((o) => String(o.diametro).trim() === diam);
+        return match || { diametro: diam, espesor: 0, precio: 0 };
+      })(),
       labelsPerRoll: n(first(savedUi?.header?.labelsPerRoll, context?.labelsPerRoll, autoSelection?.labelsPerRoll), 0),
-      applicationType: first(savedUi?.header?.applicationType, context?.applicationType, ""),
+      productosPorCaja: Math.max(0, n(first(savedUi?.header?.productosPorCaja, context?.etiquetasPorCaja, 0), 0)),
+      productosPorCajaManual: savedUi?.header?.productosPorCajaManual ?? (n(first(savedUi?.header?.productosPorCaja, context?.etiquetasPorCaja, 0), 0) > 0),
+      applicationType: first(savedUi?.header?.applicationType, context?.applicationType, raw["REQ | Tipo de Etiquetado"], raw["REQ | Colocacion"], ""),
       outputType,
-      applicationEnvironment: first(savedUi?.header?.applicationEnvironment, raw["AMBIENTE APLICACION"], context?.applicationEnvironment, raw["REQ | Superficie"], context?.applicationType, ""),
-      surfaceType: first(savedUi?.header?.surfaceType, raw["TIPO SUPERFICIE"], context?.surfaceType, raw["REQ | Tipo Superficie"], material?.surfaceType, material?.tipo_superficie, ""),
+      applicationEnvironment: first(savedUi?.header?.applicationEnvironment, raw["AMBIENTE APLICACION"], context?.applicationEnvironment, ""),
+      surfaceType: first(savedUi?.header?.surfaceType, raw["TIPO SUPERFICIE"], context?.surfaceType, raw["REQ | Tipo Superficie"], ""),
       quantityTypes: Math.max(1, n(first(savedUi?.header?.quantityTypes, context?.quantityTypes, raw["CANTIDAD TIPOS"], quoteDefaults.quantityTypes), quoteDefaults.quantityTypes)),
-      quantityChanges: Math.max(0, n(first(savedUi?.header?.quantityChanges, context?.quantityChangesAdditional, context?.quantityChanges), 0)),
-      pantoneCount: n(context?.pantoneCount, 0),
-      useCmyk: savedUi?.header?.useCmyk ?? (context?.cmyk === true || norm(raw["CMYK"]) === "si" || quoteDefaults.useCmyk),
+      quantityChanges: changesByTypesCount(Math.max(1, n(first(savedUi?.header?.quantityTypes, context?.quantityTypes, raw["CANTIDAD TIPOS"], quoteDefaults.quantityTypes), quoteDefaults.quantityTypes))),
+      pantoneCount: savedUi?.header?.pantoneCount ?? Math.max(n(context?.pantoneCount, 0), reqDirectColorNames.length),
+      directColorNames: savedUi?.header?.directColorNames ?? reqDirectColorNames,
+      useCmyk: savedUi?.header?.useCmyk ?? (
+        norm(raw["REQ | CMYK"]) === "no"
+          ? false
+          : (context?.cmyk === true || norm(raw["CMYK"]) === "si" || norm(raw["REQ | CMYK"]) === "si" || quoteDefaults.useCmyk)
+      ),
       useWhiteInk: norm(raw["TINTA BLANCA | CHECK"]) === "si",
       doubleWhitePass: norm(raw["TINTA BLANCA | DOBLE PASADA | CHECK"]) === "si",
-      noPrint: context?.sinImpresion || norm(raw["SIN IMPRESION"]) === "si",
+      noPrint: context?.sinImpresion || norm(raw["SIN IMPRESION"]) === "si" || norm(raw["REQ | Sin Impresion"]) === "si",
       quantity: quantityProducts,
       quantities: normalizeQuantities((normalizedRequestedQuantities.length ? normalizedRequestedQuantities : [quantityProducts]).map((value, index) => ({ id: `qty-${index + 1}`, value }))),
       quoteCode: context?.quoteCode || quote?.quote_code || "",
@@ -4938,11 +6846,28 @@ function buildForm() {
     types: Array.isArray(savedUi?.types) && savedUi.types.length
       ? savedUi.types.map((type, index) => ({
         name: String(type?.name || "").trim(),
+        // nombre_motivo/pantones/versions/motivoProduct*/inkStations (Motivo 1 incluido) se habían
+        // quedado fuera de esta reconstrucción — se guardaban en el servidor (uiState) pero se
+        // descartaban en cada recarga. Restaurar todo lo que el usuario configura en el motivo.
+        // El primer motivo hereda el nombre del Trabajo Principal mientras no se haya editado a
+        // mano (mismo criterio que buildTypesList), para que nunca quede en blanco al abrir.
+        nombre_motivo: type?.nombreMotivoManual
+          ? String(type?.nombre_motivo || "").trim()
+          : (index === 0 ? String(first(context?.jobName, "")).trim() : String(type?.nombre_motivo || "").trim()),
+        nombreMotivoManual: Boolean(type?.nombreMotivoManual),
         quantity: Math.max(0, n(type?.quantity, 0)),
         quantities: normalizeQuantities(Array.isArray(type?.quantities) && type.quantities.length ? type.quantities : [{ id: `type-${index}-qty-1`, value: Math.max(0, n(type?.quantity, 0)) }]),
         artwork: ["none", "adapt", "full"].includes(type?.artwork) ? type.artwork : "none",
         colors: Math.max(0, n(type?.colors, 0)),
+        blancas: Math.max(0, n(type?.blancas, 0)),
+        pantones: Math.max(0, n(type?.pantones, 0)),
         plates: Math.max(0, n(type?.plates, 0)),
+        ...(Array.isArray(type?.versions) && type.versions.length ? { versions: type.versions.map((version) => ({ ...version })) } : {}),
+        ...(type?.motivoProductCode ? { motivoProductCode: type.motivoProductCode } : {}),
+        ...(type?.motivoProductSku ? { motivoProductSku: type.motivoProductSku } : {}),
+        inkStations: Array.isArray(type?.inkStations) && type.inkStations.length
+          ? type.inkStations.map((station) => ({ ...station }))
+          : [],
         ...(index === 0 ? {
           changeTimeMinutes: numOrUndefined(first(type?.changeTimeMinutes, savedUi?.changeCost?.timeMinutes)),
           changeMachineHourCost: numOrUndefined(first(type?.changeMachineHourCost, savedUi?.changeCost?.machineHourCost)),
@@ -4950,18 +6875,15 @@ function buildForm() {
           changeOperators: numOrUndefined(first(type?.changeOperators, savedUi?.changeCost?.operators)),
           changeWasteCost: numOrUndefined(first(type?.changeWasteCost, savedUi?.changeCost?.wasteCost)),
           changeAdditionalPrepCost: numOrUndefined(first(type?.changeAdditionalPrepCost, savedUi?.changeCost?.additionalPrepCost))
-        } : {
-          inkStations: Array.isArray(type?.inkStations) && type.inkStations.length
-            ? type.inkStations.map((station) => ({ ...station }))
-            : generateInkStations(state.form).map((station) => ({ ...station }))
-        })
+        } : {})
       }))
       : buildTypesList(Math.max(1, n(first(savedUi?.header?.quantityTypes, context?.quantityTypes, raw["CANTIDAD TIPOS"], quoteDefaults.quantityTypes), quoteDefaults.quantityTypes)), quantityProducts, null),
     commercial: {
-      overheadPct: n(first(savedUi?.commercial?.overheadPct, context?.contingencyPercent), 0),
-      marginPct: n(first(savedUi?.commercial?.marginPct, context?.extraPercent, 35), 35),
+      overheadPct: n(first(savedUi?.commercial?.overheadPct, context?.contingencyPercent, state.costsConfig?.general?.defaultOverheadPct, 0), 0),
+      marginPct: n(first(savedUi?.commercial?.marginPct, context?.extraPercent, state.costsConfig?.general?.defaultMarginPct, 35), 35),
       discountPct: n(first(savedUi?.commercial?.discountPct, 0), 0),
-      taxPct: n(first(savedUi?.commercial?.taxPct, context?.taxPercent, autoPricing?.taxPercent, 13), 13)
+      taxPct: n(first(savedUi?.commercial?.taxPct, context?.taxPercent, autoPricing?.taxPercent, state.costsConfig?.general?.defaultTaxPct, 13), 13),
+      porcentajesPorCantidad: normalizarPorcentajesPorCantidad(savedUi?.commercial?.porcentajesPorCantidad)
     },
     macula: {
       source: maculaConfig.source,
@@ -4983,8 +6905,8 @@ function buildForm() {
       costPerMeter: material ? materialUnitCosts(material, n(context?.materialWidth || context?.widthInches, 0)).costPerMeter : r((((processMsi * n(context?.materialWidth || context?.widthInches, 0)) / 1000) || 0) / 0.0254, 6),
       costPerMsi: r(processMsi, 6)
     },
-    design: { artCount: Math.max(1, n(context?.quantityTypes, n(raw["CANTIDAD TIPOS"], n(raw["CANTIDAD ARTES"], 1)))), timePerArt: 0.75, changeFactor: 0.5, hourCost: n(findProcessByKeywords(["diseno"])?.costo_hora_operario, 15) },
-    prepress: { artCount: Math.max(1, n(context?.quantityTypes, n(raw["CANTIDAD TIPOS"], n(raw["CANTIDAD ARTES"], 1)))), artsPerHour: n(state.costsConfig?.general?.defaultPrepressArtsPerHour, 2), hourCost: n(state.costsConfig?.general?.defaultPrepressHourCost, n(findProcessByKeywords(["preprensa"])?.costo_hora_operario, 15)) },
+    design: { artCount: Math.max(1, n(context?.quantityTypes, n(raw["CANTIDAD TIPOS"], n(raw["CANTIDAD ARTES"], n(state.costsConfig?.general?.defaultDisenoArts, 1))))), timePerArt: 0.75, changeFactor: 0.5, hourCost: n(state.costsConfig?.general?.defaultDisenoHourCost, n(findProcessByKeywords(["diseno"])?.costo_hora_operario, 15)) },
+    prepress: { artCount: Math.max(1, n(context?.quantityTypes, n(raw["CANTIDAD TIPOS"], n(raw["CANTIDAD ARTES"], 1)))), artsPerHour: n(state.costsConfig?.general?.defaultPrepressArts, 2), minutosPorCambio: n(state.costsConfig?.general?.defaultPrepressMinPerChange, 0), hourCost: n(state.costsConfig?.general?.defaultPrepressHourCost, n(findProcessByKeywords(["preprensa"])?.costo_hora_operario, 15)) },
     plates: { chargePlates: true, chargeVirginPlate: false, plateMode: "", external: [{ description: "", cost: 0, comments: "", attachmentName: "" }], inventory: { materialId: "" } },
     print: (() => {
       const selectedPrintMachine = selectedQuotedMachine;
@@ -5001,7 +6923,7 @@ function buildForm() {
         machineId: selectedPrintMachine?.id || "",
         machineName: selectedPrintMachine ? machineDisplayName(selectedPrintMachine) : "",
         setupMinutes: firstPositiveNumber(selectedPrintMachine?.setupBaseMinutes, selectedPrintCapacity?.tiempo_preparacion_general, printProcess?.tiempo_preparacion_general, 20),
-        cleaningMinutes: 12,
+        cleaningMinutes: firstPositiveNumber(selectedPrintMachine?.lavadoPorEstacion, 12),
         mountingMinutes: firstPositiveNumber(firstPositiveNumber(selectedPrintMachine?.setupPerStationMinutes, selectedPrintCapacity?.tiempo_por_estacion, printProcess?.tiempo_por_estacion, 0) * Math.max(1, n(context?.tintCount, 0)), inlineFinishSetupMinutes("impresion"), 0),
         speedMetersMin: printSpeedValue(firstPositiveNumber(selectedPrintMachine?.productionSpeed, selectedPrintCapacity?.velocidad_produccion, printProcess?.velocidad_produccion, 0)),
         availableColors: machineSupportsInline(selectedPrintMachine) ? 8 : 4,
@@ -5011,11 +6933,11 @@ function buildForm() {
         aniloxBcm: inkDefaults.cmykBcm || inkDefaults.bcmGenerico,
         transferFactor: 0.3,
         inkDensity: inkDefaults.densidadUv,
-        inkCostPerLb: inkDefaults.costoLbCmyk,
+        inkCostPerKg: inkDefaults.costoKgCmyk,
         inkGsm: inkDefaults.cmykGsm,
         bcmGenerico: inkDefaults.bcmGenerico,
-        whiteInkCostPerLb: inkDefaults.costoLbBlanco,
-        pantoneInkCostPerLb: inkDefaults.costoLbPantone,
+        whiteInkCostPerKg: inkDefaults.costoKgBlanco,
+        pantoneInkCostPerKg: inkDefaults.costoKgPantone,
         requiresSubstrateTreatment: materialNeedsPremier && !materialPreTreated,
         digitalBillingType: digitalDefaults.billingType,
         digitalInkCostPerKg: digitalDefaults.inkCostPerKg,
@@ -5043,7 +6965,7 @@ function buildForm() {
     })(),
     printStages: [],
     finishes: [],
-    packaging: { rollCount: 0, yieldPerHour: 80, operators: 2, hourCost: n(findProcessByKeywords(["empaque"])?.costo_hora_operario, 8), externalCost: 0, comments: "", attachmentName: "" },
+    packaging: { rollCount: 0, yieldPerHour: n(state.costsConfig?.general?.defaultEmpaqueCantidadXMinuto, 80), operators: 1, hourCost: n(state.costsConfig?.general?.defaultEmpaqueMinutoHombre, n(findProcessByKeywords(["empaque"])?.costo_hora_operario, 8)), tiempoMovilizacion: n(state.costsConfig?.general?.defaultEmpaqueTiempoMovilizacion, 0), tiempoConfeccion: n(state.costsConfig?.general?.defaultEmpaqueTiempoConfeccion, 0), externalCost: 0, tipoCaja: "", costoCaja: n(state.costsConfig?.general?.defaultBoxCost, 0), kgPorCaja: 0, tarimaAlto: 0, tarimaAncho: 0, tarimaLargo: 0, tarimaPeso: 0, tipoBolsa: "", cantidadBolsas: 0, comments: "", attachmentName: "" },
     additional: [],
     activeProcessKeys: [],
     launcherPosition: null
@@ -5070,11 +6992,20 @@ function buildForm() {
   form.plates.laser.area = laserPlateMetrics(form).totalArea;
   form.finishes = (Array.isArray(form.finishes) ? form.finishes : []).map((item, index) => createFinishItem({
     ...item,
-    variableBase: item.processKey === "estampado" ? base.printedAreaM2 : base.linealFeet
+    variableBase: item.processKey === "estampado" ? base.printedAreaM2 : base.linealMeters
   }, index));
   syncDerivedHeaderAndPackaging(form);
   if (savedUi && typeof savedUi === "object") {
-    stateSafeMerge(form, savedUi);
+    const { types: __savedTypesAlreadyHandled, ...savedUiForMerge } = savedUi;
+    // Estado_UI.finishes is overloaded: the quick-request wizard writes a plain
+    // {varnish, laminado, stamping} summary object there, while this page expects
+    // an array of finish-process items. Only merge it when it's actually that array,
+    // otherwise it clobbers the array built above and crashes every render that
+    // calls form.finishes.some(...).
+    if (savedUiForMerge.finishes && !Array.isArray(savedUiForMerge.finishes)) {
+      delete savedUiForMerge.finishes;
+    }
+    stateSafeMerge(form, savedUiForMerge);
     const savedQuantities = Array.isArray(savedUi?.header?.quantities) ? savedUi.header.quantities : [];
     const quantitySource = savedQuantities.length ? savedQuantities : (requestedQuantities.length ? requestedQuantities : form.header.quantities);
     form.header.quantities = normalizeQuantities(quantitySource.map((item, index) => ({
@@ -5089,7 +7020,35 @@ function buildForm() {
   form.header.lineStatus = first(context?.lineStatus, raw["SOLICITUD ESTADO"], raw["ESTADO LINEA"], form.header.lineStatus);
   form.header.customerCode = first(quote?.customer_code, context?.customerCode, raw["ID CLIENTE"], form.header.customerCode);
   form.header.customerName = first(quote?.customer_name, context?.customerName, raw.CLIENTE, form.header.customerName);
+  form.header.contactName = first(quote?.contact_name, form.header.contactName);
+  form.header.productCode = calcLineProductSku() || realProductCodeFrom(context, raw) || form.header.productCode;
   form.header.salespersonName = first(quote?.salesperson_name, context?.salespersonName, raw.VENDEDOR, form.header.salespersonName);
+  if (!form.header.codigoCliente) {
+    form.header.codigoCliente = first(savedUi?.clientSku, raw["REQ | SKU Cliente"], "");
+  }
+  if (!form.header.referencia) {
+    form.header.referencia = first(savedUi?.referencia, raw["REQ | Referencia"], "");
+  }
+  if (!form.header.referenciaComentario) {
+    form.header.referenciaComentario = first(savedUi?.referenciaComentario, raw["REQ | Referencia Comentario"], "");
+  }
+  if (!form.header.referenciaCambios.medidas && !form.header.referenciaCambios.arte && !form.header.referenciaCambios.textos && !form.header.referenciaCambios.otros) {
+    const srcCambios = savedUi?.referenciaCambios || (raw["REQ | Referencia Cambios"] ? String(raw["REQ | Referencia Cambios"]).split(',').map(function(s){ return s.trim(); }).filter(Boolean) : null);
+    if (Array.isArray(srcCambios)) {
+      form.header.referenciaCambios.medidas = srcCambios.includes('Medidas');
+      form.header.referenciaCambios.arte = srcCambios.includes('Arte');
+      form.header.referenciaCambios.textos = srcCambios.includes('Textos');
+      form.header.referenciaCambios.otros = srcCambios.includes('Otros');
+    }
+  }
+  if (!form.header.insumos.arteDigital && !form.header.insumos.muestrasFisicas && !form.header.insumos.envase) {
+    const srcInsumos = savedUi?.insumosCliente || (raw["REQ | Insumos Cliente"] ? String(raw["REQ | Insumos Cliente"]).split(',').map(function(s){ return s.trim(); }).filter(Boolean) : null);
+    if (Array.isArray(srcInsumos)) {
+      form.header.insumos.arteDigital = srcInsumos.includes('Arte Digital');
+      form.header.insumos.muestrasFisicas = srcInsumos.includes('Muestras Físicas');
+      form.header.insumos.envase = srcInsumos.includes('Envase');
+    }
+  }
   form.troquel.dieMode = normalizeDieMode(form.troquel.dieMode) || (String(form.troquel.dieCode || "").trim() ? "inventory" : "");
   form.troquel.external = normalizeDieExternalRows(form.troquel.external);
   form.plates.chargePlates = form.plates.chargePlates !== false;
@@ -5169,7 +7128,7 @@ function buildForm() {
       ...(inlineSource.barniz || {}),
       active: true,
       sonified: true,
-      comment: first(inlineSource.barniz?.comment, "Zonificado")
+      comment: first(inlineSource.barniz?.comment, "Reservado")
     };
   }
   if (inferredProcessKeys.includes("laminado")) {
@@ -5190,10 +7149,10 @@ function buildForm() {
   if (form.printStages?.[0]) {
     form.printStages[0].inlineFinishes = inlineSource;
   }
-  const shouldExpand = false;
+  applyInheritedFinishesFromRequest(form, raw);
   state.form = form;
   syncPrintStageInkStations(state.form);
-  ensureActiveProcessKeys(shouldExpand);
+  ensureActiveProcessKeys();
   ensureConfiguredProcessInstances();
   syncInlineFinishesForMachine(0);
   if (form.printStages?.[0]) {
@@ -5240,11 +7199,11 @@ function calcMacula() {
     source: first(macula.source, "convencional"),
     montajeRows,
     tirajeRows,
-    montajeTotalPies: r(montajeRows.reduce((sum, row) => sum + n(row.totalPies, 0), 0), 2),
+    montajeTotalMetros: r(montajeRows.reduce((sum, row) => sum + n(row.totalMetros, 0), 0), 2),
     montajeTotalEstaciones: r(montajeRows.reduce((sum, row) => sum + n(row.porEstacion, 0), 0), 2),
     tirajePromedioPct: tirajeRows.length ? r(tirajeRows.reduce((sum, row) => sum + n(row.porcentaje, 0), 0) / tirajeRows.length, 2) : 0,
-    formulaText: "Merma base = parámetros de montaje y tiraje definidos en Costos. La cotización los carga como referencia editable por documento.",
-    explanation: "Este bloque resume la configuración vigente de merma y la deja editable dentro de la cotización para ajustar la merma del trabajo sin cambiar la tabla maestra."
+    formulaText: "Merma de montaje = Σ (Metros por Estación de Impresión x tintas de cada arte) + Metros por Estación de cada acabado activo (troquelado, laminado, barniz, embosado, una sola vez). Merma porcentual = Longitud neta x % de la combinación de procesos, una sola vez. Fuente de datos: los Metros por Estación vienen de la máquina del trabajo en Configuración → Inventario de Máquinas (merma de arranque) si los define; si no, de la tabla maestra en Configuración → Costos → Convencional → Merma en Metros por Estación de Montaje (editable por etapa en esta pantalla). El % de tiraje viene de Configuración → Costos → Convencional → Merma en Porcentaje de Tiraje según la combinación de procesos activa. Las tintas salen de las estaciones de tinta de cada arte del trabajo (sin barniz: el barniz es un acabado general que se comparte entre artes y no se multiplica por arte).",
+    explanation: "Este bloque resume la configuración vigente de merma y la deja editable dentro de la cotización para ajustar la merma del trabajo sin cambiar la tabla maestra. Los valores por estación vienen de la máquina (si los define) o de la tabla maestra de Costos; los acabados internos de la máquina de impresión se suman una sola vez por trabajo y los artes adicionales solo generan merma de montaje de impresión."
   };
 }
 
@@ -5268,6 +7227,32 @@ function parseMaculaDetailTokens(detail) {
     .filter(Boolean))];
 }
 
+// La búsqueda del porcentaje de tiraje baja de la combinación con más acabados hacia la de solo
+// impresión, verificando que cada acabado de la fila sea un acabado INTERNO activo de la máquina
+// de impresión (impresión siempre presente). El porcentaje es exclusivo de la máquina de
+// impresión: los acabados externos no participan, cada uno tiene su propio contador de merma.
+function buscarFilaTiraje(tirajeRows, activeSet) {
+  const match = [...tirajeRows]
+    .map((row) => ({ row, tokens: parseMaculaDetailTokens(row.detalle) }))
+    .filter((entry) => entry.tokens.length)
+    .sort((a, b) => b.tokens.length - a.tokens.length)
+    .find((entry) => entry.tokens.every((token) => activeSet.has(token)));
+  return match ? match.row : null;
+}
+
+// Porcentaje de tiraje que corresponde a una etapa según los acabados INTERNOS activos de su
+// máquina de impresión, evaluado contra la tabla de Costos. Usado al marcar/desmarcar checks de
+// acabados inline para llevar el valor de tabla al campo editable de la etapa.
+function tirajePctDeTablaParaEtapa(stage = {}) {
+  const macula = calcMacula();
+  const activeInlineKeys = inlineItemsForMacula(stage)
+    .filter((item) => item.active && item.allowedForMachine !== false)
+    .map((item) => normalizeMaculaProcessKey(item.key || item.label || ""))
+    .filter(Boolean);
+  const activeSet = new Set(["impresion", ...activeInlineKeys]);
+  return n(buscarFilaTiraje(macula.tirajeRows, activeSet)?.porcentaje, 0);
+}
+
 function resolvePrintMacula(base, inlineItems = []) {
   const macula = calcMacula();
   const activeInlineKeys = inlineItems
@@ -5277,50 +7262,62 @@ function resolvePrintMacula(base, inlineItems = []) {
   const activeSet = new Set(["impresion", ...activeInlineKeys]);
 
   const setupRows = macula.montajeRows.filter((row) => normalizeMaculaProcessKey(row.detalle) === "impresion");
-  const inlineSetupFeet = r(inlineItems
+  const impresionPorEstacion = r(setupRows.reduce((sum, row) => sum + n(row.porEstacion, 0), 0), 4);
+  const acabadosActivos = inlineItems
     .filter((item) => item.active && item.allowedForMachine !== false)
-    .reduce((sum, item) => sum + n(item.setupWasteFeet, 0), 0), 2);
-  const setupFeet = r(setupRows.reduce((sum, row) => sum + n(row.totalPies, 0), 0) + inlineSetupFeet, 2);
+    .map((item) => {
+      const key = normalizeMaculaProcessKey(item.key || item.label || "");
+      const editable = n(item.setupWasteMeters, 0);
+      const fila = macula.montajeRows.find((row) => normalizeMaculaProcessKey(row.detalle) === key);
+      return { key, metros: editable > 0 ? editable : n(fila?.porEstacion, 0) };
+    })
+    .filter((item) => item.key && item.key !== "impresion");
+  const tintasPorMotivo = motivosTintasParaMerma();
+  const setupMeters = computeMontajeMermaPorMotivos({ metrosPorEstacionImp: impresionPorEstacion, tintasPorMotivo, acabadosActivos });
 
-  let tirajeRow = null;
-  macula.tirajeRows.forEach((row) => {
-    const tokens = parseMaculaDetailTokens(row.detalle);
-    if (!tokens.length) return;
-    const matches = tokens.every((token) => activeSet.has(token));
-    if (!matches) return;
-    if (!tirajeRow || tokens.length > parseMaculaDetailTokens(tirajeRow.detalle).length) {
-      tirajeRow = row;
-    }
-  });
-
+  // La búsqueda del porcentaje de tiraje baja de la combinación con más acabados hacia la de solo
+  // impresión, verificando que cada acabado de la fila sea un acabado INTERNO activo de la máquina
+  // de impresión (impresión siempre presente). El porcentaje es exclusivo de la máquina de
+  // impresión: los acabados externos no participan, cada uno tiene su propio contador de merma.
+  const tirajeRow = buscarFilaTiraje(macula.tirajeRows, activeSet);
   const tirajePct = n(tirajeRow?.porcentaje, 0);
-  const tirajeFeet = r(n(base.linealFeet, 0) * (tirajePct / 100), 2);
-  const totalFeet = r(setupFeet + tirajeFeet, 2);
+  const tirajeMeters = r(n(base.linealMeters, 0) * (tirajePct / 100), 2);
+  const totalMeters = r(setupMeters + tirajeMeters, 2);
 
   return {
     setupRows,
     tirajeRow,
-    setupFeet,
-    inlineSetupFeet,
+    setupMeters,
+    impresionPorEstacion,
+    tintasPorMotivo,
+    acabadosActivos,
     tirajePct,
-    tirajeFeet,
-    totalFeet,
+    tirajeMeters,
+    totalMeters,
     activeInlineKeys
   };
 }
 
-function applyStageMaculaOverrides(stage = {}, macula = {}, base = metrics()) {
+function applyStageMaculaOverrides(stage = {}, macula = {}, base = metrics(), context = {}) {
   const next = { ...macula };
-  const hasSetupOverride = stage.maculaSetupFeet !== undefined && stage.maculaSetupFeet !== "";
-  const hasTirajeFeetOverride = stage.maculaTirajeFeet !== undefined && stage.maculaTirajeFeet !== "" && n(stage.maculaTirajeFeet, 0) > 0;
+  const tintasPorMotivo = Array.isArray(context.tintasPorMotivo)
+    ? context.tintasPorMotivo
+    : (Array.isArray(macula.tintasPorMotivo) ? macula.tintasPorMotivo : []);
+  const acabadosActivos = Array.isArray(context.acabadosActivos)
+    ? context.acabadosActivos
+    : (Array.isArray(macula.acabadosActivos) ? macula.acabadosActivos : []);
+  const hasSetupOverride = stage.maculaSetupMeters !== undefined && stage.maculaSetupMeters !== "" && n(stage.maculaSetupMeters, 0) > 0;
+  const porEstacionEfectivo = hasSetupOverride ? r(n(stage.maculaSetupMeters, 0), 4) : r(n(macula.impresionPorEstacion, 0), 4);
+  next.impresionPorEstacion = porEstacionEfectivo;
+  next.setupMeters = computeMontajeMermaPorMotivos({ metrosPorEstacionImp: porEstacionEfectivo, tintasPorMotivo, acabadosActivos });
+  const hasTirajeMetersOverride = stage.maculaTirajeMeters !== undefined && stage.maculaTirajeMeters !== "" && n(stage.maculaTirajeMeters, 0) > 0;
   const hasTirajePctOverride = stage.maculaTirajePct !== undefined && stage.maculaTirajePct !== "" && n(stage.maculaTirajePct, 0) > 0;
-  if (hasSetupOverride && n(stage.maculaSetupFeet, 0) > 0) next.setupFeet = r(n(stage.maculaSetupFeet, 0) + n(next.inlineSetupFeet, 0), 2);
   if (hasTirajePctOverride) {
     next.tirajePct = r(n(stage.maculaTirajePct, 0), 2);
-    if (!hasTirajeFeetOverride) next.tirajeFeet = r(n(base.linealFeet, 0) * (n(next.tirajePct, 0) / 100), 2);
+    if (!hasTirajeMetersOverride) next.tirajeMeters = r(n(base.linealMeters, 0) * (n(next.tirajePct, 0) / 100), 2);
   }
-  if (hasTirajeFeetOverride) next.tirajeFeet = r(n(stage.maculaTirajeFeet, 0), 2);
-  next.totalFeet = r(n(next.setupFeet, 0) + n(next.tirajeFeet, 0), 2);
+  if (hasTirajeMetersOverride) next.tirajeMeters = r(n(stage.maculaTirajeMeters, 0), 2);
+  next.totalMeters = r(n(next.setupMeters, 0) + n(next.tirajeMeters, 0), 2);
   return next;
 }
 
@@ -5328,36 +7325,36 @@ function calcSustrato() {
   const base = metrics();
   const material = selectedSubstrateMaterial(state.form);
   const materialName = state.form.substrate.nombreComercial || first(material?.nombre, material?.name, material?.descripcion, "");
-  const macula = hasActiveProcess("impresion") ? documentMaculaFromStages(base) : { setupFeet: 0, tirajeFeet: 0, totalFeet: 0 };
-  const maculaSetupFeet = r(n(macula.setupFeet, 0), 2);
-  const maculaTirajeFeet = r(n(macula.tirajeFeet, 0), 2);
-  const startupWasteFeet = r(macula.totalFeet, 2);
-  const totalLengthFeet = r(base.linealFeet + startupWasteFeet, 2);
-  const totalLengthMeters = r(totalLengthFeet * 0.3048, 4);
-  const totalAreaFt2 = r(totalLengthFeet * (n(base.webWidthIn, 0) / 12), 6);
+  const macula = hasActiveProcess("impresion") ? documentMaculaFromStages(base) : { setupMeters: 0, setupTrabajoMeters: 0, tirajeMeters: 0, totalMeters: 0 };
+  const maculaSetupMeters = r(n(macula.setupMeters, 0), 2);
+  const maculaSetupTrabajoMeters = r(n(macula.setupTrabajoMeters, 0), 2);
+  const maculaTirajeMeters = r(n(macula.tirajeMeters, 0), 2);
+  const startupWasteMeters = r(macula.totalMeters, 2);
+  const totalLengthMeters = r(base.linealMeters + startupWasteMeters, 4);
+  const totalAreaM2 = r(totalLengthMeters * (n(base.webWidthIn, 0) * 0.0254), 6);
   const unitCost = substrateUnitCost(state.form, base);
-  const consumption = totalLengthFeet;
+  const consumption = totalLengthMeters;
   const rawSubtotal = r(consumption * unitCost);
   const pricing = applyProcessMinimum("sustrato", rawSubtotal);
-  const unitLabel = "pie lineal";
-  const unitCostLabel = "Costo por Pie";
+  const unitLabel = "metro lineal";
+  const unitCostLabel = "Costo por Metro";
   const issues = buildFormulaIssues({
     qty: base.qty,
     cylinderDevelopmentIn: base.cylinderDevelopmentIn,
     acrossCount: base.acrossCount,
-    startupWasteFeet,
+    startupWasteMeters,
     webWidthIn: base.webWidthIn,
     requiresWaste: hasActiveProcess("impresion")
   });
   return {
     ...base,
-    maculaSetupFeet,
-    maculaTirajeFeet,
-    maculaTotalFeet: startupWasteFeet,
-    startupWasteFeet,
-    totalLengthFeet,
+    maculaSetupMeters,
+    maculaSetupTrabajoMeters,
+    maculaTirajeMeters,
+    maculaTotalMeters: startupWasteMeters,
+    startupWasteMeters,
     totalLengthMeters,
-    totalAreaFt2,
+    totalAreaM2,
     consumption,
     materialName,
     unitCost,
@@ -5365,19 +7362,20 @@ function calcSustrato() {
     unitCostLabel,
     ...pricing,
     issues,
-    formulaConsumption: "Longitud Total (pies) = [ (Cantidad a Producir x Desarrollo del Cilindro) / (12 x Cantidad de Etiquetas al Través) ] + Merma Total",
-    formulaArea: "Área Total Consumida (pies²) = Longitud Total (pies) x (Ancho de la Bobina / 12)",
-    formulaCost: `Costo sustrato = Longitud Total en ${unitLabel} x ${unitCostLabel}`,
-    explanation: "Sustrato toma la longitud neta del trabajo, le suma la merma y con eso calcula tanto la longitud total requerida como el área total consumida del material."
+    formulaConsumption: "Longitud Total (metros) = Tiraje bueno + Merma de montaje + Merma de setup + Merma porcentual. Merma de montaje = Σ (Metros por Estación de Impresión x tintas de cada arte) + Metros por Estación de cada acabado activo (una sola vez). Merma de setup = metros de la máquina de impresión una sola vez por trabajo (registro, color, tensión, secado, pruebas). Merma porcentual = Longitud neta x % de la combinación de procesos (una sola vez). Fuente de datos: tiraje bueno del encabezado de la cotización (cantidad y medidas); Metros por Estación de la máquina (Configuración → Inventario de Máquinas → merma de montaje) o de la tabla maestra (Configuración → Costos → Convencional → Merma en Metros por Estación de Montaje); metros de setup de la máquina (Configuración → Inventario de Máquinas → merma de setup); % de Configuración → Costos → Convencional → Merma en Porcentaje de Tiraje según la combinación de procesos activa; tintas de las estaciones de tinta de cada arte del trabajo (el barniz no se multiplica por arte, es un acabado general).",
+    formulaArea: "Área Total Consumida (m²) = Longitud Total (metros) x (Ancho de la Bobina x 0.0254). Fuente de datos: ancho de bobina del material seleccionado en esta pantalla (Material del sustrato en la sección de Sustrato); el factor 0.0254 convierte pulgadas a metros.",
+    formulaCost: `Costo sustrato = Longitud Total en ${unitLabel} x ${unitCostLabel}. Fuente de datos: costo por metro del material en Configuración → Materiales (sustratos), editable por trabajo en la sección de Sustrato de esta pantalla.`,
+    explanation: "Sustrato toma el tiraje bueno del trabajo (cantidad y medidas del encabezado), le suma la merma de montaje (impresión por estación x tintas de cada arte, más acabados activos una sola vez, con valores de la máquina o de la tabla maestra de Costos), la merma de setup de la máquina (una sola vez por trabajo) y la merma porcentual de la combinación de procesos (tabla de Costos), y con eso calcula la longitud total requerida y el área total consumida del material."
   };
 }
 
 function calcDesign() {
   const artCount = Math.max(1, n(state.form.header.quantityTypes, n(state.form.design.artCount, 1)));
-  const changeCount = totalChangesCount(state.form.header.quantityTypes, state.form.header.quantityChanges);
-  const time = r((artCount * n(state.form.design.timePerArt, 0)) + (changeCount * n(state.form.design.timePerArt, 0) * n(state.form.design.changeFactor, 0)));
+  const changeCount = changesByTypesCount(state.form.header.quantityTypes);
+  const baseTime = r((artCount * n(state.form.design.timePerArt, 0)) + (changeCount * n(state.form.design.timePerArt, 0) * n(state.form.design.changeFactor, 0)));
+  const time = r(baseTime + processTimeBufferHours("diseno"));
   const pricing = applyProcessMinimum("diseno", r(time * n(state.form.design.hourCost, 0)));
-  return { time, ...pricing, formulaText: "Tiempo Total = (Artes x Tiempo Base) + (Cambios Totales x Tiempo Base x Factor de Cambios). Costo = Tiempo Total x Costo por Hora.", explanation: "Diseño toma la cantidad de tipos o motivos del encabezado y suma el tiempo adicional por los cambios totales de producción (cambios por tipos más cambios adicionales) para dejar visible el costo creativo real del trabajo." };
+  return { time, ...pricing, formulaText: "Tiempo Total = (Artes x Tiempo Base) + (Cambios Totales x Tiempo Base x Factor de Cambios) + Tiempo Adicional. Costo = Tiempo Total x Costo por Hora.", explanation: "Diseño toma la cantidad de tipos o artes del encabezado, calcula los cambios de producción (cantidad de artes menos uno) y suma el tiempo adicional de estos cambios para dejar visible el costo creativo real del trabajo." };
 }
 
 function calcPrepress() {
@@ -5391,9 +7389,72 @@ function calcPrepress() {
     };
   }
   const artCount = Math.max(1, n(state.form.header.quantityTypes, n(state.form.prepress.artCount, 1)));
-  const time = n(state.form.prepress.artsPerHour, 0) > 0 ? r(artCount / n(state.form.prepress.artsPerHour, 0)) : 0;
+  const baseTime = n(state.form.prepress.artsPerHour, 0) > 0 ? r(artCount / n(state.form.prepress.artsPerHour, 0)) : 0;
+  const time = r(baseTime + processTimeBufferHours("preprensa"));
   const pricing = applyProcessMinimum("preprensa", r(time * n(state.form.prepress.hourCost, 0)));
-  return { time, ...pricing, formulaText: "Tiempo = Artes / Rendimiento. Costo = Tiempo x Costo por Hora.", explanation: "Preprensa convierte la cantidad de tipos en horas según el rendimiento técnico configurado para esa etapa." };
+  return { time, ...pricing, formulaText: "Tiempo = Artes / Rendimiento + Tiempo Adicional. Costo = Tiempo x Costo por Hora.", explanation: "Preprensa convierte la cantidad de tipos en horas según el rendimiento técnico configurado para esa etapa." };
+}
+
+// Costo Externo de Sellos (Fase X): una fila automática por Motivo (sellos de tintas +
+// estampado) y una fila adicional por cada Versión 2+ que declare sellos propias — igual que la
+// tabla de tintas. Cantidad, in²/sello, costo/in² y subtotal quedan editables por fila; al no
+// tocarlos siguen el cálculo en vivo, y al editarlos se "congelan" (mismo patrón que
+// productosPorCajaManual) hasta que el usuario los borre.
+function selloExternalAutoDefs(form = state.form) {
+  const types = Array.isArray(form.types) ? form.types : [];
+  const jobName = String(form.header?.jobName || "").trim();
+  const defs = [];
+  types.forEach((type, motivoIndex) => {
+    const basePlates = Math.max(0, n(type.inkStationPlates, 0) + n(type.estampadoPlates, 0));
+    defs.push({
+      id: `motivo-${motivoIndex}`,
+      motivoNumber: motivoIndex + 1,
+      defaultDetalle: motivoIndex === 0 ? jobName : String(type.nombre_motivo || `Arte ${motivoIndex + 1}`),
+      defaultPlates: basePlates
+    });
+    (Array.isArray(type.versions) ? type.versions : []).forEach((version, versionIndex) => {
+      if (versionIndex === 0) return;
+      const plates = Math.max(0, n(version?.additionalPlates, 0));
+      if (plates <= 0) return;
+      defs.push({
+        id: `motivo-${motivoIndex}-version-${versionIndex}`,
+        motivoNumber: motivoIndex + 1,
+        defaultDetalle: String(version?.description || version?.name || `Versión ${versionIndex + 1}`),
+        defaultPlates: plates
+      });
+    });
+  });
+  return defs;
+}
+
+function syncPlateExternalAutoRows(form = state.form) {
+  const p = calcularSelloSqIn();
+  const defs = selloExternalAutoDefs(form);
+  const existing = new Map((Array.isArray(form.plates?.rowsAuto) ? form.plates.rowsAuto : []).map((row) => [row.id, row]));
+  form.plates.rowsAuto = defs.map((def) => {
+    const row = existing.get(def.id) || {
+      id: def.id,
+      detalle: def.defaultDetalle,
+      detalleManual: false,
+      cantidad: def.defaultPlates,
+      cantidadManual: false,
+      inPorSello: p.plateUnitAreaIn2,
+      inPorSelloManual: false,
+      costoPorIn2: p.costPerSqIn,
+      costoPorIn2Manual: false,
+      subtotal: 0,
+      subtotalManual: false
+    };
+    row.motivoNumber = def.motivoNumber;
+    if (!row.detalleManual) row.detalle = def.defaultDetalle;
+    if (!row.cantidadManual) row.cantidad = def.defaultPlates;
+    if (!row.inPorSelloManual) row.inPorSello = p.plateUnitAreaIn2;
+    if (!row.costoPorIn2Manual) row.costoPorIn2 = p.costPerSqIn;
+    row.inTotalMotivo = r(n(row.cantidad, 0) * n(row.inPorSello, 0), 4);
+    if (!row.subtotalManual) row.subtotal = r(row.inTotalMotivo * n(row.costoPorIn2, 0), 2);
+    return row;
+  });
+  return form.plates.rowsAuto;
 }
 
 function calcPlates() {
@@ -5407,11 +7468,11 @@ function calcPlates() {
         operatorSubtotal: 0,
         subtotal: 0,
         formulaText: "Costo = 0.",
-        explanation: "Cobro de planchas desactivado para esta cotizacion.",
+        explanation: "Cobro de sellos desactivado para esta cotizacion.",
         laserMetrics: ["virgin", "laser"].includes(entry.key) ? laserPlateMetrics() : null
       };
     });
-    return { ...applyProcessMinimum("planchas", 0), breakdown, explanation: "Cobro de planchas desactivado para esta cotizacion." };
+    return { ...applyProcessMinimum("sellos", 0), breakdown, explanation: "Cobro de sellos desactivado para esta cotizacion." };
   }
   if (digitalPlateRuleApplies()) {
     const breakdown = {};
@@ -5427,68 +7488,29 @@ function calcPlates() {
         laserMetrics: entry.key === "laser" ? laserPlateMetrics() : null
       };
     });
-    return { ...applyProcessMinimum("planchas", 0), breakdown, explanation: digitalPlateRuleMessage() };
+    return { ...applyProcessMinimum("sellos", 0), breakdown, explanation: digitalPlateRuleMessage() };
   }
   const plateMode = normalizePlateMode(state.form.plates?.plateMode);
   if (plateMode === "external") {
     const rawUserRows = normalizePlateExternalRows(state.form.plates.external).filter((r) => !r.isAuto);
-    const p = calcularPlanchaSqIn();
-    const autoCost = p.costPerSqIn > 0 ? p.totalCost : 0;
-    const allRows = [];
-    if (autoCost > 0) {
-      const descParts = [];
-      if (p.printingSqIn > 0) descParts.push(`Impresión: ${num(p.printingSqIn, 2)} in²`);
-      if (p.stampingSqIn > 0) descParts.push(`Estampado: ${num(p.stampingSqIn, 2)} in²`);
-      descParts.push(`Total: ${num(p.totalSqIn, 2)} in²`);
-      allRows.push({
-        description: descParts.join(' | '),
-        cost: autoCost,
-        comments: `$${num(p.costPerSqIn, 4)}/in²`,
-        isAuto: true
-      });
-    }
-    const plateUnitAreaIn2 = r(p.machineMaxWidthIn * p.dieDevIn, 4);
-    const motivoPlateRows = [];
-    if (plateUnitAreaIn2 > 0 && p.costPerSqIn > 0) {
-      ensureTypesList(state.form).forEach((type, index) => {
-        const plateCount = Math.max(0, Math.floor(n(type.plates, 0)));
-        if (plateCount <= 0) return;
-        const rowCost = r(plateUnitAreaIn2 * p.costPerSqIn * plateCount, 2);
-        motivoPlateRows.push({
-          description: `${type.name || `Motivo ${index + 1}`}: ${plateCount} plancha${plateCount > 1 ? "s" : ""} adicional${plateCount > 1 ? "es" : ""} (${num(plateUnitAreaIn2, 2)} in² c/u)`,
-          cost: rowCost,
-          comments: `$${num(p.costPerSqIn, 4)}/in²`,
-          isAuto: true
-        });
-      });
-    }
-    allRows.push(...motivoPlateRows);
-    allRows.push(...rawUserRows);
-    state.form.plates.external = allRows;
-    const motivoPlatesCost = r(motivoPlateRows.reduce((sum, item) => sum + n(item.cost, 0), 0));
+    state.form.plates.external = rawUserRows;
+    const autoRows = syncPlateExternalAutoRows(state.form);
+    const motivoPlatesCost = r(autoRows.reduce((sum, row) => sum + n(row.subtotal, 0), 0));
     const manualSubtotal = r(rawUserRows.reduce((sum, item) => sum + n(item.cost, 0), 0));
-    const rawSubtotal = r(manualSubtotal + autoCost + motivoPlatesCost);
+    const rawSubtotal = r(manualSubtotal + motivoPlatesCost);
     const exampleLines = [];
-    if (autoCost > 0) {
-      let formulaParts = [];
-      if (p.printingSqIn > 0) formulaParts.push(`${num(p.colors, 0)} tintas × (${num(p.machineMaxWidthIn, 2)} in ancho máq. × ${num(p.dieDevIn, 3)} in desarrollo)`);
-      if (p.stampingSqIn > 0) formulaParts.push(`${num(p.machineMaxWidthIn, 2)} in ancho rollo × ${num(p.dieDevIn, 3)} in desarrollo (estampado)`);
-      if (formulaParts.length) exampleLines.push(`Área plancha = ${formulaParts.join(' + ')} = ${num(p.totalSqIn, 2)} in²`);
-      exampleLines.push(`Costo plancha = ${num(p.totalSqIn, 2)} in² × $${num(p.costPerSqIn, 4)}/in² = ${formulaValue(autoCost, 2)}`);
-    }
-    motivoPlateRows.forEach((row) => { exampleLines.push(`Plancha por motivo: ${row.description} = ${formulaValue(row.cost, 2)}`); });
+    autoRows.forEach((row) => {
+      if (n(row.subtotal, 0) <= 0) return;
+      exampleLines.push(`${row.detalle || `Arte ${row.motivoNumber}`}: ${formatInteger(row.cantidad)} sello(s) × ${num(row.inPorSello, 2)} in² × $${num(row.costoPorIn2, 4)}/in² = ${formulaValue(row.subtotal, 2)}`);
+    });
     rawUserRows.forEach((row) => { if (n(row.cost, 0) > 0) { exampleLines.push(`Costo externo: ${formulaValue(row.cost || 0, 2)}`); } });
     return {
-      ...applyProcessMinimum("planchas", rawSubtotal),
+      ...applyProcessMinimum("sellos", rawSubtotal),
       breakdown: emptyPlateBreakdown(""),
-      externalRows: allRows,
-      formulaText: autoCost > 0
-        ? "Costo Plancha = ((Ancho Máq. × Desarrollo × Tintas) + Estampado si aplica) × Costo por in²."
-        : "Subtotal planchas = suma de costos externos registrados.",
-      explanation: autoCost > 0
-        ? "El total de pulgadas cuadradas se calcula con el ancho máximo de la máquina, el desarrollo del troquel y la cantidad de tintas activas. Para estampado en frío se usa el ancho del rollo por el desarrollo del troquel. El resultado se multiplica por el costo por in² configurado en Costos → Convencional."
-        : "Costo externo toma la descripción, costo, comentarios y adjunto indicado para planchas.",
-      autoPlanchaCost: autoCost
+      externalRows: autoRows,
+      formulaText: "Subtotal sellos = suma de subtotales por Arte/Versión + costos externos adicionales.",
+      explanation: "Cada Arte y cada Versión con sellos propias arma su propia fila con cantidad de sellos, pulgadas por sello y costo por pulgada cuadrada, editable en cada celda. La cantidad de sellos de cada Arte sale de sus tintas Proceso/Directo/Adicional/Barniz configuradas, más 1 si ese Arte lleva Estampado; las Versiones desde la 2 solo aparecen si declaran sellos propias.",
+      autoSelloCost: motivoPlatesCost
     };
   }
   if (plateMode === "inventory") {
@@ -5497,15 +7519,15 @@ function calcPlates() {
       inInventory: true
     };
     return {
-      ...applyProcessMinimum("planchas", 0),
-      breakdown: emptyPlateBreakdown("Planchas marcadas como inventario."),
+      ...applyProcessMinimum("sellos", 0),
+      breakdown: emptyPlateBreakdown("Sellos marcadas como inventario."),
       inventory: state.form.plates.inventory,
-      formulaText: "Costo de planchas = 0.",
-      explanation: "Las planchas se tomarán de inventario y no requieren costo externo en este cálculo."
+      formulaText: "Costo de sellos = 0.",
+      explanation: "Los sellos se tomarán de inventario y no requieren costo externo en este cálculo."
     };
   }
   if (plateMode !== "create") {
-    return { ...applyProcessMinimum("planchas", 0), breakdown: emptyPlateBreakdown("Pendiente definir inventario o costo externo."), explanation: "Selecciona planchas en inventario o registra un costo externo para continuar." };
+    return { ...applyProcessMinimum("sellos", 0), breakdown: emptyPlateBreakdown("Pendiente definir inventario o costo externo."), explanation: "Selecciona sellos en inventario o registra un costo externo para continuar." };
   }
   if (state.form.plates?.chargeVirginPlate === false) {
     const breakdown = {};
@@ -5517,11 +7539,11 @@ function calcPlates() {
         operatorSubtotal: 0,
         subtotal: 0,
         formulaText: "Costo = 0.",
-        explanation: "Plancha Virgen desactivada. Si no se solicita la plancha, no se cobran sus procesos asociados.",
+        explanation: "Sello Virgen desactivado. Si no se solicita el sello, no se cobran sus procesos asociados.",
         laserMetrics: ["virgin", "laser"].includes(entry.key) ? laserPlateMetrics() : null
       };
     });
-    return { ...applyProcessMinimum("planchas", 0), breakdown, explanation: "Plancha Virgen desactivada. No se cobra plancha ni grabado, revelado, limpieza o secado." };
+    return { ...applyProcessMinimum("sellos", 0), breakdown, explanation: "Sello Virgen desactivada. No se cobra sello ni grabado, revelado, limpieza o secado." };
   }
   let subtotal = 0;
   const breakdown = {};
@@ -5543,20 +7565,34 @@ function calcPlates() {
       machineSubtotal,
       operatorSubtotal,
       subtotal: stepSubtotal,
-      formulaText: entry.key === "virgin" ? "Costo Plancha Virgen = Área Total Requerida x Costo por in² del inventario." : (entry.key === "laser" ? "Tiempo Total = Área Total / Área Procesada por Hora. Subtotal = Tiempo x Costo Hora Máquina + Tiempo x Costo Hora Hombre." : "Tiempo = Tiempo Fijo o por Lote. Subtotal = (Tiempo x Costo Hora Máquina) + (Tiempo x Costo Hora Hombre)."),
-      explanation: entry.key === "virgin" ? "La plancha virgen se cobra como suministro independiente usando el costo por pulgada cuadrada del inventario." : (entry.key === "laser" ? "El grabado láser queda como proceso separado de la plancha virgen y solo calcula tiempo, máquina y persona." : "Este subproceso toma un tiempo fijo de operación y suma tanto el costo de máquina como el costo de la persona."),
+      formulaText: entry.key === "virgin" ? "Costo Sello Virgen = Área Total Requerida x Costo por in² del inventario." : (entry.key === "laser" ? "Tiempo Total = Área Total / Área Procesada por Hora. Subtotal = Tiempo x Costo Hora Máquina + Tiempo x Costo Hora Hombre." : "Tiempo = Tiempo Fijo o por Lote. Subtotal = (Tiempo x Costo Hora Máquina) + (Tiempo x Costo Hora Hombre)."),
+      explanation: entry.key === "virgin" ? "El sello virgen se cobra como suministro independiente usando el costo por pulgada cuadrada del inventario." : (entry.key === "laser" ? "El grabado láser queda como proceso separado del sello virgen y solo calcula tiempo, máquina y persona." : "Este subproceso toma un tiempo fijo de operación y suma tanto el costo de máquina como el costo de la persona."),
       laserMetrics: laserMetricsValue || virginMetricsValue
     };
   });
-  return { ...applyProcessMinimum("planchas", r(subtotal)), breakdown, explanation: "Planchas suma los cuatro subprocesos obligatorios y deja visible cuanto aporta cada uno al subtotal final del bloque." };
+  return { ...applyProcessMinimum("sellos", r(subtotal)), breakdown, explanation: "Sellos suma los cuatro subprocesos obligatorios y deja visible cuanto aporta cada uno al subtotal final del bloque." };
 }
 
 function calcPrint() {
   const base = metrics();
   const substrateTotal = calcSustrato();
-  const substrateTotalLengthFeet = firstPositiveNumber(substrateTotal.totalLengthFeet, substrateTotal.linealFeet, base.linealFeet, 0);
+  const substrateTotalLengthFeet = firstPositiveNumber(r(n(substrateTotal.totalLengthMeters, 0) / 0.3048, 4), r(n(base.linealMeters, 0) / 0.3048, 4), 0);
+  // Misma proporción que Sustrato (longitud total con merma / longitud neta) — tinta también se
+  // consume sobre la merma de arranque y tiraje, no solo sobre lo entregado al cliente.
+  const inkMerma = base.linealMeters > 0 ? r(n(substrateTotal.totalLengthMeters, 0) / base.linealMeters, 6) : 1;
   const stages = activePrintStages();
   const motivoInkTotals = calcMotivoInkTotals(state.form);
+  // Multi-barniz: instancias de barniz por motivo (una línea de costo por cada estación tipo
+  // "barniz" de cada motivo). Si hay al menos una, sustituye a la línea única de barniz en línea.
+  const barnizFallbackInline = state.form.printStages?.[0]?.inlineFinishes?.barniz || {};
+  const barnizInstances = calcMotivoBarnizInstances(
+    state.form,
+    n(substrateTotal.totalLengthMeters, 0),
+    n(base.webWidthIn, 0),
+    barnizFallbackInline
+  );
+  const maculaTintasPorMotivo = motivosTintasParaMerma();
+  const maculaAcabadosGlobales = acabadosActivosGlobales();
   const items = stages.map((item, stageIndex) => {
     const machine = findMachine(item.machineId);
     const supportsInline = machineSupportsInline(machine);
@@ -5565,57 +7601,72 @@ function calcPrint() {
     const digitalStations = Math.max(0, base.colors + n(item.digitalSpecialColors, 0));
     const speedMetersMin = isDigitalMachine ? digitalSpeedForStations(machine, item, digitalStations) : n(item.speedMetersMin, 0);
     const speedUnit = printSpeedUnit(machine);
-    const printedAreaIn2 = r((base.printedAreaFt2 || 0) * 144, 6);
+    const printedAreaIn2 = r((base.printedAreaM2 || 0) * 1550.0031, 6);
     const stations = Array.isArray(item.inkStations) ? item.inkStations.filter(function(s) { return s.active; }) : [];
     const hasStations = stations.length > 0;
     const inkCoverage = hasStations ? 0 : n(item.coveragePct, 0) / 100;
     const aniloxBcm = hasStations ? 0 : n(first(item.aniloxBcm, item.inkGsm), 0);
     const transferFactor = hasStations ? 0 : n(item.transferFactor, 0);
     const inkDensity = hasStations ? 0 : n(item.inkDensity, 0);
-    const inkCostPerLb = hasStations ? 0 : n(item.inkCostPerLb, 0);
-    let conventionalInkConsumptionPerColorLb = 0;
+    const inkCostPerKg = hasStations ? 0 : legacyInkCostPerKg(item.inkCostPerKg, item.inkCostPerLb);
+    let conventionalInkConsumptionPerColorKg = 0;
     let conventionalInkConsumption = 0;
     let conventionalInkSubtotal = 0;
+    let conventionalInkMermaConsumption = 0;
+    let conventionalInkMermaSubtotal = 0;
     let inkStationDetails = [];
     if (hasStations) {
       var totalConsumption = 0;
       var totalSubtotal = 0;
+      var totalMermaConsumption = 0;
+      var totalMermaSubtotal = 0;
+      var stationRatio = state.form.header.noPrint ? 1 : inkMerma;
+      var netPrintedAreaIn2 = state.form.header.noPrint ? 0 : printedAreaIn2;
       stations.forEach(function(station) {
-        var sc = n(station.coveragePct, 0) / 100;
-        var sb = n(station.aniloxBcm, 0);
-        var st = n(station.transferFactor, 0);
-        var sd = n(station.inkDensity, 0);
-        var scost = n(station.inkCostPerLb, 0);
-        var consumption = state.form.header.noPrint ? 0 : r((printedAreaIn2 * sc * sb * st * sd * 0.001) / 453.59237, 6);
-        var subtotal = r(consumption * scost);
-        totalConsumption += consumption;
-        totalSubtotal += subtotal;
+        var rowDetail = calcMotivoInkStationRow(netPrintedAreaIn2, station, stationRatio);
+        totalConsumption += n(rowDetail.consumptionKg, 0);
+        totalSubtotal += n(rowDetail.subtotal, 0);
+        totalMermaConsumption += n(rowDetail.mermaConsumptionKg, 0);
+        totalMermaSubtotal += n(rowDetail.mermaSubtotal, 0);
         inkStationDetails.push({
           stationId: station.id,
           inkLabel: station.inkLabel,
           inkType: station.inkType,
           coveragePct: n(station.coveragePct, 0),
-          aniloxBcm: sb,
-          transferFactor: st,
-          inkDensity: sd,
-          inkCostPerLb: scost,
-          consumptionLb: consumption,
-          subtotal: subtotal
+          aniloxBcm: rowDetail.aniloxBcm,
+          transferFactor: rowDetail.transferFactor,
+          inkDensity: rowDetail.inkDensity,
+          inkCostPerKg: rowDetail.inkCostPerKg,
+          consumptionKg: rowDetail.consumptionKg,
+          netConsumptionKg: rowDetail.netConsumptionKg,
+          mermaConsumptionKg: rowDetail.mermaConsumptionKg,
+          subtotal: rowDetail.subtotal,
+          netSubtotal: rowDetail.netSubtotal,
+          mermaSubtotal: rowDetail.mermaSubtotal
         });
       });
-      conventionalInkConsumptionPerColorLb = r(totalConsumption, 6);
+      conventionalInkConsumptionPerColorKg = r(totalConsumption, 6);
       conventionalInkConsumption = r(totalConsumption, 6);
       conventionalInkSubtotal = r(totalSubtotal);
+      conventionalInkMermaConsumption = r(totalMermaConsumption, 6);
+      conventionalInkMermaSubtotal = r(totalMermaSubtotal);
       if (stageIndex === 0) {
         conventionalInkConsumption = motivoInkTotals.consumption;
         conventionalInkSubtotal = motivoInkTotals.subtotal;
+        conventionalInkMermaConsumption = motivoInkTotals.mermaConsumption;
+        conventionalInkMermaSubtotal = motivoInkTotals.mermaSubtotal;
       }
     } else {
-      conventionalInkConsumptionPerColorLb = state.form.header.noPrint ? 0 : r((printedAreaIn2 * inkCoverage * aniloxBcm * transferFactor * inkDensity * 0.001) / 453.59237, 6);
-      conventionalInkConsumption = state.form.header.noPrint ? 0 : r(conventionalInkConsumptionPerColorLb * base.colors, 6);
-      conventionalInkSubtotal = r(conventionalInkConsumption * inkCostPerLb);
+      var simpleRatio = state.form.header.noPrint ? 1 : inkMerma;
+      var netPerColorKg = state.form.header.noPrint ? 0 : r((printedAreaIn2 * inkCoverage * aniloxBcm * transferFactor * inkDensity * 0.001) / 1000, 6);
+      var netConsumptionTotal = state.form.header.noPrint ? 0 : r(netPerColorKg * base.colors, 6);
+      conventionalInkConsumptionPerColorKg = r(netPerColorKg * simpleRatio, 6);
+      conventionalInkConsumption = state.form.header.noPrint ? 0 : r(conventionalInkConsumptionPerColorKg * base.colors, 6);
+      conventionalInkSubtotal = r(conventionalInkConsumption * inkCostPerKg);
+      conventionalInkMermaConsumption = r(conventionalInkConsumption - netConsumptionTotal, 6);
+      conventionalInkMermaSubtotal = r(conventionalInkMermaConsumption * inkCostPerKg);
     }
-    let inkConsumptionPerColorLb = conventionalInkConsumptionPerColorLb;
+    let inkConsumptionPerColorKg = conventionalInkConsumptionPerColorKg;
     let inkConsumption = conventionalInkConsumption;
     let inkSubtotal = conventionalInkSubtotal;
     let digitalInkKg = 0;
@@ -5635,41 +7686,41 @@ function calcPrint() {
       const material = findMaterial(inline.materialId);
       const inlineOperatorHourCost = n(item.operatorHourCost, n(state.form.print.operatorHourCost, 0));
       const inlineMachineHourCost = n(first(inline.costHourMachine, item.costHour), 0);
-      const inlineSpeedFtMin = n(inline.speed, 0) > 0
+      const inlineSpeedMetersMin = n(inline.speed, 0) > 0
         ? n(inline.speed, 0)
-        : (speedUnit === "m/min" ? r(n(speedMetersMin, 0) * 3.28084, 4) : n(speedMetersMin, 0));
-      const baseLengthFeet = n(base.linealFeet, 0);
+        : (speedUnit === "m/min" ? n(speedMetersMin, 0) : r(n(speedMetersMin, 0) * 0.3048, 4));
+      const baseLengthMeters = n(base.linealMeters, 0);
       const runBase = config.key === "troquelado" && n(inline.variableBase, 0) > 0
-        ? n(inline.variableBase, 0) + n(inline.setupWasteFeet, 0)
-        : baseLengthFeet + n(inline.setupWasteFeet, 0);
-      const runMinutes = inlineSpeedFtMin > 0 ? r(runBase / inlineSpeedFtMin) : 0;
+        ? n(inline.variableBase, 0) + n(inline.setupWasteMeters, 0)
+        : baseLengthMeters + n(inline.setupWasteMeters, 0);
+      const runMinutes = inlineSpeedMetersMin > 0 ? r(runBase / inlineSpeedMetersMin) : 0;
       const totalMinutes = r(n(inline.setupMinutes, 0) + runMinutes, 6);
       const isLinealInlineMaterial = ["laminado", "estampado"].includes(slot.key);
       const usesSubstrateTotalLength = ["barniz", "laminado", "estampado"].includes(slot.key);
-      const calculationLengthFeet = usesSubstrateTotalLength ? substrateTotalLengthFeet : runBase;
+      const calculationLengthMeters = usesSubstrateTotalLength ? substrateTotal.totalLengthMeters : runBase;
       const materialCosts = materialUnitCosts(material, base.webWidthIn);
-      const supplyWidthIn = slot.key === "estampado"
-        ? n(inline.supplyWidthIn, 0)
-        : config.usesUnitMaterial || config.usesWeightMaterial || slot.key === "laminado"
-          ? n(base.webWidthIn, 0)
-          : materialSupplyWidthIn(material, base.webWidthIn);
+      const supplyWidthIn = config.usesUnitMaterial || config.usesWeightMaterial || slot.key === "laminado"
+        ? n(base.webWidthIn, 0)
+        : materialSupplyWidthIn(material, base.webWidthIn);
       const wastePct = config.usesUnitMaterial ? n(inline.operationWastePct, 0) : n(first(inline.operationWastePct, materialWastePct(material)), 0);
-      const netMaterialAreaFt2 = r(calculationLengthFeet * (supplyWidthIn / 12), 6);
-      const materialAreaFt2 = r(netMaterialAreaFt2 * (1 + (wastePct / 100)), 6);
+      const netMaterialAreaM2 = r(calculationLengthMeters * (supplyWidthIn * 0.0254), 6);
+      const materialAreaM2 = r(netMaterialAreaM2 * (1 + (wastePct / 100)), 6);
       const materialBase = config.usesUnitMaterial
         ? Math.max(0, Math.ceil(n(base.rollCount, 0)))
-        : isLinealInlineMaterial ? calculationLengthFeet : materialAreaFt2;
-      const areaCostFt2 = firstPositiveNumber(inline.costPerFt2, material?.costo_x_ft2, material?.costoPorFt2, 0);
+        : isLinealInlineMaterial ? calculationLengthMeters : materialAreaM2;
+      const areaCostFt2Raw = firstPositiveNumber(material?.costo_x_ft2, material?.costoPorFt2, 0);
+      const areaCostM2 = firstPositiveNumber(inline.costPerM2, areaCostFt2Raw > 0 ? r(areaCostFt2Raw * 10.7639104167, 6) : 0, 0);
       const weightCostKg = firstPositiveNumber(inline.costPerKg, material?.costo_x_kg, 0);
-      const layerGft2 = firstPositiveNumber(inline.layerGft2, material?.rendimiento_g_ft2, material?.peso_capa_gsm, 0);
-      const linealCostPerFoot = firstPositiveNumber(inline.costPerFoot, materialCosts.costPerFoot, material?.costo_x_pie, 0);
-      const unitCost = isLinealInlineMaterial ? linealCostPerFoot
+      const layerGft2Raw = firstPositiveNumber(material?.rendimiento_g_ft2, material?.peso_capa_gsm, 0);
+      const layerGm2 = firstPositiveNumber(inline.layerGm2, layerGft2Raw > 0 ? r(layerGft2Raw * 10.7639104167, 4) : 0, 0);
+      const costoPieRaw = firstPositiveNumber(materialCosts.costPerFoot, material?.costo_x_pie, 0);
+      const linealCostPerMeter = firstPositiveNumber(inline.costPerMeter, costoPieRaw > 0 ? r(costoPieRaw / 0.3048, 6) : 0, 0);
+      const unitCost = isLinealInlineMaterial ? linealCostPerMeter
         : config.usesWeightMaterial ? weightCostKg
         : config.usesUnitMaterial ? n(inline.costPerUnit, 0)
-        : areaCostFt2 > 0 ? areaCostFt2
-        : state.form.substrate.unit === "metros" ? n(inline.costPerMeter, 0)
+        : areaCostM2 > 0 ? areaCostM2
         : state.form.substrate.unit === "msi" ? n(inline.costPerMsi, 0)
-        : linealCostPerFoot;
+        : linealCostPerMeter;
       const setupCost = r((n(inline.setupMinutes, 0) / 60) * inlineOperatorHourCost);
       let machineSubtotal = 0;
       let operatorSubtotal = 0;
@@ -5678,43 +7729,78 @@ function calcPrint() {
       const varnishCoveragePct = firstPositiveNumber(inline.coveragePct, varnishProfile.coveragePct, 100);
       const varnishCoverage = varnishCoveragePct / 100;
       const varnishGsm = n(varnishProfile.gsm, 3);
-      const varnishCostPerLb = n(inline.costPerLb, materialCostPerPound(material));
+      const varnishCostPerKg = n(inline.costPerKg, materialCostPerKg(material));
       const varnishTransferFactor = firstPositiveNumber(inline.factorTransferencia, 0.35);
       const varnishDensity = firstPositiveNumber(inline.densidad, 1.05);
-      const varnishAreaIn2 = slot.key === "barniz" ? r(calculationLengthFeet * 12 * n(base.webWidthIn, 0), 6) : 0;
+      const varnishAreaIn2 = slot.key === "barniz" ? r((calculationLengthMeters / 0.0254) * n(base.webWidthIn, 0), 6) : 0;
       const varnishConsumptionKg = slot.key === "barniz" && inline.active
         ? r(varnishAreaIn2 * varnishCoverage * varnishBcm * varnishTransferFactor * varnishDensity * 0.000001, 6)
         : 0;
+      // Multi-barniz: si hay estaciones de barniz configuradas en los motivos, el costo del barniz
+      // sale de la suma de esas instancias (una por estación/motivo) y no de la línea única.
+      const useBarnizInstances = slot.key === "barniz" && stageIndex === 0 && inline.active && barnizInstances.count > 0;
       const materialConsumptionKg = slot.key === "barniz"
-        ? varnishConsumptionKg
-        : config.usesWeightMaterial ? r((materialBase * layerGft2) / 1000, 6) : 0;
-      const materialConsumptionLb = slot.key === "barniz" ? r(materialConsumptionKg * 2.2046226218, 6) : 0;
+        ? (useBarnizInstances ? barnizInstances.consumptionKg : varnishConsumptionKg)
+        : config.usesWeightMaterial ? r((materialBase * layerGm2) / 1000, 6) : 0;
       let materialSubtotal = slot.key === "barniz"
-        ? r(materialConsumptionKg * weightCostKg)
+        ? (useBarnizInstances ? barnizInstances.subtotal : r(materialConsumptionKg * weightCostKg))
         : isLinealInlineMaterial && config.usesMaterial && inline.active
-        ? r(materialBase * linealCostPerFoot)
+        ? r(materialBase * linealCostPerMeter)
         : config.usesWeightMaterial
         ? r(materialConsumptionKg * weightCostKg)
         : config.usesMaterial && inline.active
           ? r(materialBase * unitCost)
           : 0;
-      let plateCost = config.usesPlateCost && inline.active ? r(n(inline.plateCost, 0)) : 0;
+      const estampadoConfigured = slot.key === "estampado" && inline.active && linealCostPerMeter > 0;
+      let plateCost = (config.usesPlateCost && inline.active) || estampadoConfigured ? r(n(inline.plateCost, 0)) : 0;
+      const coldfoilDefaults = state.costsConfig?.acabados?.coldfoil || {};
+      const estampadoAdhesivoAreaM2 = estampadoConfigured ? r(calculationLengthMeters * (n(base.webWidthIn, 0) * 0.0254), 6) : 0;
+      // Goma de estampado (materia prima "adicionales"): si hay una elegida, su consumo se
+      // calcula con la MISMA fórmula del barniz (Área in² × Cobertura × BCM × Factor × Densidad
+      // × 10⁻⁶), con piso de carga mínima. Sin goma elegida, se usa el adhesivo por defecto de
+      // Costos → Cold Foil (comportamiento anterior).
+      // Goma opcional también en Laminado (mismo material "adicionales" y misma fórmula que
+      // Estampado). Sin goma elegida, Laminado no lleva costo de goma; Estampado cae al adhesivo
+      // por defecto de Cold Foil.
+      const gomaMat = (slot.key === "estampado" || slot.key === "laminado") ? findGomaMaterial(inline.gomaMaterialId) : null;
+      const laminadoConfigured = slot.key === "laminado" && inline.active && linealCostPerMeter > 0;
+      let estampadoAdhesivoConsumoKg = 0;
+      let adhesivoSubtotal = 0;
+      if ((estampadoConfigured || laminadoConfigured) && gomaMat) {
+        const areaIn2 = r((calculationLengthMeters / 0.0254) * n(base.webWidthIn, 0), 4);
+        const gCob = n(first(gomaMat.goma_cobertura_pct, gomaMat.gomaCoberturaPct), 0);
+        const gBcm = n(first(gomaMat.goma_bcm_anilox, gomaMat.gomaBcmAnilox), 0);
+        const gFac = n(first(gomaMat.goma_factor_transferencia, gomaMat.gomaFactorTransferencia), 0);
+        const gDen = n(first(gomaMat.goma_densidad, gomaMat.gomaDensidad), 0);
+        const gMin = n(first(gomaMat.goma_carga_minima_kg, gomaMat.gomaCargaMinimaKg), 0);
+        const gCostoKg = n(first(gomaMat.costo_x_kg, gomaMat.costoPorKg, gomaMat.costPerKg), 0);
+        let consumo = r(areaIn2 * (gCob / 100) * gBcm * gFac * gDen * 1e-6, 6);
+        if (gMin > 0 && consumo < gMin) consumo = gMin;
+        estampadoAdhesivoConsumoKg = consumo;
+        adhesivoSubtotal = r(consumo * gCostoKg, 6);
+      } else if (estampadoConfigured) {
+        estampadoAdhesivoConsumoKg = r(estampadoAdhesivoAreaM2 * (firstPositiveNumber(coldfoilDefaults.coberturaDefaultPct, 60) / 100) * (firstPositiveNumber(coldfoilDefaults.gramajeGm2, 2) / 1000) * (1 + n(coldfoilDefaults.mermaAdhesivoPct, 10) / 100), 6);
+        adhesivoSubtotal = r(estampadoAdhesivoConsumoKg * firstPositiveNumber(coldfoilDefaults.precioAdhesivoKg, 18), 6);
+      }
       let linearSubtotal = isInlineDie ? r(runBase * n(inline.variableUnitCost, 0)) : 0;
-      let rawSubtotal = r(machineSubtotal + operatorSubtotal + n(inline.fixedCost, 0) + linearSubtotal + materialSubtotal + plateCost);
+      let rawSubtotal = r(machineSubtotal + operatorSubtotal + n(inline.fixedCost, 0) + linearSubtotal + materialSubtotal + plateCost + adhesivoSubtotal);
       const inlineIssues = [];
       if (inline.active && inlineAllowed) {
-        if (usesSubstrateTotalLength && calculationLengthFeet <= 0) inlineIssues.push("Falta Longitud Total del sustrato.");
+        if (usesSubstrateTotalLength && calculationLengthMeters <= 0) inlineIssues.push("Falta Longitud Total del sustrato.");
         if (slot.key === "barniz") {
           if (n(base.webWidthIn, 0) <= 0) inlineIssues.push("Falta Ancho de Banda.");
-          if (varnishBcm <= 0) inlineIssues.push("Falta BCM Anilox.");
-          if (varnishCoveragePct <= 0) inlineIssues.push("Falta Cobertura.");
-          if (varnishTransferFactor <= 0) inlineIssues.push("Falta Factor de Transferencia.");
-          if (varnishDensity <= 0) inlineIssues.push("Falta Densidad.");
-          if (weightCostKg <= 0) inlineIssues.push("Falta Costo por Kilo.");
+          if (useBarnizInstances) {
+            if (barnizInstances.instances.some((bi) => n(bi.costPerKg, 0) <= 0)) inlineIssues.push("Hay estaciones de barniz sin Costo por Kilo.");
+          } else {
+            if (varnishBcm <= 0) inlineIssues.push("Falta BCM Anilox.");
+            if (varnishCoveragePct <= 0) inlineIssues.push("Falta Cobertura.");
+            if (varnishTransferFactor <= 0) inlineIssues.push("Falta Factor de Transferencia.");
+            if (varnishDensity <= 0) inlineIssues.push("Falta Densidad.");
+            if (weightCostKg <= 0) inlineIssues.push("Falta Costo por Kilo.");
+          }
         }
         if (isLinealInlineMaterial) {
-          if (linealCostPerFoot <= 0) inlineIssues.push("Falta Costo por Pie Lineal.");
-          if (slot.key === "estampado" && supplyWidthIn <= 0) inlineIssues.push("Falta Ancho del Rollo.");
+          if (linealCostPerMeter <= 0) inlineIssues.push("Falta Costo por Metro Lineal.");
         }
       }
       if (isInlineDie) {
@@ -5722,6 +7808,7 @@ function calcPrint() {
         operatorSubtotal = 0;
         materialSubtotal = 0;
         plateCost = 0;
+        adhesivoSubtotal = 0;
         linearSubtotal = 0;
         rawSubtotal = 0;
       }
@@ -5731,27 +7818,28 @@ function calcPrint() {
         ...config,
         key: slot.key,
         label: slot.label,
-        materialName: material?.descripcion || material?.nombre || "",
+        materialName: slot.key === "estampado"
+          ? ((state.costsConfig?.acabados?.estampado || []).find((es) => String(es.id || es.tipoFoil) === String(inline.materialId))?.tipoFoil || "")
+          : material?.descripcion || material?.nombre || "",
         unitCost,
         materialBase,
-        calcBase: calculationLengthFeet,
-        substrateTotalLengthFeet: calculationLengthFeet,
+        calcBase: calculationLengthMeters,
+        substrateTotalLengthMeters: calculationLengthMeters,
         runMinutes,
         totalMinutes,
-        speed: inlineSpeedFtMin,
+        speed: inlineSpeedMetersMin,
         supplyWidthIn,
         wastePct,
-        netMaterialAreaFt2,
-        costPerFt2: areaCostFt2,
-        costPerFoot: linealCostPerFoot,
+        netMaterialAreaM2,
+        costPerM2: areaCostM2,
+        costPerMeter: linealCostPerMeter,
         costPerKg: weightCostKg,
-        layerGft2,
+        layerGm2,
         materialConsumptionKg,
-        materialConsumptionLb,
         coveragePct: slot.key === "barniz" ? varnishCoveragePct : n(inline.coveragePct, 0),
         varnishBcm: slot.key === "barniz" ? varnishBcm : 0,
         layerGsm: varnishGsm,
-        costPerLb: varnishCostPerLb,
+        costPerKg: varnishCostPerKg,
         factorTransferencia: slot.key === "barniz" ? varnishTransferFactor : 0,
         densidad: slot.key === "barniz" ? varnishDensity : 0,
         varnishAreaIn2,
@@ -5764,20 +7852,21 @@ function calcPrint() {
         linearSubtotal,
         materialSubtotal,
         plateCost,
+        adhesivoSubtotal,
         rawSubtotal,
         subtotal: inline.active && inlineAllowed ? rawSubtotal : 0,
+        barnizInstances: useBarnizInstances ? barnizInstances.instances : null,
         issues: inlineIssues
       };
     });
     const inlineSubtotal = r(inlineItems.reduce((sum, inline) => sum + inline.subtotal, 0));
-    const macula = applyStageMaculaOverrides(item, resolvePrintMacula(base, inlineItems), base);
-    item.maculaSetupFeet = n(item.maculaSetupFeet, 0) > 0 ? item.maculaSetupFeet : macula.setupFeet;
-    const startupWasteFeet = r(n(macula.totalFeet, 0), 2);
-    const maculaMaterialSubtotal = r(startupWasteFeet * substrateUnitCost(state.form, base));
-    const totalLengthFeet = r(base.linealFeet + startupWasteFeet, 2);
-    const totalLengthMeters = r(totalLengthFeet * 0.3048, 4);
-    const totalAreaFt2 = r(totalLengthFeet * (n(base.webWidthIn, 0) / 12), 6);
-    const totalAreaM2 = r(totalAreaFt2 * 0.09290304, 6);
+    const maculaBase = resolvePrintMacula(base, inlineItems);
+    const macula = applyStageMaculaOverrides(item, maculaBase, base, { tintasPorMotivo: maculaTintasPorMotivo, acabadosActivos: stageIndex === 0 ? maculaAcabadosGlobales : [] });
+    item.maculaSetupMeters = n(item.maculaSetupMeters, 0) > 0 ? item.maculaSetupMeters : macula.setupMeters;
+    const startupWasteMeters = r(n(macula.totalMeters, 0), 2);
+    const maculaMaterialSubtotal = r(startupWasteMeters * substrateUnitCost(state.form, base));
+    const totalLengthMeters = r(base.linealMeters + startupWasteMeters, 4);
+    const totalAreaM2 = r(totalLengthMeters * (n(base.webWidthIn, 0) * 0.0254), 6);
     if (isDigitalMachine) {
       const cmykStations = state.form.header.useCmyk ? 4 : 0;
       const whitePasses = state.form.header.useWhiteInk ? (state.form.header.doubleWhitePass ? 2 : 1) : 0;
@@ -5796,7 +7885,7 @@ function calcPrint() {
           + (specialKg * n(item.digitalSpecialInkCostPerKg, digitalSettings.specialInkCostPerKg))
         );
       inkConsumption = digitalInkKg;
-      inkConsumptionPerColorLb = 0;
+      inkConsumptionPerColorKg = 0;
       digitalWashSubtotal = r(n(item.digitalSpecialWashCount, 0) * n(item.digitalSpecialWashCost, digitalSettings.specialWashCost));
       const material = findMaterial(state.form.substrate.materialId);
       const shouldTreat = Boolean(item.requiresSubstrateTreatment) && !materialPremierPreapplied(material);
@@ -5818,8 +7907,16 @@ function calcPrint() {
     const inlineSetupMinutes = r(inlineItems
       .filter((inline) => inline.active && inline.allowedForMachine !== false)
       .reduce((sum, inline) => sum + n(inline.setupMinutes, 0), 0), 2);
-    const setupAdjustmentMin = r(n(item.setupMinutes, 0) + n(item.cleaningMinutes, 0) + n(item.mountingMinutes, 0) + inlineSetupMinutes, 2);
-    const runMinutes = printSpeedMinutes(totalLengthFeet, totalLengthMeters, speedMetersMin, machine);
+    // Volteadora: solo suma si el check está activo Y la máquina de la etapa tiene volteadora.
+    const volteadoraMinutes = item.volteadora && n(machine?.volteadoraSetupMin, n(item.volteadoraSetupMin, 0)) > 0
+      ? n(machine?.volteadoraSetupMin, n(item.volteadoraSetupMin, 0))
+      : 0;
+    // Limpieza (lavado) por estación: en convencional se cobra en TODAS las estaciones de
+    // tinta activas (una lavada por estación; no hay forma de saber qué trabajo viene).
+    const estacionesParaLimpieza = isDigitalMachine ? 1 : Math.max(1, motivosEstacionesParaLimpieza(state.form).reduce((sum, count) => sum + count, 0));
+    const limpiezaTotalMin = r(n(item.cleaningMinutes, 0) * estacionesParaLimpieza, 2);
+    const setupAdjustmentMin = r(n(item.setupMinutes, 0) + limpiezaTotalMin + n(item.mountingMinutes, 0) + inlineSetupMinutes + volteadoraMinutes, 2);
+    const runMinutes = printSpeedMinutes(totalLengthMeters, speedMetersMin, machine);
     const totalMinutes = r(runMinutes + setupAdjustmentMin, 2);
     const machineSubtotal = r((totalMinutes / 60) * n(item.costHour, 0));
     const operatorSubtotal = r((totalMinutes / 60) * n(item.operatorHourCost, 0));
@@ -5827,7 +7924,7 @@ function calcPrint() {
       qty: base.qty,
       cylinderDevelopmentIn: base.cylinderDevelopmentIn,
       acrossCount: base.acrossCount,
-      startupWasteFeet,
+      startupWasteMeters,
       webWidthIn: base.webWidthIn,
       speedFtMin: speedUnit === "ft/min" ? speedMetersMin : 0,
       speedMMin: speedUnit === "m/min" ? speedMetersMin : 0,
@@ -5835,38 +7932,44 @@ function calcPrint() {
       requiresTime: true,
       requiresWaste: true
     });
+    const manualTirajePct = n(item.maculaTirajePct, 0);
+    const tablaTirajePct = n(maculaBase.tirajePct, 0);
+    if (manualTirajePct > 0 && tablaTirajePct > 0 && Math.abs(manualTirajePct - tablaTirajePct) > 0.005) {
+      issues.push(`El porcentaje de merma por tiraje según los acabados internos activos debería ser ${tablaTirajePct}%, pero la cotización define ${manualTirajePct}%.`);
+    }
       return {
         ...item,
         machineSupportsInline: supportsInline,
         availableInlineSlots: availableInlineSlotsForMachine(machine).map((slot) => slot.key),
         colors: base.colors,
-        linealFeet: base.linealFeet,
         linealMeters: base.linealMeters,
-        startupWasteFeet,
-        totalLengthFeet,
+        startupWasteMeters,
         totalLengthMeters,
-        totalAreaFt2,
         totalAreaM2,
         speedFtMin: speedUnit === "ft/min" ? speedMetersMin : 0,
         speedMMin: speedUnit === "m/min" ? speedMetersMin : 0,
         speedUnit,
         setupAdjustmentMin,
         inlineSetupMinutes,
-        printedAreaFt2: base.printedAreaFt2,
+        volteadoraMinutes,
+        cleaningMinutesTotal: limpiezaTotalMin,
+        printedAreaM2: base.printedAreaM2,
         runMinutes,
         totalMinutes,
         machineSubtotal,
         operatorSubtotal,
-        inkConsumptionPerColorLb,
+        inkConsumptionPerColorKg,
         inkCoveragePct: hasStations ? 0 : n(item.coveragePct, 0),
         aniloxBcm: hasStations ? 0 : aniloxBcm,
         transferFactor: hasStations ? 0 : transferFactor,
         inkDensity: hasStations ? 0 : inkDensity,
-        inkCostPerLb: hasStations ? 0 : inkCostPerLb,
+        inkCostPerKg: hasStations ? 0 : inkCostPerKg,
         inkStationDetails,
         motivoInkTotals: stageIndex === 0 ? motivoInkTotals : null,
         inkConsumption,
         inkSubtotal,
+        inkMermaConsumption: conventionalInkMermaConsumption,
+        inkMermaSubtotal: conventionalInkMermaSubtotal,
         digitalStations,
         digitalInkKg,
         digitalWhiteKg: whiteKg,
@@ -5892,13 +7995,13 @@ function calcPrint() {
   const digitalWashSubtotal = r(items.reduce((sum, item) => sum + n(item.digitalWashSubtotal, 0), 0));
   const premierSubtotal = r(items.reduce((sum, item) => sum + n(item.premierSubtotal, 0), 0));
   const inlineSubtotal = r(items.reduce((sum, item) => sum + item.inlineSubtotal, 0));
-  const maculaSetupFeet = r(items.reduce((sum, item) => sum + n(item.macula?.setupFeet, 0), 0), 2);
-  const maculaTirajeFeet = r(items.reduce((sum, item) => sum + n(item.macula?.tirajeFeet, 0), 0), 2);
-  const maculaTotalFeet = r(items.reduce((sum, item) => sum + n(item.macula?.totalFeet, 0), 0), 2);
+  const maculaSetupMeters = r(items.reduce((sum, item) => sum + n(item.macula?.setupMeters, 0), 0), 2);
+  const maculaTirajeMeters = r(items.reduce((sum, item) => sum + n(item.macula?.tirajeMeters, 0), 0), 2);
+  const maculaTotalMeters = r(items.reduce((sum, item) => sum + n(item.macula?.totalMeters, 0), 0), 2);
   const totalMinutes = r(items.reduce((sum, item) => sum + item.totalMinutes, 0));
   const runMinutes = r(items.reduce((sum, item) => sum + item.runMinutes, 0));
   const pricing = applyProcessMinimum("impresion", r(machineSubtotal + operatorSubtotal + inkSubtotal + digitalWashSubtotal + premierSubtotal + inlineSubtotal));
-  return { ...base, ...pricing, items, runMinutes, totalMinutes, machineSubtotal, operatorSubtotal, inkConsumption, inkSubtotal, digitalWashSubtotal, premierSubtotal, inlineSubtotal, maculaSetupFeet, maculaTirajeFeet, maculaTotalFeet, timeFormula: "Tiempo Total en Máquina (min) = (Longitud Total en pies / Velocidad de Operación en ft/min) + Tiempo de Montaje y Ajuste", inkFormula: "Consumo total = Σ (área impresa × cobertura × BCM × factor T. × densidad) de cada estación activa", explanation: "Impresión calcula el tiempo de corrida usando la longitud total del trabajo, incluyendo la merma, antes de sumar el tiempo de montaje y ajuste." };
+  return { ...base, ...pricing, items, runMinutes, totalMinutes, machineSubtotal, operatorSubtotal, inkConsumption, inkSubtotal, digitalWashSubtotal, premierSubtotal, inlineSubtotal, maculaSetupMeters, maculaTirajeMeters, maculaTotalMeters, timeFormula: "Tiempo Total en Máquina (min) = (Longitud Total en metros / Velocidad de Operación en m/min) + Tiempo de Montaje y Ajuste", inkFormula: "Consumo total = Σ (área impresa × cobertura × BCM × factor T. × densidad) de cada estación activa", explanation: "Impresión calcula el tiempo de corrida usando la longitud total del trabajo, incluyendo la merma, antes de sumar el tiempo de montaje y ajuste." };
 }
 
 function calcFinishes() {
@@ -5906,40 +8009,54 @@ function calcFinishes() {
   const items = activeExternalFinishEntries().map(({ finish: item, index }) => {
     const config = EXTERNAL_FINISH_BY_KEY[item.processKey] || {};
     const material = findMaterial(item.materialId);
-    const baseLengthFeet = n(base.totalLengthFeet, n(base.linealFeet, 0));
+    const baseLengthMeters = n(base.totalLengthMeters, n(base.linealMeters, 0));
   const runBase = config.key === "troquelado" && n(item.variableBase, 0) > 0
-      ? n(item.variableBase, 0) + n(item.setupWasteFeet, 0)
-      : baseLengthFeet + n(item.setupWasteFeet, 0);
+      ? n(item.variableBase, 0) + n(item.setupWasteMeters, 0)
+      : baseLengthMeters + n(item.setupWasteMeters, 0);
     const runMinutes = n(item.speed, 0) > 0 ? r(runBase / n(item.speed, 0)) : 0;
     const supplyWidthIn = config.usesUnitMaterial || config.usesWeightMaterial
       ? n(base.webWidthIn, 0)
       : materialSupplyWidthIn(material, base.webWidthIn);
     const wastePct = config.usesUnitMaterial ? n(item.operationWastePct, 0) : n(first(item.operationWastePct, materialWastePct(material)), 0);
-    const netMaterialAreaFt2 = r(runBase * (supplyWidthIn / 12), 6);
-    const materialAreaFt2 = r(netMaterialAreaFt2 * (1 + (wastePct / 100)), 6);
+    const netMaterialAreaM2 = r(runBase * (supplyWidthIn * 0.0254), 6);
+    const materialAreaM2 = r(netMaterialAreaM2 * (1 + (wastePct / 100)), 6);
     const materialBase = config.usesUnitMaterial
       ? Math.max(0, Math.ceil(n(base.rollCount, 0)))
-      : materialAreaFt2;
-    const areaCostFt2 = n(item.costPerFt2, 0);
+      : materialAreaM2;
+    // "Producto real" = área calculada solo con la longitud neta de producción (sin ningún tipo de
+    // merma: ni la de Sustrato ya incluida en runBase, ni el Merma Ajuste propio del acabado, ni el
+    // % Merma Operación). El resto de materialAreaM2 es merma — mismo total ya facturado, solo
+    // separado para que se vea cuánto es producto y cuánto es merma (pedido de auditoría).
+    const netProductAreaM2 = r(n(base.linealMeters, 0) * (supplyWidthIn * 0.0254), 6);
+    const mermaMaterialAreaM2 = r(materialAreaM2 - netProductAreaM2, 6);
+    const areaCostM2 = n(item.costPerM2, 0);
     const unitCost = config.usesWeightMaterial
       ? n(item.costPerKg, 0)
       : config.usesUnitMaterial
         ? n(item.costPerUnit, 0)
-        : areaCostFt2 > 0
-          ? areaCostFt2
-          : state.form.substrate.unit === "metros"
-            ? n(item.costPerMeter, 0)
-            : state.form.substrate.unit === "msi"
-              ? n(item.costPerMsi, 0)
-              : n(item.costPerFoot, 0);
+        : areaCostM2 > 0
+          ? areaCostM2
+          : state.form.substrate.unit === "msi"
+            ? n(item.costPerMsi, 0)
+            : n(item.costPerMeter, 0);
     const materialConsumptionKg = config.usesWeightMaterial
-      ? r((materialBase * n(item.layerGft2, 0)) / 1000, 6)
+      ? r((materialBase * n(item.layerGm2, 0)) / 1000, 6)
       : 0;
     const materialSubtotal = config.usesWeightMaterial
       ? r(materialConsumptionKg * unitCost)
       : config.usesMaterial
         ? r(materialBase * unitCost)
         : 0;
+    const netMaterialConsumptionKg = config.usesWeightMaterial
+      ? r((netProductAreaM2 * n(item.layerGm2, 0)) / 1000, 6)
+      : 0;
+    const mermaMaterialConsumptionKg = config.usesWeightMaterial ? r(materialConsumptionKg - netMaterialConsumptionKg, 6) : 0;
+    const netMaterialSubtotal = config.usesWeightMaterial
+      ? r(netMaterialConsumptionKg * unitCost)
+      : config.usesMaterial
+        ? r(netProductAreaM2 * unitCost)
+        : 0;
+    const mermaMaterialSubtotal = config.usesMaterial ? r(materialSubtotal - netMaterialSubtotal) : 0;
     const plateCost = config.usesPlateCost ? r(n(item.plateCost, 0)) : 0;
     const machineSubtotal = r((((n(item.setupMinutes, 0) + runMinutes) / 60) * n(first(item.costHourMachine, item.costHour), 0)) || 0);
     const operatorSubtotal = r((((n(item.setupMinutes, 0) + runMinutes) / 60) * n(item.costHourOperator, 0)) || 0);
@@ -5949,24 +8066,24 @@ function calcFinishes() {
     let explanation = "El acabado mantiene su montaje, corrida y costos propios.";
     if (item.processKey === "barnizado") {
       formulaText = "• Consumo (kg) = Área (in²) × Cobertura × BCM × Factor Transferencia × Densidad × 10⁻⁶\n• Subtotal Barniz = Consumo (kg) × Costo por Kilo + Costo Máquina + Costo Operador";
-      explanation = "Barnizado usa el área técnica del trabajo, aplica la merma del barniz y convierte el depósito en g/ft² a kilogramos antes de valorizarlo.";
+      explanation = "Barnizado usa el área técnica del trabajo, aplica la merma del barniz y convierte el depósito en g/m² a kilogramos antes de valorizarlo.";
     } else if (item.processKey === "laminado") {
-      formulaText = "Laminado = costo máquina + costo operador + (Área Material ft² × (1 + Merma %) × costo material ft²).";
+      formulaText = "Laminado = costo máquina + costo operador + (Área Material m² × (1 + Merma %) × costo material m²).";
       explanation = "Laminado usa el ancho real del laminado, calcula el área técnica del proceso y aplica la merma del suministro antes de valorizarlo.";
     } else if (item.processKey === "estampado") {
-      formulaText = "Estampado = costo máquina + costo operador + (Área Foil ft² × (1 + Merma %) × costo foil ft²).";
+      formulaText = "Estampado = costo máquina + costo operador + (Área Foil m² × (1 + Merma %) × costo foil m²).";
       explanation = "Estampado usa el ancho real del foil y aplica su merma técnica antes de valorizar el material.";
     } else if (item.processKey === "embosado") {
       formulaText = "Embosado = costo máquina + costo operador + costo cliché.";
       explanation = "Embosado no consume material variable en esta etapa; se valora por tiempo de máquina y costo del cliché.";
     } else if (item.processKey === "troquelado") {
       formulaText = "Troquelado = costo máquina + costo operador + costo base + (base lineal × costo lineal, si aplica).";
-      explanation = "Troquelado trabaja sobre la longitud total del trabajo. El costo lineal se agrega cuando se define un valor de costo por pie.";
+      explanation = "Troquelado trabaja sobre la longitud total del trabajo. El costo lineal se agrega cuando se define un valor de costo por metro.";
     } else if (item.processKey === "rebobinado") {
       formulaText = "Rebobinado = costo máquina + costo operador.";
       explanation = "Rebobinado usa el mismo material ya impreso; en esta etapa se valora solo por el tiempo propio de la rebobinadora y la mano de obra.";
     }
-    return { ...item, ...pricing, sourceIndex: index, calcBase: runBase, runMinutes, unitCost, supplyWidthIn, wastePct, netMaterialAreaFt2, materialBase, materialConsumptionKg, materialSubtotal, machineSubtotal, operatorSubtotal, plateCost, formulaText, explanation };
+    return { ...item, ...pricing, sourceIndex: index, calcBase: runBase, runMinutes, unitCost, supplyWidthIn, wastePct, netMaterialAreaM2, materialBase, materialConsumptionKg, materialSubtotal, netProductAreaM2, mermaMaterialAreaM2, netMaterialConsumptionKg, mermaMaterialConsumptionKg, netMaterialSubtotal, mermaMaterialSubtotal, machineSubtotal, operatorSubtotal, plateCost, formulaText, explanation };
   });
   return { items, subtotal: r(items.reduce((sum, item) => sum + item.subtotal, 0)) };
 }
@@ -5974,9 +8091,80 @@ function calcFinishes() {
 function calcPackaging() {
   const base = metrics();
   const rolls = base.rollCount;
-  const hours = n(state.form.packaging.yieldPerHour, 0) > 0 ? r(rolls / n(state.form.packaging.yieldPerHour, 0)) : 0;
-  const pricing = applyProcessMinimum("empaque", r((hours * n(state.form.packaging.operators, 0) * n(state.form.packaging.hourCost, 0)) + n(state.form.packaging.externalCost, 0)));
-  return { rolls, hours, ...pricing, formulaText: "Cantidad de Rollos = Cantidad de Productos / Etiquetas por Rollo. Tiempo (h) = Rollos / Rendimiento por Hora. Costo = Tiempo x Operarios x Costo Hora Operario + Costo Externo.", explanation: "Empaque calcula primero la cantidad de rollos dividiendo la cantidad de productos entre las etiquetas por rollo y luego valora el tiempo del área, la mano de obra y el costo externo." };
+  const cajas = base.cajas;
+  const quantity = currentQuantity(state.form);
+  const labelsPerRoll = n(state.form.header?.labelsPerRoll, 0);
+  // El "rollo suelto" es el último rollo de la producción, cuando la cantidad total no es
+  // múltiplo exacto de "etiquetas por rollo" — por definición solo puede haber 0 o 1 (nunca
+  // más), y lo que importa reportar es cuánto producto tiene ese rollo, no un remanente contra
+  // "rollos por caja" (eso es un concepto distinto, cuántos rollos caben en una caja).
+  const cantidadRolloSuelto = labelsPerRoll > 0 ? (quantity % labelsPerRoll) : 0;
+  const rollosSueltos = cantidadRolloSuelto > 0 ? 1 : 0;
+  const baseHours = n(state.form.packaging.yieldPerHour, 0) > 0 ? r(rolls / n(state.form.packaging.yieldPerHour, 0)) : 0;
+  const hours = r(baseHours + processTimeBufferHours("empaque"));
+  const laborPricing = applyProcessMinimum("empaque", r((hours * n(state.form.packaging.operators, 0) * n(state.form.packaging.hourCost, 0)) + n(state.form.packaging.externalCost, 0)));
+  const corePrice = n(state.form.header?.coreType?.precio, 0);
+  const coresNecesarios = labelsPerRoll > 0 ? Math.ceil(quantity / labelsPerRoll) : 0;
+  const costoCores = r(coresNecesarios * corePrice);
+  const costoCajas = r(cajas * n(state.form.packaging.costoCaja, 0));
+  const bolsaItem = (state.costsConfig?.acabados?.bolsas || []).find((b) => String(b.id) === String(state.form.packaging.tipoBolsa || ""));
+  const cantidadBolsas = Math.max(0, n(state.form.packaging.cantidadBolsas, 0));
+  const costoBolsas = r(cantidadBolsas * n(bolsaItem?.costoPorUnidad, 0));
+  const subtotal = r(laborPricing.subtotal + costoCores + costoCajas + costoBolsas);
+  return { rolls, cajas, rollosSueltos, cantidadRolloSuelto, coresNecesarios, costoCores, costoCajas, cantidadBolsas, costoBolsas, hours, rawSubtotal: laborPricing.rawSubtotal, minimumApplied: laborPricing.minimumApplied, minimumCost: laborPricing.minimumCost, subtotal };
+}
+
+function buildEmpaqueInfoHtml(form, packaging) {
+  const qty = currentQuantity(form);
+  const labelsPerRoll = n(form.header.labelsPerRoll, 0);
+  const rollosPorCaja = n(form.header.productosPorCaja, 0);
+  const coreType = form.header?.coreType || {};
+  const coreDiam = form.header.coreDiameter || "";
+  const coreEspesor = coreType.espesor || 0;
+  const corePrecio = coreType.precio || 0;
+  const rendPorHora = n(form.packaging.yieldPerHour, 0);
+  const operarios = n(form.packaging.operators, 0);
+  const costoOp = n(form.packaging.hourCost, 0);
+  const costoExt = n(form.packaging.externalCost, 0);
+  const costoCajaUnit = n(form.packaging.costoCaja, 0);
+  const v = (val, dec = 2) => formulaValue(val, dec);
+  const bold = (text) => `<strong>${esc(text)}</strong>`;
+  const section = (title, lines) => `<div style="margin-bottom:14px;"><div style="font-weight:700;font-size:13px;color:var(--app-text);margin-bottom:6px;border-bottom:1px solid var(--app-border);padding-bottom:4px;">${esc(title)}</div>${lines.map((l) => `<div style="margin:3px 0;padding-left:8px;">▸ ${l}</div>`).join("")}</div>`;
+  const labelRow = (label, val) => `<span style="color:var(--app-text-soft);">${esc(label)}:</span> <span style="font-weight:600;">${val}</span>`;
+
+  const kgCaja = n(form.packaging?.kgPorCaja, 0);
+  const seccionEtiquetado = `<div style="margin-bottom:14px;"><div style="font-weight:700;font-size:13px;color:var(--app-text);margin-bottom:6px;border-bottom:1px solid var(--app-border);padding-bottom:4px;">Datos de Etiquetado</div><div style="padding-left:8px;">${labelRow("Etiquetas por Rollo", v(labelsPerRoll, 0))}<br>${labelRow("Rollos por Caja", v(rollosPorCaja, 0))}<br>${labelRow("Tipo de Core", coreDiam ? `${coreDiam}''${coreEspesor > 0 ? ` - ${coreEspesor}mm` : ""}` : "—")}<br>${labelRow("Precio Core", `$ ${v(corePrecio, 2)}`)}${kgCaja > 0 ? `<br>${labelRow("Kilogramos por Caja", `${v(kgCaja, 4)} kg`)}` : ""}</div></div>`;
+
+  const seccionCores = section("Costo de Cores", [
+    `${bold("Cores Necesarios")} = ${v(qty, 0)} / ${v(labelsPerRoll, 0)} = <strong>${v(packaging.coresNecesarios || 0, 0)}</strong>`,
+    `${bold("Costo de Cores")} = ${v(packaging.coresNecesarios || 0, 0)} x $ ${v(corePrecio, 2)} = <strong>$ ${v(packaging.costoCores || 0, 2)}</strong>`
+  ]);
+
+  const seccionCajas = section("Costo de Cajas", [
+    `${bold("Rollos Necesarios")} = ${v(qty, 0)} / ${v(labelsPerRoll, 0)} = <strong>${v(packaging.rolls || 0, 2)}</strong>`,
+    `${bold("Cantidad de Cajas")} = ⌈${v(packaging.rolls || 0, 2)} / ${v(rollosPorCaja, 0)}⌉ = <strong>${v(packaging.cajas || 0, 0)}</strong>`,
+    `${bold("Costo de Cajas")} = ${v(packaging.cajas || 0, 0)} x $ ${v(costoCajaUnit, 2)} = <strong>$ ${v(packaging.costoCajas || 0, 2)}</strong>`
+  ]);
+
+  const bolsaItem = (state.costsConfig?.acabados?.bolsas || []).find((b) => String(b.id) === String(form.packaging?.tipoBolsa || ""));
+  const seccionBolsas = n(packaging.costoBolsas, 0) > 0 ? section("Costo de Bolsas", [
+    `${bold("Bolsa Seleccionada")} = ${esc(bolsaResumen(bolsaItem) || "—")}`,
+    `${bold("Costo de Bolsas")} = ${v(packaging.cantidadBolsas || 0, 0)} x $ ${v(bolsaItem?.costoPorUnidad || 0, 2)} = <strong>$ ${v(packaging.costoBolsas || 0, 2)}</strong>`
+  ]) : "";
+
+  const seccionManualidad = section("Cálculo de Empaque (Manualidad)", [
+    `${bold("Tiempo (h)")} = ${v(packaging.rolls || 0, 2)} / ${v(rendPorHora, 2)} = <strong>${v(packaging.hours || 0, 2)} h</strong>`,
+    `${bold("Costo Empaque")} = (${v(packaging.hours || 0, 2)} × ${v(operarios, 0)} × $ ${v(costoOp, 2)}) + $ ${v(costoExt, 2)} = <strong>$ ${v(packaging.rawSubtotal ?? packaging.subtotal ?? 0, 2)}</strong>`
+  ]);
+
+  const minLines = minimumCostExampleLines(packaging, "Empaque");
+  const seccionMin = minLines.length ? `<div style="margin-bottom:14px;"><div style="font-weight:700;font-size:13px;color:var(--app-text);margin-bottom:6px;border-bottom:1px solid var(--app-border);padding-bottom:4px;">Costo Mínimo</div>${minLines.map((l) => `<div style="margin:3px 0;padding-left:8px;">▸ ${esc(l)}</div>`).join("")}</div>` : "";
+
+  const resumen = `<div style="margin-top:10px;padding:10px;background:var(--app-surface-raised);border-radius:8px;border:1px solid var(--app-border);"><div style="font-weight:700;font-size:13px;margin-bottom:4px;">R/ El total a cobrar por empaque (incluye cores, cajas y bolsas) es <span style="color:var(--app-accent);">${money(packaging.subtotal || 0)}</span></div></div>`;
+
+  const html = seccionEtiquetado + seccionCores + seccionCajas + seccionBolsas + seccionManualidad + seccionMin + resumen;
+  const { icon, color: iconColor, size: iconSize } = fieldInfoIconConfig();
+  return `<div class="process-info-anchor"><button type="button" class="info-popover-trigger formula-help" style="--info-icon-color:${esc(iconColor)};--info-icon-size:${esc(iconSize)}px;" aria-label="Cálculo de Empaque" aria-expanded="false" aria-haspopup="dialog" data-info-title="Cálculo de Empaque" data-info-body-html="${esc(html)}" data-info-wide="true">${renderIconMarkup(icon, "Cálculo de Empaque", "info-popover-icon")}</button></div>`;
 }
 
 function calcAdditional() {
@@ -5985,11 +8173,99 @@ function calcAdditional() {
   return { rows, ...pricing };
 }
 
+// Motor de cambios: compara la configuración de tinta real entre Motivos consecutivos en vez de
+// asumir que todo cambio de motivo requiere limpieza. Reutiliza motivoInkStations(type, index,
+// form) (definida arriba, usada también por calcMotivoInkTotals) — no duplicar esa lógica aquí.
+
+// Identidad de una estación de tinta para comparar entre motivos: CMYK/Blanco se identifican por
+// tipo; Pantone SOLO se considera identificable si está vinculado al catálogo tintas.pantones_biblioteca
+// (pantoneId). Un Pantone sin vincular no puede compararse con certeza — ver siguiente función.
+function inkStationIdentity(station) {
+  const type = station?.inkType;
+  if (type === "cmyk" || type === "blanco") return type;
+  if (type === "pantone") return station?.pantoneId ? `pantone:${station.pantoneId}` : null;
+  return null;
+}
+
+// Determina si dos configuraciones de tinta requieren cambio real (limpieza/preparación).
+// Si hay un Pantone sin vincular al catálogo de cualquiera de los dos lados, no se puede
+// asegurar que sean iguales — se asume conservadoramente que SÍ cambia (evita subcostear).
+function motivosTintaDiff(stationsA, stationsB) {
+  const activeA = (stationsA || []).filter((s) => s?.active !== false);
+  const activeB = (stationsB || []).filter((s) => s?.active !== false);
+  if (activeA.length !== activeB.length) return { cambia: true, razon: "estaciones-distintas" };
+  const idsA = activeA.map(inkStationIdentity);
+  const idsB = activeB.map(inkStationIdentity);
+  if (idsA.some((id) => id === null) || idsB.some((id) => id === null)) {
+    return { cambia: true, razon: "pantone-sin-vincular" };
+  }
+  const sortedA = [...idsA].sort();
+  const sortedB = [...idsB].sort();
+  const iguales = sortedA.length === sortedB.length && sortedA.every((id, i) => id === sortedB[i]);
+  return { cambia: !iguales, razon: iguales ? "tintas-iguales" : "tintas-distintas" };
+}
+
+// Secuencia productiva real: cada Motivo con cada una de sus Versiones, en orden. Con el caso
+// simple (1 motivo, 1 versión implícita) esta secuencia tiene un solo elemento y no hay cambios.
+function buildProductionSequence(form = state.form) {
+  const types = ensureTypesList(form);
+  const sequence = [];
+  types.forEach((type, motivoIndex) => {
+    ensureVersionsList(type).forEach((version, versionIndex) => {
+      sequence.push({ motivoIndex, versionIndex, motivoNombre: type.name, versionNombre: version.name });
+    });
+  });
+  return sequence;
+}
+
+// Construye cada transición de la secuencia con su fórmula completa (Fase 13: transparencia).
+// Versión→Versión (mismo motivo): sin cambio de tinta por definición, usa el tiempo estándar de
+// cambio de versión. Motivo→Motivo: compara tinta real; usa la configuración de cambio de motivo.
+function buildChangeTransitions(form = state.form) {
+  const sequence = buildProductionSequence(form);
+  const types = ensureTypesList(form);
+  const transitions = [];
+  for (let i = 1; i < sequence.length; i += 1) {
+    const desde = sequence[i - 1];
+    const hasta = sequence[i];
+    const esVersion = desde.motivoIndex === hasta.motivoIndex;
+    const cfg = esVersion ? changeVersionCostAutoDefaults(form) : changeCostConfig(form);
+    const inkDiff = esVersion
+      ? { cambia: false, razon: "mismo-motivo" }
+      : motivosTintaDiff(
+          motivoInkStations(types[desde.motivoIndex], desde.motivoIndex, form),
+          motivoInkStations(types[hasta.motivoIndex], hasta.motivoIndex, form)
+        );
+    const hours = cfg.timeMinutes / 60;
+    const machineCost = r(hours * cfg.machineHourCost, 2);
+    const laborCost = r(hours * cfg.laborHourCost * cfg.operators, 2);
+    const total = r(machineCost + laborCost + cfg.wasteCost + cfg.additionalPrepCost, 2);
+    transitions.push({
+      tipo: esVersion ? "version" : "motivo",
+      desde,
+      hasta,
+      tintaCambia: inkDiff.cambia,
+      tintaRazon: inkDiff.razon,
+      formula: {
+        timeMinutes: cfg.timeMinutes,
+        machineHourCost: cfg.machineHourCost,
+        laborHourCost: cfg.laborHourCost,
+        operators: cfg.operators,
+        wasteCost: cfg.wasteCost,
+        additionalPrepCost: cfg.additionalPrepCost,
+        machineCost,
+        laborCost,
+        total
+      }
+    });
+  }
+  return transitions;
+}
+
 function calcCambios(form = state.form) {
-  const changeCost = costPerChangeValue(form);
-  const byTypes = r(changesByTypesCount(form?.header?.quantityTypes) * changeCost);
-  const additional = r(Math.max(0, n(form?.header?.quantityChanges, 0)) * changeCost);
-  return { costPerChange: changeCost, byTypes, additional, subtotal: r(byTypes + additional) };
+  const transitions = buildChangeTransitions(form);
+  const subtotal = r(transitions.reduce((sum, t) => sum + n(t.formula.total, 0), 0));
+  return { costPerChange: costPerChangeValue(form), byTypes: subtotal, subtotal, transitions };
 }
 
 function calcTypes(result = totals()) {
@@ -5997,7 +8273,14 @@ function calcTypes(result = totals()) {
   const types = ensureTypesList(form);
   const typeCount = Math.max(1, types.length);
   const totalQuantity = currentQuantity(form);
-  const changeCost = costPerChangeValue(form);
+  const cambios = calcCambios(form);
+  // Costo de cambio por fila de motivo: suma de toda transición que llega a este motivo (la
+  // entrada desde el motivo anterior más cualquier cambio de versión interno). Hasta que la
+  // tarea de UI anidada exista, esta fila agrega el total; el desglose por versión vive en
+  // cambios.transitions.
+  const changeCostByMotivo = types.map((_, index) =>
+    r(cambios.transitions.filter((t) => t.hasta.motivoIndex === index).reduce((sum, t) => sum + n(t.formula.total, 0), 0))
+  );
   const fixedShare = (subtotal) => r(n(subtotal, 0) / typeCount);
   const printSubtotal = n(result.print?.subtotal, 0);
   const rows = types.map((type, index) => {
@@ -6006,7 +8289,7 @@ function calcTypes(result = totals()) {
     const items = {
       diseno: fixedShare(result.design?.subtotal),
       preprensa: fixedShare(result.prepress?.subtotal),
-      planchas: fixedShare(result.plates?.subtotal),
+      sellos: fixedShare(result.plates?.subtotal),
       troquel: fixedShare(result.troquel?.subtotal),
       preparacion: r(n(result.print?.machineSubtotal, 0) * share),
       impresion: r(Math.max(0, printSubtotal - n(result.print?.machineSubtotal, 0) - n(result.print?.inkSubtotal, 0)) * share),
@@ -6014,21 +8297,20 @@ function calcTypes(result = totals()) {
       sustrato: r(n(result.sustrato?.subtotal, 0) * share),
       acabados: r(n(result.finishes?.subtotal, 0) * share),
       merma: r(n(result.macula?.subtotal, 0) * share),
-      cambio: index === 0 ? 0 : changeCost
+      cambio: changeCostByMotivo[index]
     };
     const total = r(Object.values(items).reduce((sum, value) => sum + n(value, 0), 0));
-    return { ...type, quantity, share, items, total, unit: quantity > 0 ? r(total / quantity, 6) : 0 };
+    return { ...type, quantity, share, items, total, costoTintas: r(n(items.tinta, 0)), unit: quantity > 0 ? r(total / quantity, 6) : 0 };
   });
   const costoTipos = r(rows.reduce((sum, row) => sum + row.total, 0));
-  const cambios = calcCambios(form);
   return {
     rows,
     typeCount,
     costoTipos,
-    costPerChange: changeCost,
+    costPerChange: cambios.costPerChange,
     byTypesCost: cambios.byTypes,
-    additionalCost: cambios.additional,
-    totalChangesCost: cambios.subtotal
+    totalChangesCost: cambios.subtotal,
+    transitions: cambios.transitions
   };
 }
 
@@ -6055,10 +8337,51 @@ function totals() {
   }
   if (!hasActiveProcess("diseno")) Object.assign(design, zeroProcessSubtotal(design, { time: 0 }));
   if (!hasActiveProcess("preprensa")) Object.assign(prepress, zeroProcessSubtotal(prepress, { time: 0 }));
-  if (!hasActiveProcess("planchas")) Object.assign(plates, zeroProcessSubtotal(plates));
+  if (!hasActiveProcess("sellos")) Object.assign(plates, zeroProcessSubtotal(plates));
   if (!hasActiveProcess("impresion")) Object.assign(print, zeroProcessSubtotal(print, { items: [], machineSubtotal: 0, operatorSubtotal: 0, inkSubtotal: 0, inlineSubtotal: 0, digitalWashSubtotal: 0, premierSubtotal: 0 }));
-  if (!hasActiveProcess("empaque")) Object.assign(packaging, zeroProcessSubtotal(packaging, { rolls: 0, hours: 0 }));
+  if (!hasActiveProcess("empaque")) Object.assign(packaging, zeroProcessSubtotal(packaging, { rolls: 0, hours: 0, cajas: 0, coresNecesarios: 0, costoCores: 0, costoCajas: 0, costoBolsas: 0 }));
   if (!hasActiveProcess("adicionales") || !additionalHasRows) Object.assign(additional, zeroProcessSubtotal(additional, { rows: [] }));
+  // Dimensiones del producto fuera de rango físico (Largo > desarrollo del cilindro, Ancho > ancho
+  // del rollo): se apagan TODOS los cálculos — cada subproceso queda en 0, así el Industrial /
+  // Overhead / Margen / Total caen a $0.00. El campo se marca en rojo (applyRequiredHighlights) y
+  // el error es bloqueante (buildCalculationValidationState). No tiene sentido cotizar una etiqueta
+  // de dimensiones imposibles. Lo mismo aplica si el sustrato es de SAP y le faltan datos técnicos
+  // (ancho de rollo / gramaje / calibre): sin eso no hay cómo costear el material.
+  if (productDimensionErrors(state.form).blocked || substrateDataBlocked(state.form)) {
+    const zeroInkTotals = (totalsObj) => totalsObj
+      ? { ...totalsObj, subtotal: 0, consumption: 0, mermaConsumption: 0, mermaSubtotal: 0 }
+      : totalsObj;
+    Object.assign(macula, zeroProcessSubtotal(macula));
+    Object.assign(troquel, zeroProcessSubtotal(troquel));
+    Object.assign(sustrato, zeroProcessSubtotal(sustrato));
+    Object.assign(design, zeroProcessSubtotal(design));
+    Object.assign(prepress, zeroProcessSubtotal(prepress));
+    Object.assign(plates, zeroProcessSubtotal(plates));
+    Object.assign(print, zeroProcessSubtotal(print, { machineSubtotal: 0, operatorSubtotal: 0, inkSubtotal: 0, inkMermaSubtotal: 0, inlineSubtotal: 0, digitalWashSubtotal: 0, premierSubtotal: 0 }));
+    if (print.motivoInkTotals) print.motivoInkTotals = zeroInkTotals(print.motivoInkTotals);
+    // Las tarjetas de Impresión y de acabados (p. ej. Rebobinado) muestran el subtotal de cada
+    // ítem, no el del bloque — hay que apagarlos uno por uno también.
+    if (Array.isArray(print.items)) {
+      print.items = print.items.map((it) => ({
+        ...it,
+        subtotal: 0, rawSubtotal: 0, machineSubtotal: 0, operatorSubtotal: 0, inkSubtotal: 0,
+        inkMermaSubtotal: 0, inlineSubtotal: 0, digitalWashSubtotal: 0, premierSubtotal: 0,
+        maculaMaterialSubtotal: 0,
+        motivoInkTotals: zeroInkTotals(it.motivoInkTotals)
+      }));
+    }
+    Object.assign(finishes, zeroProcessSubtotal(finishes));
+    if (Array.isArray(finishes.items)) {
+      finishes.items = finishes.items.map((it) => ({ ...it, subtotal: 0, rawSubtotal: 0 }));
+    }
+    Object.assign(packaging, zeroProcessSubtotal(packaging, { costoCores: 0, costoCajas: 0, costoBolsas: 0 }));
+    Object.assign(additional, zeroProcessSubtotal(additional, { rows: [] }));
+    Object.assign(cambios, zeroProcessSubtotal(cambios));
+    frontBackElements.subtotal = 0;
+    if (Array.isArray(frontBackElements.items)) {
+      frontBackElements.items = frontBackElements.items.map((it) => ({ ...it, subtotal: 0 }));
+    }
+  }
   const industrial = r(
     macula.subtotal
     + troquel.subtotal
@@ -6082,7 +8405,7 @@ function totals() {
   const tax = r(afterDiscount * (n(commercial.taxPct, 0) / 100));
   const total = r(afterDiscount + tax);
   const quantity = currentQuantity(state.form);
-  return { macula, troquel, sustrato, design, prepress, plates, print, finishes, packaging, additional, cambios, frontBackElements, industrial, overhead, margin, discount, discountPct, taxPct: n(commercial.taxPct, 0), afterDiscount, tax, total, unit: quantity > 0 ? r(total / quantity, 6) : 0 };
+  return { macula, troquel, sustrato, design, prepress, plates, print, finishes, packaging, additional, cambios, frontBackElements, industrial, overhead, margin, discount, overheadPct: n(commercial.overheadPct, 0), marginPct: n(commercial.marginPct, 0), discountPct, taxPct: n(commercial.taxPct, 0), afterDiscount, tax, total, unit: quantity > 0 ? r(total / quantity, 6) : 0 };
 }
 
 function buildSavePayload() {
@@ -6090,6 +8413,7 @@ function buildSavePayload() {
   const result = totals();
   const validationState = buildCalculationValidationState(result);
   const printProductionType = currentPrintProductionType();
+  const typeRows = calcTypes(result).rows;
   return {
     quoteCode: state.form.header.quoteCode,
     originalLineCode: state.form.header.lineCode,
@@ -6105,22 +8429,31 @@ function buildSavePayload() {
     quantityProducts: currentQuantity(state.form),
     quantityTypes: n(state.form.header.quantityTypes, 0),
     quantityChanges: n(state.form.header.quantityChanges, 0),
-    quantityChangesAdditional: n(state.form.header.quantityChanges, 0),
+    quantityChangesAdditional: 0,
     changesByTypes: n(state.form.header.changesByTypes, changesByTypesCount(state.form.header.quantityTypes)),
     totalChanges: n(state.form.header.totalChanges, totalChangesCount(state.form.header.quantityTypes, state.form.header.quantityChanges)),
-    types: (state.form.types || []).map((type) => ({
+    types: (state.form.types || []).map((type, index) => ({
       name: String(type?.name || "").trim(),
       quantity: Math.max(0, n(type?.quantity, 0)),
       artwork: ["none", "adapt", "full"].includes(type?.artwork) ? type.artwork : "none",
       colors: Math.max(0, n(type?.colors, 0)),
-      plates: Math.max(0, n(type?.plates, 0))
+      plates: Math.max(0, n(type?.plates, 0)),
+      costoTintas: r(n(typeRows[index]?.costoTintas, 0))
     })),
     changeCost: changeCostConfig(),
     widthInches: state.form.header.labelWidthIn,
     lengthInches: state.form.header.labelHeightIn,
-    coreWidth: state.form.header.rollWidthIn,
+    coreWidth: state.form.header.anchoCoreIn,
     coreDiameter: state.form.header.coreDiameter,
+    coreType: state.form.header.coreType || null,
     labelsPerRoll: n(state.form.header.labelsPerRoll, 0),
+    etiquetasPorCaja: Math.max(0, n(state.form.header.productosPorCaja, 0)),
+    costoCaja: n(state.form.packaging.costoCaja, 0),
+    tipoCaja: state.form.packaging.tipoCaja || '',
+    tipoBolsa: state.form.packaging.tipoBolsa || '',
+    bolsaResumen: bolsaResumen((state.costsConfig?.acabados?.bolsas || []).find((b) => String(b.id) === String(state.form.packaging.tipoBolsa || ''))),
+    cantidadBolsas: Math.max(0, n(state.form.packaging.cantidadBolsas, 0)),
+    costoBolsas: n(result.packaging?.costoBolsas, 0),
     stationCount: effectiveColors(state.form),
     applicationType: state.form.header.applicationType,
     applicationEnvironment: state.form.header.applicationEnvironment,
@@ -6143,7 +8476,74 @@ function buildSavePayload() {
   };
 }
 
+function calcLineProductCode() {
+  const c = state.context?.calculo || {};
+  return first(c.product_code, c.productCode, c.raw_data?.["CODIGO PRODUCTO"], c.raw_data?.line_summary?.product_code, "") || "";
+}
+
+function calcLineProductSku() {
+  const c = state.context?.calculo || {};
+  return first(c.finished_product_sku, c.raw_data?.["SKU PRODUCTO TERMINADO"], c.raw_data?.line_summary?.finished_product_sku, "") || "";
+}
+
+// Comentarios que el vendedor escribió en la Solicitud (request_meta['REQ | Comentarios']).
+// Antes no se veían en el Cálculo; ahora se muestran al pie de "Información de Producto".
+function vendorCommentsText() {
+  const c = state.context?.calculo || {};
+  return String(first(
+    c.raw_data?.["REQ | Comentarios"],
+    c.raw_data?.["COMENTARIOS SOLICITUD"],
+    c.raw_data?.line_summary?.["REQ | Comentarios"],
+    ""
+  )).trim();
+}
+
+// Nombres de colores directos que el vendedor eligió en la Solicitud (Estado_UI.directColors
+// o la cadena "REQ | Colores Directos"). Se usan para etiquetar y cobrar estaciones Pantone.
+function requestDirectColorNamesFromRaw(raw) {
+  const uiList = raw?.["Estado_UI"]?.directColors;
+  if (Array.isArray(uiList) && uiList.length) {
+    return uiList.map((item) => String(item?.nombre || item || "").trim()).filter(Boolean);
+  }
+  return String(raw?.["REQ | Colores Directos"] || "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function renderVendorComments() {
+  const block = document.getElementById("vendorCommentsBlock");
+  const target = document.getElementById("vendorCommentsText");
+  if (!block || !target) return;
+  const text = vendorCommentsText();
+  target.textContent = text;
+  block.hidden = !text;
+}
+
+function calcLineOrderCode() {
+  return first(state.quoteTracking?.closure?.orderCode, state.context?.calculo?.raw_data?.line_summary?.order_code, "") || "";
+}
+
+// El estado "bloqueado" se DERIVA de la configuración (Configuración → Documentos → Cálculo)
+// más la existencia de producto/orden. No se persiste ningún flag por cálculo: si en
+// Configuración se cambia el selector a "No Bloquear", el bloqueo desaparece solo.
+function calcBloqueoState() {
+  const g = state.config?.general || {};
+  const lockOnProduct = String(g.bloquearCalculoAlCrearProducto ?? "false").trim().toLowerCase() === "true";
+  const lockOnOrder = String(g.bloquearCalculoAlCrearOrden ?? "false").trim().toLowerCase() === "true";
+  const orderCode = calcLineOrderCode();
+  const productCode = calcLineProductCode();
+  if (orderCode && lockOnOrder) return { locked: true, reason: `Orden ${orderCode} creada` };
+  if (productCode && lockOnProduct) return { locked: true, reason: `Producto ${productCode} creado` };
+  return { locked: false, reason: "" };
+}
+
+function applyCalcBloqueo() {
+  document.body.classList.toggle("calc-bloqueado", calcBloqueoState().locked);
+}
+
 async function persistCalculation() {
+  if (calcBloqueoState().locked) return;
   if (!state.form?.header?.quoteCode || !state.form?.header?.lineCode || state.saving) return;
   state.saving = true;
   try {
@@ -6157,6 +8557,7 @@ async function persistCalculation() {
 }
 
 function scheduleSave() {
+  if (calcBloqueoState().locked) return;
   if (state.saveTimer) clearTimeout(state.saveTimer);
   state.saveTimer = setTimeout(() => {
     state.saveTimer = null;
@@ -6197,7 +8598,8 @@ function normalizeConfigTextList(value, fallback = []) {
 }
 
 function resolveProductTypes() {
-  return normalizeConfigTextList(state.config?.general?.quoteProductTypesJson, DEFAULT_PRODUCT_TYPES);
+  if (Array.isArray(productTypesList) && productTypesList.length) return productTypesList;
+  return [...DEFAULT_PRODUCT_TYPES];
 }
 
 function resolveApplicationOptions() {
@@ -6257,14 +8659,501 @@ const ARTWORK_OPTIONS = [
   ["full", "Diseño Completo"]
 ];
 
+// Panel anidado de Versiones bajo cada fila de Motivo (Fase 12: la relación Motivo→Versión debe
+// ser evidente en la interfaz sin que el usuario tenga que entender la arquitectura interna).
+// La cantidad del motivo se vuelve de solo lectura (derivada) en cuanto hay más de una versión —
+// ver ensureVersionsList(), que ya hace cumplir esa regla en el modelo de datos.
+// Panel de selección de versión al crear producto (Fase 19): un motivo con varias versiones
+// genera un producto POR versión (cada una con su propia cantidad) — no un único producto con la
+// cantidad agregada del motivo. Cada fila ya creada muestra su SKU; las pendientes muestran "Crear".
+function typeProductPickerRowHtml(motivoIndex, type) {
+  const versions = Array.isArray(type?.versions) && type.versions.length ? type.versions : [{ name: "Versión 1" }];
+  const rows = versions.map((version, vIndex) => {
+    const name = esc(version.name || `Versión ${vIndex + 1}`);
+    const status = version.productSku
+      ? `<span class="types-info-product-sku" title="Producto ${esc(version.productCode || "")}">${esc(version.productSku)}</span>`
+      : `<button type="button" class="types-info-product-btn types-product-picker-create" data-action="convertir-motivo-producto" data-type-index="${motivoIndex}" data-version-index="${vIndex}" aria-label="Crear producto para ${name}" title="Crear producto para ${name}">Crear</button>`;
+    return `<div class="types-product-picker-row"><span class="types-product-picker-name">${name}</span>${status}</div>`;
+  }).join("");
+  return `<div class="types-versions-panel types-product-picker-panel">
+    <div class="types-versions-head"><span>Crear producto de ${esc(type?.name || `Arte ${motivoIndex + 1}`)} — elige la versión</span></div>
+    <div class="types-versions-list">${rows}</div>
+  </div>`;
+}
+
+function typeVersionsRowHtml(motivoIndex, type, viewMode = "count") {
+  const versions = Array.isArray(type?.versions) && type.versions.length ? type.versions : [{ name: "", description: "", quantity: n(type?.quantity, 0), additionalPlates: 0 }];
+  const multiple = versions.length > 1;
+  const deleteIcon = getProcessDeleteIconConfig();
+  const addIcon = iconPresentation("quantityAdd", "+", "#738196", 22);
+  const inkStationPlates = n(type?.inkStationPlates, motivoPlatesFromCounts(type));
+  const versionAdditionalPlates = n(type?.versionAdditionalPlates, motivoVersionAdditionalPlates(type));
+  const totalPlates = inkStationPlates + versionAdditionalPlates;
+  const plateMetrics = calcularSelloSqIn();
+  const plateUnitAreaIn2 = n(plateMetrics.plateUnitAreaIn2, 0);
+  const totalPlatesArea = plateUnitAreaIn2 * totalPlates;
+  const totalPlatesCost = plateMetrics.costPerSqIn > 0 ? r(totalPlatesArea * plateMetrics.costPerSqIn, 2) : 0;
+  const totalQuantity = Math.max(0, n(type?.quantity, 0));
+  // "Vista actual" (cantidad/consumo/$) también aplica a Sellos por versión: la cantidad de
+  // sellos de cada versión sigue siendo la misma (Versión 1 = sellos del motivo, 2+ = las que
+  // el usuario declara como adicionales), pero su costo/consumo se reparte entre versiones según
+  // la proporción de cantidad de producto que cada una representa sobre el total del motivo.
+  const rows = versions.map((version, vIndex) => {
+    const isFirstVersion = vIndex === 0;
+    const rawPlatesCount = isFirstVersion ? inkStationPlates : Math.max(0, Math.round(n(version.additionalPlates, 0)));
+    const versionQty = Math.max(0, n(version.quantity, 0));
+    const qtyShare = totalQuantity > 0 ? versionQty / totalQuantity : 0;
+    const platesDisplayValue = viewMode === "amount"
+      ? money(r(totalPlatesCost * qtyShare, 2))
+      : viewMode === "consumption"
+      ? `${num(r(totalPlatesArea * qtyShare, 2), 2)} in²`
+      : formatInteger(rawPlatesCount);
+    const quantityField = `<div class="display-input-wrap"><input type="number" class="display-input types-version-quantity" min="0" step="1" data-type-index="${motivoIndex}" data-type-field="version" data-version-index="${vIndex}" data-version-field="quantity" value="${n(version.quantity, 0)}" ${multiple ? "" : "disabled title=\"Con una sola versión, la cantidad la controla el arte.\""} aria-label="Cantidad de la versión ${vIndex + 1}"><span class="display-input-mask">${esc(formatInteger(version.quantity))}</span></div>`;
+    const platesField = `<div class="display-input-wrap"><input type="number" class="display-input types-version-plates" min="0" step="1" data-type-index="${motivoIndex}" data-type-field="version" data-version-index="${vIndex}" data-version-field="additionalPlates" value="${rawPlatesCount}" ${isFirstVersion ? "disabled title=\"Sellos ya contempladas en el arte (arriba). Desde la Versión 2 se agregan sellos adicionales.\"" : "title=\"Sellos adicionales que requiere esta versión\""} aria-label="Sellos adicionales de la versión ${vIndex + 1}"><span class="display-input-mask">${esc(platesDisplayValue)}</span></div>`;
+    return `<div class="types-version-row">
+      <span class="types-version-num">${vIndex + 1}</span>
+      <input type="text" class="types-version-name" data-type-index="${motivoIndex}" data-type-field="version" data-version-index="${vIndex}" data-version-field="name" value="${esc(version.name || "")}" maxlength="80" placeholder="Nombre (opcional)" aria-label="Nombre de la versión ${vIndex + 1}">
+      <input type="text" class="types-version-description" data-type-index="${motivoIndex}" data-type-field="version" data-version-index="${vIndex}" data-version-field="description" value="${esc(version.description || "")}" maxlength="120" placeholder="Descripción (opcional)" aria-label="Descripción de la versión ${vIndex + 1}">
+      ${quantityField}
+      ${platesField}
+      <button type="button" class="types-version-action" data-action="add-version" data-type-index="${motivoIndex}" title="Agregar versión" aria-label="Agregar versión después de la ${vIndex + 1}" style="--quantity-add-icon-color:${esc(addIcon.color)};--quantity-add-icon-hover:${esc(addIcon.hover)};--quantity-add-icon-size:26px;">${renderIconMarkup(addIcon.value, "Agregar versión", "quantity-add-icon")}</button>
+      ${isFirstVersion ? "" : `<button type="button" class="types-version-action" data-action="remove-version" data-type-index="${motivoIndex}" data-version-index="${vIndex}" title="Eliminar versión" aria-label="Eliminar versión ${vIndex + 1}" style="--process-delete-icon-color:${esc(deleteIcon.primary)};--process-delete-icon-hover:${esc(deleteIcon.hover)};--process-delete-icon-size:26px;">${renderIconMarkup(deleteIcon.value, "Eliminar versión", "process-delete-icon")}</button>`}
+    </div>`;
+  }).join("");
+  const columnsHead = `<div class="types-version-row types-version-row-head"><span>#</span><span>Nombre</span><span>Descripción</span><span>Cantidad</span><span>Sellos</span><span></span><span></span></div>`;
+  return `<div class="types-versions-panel">
+    ${columnsHead}
+    <div class="types-versions-list">${rows}</div>
+  </div>`;
+}
+
+// Fase 14: la tabla de Motivos se comprime a las columnas del mockup (Motivo, Nombre, Cantidad,
+// Proceso, Directo, Sellos, Total) para no perder al usuario entre demasiados campos. Tintas
+// (colors/blancas/pantones) y el detalle de estaciones de tinta se dejan de mostrar aquí — siguen
+// existiendo en el modelo de datos (se usan en el cálculo) pero su edición pasa a un modal de
+// detalle pendiente de construir; Proceso y Directo quedan como placeholder visual hasta entonces.
+function motivoViewModeNext(mode) {
+  if (mode === "consumption") return "amount";
+  if (mode === "amount") return "count";
+  return "consumption";
+}
+
+function motivoViewModeLabel(mode) {
+  if (mode === "consumption") return "Consumo";
+  if (mode === "amount") return "Precio";
+  return "Cantidad";
+}
+
+// Opciones del <select> de Tipo de una estación en el modal — mismo criterio que la tabla de
+// Tintas del Motivo — el Barniz ya se elige libremente (posicionable y repetible).
+function maquinaModalTipoOptionsHtml(station) {
+  return `<option value=""></option>${MOTIVO_STATION_TIPOS
+    .map((t) => `<option value="${t.value}" ${t.value === station?.tipo ? "selected" : ""}>${t.label}</option>`)
+    .join("")}`;
+}
+
+// Config de un acabado en línea (laminado / estampado) para el modal, con el nombre del material
+// ya resuelto — solo lectura, para "ver" el acabado sin perderse.
+function maquinaModalAcabadoConfig(inlineKey) {
+  const inline = state.form?.printStages?.[0]?.inlineFinishes?.[inlineKey];
+  if (!inline || inline.active === false) return null;
+  return {
+    materialNombre: detailMaterialName(inline.materialId, inline.materialName) || "",
+    costPerMeter: n(inline.costPerMeter, 0),
+    setupMinutes: n(inline.setupMinutes, 0),
+    plateCost: n(inline.plateCost, 0),
+    comment: String(inline.comment || "").trim()
+  };
+}
+
+// Datos por motivo/estación para el modal "Detalle de Máquina". Se recalcula en cada llamada
+// (getMotivos) para reflejar las ediciones que el propio modal hace sobre type.inkStations.
+function maquinaModalMotivos() {
+  const form = state.form || {};
+  const header = form.header || {};
+  const mermaRatio = inkMermaRatio(form);
+  const areaIn2 = inkUnitAreaIn2(form);
+  const machineId = form.printStages?.[0]?.machineId || "";
+  const stationsConfig = machineId ? (state.catalogs.machineStationsByMachine?.[machineId] || {}) : {};
+  const types = Array.isArray(form.types) ? form.types : [];
+  // Plancha: área de un sello y su costo por in² (misma fórmula que la tabla de Motivos → Sellos).
+  const sello = calcularSelloSqIn();
+  const planchaAreaUnitIn2 = n(sello.plateUnitAreaIn2, 0);
+  const planchaCostoUnit = r(planchaAreaUnitIn2 * n(sello.costPerSqIn, 0), 2);
+  // Costo del barniz por estación (una instancia por estación tipo "barniz" de cada motivo).
+  const baseM = metrics(form);
+  const barnizInst = calcMotivoBarnizInstances(
+    form,
+    n(calcSustrato().totalLengthMeters, 0),
+    n(baseM.webWidthIn, 0),
+    form.printStages?.[0]?.inlineFinishes?.barniz || {}
+  );
+  const vacio = {
+    tipo: "", tipoLabel: "", inkLabel: "",
+    coberturaPct: null, bcmAnilox: null, factorTransferencia: null, densidad: null,
+    costoPorKg: null, consumoKg: null, cargaMinimaKg: null, hex: "",
+    costoProceso: null, costoProcesoLabel: "Costo", planchaAreaIn2: 0, planchaCosto: 0, subtotalEstacion: null,
+    tipoOpcionesHtml: maquinaModalTipoOptionsHtml({}),
+    tintaOpcionesHtml: motivoStationTintaOptionsHtml({})
+  };
+  return types.map((type, index) => {
+    const stations = ensureMotivoStationsList(type, form);
+    const printedAreaIn2 = header.noPrint ? 0 : r(areaIn2 * Math.max(0, n(type.quantity, 0)), 6);
+    const estaciones = stations.map((station, sIndex) => {
+      const detail = calcMotivoInkStationRow(printedAreaIn2, station, mermaRatio);
+      const cargaMinimaMl = stationsConfig[sIndex + 1];
+      const cargaMinimaKg = station.tipo && cargaMinimaMl !== undefined && cargaMinimaMl !== null
+        ? r((n(cargaMinimaMl, 0) / 1000) * n(station.inkDensity, 0), 4)
+        : null;
+      const esAcabadoSt = ["barniz", "laminado", "estampado"].includes(station.tipo);
+      const esBarnizSt = station.tipo === "barniz";
+      // Lleva plancha/sello: toda estación de tinta y el barniz; laminado, estampado y troquelado no.
+      const llevaPlancha = !!station.tipo && station.tipo !== "laminado" && station.tipo !== "estampado" && station.tipo !== "troquelado";
+      let costoProceso = null;
+      let costoProcesoLabel = "Costo";
+      if (station.tipo && !esAcabadoSt) {
+        costoProceso = n(detail.subtotal, 0);
+        costoProcesoLabel = "Costo Tinta";
+      } else if (esBarnizSt) {
+        const bi = (barnizInst.instances || []).find((x) => x.motivoIndex === index && x.stationIndex === sIndex);
+        costoProceso = bi ? n(bi.subtotal, 0) : 0;
+        costoProcesoLabel = "Costo Barniz";
+      }
+      const planchaCosto = llevaPlancha ? planchaCostoUnit : 0;
+      const planchaAreaIn2 = llevaPlancha ? planchaAreaUnitIn2 : 0;
+      const subtotalEstacion = station.tipo && !["laminado", "estampado"].includes(station.tipo)
+        ? r((costoProceso != null ? costoProceso : 0) + planchaCosto, 2)
+        : null;
+      return {
+        tipo: station.tipo || "",
+        tipoLabel: station.tipo ? tipoLabelFor(station.tipo) : "",
+        inkLabel: station.inkLabel || "",
+        coberturaPct: station.tipo ? n(station.coveragePct, 0) : null,
+        bcmAnilox: station.tipo ? n(station.aniloxBcm, 0) : null,
+        factorTransferencia: station.tipo ? n(station.transferFactor, 0) : null,
+        densidad: station.tipo ? n(station.inkDensity, 0) : null,
+        costoPorKg: station.tipo ? n(station.inkCostPerKg, 0) : null,
+        consumoKg: station.tipo ? n(detail.consumptionKg, 0) : null,
+        cargaMinimaKg,
+        costoProceso,
+        costoProcesoLabel,
+        planchaAreaIn2,
+        planchaCosto,
+        subtotalEstacion,
+        hex: motivoStationTintaHex(station) || "",
+        tipoOpcionesHtml: maquinaModalTipoOptionsHtml(station),
+        tintaOpcionesHtml: motivoStationTintaOptionsHtml(station)
+      };
+    });
+    // El modal es de configuración y muestra siempre las 9 torres de la máquina: se rellenan
+    // las posiciones que aún no existen en type.inkStations con estaciones vacías (con sus
+    // opciones de Tipo/Tinta listas) sin tocar el cálculo real.
+    while (estaciones.length < 9) {
+      estaciones.push({ ...vacio });
+    }
+    return {
+      nombre: String(type.nombre_motivo || type.name || `Arte ${index + 1}`).trim() || `Arte ${index + 1}`,
+      estaciones
+    };
+  });
+}
+
+// Resumen de sustrato/merma/costo para las estaciones físicas de Desbobinado y Rebobinado del
+// modal "Detalle de Máquina". Toma los mismos números que la sección Sustrato del cálculo
+// (calcSustrato) — todo estimado, sin datos de producción.
+function maquinaModalResumen() {
+  const s = calcSustrato();
+  const printMachine = primaryPrintMachineForForm(state.form) || {};
+  const printStage = activePrintStages()[0] || {};
+  return {
+    sustrato: {
+      materialName: s.materialName || "",
+      anchoBobinaIn: n(s.webWidthIn, 0),
+      netMeters: n(s.linealMeters, 0),
+      mermaMontajeMeters: n(s.maculaSetupMeters, 0),
+      mermaSetupMeters: n(s.maculaSetupTrabajoMeters, 0),
+      mermaTirajeMeters: n(s.maculaTirajeMeters, 0),
+      mermaTotalMeters: n(s.startupWasteMeters, 0),
+      totalMeters: n(s.totalLengthMeters, 0),
+      costPerMeter: n(s.unitCost, 0),
+      costoTotal: n(s.subtotal, 0)
+    },
+    // Velocidad de la máquina de impresión — el mismo dato (state.form.printStages[0].speedMetersMin)
+    // que edita el campo "Velocidad" de la tarjeta de Impresión. Una sola para todo el trabajo.
+    velocidad: {
+      valor: n(printStage.speedMetersMin, 0),
+      unidad: printSpeedUnit(printMachine)
+    },
+    // Costo de los acabados en línea (laminado / estampado) para el Resultado de sus tarjetas,
+    // más la lista de gomas (materiales "adicionales") para el desplegable del modal.
+    acabados: {
+      laminado: maquinaModalInlineCost("laminado"),
+      estampado: maquinaModalInlineCost("estampado"),
+      gomaOpciones: gomaMaterialList().map((g) => ({ id: String(g.id), nombre: g.nombre || g.descripcion || g.codigo || "" }))
+    }
+  };
+}
+
+// Costo calculado de un acabado en línea (mismo objeto que usa la tarjeta de Impresión).
+function maquinaModalInlineCost(inlineKey) {
+  const print = calcPrint();
+  const items = (print && print.items && print.items[0] && print.items[0].inlineItems) || [];
+  const it = items.find((x) => x.key === inlineKey);
+  if (!it || it.active === false) return null;
+  return {
+    subtotal: n(it.subtotal, 0),
+    materialSubtotal: n(it.materialSubtotal, 0),
+    plateCost: n(it.plateCost, 0),
+    adhesivoSubtotal: n(it.adhesivoSubtotal, 0),
+    consumoKg: n(it.materialConsumptionKg, 0),
+    gomaMaterialId: String(it.gomaMaterialId || "")
+  };
+}
+
+// Aplica el BCM de un anilox elegido a esa estación en TODOS los motivos (una torre = un anilox
+// físico para todo el trabajo). Es el mismo dato que muestra la celda BCM de la tabla de Tintas.
+function aplicarAniloxBcmATodosLosMotivos(sIndex, bcm) {
+  const val = n(bcm, 0);
+  if (!Number.isInteger(sIndex) || sIndex < 0 || val <= 0) return;
+  let tocado = false;
+  (state.form.types || []).forEach((type) => {
+    const est = Array.isArray(type.inkStations) ? type.inkStations[sIndex] : null;
+    if (est && est.tipo && !["barniz", "laminado", "estampado", "troquelado"].includes(est.tipo)) {
+      est.aniloxBcm = val;
+      tocado = true;
+    }
+  });
+  if (!tocado) return;
+  syncPrimaryPrintStage();
+  renderProcesses();
+  refreshCalculationValidation();
+  scheduleSave();
+}
+
+// Cambia un campo de un acabado en línea (por ahora la goma) desde el modal, por el mismo camino
+// que la tarjeta de Impresión (state.form.printStages[0].inlineFinishes) → recalcula y guarda.
+function maquinaModalEditarAcabado(clave, campo, valor) {
+  const inline = state.form?.printStages?.[0]?.inlineFinishes?.[clave];
+  if (!inline) return;
+  inline[campo] = valor;
+  syncPrimaryPrintStage();
+  renderProcesses();
+  refreshCalculationValidation();
+  scheduleSave();
+}
+
+// Cambia la velocidad de la máquina desde el modal: escribe en el MISMO lugar que la tarjeta de
+// Impresión (state.form.printStages[0]) y recalcula por el mismo camino, para que nunca haya
+// diferencia entre los dos campos.
+function maquinaModalEditarVelocidad(valor) {
+  const stage = activePrintStages()[0];
+  if (!stage) return;
+  stage.speedMetersMin = printSpeedValue(n(valor, 0));
+  syncPrimaryPrintStage();
+  renderProcesses();
+  refreshCalculationValidation();
+  scheduleSave();
+}
+
+// El modal edita el cálculo real: mismo camino que el handler de la tabla de Tintas
+// (applyMotivoStationField → renderProcesses → validación → guardado).
+function maquinaModalEditarEstacion(motivoIndex, stationIndex, field, value) {
+  const type = state.form?.types?.[motivoIndex];
+  if (!type) return;
+  ensureMotivoStationsList(type);
+  while (type.inkStations.length <= stationIndex) type.inkStations.push(blankMotivoStation());
+  applyMotivoStationField(type, { dataset: { inkIndex: String(stationIndex), inkField: field }, value });
+  syncDerivedHeaderAndPackaging(state.form);
+  renderProcesses();
+  refreshCalculationValidation();
+  scheduleSave();
+}
+
+// Mueve la configuración de una estación una posición a izquierda (-1) o derecha (+1) —
+// reutiliza reorderMotivoStation (misma lógica que el arrastre de la tabla de Tintas).
+function maquinaModalMoverEstacion(motivoIndex, stationIndex, dir) {
+  const type = state.form?.types?.[motivoIndex];
+  if (!type) return;
+  ensureMotivoStationsList(type);
+  const destino = stationIndex + (dir < 0 ? -1 : 1);
+  if (destino < 0 || destino >= type.inkStations.length) return;
+  reorderMotivoStation(type, stationIndex, destino, dir < 0);
+  resyncInlineAcabadoPositions(type);
+  syncDerivedHeaderAndPackaging(state.form);
+  renderProcesses();
+  refreshCalculationValidation();
+  scheduleSave();
+}
+
+// Abre el modal "Detalle de Máquina" desde la barra de Motivos.
+function openMaquinaModal() {
+  if (!window.CalcMaquinaModal) return;
+  const form = state.form || {};
+  const header = form.header || {};
+  const troquel = form.troquel || {};
+  const machineId = form.printStages?.[0]?.machineId || "";
+  Promise.all([
+    ensureTintasStationCatalogs(),
+    machineId ? ensureMachineStationsConfig(machineId) : Promise.resolve()
+  ]).then(() => {
+    window.CalcMaquinaModal.abrir({
+      quoteCode: header.quoteCode || "",
+      lineCode: header.lineCode || "",
+      machineName: form.print?.machineName || form.printStages?.[0]?.machineName || "",
+      conteoEstaciones: motivoStationCount(form),
+      troquel: {
+        codigo: troquel.dieCode || troquel.codigo || "",
+        desarrolloIn: n(troquel.cylinderDevelopmentIn, 0),
+        dientes: n(troquel.teeth, 0)
+      },
+      acabados: {
+        laminado: maquinaModalAcabadoConfig("laminado"),
+        estampado: estampadoPlateActive(form) ? (maquinaModalAcabadoConfig("estampado") || {}) : null
+      },
+      resumen: maquinaModalResumen(),
+      api: {
+        getMotivos: maquinaModalMotivos,
+        getResumen: maquinaModalResumen,
+        editarEstacion: maquinaModalEditarEstacion,
+        editarVelocidad: maquinaModalEditarVelocidad,
+        editarAcabado: maquinaModalEditarAcabado,
+        editarAniloxBcm: (numeroEstacion, bcm) => aplicarAniloxBcmATodosLosMotivos(Number(numeroEstacion) - 1, bcm),
+        moverEstacion: maquinaModalMoverEstacion
+      }
+    });
+  });
+}
+
 function typesInfoTableHtml(breakdown) {
-  const rows = breakdown.rows.map((row, index) => `<tr><td>${esc(row.name || `Motivo ${index + 1}`)}</td><td>${num(row.quantity, 0)}</td><td>${num(row.colors, 0)}</td><td>${num(row.plates, 0)}</td></tr>`).join("");
-  return `<table class="info-popover-table"><thead><tr><th>Motivo</th><th>Cantidad a Producir</th><th>Colores</th><th>Planchas</th></tr></thead><tbody>${rows}</tbody></table>`;
+  const form = state.form || {};
+  const deleteIcon = getMotivoDeleteIconConfig();
+  const productIcon = getMotivoProductIconConfig();
+  const placeholder = "—";
+  // Unidad de layout de la columna de acciones: el ancho de la columna y la
+  // posición del "+" del encabezado se calculan desde el tamaño real del ícono
+  // configurado (Configuración -> Diseño -> Iconos), no de valores fijos. Así el
+  // "+" siempre cae sobre el botón de flechas y los íconos quedan alineados a la
+  // derecha sin importar el tamaño que se les dé.
+  const toggleIconCfg = iconPresentation("motivoViewToggle", "⇄", "#0b81b8", 18);
+  const actionIconUnit = Math.max(16, Math.round(n(toggleIconCfg.size, 18)));
+  // Área de sello por motivo (Fase 18): reutiliza calcularSelloSqIn() — la misma fórmula que ya
+  // usa "Sellos > Costo Externo" (Ancho Máquina × Desarrollo de Troquel = in² por sello) — en
+  // vez de una segunda fórmula. Si falta ancho de máquina o desarrollo de troquel, el área da 0 y
+  // se muestra tal cual (no se inventa un valor).
+  const plateMetrics = calcularSelloSqIn();
+  const plateUnitAreaIn2 = n(plateMetrics.plateUnitAreaIn2, 0);
+  const inkMerma = inkMermaRatio(form);
+  // Consumo de tinta (kg) por motivo — acumulado en el loop para la franja resumen (≥2 motivos).
+  const motivoConsumos = [];
+  const rows = breakdown.rows.map((row, index) => {
+    const isFirst = index === 0;
+    const singleMotif = Math.max(1, n(form.header?.quantityTypes, 1)) === 1;
+    const hasMultipleVersions = Array.isArray(row.versions) && row.versions.length > 1;
+    // Campo de Cantidad de la franja de stats: editable salvo cuando el Motivo 1 es único (lo
+    // controla la cantidad total de la orden) o cuando el motivo tiene varias versiones (es la suma).
+    const quantityControl = singleMotif && isFirst
+      ? `<input type="text" inputmode="numeric" class="calc-motivo-qty-input" value="${esc(formatInteger(currentQuantity(form)))}" disabled aria-label="Cantidad de productos del arte 1" title="La cantidad del primer arte se controla desde la cantidad total de la orden.">`
+      : hasMultipleVersions
+      ? `<input type="text" inputmode="numeric" class="calc-motivo-qty-input" value="${esc(formatInteger(row.quantity))}" disabled aria-label="Cantidad de productos del arte ${index + 1}" title="Con varias versiones, la cantidad del arte es la suma de sus versiones.">`
+      : `<input type="text" inputmode="numeric" class="calc-motivo-qty-input" data-type-index="${index}" data-type-field="quantity" data-quantity-index="0" value="${esc(formatInteger(row.quantity))}" aria-label="Cantidad de productos del arte ${index + 1}">`;
+    const viewMode = state.motivosViewMode[index] || "count";
+    const motivoPlateAreaIn2 = r(plateUnitAreaIn2 * n(row.plates, 0), 4);
+    const motivoPlateCost = plateMetrics.costPerSqIn > 0 ? r(motivoPlateAreaIn2 * plateMetrics.costPerSqIn, 2) : 0;
+    const platesLabel = viewMode === "amount" ? money(motivoPlateCost) : viewMode === "consumption" ? `${num(motivoPlateAreaIn2, 2)} in²` : formatInteger(row.plates);
+    const platesAuditButton = n(row.plates, 0) > 0
+      ? motivoStationAuditButton(`Sellos — ${row.name || `Arte ${index + 1}`}`, motivoPlatesAuditHtml(row, plateMetrics, plateUnitAreaIn2))
+      : "";
+    // Resumen de tintas (Fase 17): sale en vivo de type.inkStations, no se guarda aparte. Cuenta
+    // estaciones con Tipo asignado (aunque no se haya vinculado todavía una tinta puntual del
+    // catálogo) — es el mismo criterio que motivoPlatesFromCounts, para que Proceso/Directo/
+    // Adicional y Sellos siempre cuadren entre sí.
+    const inkStationsForRow = Array.isArray(row.inkStations) ? row.inkStations : [];
+    const areaIn2ForRow = r(n(form.header?.labelWidthIn, 0) * n(form.header?.labelHeightIn, 0), 6);
+    const printedAreaIn2ForRow = form.header?.noPrint ? 0 : r(areaIn2ForRow * Math.max(0, n(row.quantity, 0)), 6);
+    const procesoAgg = motivoTipoAggregate(inkStationsForRow, "proceso", printedAreaIn2ForRow, inkMerma);
+    const directoAgg = motivoTipoAggregate(inkStationsForRow, "directo", printedAreaIn2ForRow, inkMerma);
+    const adicionalAgg = motivoTipoAggregate(inkStationsForRow, "adicional", printedAreaIn2ForRow, inkMerma);
+    const tipoCellValue = (agg) => viewMode === "amount" ? money(agg.subtotal) : viewMode === "consumption" ? `${num(agg.consumption, 4)} kg` : formatInteger(agg.count);
+    motivoConsumos.push(n(procesoAgg.consumption, 0) + n(directoAgg.consumption, 0) + n(adicionalAgg.consumption, 0));
+    const productPickerOpen = Boolean(state.motivoProductPickerOpen[index]);
+    // El botón "Crear Producto" se retiró de aquí (pasa al flujo de seguimiento más adelante);
+    // solo queda el indicador si el motivo ya tiene un producto creado: un ícono configurable
+    // (catálogo de Iconos → "Motivos Producto Creado") al final de los botones de acción, con el
+    // código y SKU del producto en el tooltip.
+    const productoIcon = iconPresentation("motivoCreateProduct", "▣", "#0b81b8", 18);
+    const productButton = row.motivoProductSku
+      ? `<span class="types-info-product-flag" title="Producto ${esc(row.motivoProductCode || "")}${row.motivoProductSku ? " · " + esc(row.motivoProductSku) : ""}" aria-label="Producto ${esc(row.motivoProductCode || "")}" style="--motivo-product-icon-color:${esc(productoIcon.color)};--motivo-product-icon-size:${productoIcon.size}px;">${renderIconMarkup(productoIcon.value, "Producto creado", "types-info-product-flag-icon")}</span>`
+      : "";
+    const toggleIcon = iconPresentation("motivoViewToggle", "⇄", "#0b81b8", 18);
+    const toggleButton = `<button type="button" class="types-info-view-toggle" data-action="toggle-motivo-view" data-type-index="${index}" title="Vista actual: ${motivoViewModeLabel(viewMode)}. Cambiar vista" aria-label="Cambiar vista de Proceso, Directo, Adicionales y Sellos" style="--motivo-toggle-icon-color:${esc(toggleIcon.color)};--motivo-toggle-icon-hover:${esc(toggleIcon.hover)};--motivo-toggle-icon-size:${toggleIcon.size}px;">${renderIconMarkup(toggleIcon.value, "Cambiar vista", "motivo-toggle-icon")}</button>`;
+    // El Motivo 1 no se puede eliminar, pero el botón se mantiene invisible (no ausente) para que
+    // la tira de acciones quede en la misma posición en todos los motivos.
+    const deleteButton = `<button type="button" class="process-trash-button types-info-delete${isFirst ? " types-info-delete-hidden" : ""}" data-action="remove-motivo" data-type-index="${index}" aria-label="Eliminar arte" title="Eliminar arte" style="--process-delete-icon-color:${esc(deleteIcon.primary)};--process-delete-icon-hover:${esc(deleteIcon.hover)};--process-delete-icon-size:${deleteIcon.size}px;" ${isFirst ? "tabindex=\"-1\" aria-hidden=\"true\"" : ""}>${renderIconMarkup(deleteIcon.value, "Eliminar arte", "process-delete-icon")}</button>`;
+    const stat = (label, value, extraClass = "") => `<div class="calc-motivo-stat${extraClass ? " " + extraClass : ""}"><span class="calc-motivo-stat-label">${label}</span><span class="calc-motivo-stat-value">${value}</span></div>`;
+    const statsStrip = `<div class="calc-motivo-stats">`
+      + stat("Cantidad Productos", quantityControl, "calc-motivo-stat-qty")
+      + stat("Proceso", tipoCellValue(procesoAgg))
+      + stat("Directo", tipoCellValue(directoAgg))
+      + stat("Adicionales", tipoCellValue(adicionalAgg))
+      + stat("Sellos", `<span class="motivo-station-subtotal-cell">${platesLabel}${platesAuditButton}</span>`)
+      + stat("Subtotal", money(row.costoTintas))
+      + `</div>`;
+    const versionsPanel = `<div class="calc-motivo-panel calc-motivo-panel-versiones">`
+      + `<div class="calc-motivo-panel-title">Versiones</div>`
+      + typeVersionsRowHtml(index, row, viewMode)
+      + (hasMultipleVersions && productPickerOpen ? typeProductPickerRowHtml(index, row) : "")
+      + `</div>`;
+    const tintasPanel = `<div class="calc-motivo-panel calc-motivo-panel-tintas">`
+      + `<div class="calc-motivo-panel-title">Tintas del Arte</div>`
+      + motivoStationsRowHtml(index)
+      + `</div>`;
+    return `<div class="calc-motivo-block">
+      <div class="calc-motivo-head">
+        <div class="calc-motivo-head-top">
+          <span class="calc-motivo-tab">Arte ${index + 1}</span>
+          <input type="text" class="calc-motivo-detalle" data-type-index="${index}" data-type-field="nombre_motivo" value="${esc(row.nombre_motivo || "")}" maxlength="80" placeholder="Detalle del Arte ${index + 1}" aria-label="Detalle del Arte ${index + 1}">
+          <div class="calc-motivo-head-actions">${toggleButton}${deleteButton}${productButton}</div>
+        </div>
+        ${statsStrip}
+      </div>
+      <div class="calc-motivo-body">
+        ${versionsPanel}
+        ${tintasPanel}
+      </div>
+    </div>`;
+  }).join("");
+  const totalQuantity = breakdown.rows.reduce((sum, row) => sum + n(row.quantity, 0), 0);
+  const addIcon = iconPresentation("quantityAdd", "+", "#738196", 22);
+  const addMotivoButton = `<button type="button" class="types-info-add-motivo" data-action="add-motivo" aria-label="Agregar arte" title="Agregar arte" style="--quantity-add-icon-color:${esc(addIcon.color)};--quantity-add-icon-hover:${esc(addIcon.hover)};--quantity-add-icon-size:${addIcon.size}px;">${renderIconMarkup(addIcon.value, "Agregar arte", "quantity-add-icon")}</button>`;
+  const maquinaIcon = iconPresentation("calcMaquinaDetalle", "▤", "#5b7896", 20);
+  const maquinaButton = `<button type="button" class="calc-motivos-maquina-btn" data-action="open-maquina-modal" aria-label="Detalle de Máquina" title="Detalle de Máquina" style="--maquina-detalle-icon-color:${esc(maquinaIcon.color)};--maquina-detalle-icon-hover:${esc(maquinaIcon.hover)};--maquina-detalle-icon-size:${maquinaIcon.size}px;">${renderIconMarkup(maquinaIcon.value, "Detalle de Máquina", "maquina-detalle-icon")}</button>`;
+  const toolbar = `<div class="calc-motivos-toolbar"><span class="calc-motivos-toolbar-title">Artes</span><div class="calc-motivos-toolbar-actions">${maquinaButton}${addMotivoButton}</div></div>`;
+  // Franja resumen: solo con 2+ motivos (con uno solo duplicaría su encabezado).
+  let summary = "";
+  if (breakdown.rows.length >= 2) {
+    const totVersiones = breakdown.rows.reduce((s, row) => s + (Array.isArray(row.versions) && row.versions.length ? row.versions.length : 1), 0);
+    const totSellos = breakdown.rows.reduce((s, row) => s + n(row.plates, 0), 0);
+    const totConsumo = motivoConsumos.reduce((s, v) => s + n(v, 0), 0);
+    summary = `<div class="calc-motivo-summary">`
+      + `<div class="calc-motivo-stat"><span class="calc-motivo-stat-label">Artes</span><span class="calc-motivo-stat-value">${formatInteger(breakdown.rows.length)}</span></div>`
+      + `<div class="calc-motivo-stat"><span class="calc-motivo-stat-label">Versiones</span><span class="calc-motivo-stat-value">${formatInteger(totVersiones)}</span></div>`
+      + `<div class="calc-motivo-stat"><span class="calc-motivo-stat-label">Cantidad Total</span><span class="calc-motivo-stat-value">${formatInteger(totalQuantity)}</span></div>`
+      + `<div class="calc-motivo-stat"><span class="calc-motivo-stat-label">Sellos Totales</span><span class="calc-motivo-stat-value">${formatInteger(totSellos)}</span></div>`
+      + `<div class="calc-motivo-stat calc-motivo-stat-emphasis"><span class="calc-motivo-stat-label">Consumo Total de Tintas</span><span class="calc-motivo-stat-value">${num(totConsumo, 2)} kg</span></div>`
+      + `</div>`;
+  }
+  const currentTotal = currentQuantity(form);
+  const mismatch = Math.abs(totalQuantity - currentTotal) > 0.5;
+  const warnings = mismatch
+    ? `<div class="types-info-warnings"><span class="types-info-warning">La suma de la cantidad de productos entre los artes ${totalQuantity > currentTotal ? "excede" : "no alcanza"} la cantidad total de productos.</span></div>`
+    : "";
+  return `<div class="calc-motivos-shell" style="--motivo-act-unit:${actionIconUnit}px;">${toolbar}${rows}${summary}${warnings}</div>`;
 }
 
 function refreshTypesInfoModal(breakdown) {
-  if (!els.typesInfoTrigger) return;
-  els.typesInfoTrigger.dataset.infoBodyHtml = typesInfoTableHtml(breakdown);
+  const html = typesInfoTableHtml(breakdown);
+  if (els.typesInfoTrigger) els.typesInfoTrigger.dataset.infoBodyHtml = html;
+  if (els.typesDetailList) els.typesDetailList.innerHTML = html;
 }
 
 function changesInfoRowsHtml(rows) {
@@ -6272,21 +9161,55 @@ function changesInfoRowsHtml(rows) {
   return `<table class="info-popover-table"><tbody>${body}</tbody></table>`;
 }
 
+// Transparencia del motor de cambios (Fase 13): fórmula, variables y valor real usados en cada
+// transición de la secuencia Motivo→Versión, para poder auditar de dónde sale cada monto.
+function transitionLabel(entry) {
+  const version = entry.versionIndex > 0 ? `.V${entry.versionIndex + 1}` : "";
+  return `M${entry.motivoIndex + 1}${version}`;
+}
+
+function transitionsInfoHtml(transitions = []) {
+  if (!transitions.length) {
+    return "<p class='types-ink-empty'>Sin cambios en la secuencia (un solo arte, una sola versión).</p>";
+  }
+  return transitions.map((t, i) => {
+    const tipoLabel = t.tipo === "version" ? "Cambio de Versión (mismo arte)" : "Cambio de Arte";
+    const tintaLabel = t.tipo === "version"
+      ? "No aplica — misma configuración de tinta por definición"
+      : (t.tintaCambia
+        ? (t.tintaRazon === "pantone-sin-vincular" ? "Sí (Pantone sin vincular al catálogo — se asume cambio)" : "Sí (tintas distintas entre artes)")
+        : "No (mismas tintas activas)");
+    const f = t.formula;
+    const hours = f.timeMinutes / 60;
+    return `<div class='formula-issues'>
+      <strong>${i + 1}. ${esc(tipoLabel)}: ${esc(transitionLabel(t.desde))} → ${esc(transitionLabel(t.hasta))}</strong><br>
+      Cambio de tinta: ${esc(tintaLabel)}<br>
+      Tiempo = ${num(f.timeMinutes, 2)} min = ${num(hours, 4)} h<br>
+      Máquina = ${num(hours, 4)} h × ${money(f.machineHourCost)}/h = ${money(f.machineCost)}<br>
+      Operador = ${num(hours, 4)} h × ${money(f.laborHourCost)}/h × ${num(f.operators, 0)} = ${money(f.laborCost)}<br>
+      Merma = ${money(f.wasteCost)}<br>
+      Preparación adicional = ${money(f.additionalPrepCost)}<br>
+      <em>Total transición = ${money(f.total)}</em>
+    </div>`;
+  }).join("");
+}
+
 function refreshChangesInfoModals(breakdown) {
+  const transitionsHtml = transitionsInfoHtml(breakdown.transitions || []);
   if (els.changesByTypesInfoTrigger) {
     els.changesByTypesInfoTrigger.dataset.infoBodyHtml = changesInfoRowsHtml([
-      ["Tipos o Motivos", num(breakdown.typeCount, 0)],
+      ["Tipos o Artes", num(breakdown.typeCount, 0)],
       ["Cambios por Tipos", num(changesByTypesCount(state.form.header.quantityTypes), 0)],
       ["Costo por Cambio", money(breakdown.costPerChange)],
       ["Costo de Cambios por Tipos", money(breakdown.byTypesCost)]
-    ]);
+    ]) + transitionsHtml;
   }
   if (els.changesAdditionalInfoTrigger) {
     els.changesAdditionalInfoTrigger.dataset.infoBodyHtml = changesInfoRowsHtml([
-      ["Cambios Adicionales", num(Math.max(0, n(state.form.header.quantityChanges, 0)), 0)],
+      ["Cambios", num(changesByTypesCount(state.form.header.quantityTypes), 0)],
       ["Costo por Cambio", money(breakdown.costPerChange)],
-      ["Costo de Cambios Adicionales", money(breakdown.additionalCost)]
-    ]);
+      ["Costo de Cambios", money(breakdown.totalChangesCost)]
+    ]) + transitionsHtml;
   }
 }
 
@@ -6297,7 +9220,7 @@ function typeQuantityRepeaterHtml(index, quantities = []) {
     const canAdd = isLast && slots.length < 6;
     const canRemove = isLast && slots.length > 1;
     return `<span class="types-qty-slot">
-      <input type="number" min="0" step="1" data-type-index="${index}" data-type-field="quantity" data-quantity-index="${qIndex}" value="${n(slot.value, 0)}" aria-label="Cantidad ${qIndex + 1} del motivo">
+      <input type="number" min="0" step="1" data-type-index="${index}" data-type-field="quantity" data-quantity-index="${qIndex}" value="${n(slot.value, 0)}" aria-label="Cantidad ${qIndex + 1} del arte">
       ${canAdd ? `<button type="button" class="types-qty-add" data-action="add-type-quantity" data-type-index="${index}" data-quantity-index="${qIndex}" aria-label="Agregar cantidad">+</button>` : ""}
       ${canRemove ? `<button type="button" class="types-qty-remove" data-action="remove-type-quantity" data-type-index="${index}" data-quantity-index="${qIndex}" aria-label="Quitar cantidad">×</button>` : ""}
     </span>`;
@@ -6305,93 +9228,710 @@ function typeQuantityRepeaterHtml(index, quantities = []) {
   return `<label class="types-qty-field"><span>Cantidad a Producir</span><div class="types-qty-row">${rows}</div></label>`;
 }
 
-function typeInkTableHtml(index, stations = [], stationRows = []) {
-  const rows = stations.map((station, sIndex) => {
-    const detail = stationRows[sIndex] || null;
-    const consumptionStr = detail ? num(detail.consumptionLb, 4) : "—";
-    const subtotalStr = detail ? money(detail.subtotal) : "—";
-    return `<div class="types-ink-row">
-      <span class="station-num">${sIndex + 1}</span>
-      <input type="text" data-type-index="${index}" data-type-field="inkStations" data-ink-index="${sIndex}" data-ink-field="inkLabel" value="${esc(station.inkLabel || "")}" placeholder="Tinta o color" aria-label="Tinta o color">
-      <input type="number" min="0" step="0.01" data-type-index="${index}" data-type-field="inkStations" data-ink-index="${sIndex}" data-ink-field="coveragePct" value="${n(station.coveragePct, 0)}" aria-label="Cobertura %">
-      <input type="number" min="0" step="0.0001" data-type-index="${index}" data-type-field="inkStations" data-ink-index="${sIndex}" data-ink-field="aniloxBcm" value="${n(station.aniloxBcm, 0)}" aria-label="Anilox BCM">
-      <input type="number" min="0" step="0.0001" data-type-index="${index}" data-type-field="inkStations" data-ink-index="${sIndex}" data-ink-field="transferFactor" value="${n(station.transferFactor, 0)}" aria-label="Factor de transferencia">
-      <input type="number" min="0" step="0.0001" data-type-index="${index}" data-type-field="inkStations" data-ink-index="${sIndex}" data-ink-field="inkDensity" value="${n(station.inkDensity, 0)}" aria-label="Densidad">
-      <span class="station-consumption">${esc(consumptionStr)}</span>
-      <span class="station-subtotal">${esc(subtotalStr)}</span>
-      <button type="button" class="types-qty-remove" data-action="remove-type-ink" data-type-index="${index}" data-ink-index="${sIndex}" aria-label="Eliminar tinta">×</button>
-    </div>`;
-  }).join("");
-  return `<div class="process-zone types-ink-zone">
-    <div class="process-zone-head"><h4>Tintas del Motivo</h4><button type="button" class="inline-button" data-action="add-type-ink" data-type-index="${index}">Agregar tinta</button></div>
-    <div class="ink-stations-table">
-      <div class="types-ink-row types-ink-head"><span>#</span><span>Tinta</span><span>Cobertura</span><span>Anilox BCM</span><span>Factor T.</span><span>Densidad</span><span>Consumo (lb)</span><span>Subtotal</span><span></span></div>
-      ${rows || '<p class="types-ink-empty">Sin tintas configuradas para este motivo.</p>'}
-    </div>
+// Estaciones de tinta de un Motivo (Fase 15-17): el número de estaciones es el de la máquina de
+// Impresión seleccionada (Impresión > Máquina > especificaciones.num_estaciones, ya calculado como
+// availableColors por applyPrintMachineDefaults/applyPrintStageMachineDefaults — se reutiliza ese
+// valor, no se recalcula aparte). La selección de Motivos ocurre antes de elegir máquina, así que
+// el tamaño de la tabla se ajusta dinámicamente en cuanto la máquina se define/cambia, sin perder
+// datos ya cargados en estaciones que queden por encima del nuevo total.
+// Cada estación se asigna a un Tipo (Proceso/Directo/Adicional/Barniz) que determina de qué catálogo
+// sale la Tinta — Proceso y Adicional vienen de tintas.productos (TINTA_UV / BLANCO), Directo viene
+// de tintas.pantones_recetas (fórmulas), Barniz viene de Costos > Acabados > Barniz (ya trae su
+// propio BCM/Cobertura/Factor Transferencia/Densidad/Costo por fila — no genéricos). Aplica igual a
+// todos los motivos, incluido el 1 — cada motivo guarda su propia lista en type.inkStations. El
+// motivo 1 además tiene, sin relación con este modal, form.printStages[0].inkStations (sincronizado
+// desde CMYK/Blanca/Pantones del encabezado vía syncMotivoOneFromHeader/
+// regeneratePrintStageInkStations, para el cálculo de Impresión) — no se toca ni se lee aquí a
+// propósito, para no perder esa configuración al regenerarse.
+const MOTIVO_STATION_COUNT_FALLBACK = 9;
+const MOTIVO_STATION_TIPOS = [
+  { value: "proceso", label: "Proceso" },
+  { value: "directo", label: "Directo" },
+  { value: "adicional", label: "Adicional" },
+  { value: "barniz", label: "Barniz" },
+  { value: "laminado", label: "Laminado" },
+  { value: "estampado", label: "Estampado" },
+  { value: "troquelado", label: "Troquelado" }
+];
+// Tipos de estación que representan un acabado en línea: la estación ES el acabado
+// (form.printStages[0].inlineFinishes[<tipo>]) y solo le añade dónde va montado. No
+// llevan parámetros de tinta ni suman plancha de impresión. El troquelado también se
+// coloca y mueve como estación, pero su costo (por golpe / lineal) NO depende de la torre
+// y su activación la sigue mandando el proceso de Troquelado, no la estación.
+const MOTIVO_STATION_ACABADO_TIPOS = ["barniz", "laminado", "estampado", "troquelado"];
+function esTipoAcabado(tipo) { return MOTIVO_STATION_ACABADO_TIPOS.indexOf(String(tipo || "")) !== -1; }
+// Acabados en línea que se manejan por inlineFinishes (barniz tiene además su conteo propio de
+// planchas por instancia, así que se trata aparte donde corresponde).
+const MOTIVO_STATION_INLINE_ACABADOS = ["laminado", "estampado"];
+
+function tipoLabelFor(tipo) {
+  return MOTIVO_STATION_TIPOS.find((t) => t.value === tipo)?.label || "Tinta";
+}
+
+function motivoStationCount(form = state.form) {
+  // form can legitimately be null here: buildTypesList() runs while buildForm() is still
+  // constructing the very form this will become, so on a brand-new quote's first-ever
+  // load (no saved types yet) state.form is still its pre-load null default.
+  const fromStage = n(form?.printStages?.[0]?.availableColors, 0);
+  const fromPrint = n(form?.print?.availableColors, 0);
+  return fromStage > 0 ? fromStage : (fromPrint > 0 ? fromPrint : MOTIVO_STATION_COUNT_FALLBACK);
+}
+
+async function ensureTintasStationCatalogs() {
+  if (state.catalogs.tintasCatalogsLoaded) return;
+  state.catalogs.tintasCatalogsLoaded = true;
+  try {
+    const [proceso, adicional, recetas] = await Promise.all([
+      getJson("/api/tintas/productos?tipo=TINTA_UV"),
+      getJson("/api/tintas/productos?tipo=BLANCO"),
+      getJson("/api/tintas/pantones/recetas?estado=VIGENTE")
+    ]);
+    state.catalogs.tintasProceso = Array.isArray(proceso) ? proceso : [];
+    state.catalogs.tintasAdicional = Array.isArray(adicional) ? adicional : [];
+    state.catalogs.tintasRecetas = Array.isArray(recetas) ? recetas : [];
+  } catch (error) {
+    state.catalogs.tintasProceso = state.catalogs.tintasProceso || [];
+    state.catalogs.tintasAdicional = state.catalogs.tintasAdicional || [];
+    state.catalogs.tintasRecetas = state.catalogs.tintasRecetas || [];
+    showCenterMessage("No fue posible cargar el catálogo de tintas.");
+  }
+}
+
+// Estaciones (Fase 17): carga mínima por máquina+número de estación, configurada en Inventario >
+// Máquinas > [máquina] > Estaciones (tabla maquina_estacion_config). Se cachea por machineId.
+async function ensureMachineStationsConfig(machineId) {
+  if (!machineId) return {};
+  if (state.catalogs.machineStationsByMachine?.[machineId]) return state.catalogs.machineStationsByMachine[machineId];
+  state.catalogs.machineStationsByMachine = state.catalogs.machineStationsByMachine || {};
+  try {
+    const data = await getJson(`/api/maquinas/${encodeURIComponent(machineId)}/estaciones`);
+    const map = {};
+    (data.estaciones || []).forEach((row) => { map[Number(row.numero_estacion)] = n(row.carga_minima_ml, 0); });
+    state.catalogs.machineStationsByMachine[machineId] = map;
+    return map;
+  } catch (error) {
+    return {};
+  }
+}
+
+function tintaCatalogForTipo(tipo) {
+  if (tipo === "proceso") return state.catalogs.tintasProceso || [];
+  if (tipo === "adicional") return state.catalogs.tintasAdicional || [];
+  if (tipo === "directo") return state.catalogs.tintasRecetas || [];
+  if (tipo === "barniz") return (state.costsConfig?.acabados?.barniz || []).map((row) => ({ ...row, nombre: row.nombre || "Barniz" }));
+  if (tipo === "laminado") return (state.costsConfig?.acabados?.laminado || []).map((row) => ({ ...row, id: row.id || row.nombre, nombre: row.nombre || "Laminado" }));
+  if (tipo === "estampado") return (state.costsConfig?.acabados?.estampado || []).map((row) => ({ ...row, id: row.id || row.tipoFoil, nombre: row.tipoFoil || row.nombre || "Estampado" }));
+  return [];
+}
+
+function findTintaCatalogEntry(tipo, id) {
+  if (!id) return null;
+  return tintaCatalogForTipo(tipo).find((item) => String(item.id) === String(id)) || null;
+}
+
+function findTintaCatalogEntryByColor(tipo, colorLabel) {
+  if (!colorLabel) return null;
+  return tintaCatalogForTipo(tipo).find((item) => norm(item.color) === norm(colorLabel)) || null;
+}
+
+// Punto de color de la tinta de una estación (panel de Tintas del Motivo). El color nace del
+// inventario: las tintas de proceso/adicional (tintas.productos) traen "color" como nombre y las
+// recetas Pantone (tintas.pantones_recetas) traen "color_hex"; los nombres CMYK/Blanco se mapean a
+// hex. Sin dato de color no se pinta punto (se deja el marcador vacío punteado).
+const MOTIVO_TINTA_COLOR_HEX = {
+  cian: "#00AEEF", cyan: "#00AEEF",
+  magenta: "#EC008C",
+  amarillo: "#FFD400", yellow: "#FFD400",
+  negro: "#1A1A1A", black: "#1A1A1A",
+  blanco: "#FFFFFF", white: "#FFFFFF"
+};
+function resolveMotivoTintaHex(raw) {
+  const v = String(raw == null ? "" : raw).trim();
+  if (!v) return "";
+  if (/^#?[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?$/.test(v)) return v.charAt(0) === "#" ? v : "#" + v;
+  return MOTIVO_TINTA_COLOR_HEX[v.toLowerCase()] || "";
+}
+function motivoStationTintaHex(station) {
+  if (!station || !station.tipo || station.tipo === "barniz") return "";
+  const entry = findTintaCatalogEntry(station.tipo, station.tintaRefId);
+  const candidates = entry ? [entry.color_hex, entry.colorHex, entry.color, entry.nombre] : [];
+  candidates.push(station.inkLabel);
+  for (const candidate of candidates) {
+    const hex = resolveMotivoTintaHex(candidate);
+    if (hex) return hex;
+  }
+  return "";
+}
+
+// Garantiza el número de estaciones de la máquina activa en type.inkStations, preservando datos
+// existentes (nunca trunca) y completando los campos nuevos en estaciones creadas antes de esta fase.
+function blankMotivoStation(id) {
+  return {
+    id: id || `station-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    tipo: "",
+    tintaRefId: "",
+    inkLabel: "",
+    coveragePct: 0,
+    aniloxBcm: 0,
+    transferFactor: 0,
+    inkDensity: 0,
+    inkCostPerKg: 0,
+    active: true
+  };
+}
+
+function ensureMotivoStationsList(type, form = state.form) {
+  if (!type) return [];
+  if (!Array.isArray(type.inkStations)) type.inkStations = [];
+  const target = Math.max(motivoStationCount(form), type.inkStations.length);
+  while (type.inkStations.length < target) {
+    type.inkStations.push(blankMotivoStation(`station-${Date.now()}-${type.inkStations.length}`));
+  }
+  type.inkStations.forEach((station) => {
+    if (station.tipo === undefined) station.tipo = "";
+    if (station.tintaRefId === undefined) station.tintaRefId = "";
+  });
+  return type.inkStations;
+}
+
+// Valores genéricos por Tipo de estación, tomados de Costos > Convencional > Tintas y Depósito:
+// Proceso/Directo usan BCM Genérico + Cobertura Tinta + Densidad UV + su costo por kg (CMYK o
+// Directo). Adicional y Barniz usan la fila correspondiente ("Fondos Sólidos / Blancos" / "Barniz
+// UV") del Perfil de Aplicación de Tinta (BCM/Cobertura/GSM propios). Factor Transferencia es el
+// mismo genérico para los cuatro. Barniz no tiene costo/kg genérico (Convencional no lo define) —
+// queda en 0 hasta elegir un barniz puntual de Costos > Acabados > Barniz. Se aplican tanto al
+// automatizar CMYK/Blanca desde el encabezado como al elegir Tipo/Tinta manualmente en el modal —
+// un solo lugar para no divergir.
+function motivoStationGenericDefaults(tipo) {
+  const ink = state.costsConfig?.convencional?.tintaGeneral || {};
+  const transferFactor = n(ink.factorTransferencia, 0.3);
+  if (tipo === "adicional") {
+    const row = (ink.depositos || []).find((d) => norm(d?.tipo).includes("blanco")) || null;
+    return { coveragePct: n(row?.coveragePct, 100), aniloxBcm: n(row?.bcm, 7), transferFactor, inkDensity: n(row?.gsm, 2.5), inkCostPerKg: n(ink.costoKgBlanco, 0) };
+  }
+  if (tipo === "directo") {
+    return { coveragePct: n(ink.coberturaTintaPct, 0), aniloxBcm: n(ink.bcmGenerico, 0), transferFactor, inkDensity: n(ink.densidadUv, 0), inkCostPerKg: n(ink.costoKgPantone, 0) };
+  }
+  if (tipo === "proceso") {
+    return { coveragePct: n(ink.coberturaTintaPct, 0), aniloxBcm: n(ink.bcmGenerico, 0), transferFactor, inkDensity: n(ink.densidadUv, 0), inkCostPerKg: n(ink.costoKgCmyk, 0) };
+  }
+  if (tipo === "barniz") {
+    const row = (ink.depositos || []).find((d) => norm(d?.tipo).includes("barniz")) || null;
+    return { coveragePct: n(row?.coveragePct, 100), aniloxBcm: n(row?.bcm, 7), transferFactor, inkDensity: n(row?.gsm, 3), inkCostPerKg: 0 };
+  }
+  return null;
+}
+
+// Automatización (Fase 16): al marcar CMYK en el encabezado, se reflejan en paralelo las
+// estaciones 1-4 de cada Motivo (type.inkStations) en orden Amarillo/Magenta/Cian/Negro, cada una
+// referenciando (tintaRefId) la tinta de proceso correspondiente en el inventario (tintas.productos,
+// tipo TINTA_UV, campo color) para traer su costo real — si el inventario aún no cargó o no tiene
+// esa tinta, cae a los valores genéricos de arriba. Es solo un punto de partida: el cotizador puede
+// cambiar tinta, orden o cualquier estación libremente. El Barniz automático (ver
+// applyMotivoAutoBarnizStation) usa la primera estación libre, normalmente la 5.
+function autoMotivoInkStation(id, inkLabel, tipo, entry = null) {
+  const defaults = motivoStationGenericDefaults(tipo) || {};
+  // El Barniz de Costos › Acabados › Barniz trae su ficha técnica propia (costoPorKilo, bcmAnilox,
+  // porcentajeCobertura, factorTransferencia, densidad) — se usa tal cual, igual que en la
+  // selección manual (applyMotivoStationField). El resto de tipos toma el costo/kg de catálogo de
+  // inventario (costo_promedio) o el genérico.
+  const esBarniz = tipo === "barniz";
+  return {
+    id,
+    tipo,
+    tintaRefId: entry?.id !== undefined && entry?.id !== null ? String(entry.id) : "",
+    inkLabel: entry?.nombre || inkLabel,
+    coveragePct: esBarniz && entry ? n(entry.porcentajeCobertura, defaults.coveragePct) : n(defaults.coveragePct, 0),
+    aniloxBcm: esBarniz && entry ? n(entry.bcmAnilox, defaults.aniloxBcm) : n(defaults.aniloxBcm, 0),
+    transferFactor: esBarniz && entry ? n(entry.factorTransferencia, defaults.transferFactor ?? 0.3) : n(defaults.transferFactor, 0.3),
+    inkDensity: esBarniz && entry ? n(entry.densidad, defaults.inkDensity) : n(defaults.inkDensity, 0),
+    inkCostPerKg: esBarniz
+      ? (entry ? n(entry.costoPorKilo, defaults.inkCostPerKg) : n(defaults.inkCostPerKg, 0))
+      : (entry?.costo_promedio !== undefined ? n(entry.costo_promedio, defaults.inkCostPerKg) : n(defaults.inkCostPerKg, 0)),
+    active: true
+  };
+}
+
+// El Barniz de máquina (form.printStages[0].inlineFinishes.barniz.active) es un dato externo a los
+// motivos, igual que CMYK — se refleja en la primera estación libre del motivo, marcada con
+// autoBarniz para poder identificarla y limpiarla si se desmarca el barniz de máquina. Si el usuario
+// ya armó manualmente un Barniz en otra estación, esa queda intacta (no es la marcada como auto).
+function applyMotivoAutoBarnizStation(type, form = state.form) {
+  const stations = type.inkStations;
+  if (!Array.isArray(stations)) return;
+  const barniz = form?.printStages?.[0]?.inlineFinishes?.barniz || {};
+  const barnizActive = Boolean(barniz.active);
+  let autoIdx = stations.findIndex((s) => s.autoBarniz);
+  if (barnizActive) {
+    if (autoIdx === -1) {
+      // Si ya hay una estación de Barniz puesta a mano (sin la marca autoBarniz), esa cubre el
+      // Barniz de máquina — no se agrega otra automática (evita un segundo cobro de barniz).
+      if (stations.some((s) => s.tipo === "barniz")) return;
+      autoIdx = stations.findIndex((s) => !s.tipo);
+    }
+    if (autoIdx === -1) return;
+    const barnizEntry = (state.costsConfig?.acabados?.barniz || []).find((b) => String(b.id || b.nombre) === String(barniz.materialId)) || null;
+    stations[autoIdx] = { ...autoMotivoInkStation(stations[autoIdx]?.id, "Barniz", "barniz", barnizEntry), autoBarniz: true };
+  } else if (autoIdx !== -1) {
+    stations[autoIdx] = blankMotivoStation(stations[autoIdx]?.id);
+  }
+}
+
+function applyAutoInkStationsToType(type, form = state.form) {
+  if (!type) return;
+  const stations = ensureMotivoStationsList(type, form);
+  const header = form?.header || {};
+  ["Amarillo", "Magenta", "Cian", "Negro"].forEach((label, i) => {
+    stations[i] = header.useCmyk
+      ? autoMotivoInkStation(stations[i]?.id, label, "proceso", findTintaCatalogEntryByColor("proceso", label))
+      : blankMotivoStation(stations[i]?.id);
+  });
+  applyMotivoAutoBarnizStation(type, form);
+  normalizeBarnizPosition(type);
+}
+
+function applyMotivoAutoInkStations(form = state.form, index = 0) {
+  applyAutoInkStationsToType(form.types?.[index], form);
+}
+
+// Aplica la automatización de CMYK/Barniz a todos los motivos existentes — el modal de
+// motivos es un reflejo de los datos externos de la cotización, no solo del primero.
+function applyAllMotivosAutoInkStations(form = state.form) {
+  (form.types || []).forEach((type) => applyAutoInkStationsToType(type, form));
+}
+
+// Devuelve (creando si hace falta) el objeto inlineFinishes de un acabado en línea (laminado /
+// estampado). Es la MISMA entidad que edita el panel de Impresión — una sola fuente de verdad.
+function ensureInlineAcabado(tipo) {
+  const stage = state.form?.printStages?.[0];
+  if (!stage || MOTIVO_STATION_INLINE_ACABADOS.indexOf(tipo) === -1) return null;
+  if (!stage.inlineFinishes) stage.inlineFinishes = {};
+  if (!stage.inlineFinishes[tipo]) stage.inlineFinishes[tipo] = {};
+  return stage.inlineFinishes[tipo];
+}
+
+// Elegir Tipo=Laminado/Estampado en una estación activa el acabado y le fija la posición;
+// quitarlo lo desactiva si ninguna otra estación del motivo lo sigue usando.
+function syncInlineAcabadoDesdeEstacion(type, inkIndex, tipoAnterior, tipoNuevo) {
+  if (tipoAnterior === tipoNuevo) return;
+  if (MOTIVO_STATION_INLINE_ACABADOS.indexOf(tipoNuevo) !== -1) {
+    const inline = ensureInlineAcabado(tipoNuevo);
+    if (inline) { inline.active = true; inline.stationIndex = inkIndex; }
+  }
+  if (MOTIVO_STATION_INLINE_ACABADOS.indexOf(tipoAnterior) !== -1) {
+    const sigueUsado = (type.inkStations || []).some((s, i) => i !== inkIndex && s.tipo === tipoAnterior);
+    if (!sigueUsado) {
+      const inline = ensureInlineAcabado(tipoAnterior);
+      if (inline) { inline.active = false; inline.stationIndex = null; }
+    }
+  }
+  // Troquelado: solo se guarda / limpia la posición (torre). El "active" del troquelado lo
+  // manda el proceso de Troquelado, no la estación — colocarlo o quitarlo de una torre no
+  // enciende ni apaga el corte.
+  const troquelInline = state.form?.printStages?.[0]?.inlineFinishes?.troquelado;
+  if (troquelInline) {
+    if (tipoNuevo === "troquelado") {
+      troquelInline.stationIndex = inkIndex;
+    } else if (tipoAnterior === "troquelado") {
+      const sigueUsado = (type.inkStations || []).some((s, i) => i !== inkIndex && s.tipo === "troquelado");
+      if (!sigueUsado) troquelInline.stationIndex = null;
+    }
+  }
+}
+
+// Tras mover/borrar estaciones, recalcula stationIndex de cada acabado en línea según dónde
+// quedó su estación en type.inkStations.
+function resyncInlineAcabadoPositions(type) {
+  if (!type) return;
+  MOTIVO_STATION_INLINE_ACABADOS.forEach((tipo) => {
+    const inline = ensureInlineAcabado(tipo);
+    if (!inline) return;
+    const idx = (type.inkStations || []).findIndex((s) => s.tipo === tipo);
+    if (idx !== -1) { inline.active = true; inline.stationIndex = idx; }
+  });
+  // Troquelado: solo la posición (no toca active).
+  const troquelInline = state.form?.printStages?.[0]?.inlineFinishes?.troquelado;
+  if (troquelInline) {
+    const idx = (type.inkStations || []).findIndex((s) => s.tipo === "troquelado");
+    troquelInline.stationIndex = idx !== -1 ? idx : troquelInline.stationIndex;
+  }
+}
+
+// Nº de Estación (torre) donde va montado un acabado en línea (barniz/laminado/estampado), en
+// base 1 para mostrarlo. Fuente de verdad: la posición real de la estación en el Motivo 1
+// (type.inkStations); si aún no existe la estación, cae al stationIndex guardado en el propio
+// acabado. Devuelve "" si no está en ninguna torre.
+function acabadoEstacionNumeroActual(inlineKey) {
+  const stations = state.form?.types?.[0]?.inkStations;
+  if (Array.isArray(stations)) {
+    const idx = stations.findIndex((s) => s && s.tipo === inlineKey);
+    if (idx !== -1) return idx + 1;
+  }
+  const si = n(state.form?.printStages?.[0]?.inlineFinishes?.[inlineKey]?.stationIndex, -1);
+  return si >= 0 ? si + 1 : "";
+}
+
+// Lleva la estación de un acabado (tipo) de un motivo a la torre nuevoIndex (base 0). Si esa
+// torre ya tiene otra estación, se intercambian (la desplazada ocupa la torre que dejó el
+// acabado), igual que un arrastre. Si el motivo aún no tiene la estación del acabado, se crea
+// en esa torre reutilizando applyMotivoStationField (activa el inlineFinishes correspondiente).
+function moverAcabadoAEstacion(type, tipo, nuevoIndex) {
+  if (!type || !(nuevoIndex >= 0)) return;
+  ensureMotivoStationsList(type);
+  const stations = type.inkStations;
+  while (stations.length <= nuevoIndex) stations.push(blankMotivoStation());
+  const actualIdx = stations.findIndex((s) => s && s.tipo === tipo);
+  if (actualIdx === nuevoIndex) return;
+  if (actualIdx === -1) {
+    applyMotivoStationField(type, { dataset: { inkIndex: String(nuevoIndex), inkField: "tipo" }, value: tipo });
+    return;
+  }
+  const desplazada = stations[nuevoIndex];
+  stations[nuevoIndex] = stations[actualIdx];
+  stations[actualIdx] = desplazada && desplazada.tipo ? desplazada : blankMotivoStation(stations[actualIdx]?.id);
+}
+
+// Handler del campo "Nº de Estación" del panel de un acabado en línea: mueve la estación del
+// acabado a esa torre en TODOS los motivos (el acabado es compartido) y sincroniza el
+// stationIndex del inlineFinishes en ambos sentidos con el modal de máquina / tabla de tintas.
+function aplicarAcabadoEstacionNumero(stageIndex, inlineKey, valor) {
+  const inline = state.form?.printStages?.[stageIndex]?.inlineFinishes?.[inlineKey];
+  if (!inline) return;
+  const torres = Math.max(9, motivoStationCount(state.form));
+  let idx = Math.round(n(valor, 0)) - 1;
+  if (!(idx >= 0)) { inline.estacionNumero = ""; return; }
+  if (idx > torres - 1) idx = torres - 1;
+  (state.form.types || []).forEach((type) => moverAcabadoAEstacion(type, inlineKey, idx));
+  (state.form.types || []).forEach((type) => resyncInlineAcabadoPositions(type));
+  inline.stationIndex = idx;
+  inline.estacionNumero = idx + 1;
+  syncDerivedHeaderAndPackaging(state.form);
+}
+
+// Nº de Estación del 2º / 3º barniz: son barnices adicionales que viven solo en su panel, no
+// como estación propia en el modal de máquina, así que aquí solo se guarda el número elegido
+// (el desplegable ya impidió elegir una torre ocupada).
+function aplicarBarnizExtraEstacion(stageIndex, panelKey, valor) {
+  const inline = state.form?.printStages?.[stageIndex]?.inlineFinishes?.[panelKey];
+  if (!inline) return;
+  const num = Math.round(n(valor, 0));
+  if (!(num >= 1)) { inline.estacionNumero = ""; inline.stationIndex = null; return; }
+  inline.estacionNumero = num;
+  inline.stationIndex = num - 1;
+}
+
+// Al elegir Tipo o Tinta manualmente en el modal de estaciones, se completan Cobertura/BCM/Factor
+// Transferencia/Densidad con los mismos genéricos de motivoStationGenericDefaults — así el
+// cotizador no tiene que llenarlos a mano, igual que pediste para la automatización de CMYK/Blanca.
+function applyMotivoStationField(type, element) {
+  const inkIndex = Number(element.dataset.inkIndex);
+  const inkField = element.dataset.inkField;
+  ensureMotivoStationsList(type);
+  const station = type.inkStations[inkIndex];
+  if (!station || !inkField) return;
+  if (inkField === "tipo") {
+    const tipoAnterior = station.tipo || "";
+    station.tipo = element.value || "";
+    station.tintaRefId = "";
+    station.inkLabel = "";
+    const defaults = motivoStationGenericDefaults(station.tipo);
+    station.coveragePct = n(defaults?.coveragePct, 0);
+    station.aniloxBcm = n(defaults?.aniloxBcm, 0);
+    station.transferFactor = n(defaults?.transferFactor, 0);
+    station.inkDensity = n(defaults?.inkDensity, 0);
+    station.inkCostPerKg = n(defaults?.inkCostPerKg, 0);
+    syncInlineAcabadoDesdeEstacion(type, inkIndex, tipoAnterior, station.tipo);
+  } else if (inkField === "tintaRefId") {
+    if (MOTIVO_STATION_INLINE_ACABADOS.indexOf(station.tipo) !== -1) {
+      station.tintaRefId = element.value || "";
+      const cat = tintaCatalogForTipo(station.tipo).find((it) => String(it.id) === String(element.value));
+      station.inkLabel = cat?.nombre || "";
+      const inline = ensureInlineAcabado(station.tipo);
+      if (inline) inline.materialId = element.value || "";
+      return;
+    }
+    const entry = findTintaCatalogEntry(station.tipo, element.value);
+    station.tintaRefId = element.value || "";
+    station.inkLabel = entry?.nombre || "";
+    if (station.tipo === "barniz" && entry) {
+      // Acabados > Barniz ya trae su propia ficha técnica completa — se usa tal cual, no genéricos.
+      const generic = motivoStationGenericDefaults("barniz");
+      station.coveragePct = n(entry.porcentajeCobertura, generic?.coveragePct ?? 0);
+      station.aniloxBcm = n(entry.bcmAnilox, generic?.aniloxBcm ?? 0);
+      station.transferFactor = n(entry.factorTransferencia, generic?.transferFactor ?? 0.3);
+      station.inkDensity = n(entry.densidad, generic?.inkDensity ?? 0);
+      station.inkCostPerKg = n(entry.costoPorKilo, 0);
+    } else {
+      const defaults = motivoStationGenericDefaults(station.tipo);
+      if (defaults) {
+        station.coveragePct = n(defaults.coveragePct, 0);
+        station.aniloxBcm = n(defaults.aniloxBcm, 0);
+        station.transferFactor = n(defaults.transferFactor, 0);
+        // Directo (receta): usa la densidad propia de la fórmula si la tiene; si no, el genérico.
+        station.inkDensity = station.tipo === "directo" && entry?.densidad ? n(entry.densidad, defaults.inkDensity) : n(defaults.inkDensity, 0);
+        if (station.tipo === "proceso" || station.tipo === "adicional") {
+          station.inkCostPerKg = entry?.costo_promedio !== undefined ? n(entry.costo_promedio, defaults.inkCostPerKg) : n(defaults.inkCostPerKg, 0);
+        } else if (station.tipo === "directo") {
+          // Costo/kg de una fórmula = Σ(% componente × costo/kg componente) — tintas-service.js lo
+          // calcula (costo_kg_ponderado); si la fórmula no tiene componentes con costo, cae al genérico.
+          station.inkCostPerKg = n(entry?.costo_kg_ponderado, 0) > 0 ? n(entry.costo_kg_ponderado, 0) : n(defaults.inkCostPerKg, 0);
+        } else {
+          station.inkCostPerKg = n(defaults.inkCostPerKg, 0);
+        }
+      }
+    }
+  } else {
+    station[inkField] = Math.max(0, n(element.value, 0));
+  }
+  if (inkField === "tipo") normalizeBarnizPosition(type);
+}
+
+// El Barniz ahora es una estación libremente posicionable (requisito: se puede montar en
+// cualquier torre, incluso al inicio, y puede haber varias — brillante y mate). Ya NO se
+// reordena automáticamente al final de las tintas. Se conserva la función como no-op para no
+// romper sus llamadores; el orden lo decide el usuario con mover/arrastrar.
+function normalizeBarnizPosition(_type) {
+  /* intencionalmente vacío: el barniz se coloca y mueve manualmente */
+}
+
+function motivoStationTintaOptionsHtml(station) {
+  const options = tintaCatalogForTipo(station.tipo).map((item) => `<option value="${esc(item.id)}" ${String(item.id) === String(station.tintaRefId) ? "selected" : ""}>${esc(item.nombre)}</option>`).join("");
+  return `<option value=""></option>${options}`;
+}
+
+// Bloque de auditoría de 3 partes para cualquier cálculo mostrado en un popover: 1) el
+// planteamiento simbólico de la fórmula, 2) la misma fórmula con los datos reales sustituidos,
+// 3) el resultado — como una operación matemática completa, para que nunca quede en el aire de
+// dónde sale un número. Reutilizado por todas las auditorías (tintas, sellos, merma).
+function auditFormulaStepHtml(label, symbolic, operation, result) {
+  return `<div class='motivo-station-audit-formula'>
+    <strong>${label}</strong>
+    <span class='motivo-station-audit-symbolic'>${symbolic}</span>
+    <span class='motivo-station-audit-operation'>${operation}</span>
+    <span class='motivo-station-audit-result'>${result}</span>
   </div>`;
 }
 
-function renderTypesBreakdown() {
-  if (!els.typesDetailList) return;
-  const breakdown = calcTypes();
-  const inkTotals = calcMotivoInkTotals(state.form);
-  refreshTypesInfoModal(breakdown);
-  refreshChangesInfoModals(breakdown);
-  els.typesDetailList.innerHTML = breakdown.rows.map((row, index) => {
-    const isFirst = index === 0;
-    const fields = [
-      `<label><span>Nombre del Motivo</span><input type="text" data-type-index="${index}" data-type-field="name" value="${esc(row.name)}" maxlength="80"></label>`,
-      typeQuantityRepeaterHtml(index, row.quantities),
-      `<label><span>Colores</span><input type="number" min="0" step="1" data-type-index="${index}" data-type-field="colors" value="${row.colors}"></label>`,
-      `<label><span>Planchas</span><input type="number" min="0" step="1" data-type-index="${index}" data-type-field="plates" value="${row.plates}"></label>`
-    ];
-    const artwork = ARTWORK_OPTIONS.map(([value, label]) => `<label><input type="radio" name="typesArtwork-${index}" value="${value}" data-type-index="${index}" data-type-field="artwork"${row.artwork === value ? " checked" : ""}> ${esc(label)}</label>`).join("");
-    const breakdownRows = [
-      ["Diseño", row.items.diseno],
-      ["Preprensa", row.items.preprensa],
-      ["Planchas", row.items.planchas],
-      ["Troquel", row.items.troquel],
-      ["Preparación", row.items.preparacion],
-      ["Impresión", row.items.impresion],
-      ["Tinta", row.items.tinta],
-      ["Sustrato", row.items.sustrato],
-      ["Acabados", row.items.acabados],
-      ["Merma", row.items.merma],
-      ["Costo de Cambio", row.items.cambio],
-      ["Costo Unitario", row.unit],
-      ["Costo Total", row.total]
-    ].map(([label, value]) => {
-      const isTotalLine = label === "Costo Total";
-      const isChangeLine = label === "Costo de Cambio" && !isFirst;
-      const formatted = label === "Costo Unitario" ? (value > 0 ? `${money(value)}/u` : "—") : money(value);
-      return `<div class="types-detail-breakdown-row${isChangeLine ? " is-change-line" : ""}${isTotalLine ? " is-total-line" : ""}"><span>${esc(label)}</span><strong>${formatted}</strong></div>`;
-    }).join("");
-    const badge = isFirst ? "Incluye Preparación Inicial" : "Costo de Cambio Incluido";
-    const changeCostFieldsHtml = isFirst ? `<div class="types-detail-change-cost-head">Costo por Cambio</div><div class="types-detail-fields types-detail-change-cost">
-      <label><span>Tiempo Estándar <span class="field-unit">min</span></span><input type="number" min="0" step="0.01" data-type-index="0" data-type-field="changeTimeMinutes" value="${n(row.changeTimeMinutes, 0)}"></label>
-      <label><span>Costo Hora Máquina <span class="field-unit">$/h</span></span><input type="number" min="0" step="0.01" data-type-index="0" data-type-field="changeMachineHourCost" value="${n(row.changeMachineHourCost, 0)}"></label>
-      <label><span>Costo Hora Mano de Obra <span class="field-unit">$/h</span></span><input type="number" min="0" step="0.01" data-type-index="0" data-type-field="changeLaborHourCost" value="${n(row.changeLaborHourCost, 0)}"></label>
-      <label><span>Operadores</span><input type="number" min="1" step="1" data-type-index="0" data-type-field="changeOperators" value="${n(row.changeOperators, 1)}"></label>
-      <label><span>Costo de Merma <span class="field-unit">$</span></span><input type="number" min="0" step="0.01" data-type-index="0" data-type-field="changeWasteCost" value="${n(row.changeWasteCost, 0)}"></label>
-      <label><span>Prep. Adicional (opcional) <span class="field-unit">$</span></span><input type="number" min="0" step="0.01" data-type-index="0" data-type-field="changeAdditionalPrepCost" value="${n(row.changeAdditionalPrepCost, 0)}"></label>
-    </div>` : "";
-    const inkTypeRow = inkTotals.byType[index];
-    const inkTableHtml = !isFirst ? typeInkTableHtml(index, row.inkStations || [], inkTypeRow?.stations || []) : "";
-    return `<details class="types-detail-item${isFirst ? " is-first" : " is-additional"}"${isFirst ? " open" : ""}>
-      <summary>
-        <span class="types-detail-item-name">${esc(row.name || `Motivo ${index + 1}`)}</span>
-        <span class="types-detail-item-badge">${esc(badge)}</span>
-        <span class="types-detail-item-total">${money(row.total)}</span>
-      </summary>
-      <div class="types-detail-body">
-        <div class="types-detail-fields">${fields.join("")}</div>
-        <div class="types-artwork-options">${artwork}</div>
-        ${changeCostFieldsHtml}
-        ${inkTableHtml}
-        <div class="types-detail-breakdown">${breakdownRows}</div>
-      </div>
-    </details>`;
-  }).join("");
+// Fórmula y valores mostrados en la auditoría son exactamente los que usa calcMotivoInkStationRow
+// (misma fuente de verdad) — nunca un costo o consumo recalculado aparte para mostrar.
+function motivoStationAuditHtml(type, station, sIndex, printedAreaIn2, cargaMinimaMl, detail) {
+  const widthIn = n(state.form.header?.labelWidthIn, 0);
+  const heightIn = n(state.form.header?.labelHeightIn, 0);
+  const qty = n(type.quantity, 0);
+  const coverageDecimal = n(station.coveragePct, 0) / 100;
+  const cargaMinimaKg = cargaMinimaMl !== undefined && cargaMinimaMl !== null ? r((n(cargaMinimaMl, 0) / 1000) * n(station.inkDensity, 0), 4) : null;
+  const tipoLabel = MOTIVO_STATION_TIPOS.find((t) => t.value === station.tipo)?.label || "—";
+  const rows = [
+    ["Tinta", esc(station.inkLabel || "—")],
+    ["Tipo", esc(tipoLabel)],
+    ["Cantidad de productos", formatInteger(qty)],
+    ["Ancho", `${num(widthIn, 4)} in`],
+    ["Alto", `${num(heightIn, 4)} in`],
+    ["Área total", `${num(printedAreaIn2, 2)} in²`],
+    ["Cobertura", `${num(station.coveragePct, 2)}% = ${num(coverageDecimal, 4)}`],
+    ["BCM Anilox", num(station.aniloxBcm, 4)],
+    ["Factor Transferencia", num(station.transferFactor, 4)],
+    ["Densidad", `${num(station.inkDensity, 4)} kg/L`],
+    ["Consumo producto (sin merma)", `${num(detail.netConsumptionKg, 6)} kg`],
+    ["Consumo merma", `${num(detail.mermaConsumptionKg, 6)} kg`],
+    ["Consumo total (con merma)", `${num(detail.consumptionKg, 6)} kg`],
+    ["Carga mínima estación", cargaMinimaMl !== undefined && cargaMinimaMl !== null ? `${num(cargaMinimaMl, 2)} mL = ${num(cargaMinimaKg, 4)} kg` : "Sin configurar"],
+    ["Costo/kg utilizado", money(station.inkCostPerKg)],
+    ["Subtotal producto", money(detail.netSubtotal)],
+    ["Subtotal merma", money(detail.mermaSubtotal)],
+    ["Subtotal total", money(detail.subtotal)]
+  ];
+  // Comillas simples en todos los atributos: este HTML viaja embebido dentro del atributo
+  // data-info-body-html="..." (comillas dobles) del botón disparador — usar comillas dobles aquí
+  // adentro rompería ese atributo a la mitad (el navegador lo cerraría en la primera comilla que
+  // encuentre), corrompiendo el resto del botón. Mismo motivo por el que transitionsInfoHtml ya
+  // usa comillas simples más arriba en este archivo.
+  const table = `<table class='motivo-station-audit-table'><tbody>${rows.map(([label, value]) => `<tr><td>${label}</td><td>${value}</td></tr>`).join("")}</tbody></table>`;
+  const consumoStep = auditFormulaStepHtml(
+    "Consumo producto (sin merma)",
+    "Consumo = Área × Cobertura × BCM Anilox × Factor Transferencia × Densidad × 10⁻⁶",
+    `${num(printedAreaIn2, 2)} in² × ${num(coverageDecimal, 4)} × ${num(station.aniloxBcm, 4)} × ${num(station.transferFactor, 4)} × ${num(station.inkDensity, 4)} kg/L × 10⁻⁶`,
+    `= ${num(detail.netConsumptionKg, 6)} kg`
+  );
+  const mermaStep = auditFormulaStepHtml(
+    "Consumo total con merma",
+    "Consumo total = Consumo producto × Factor de Merma (misma proporción que usa Sustrato: longitud total con merma / longitud neta)",
+    `${num(detail.netConsumptionKg, 6)} kg × ${num(detail.mermaRatio, 4)}`,
+    `= ${num(detail.consumptionKg, 6)} kg (merma: ${num(detail.mermaConsumptionKg, 6)} kg)`
+  );
+  const subtotalStep = auditFormulaStepHtml(
+    "Subtotal",
+    "Subtotal = Consumo total × Costo/kg",
+    `${num(detail.consumptionKg, 6)} kg × ${money(station.inkCostPerKg)}/kg`,
+    `= ${money(detail.subtotal)} (producto: ${money(detail.netSubtotal)} + merma: ${money(detail.mermaSubtotal)})`
+  );
+  return `<div class='motivo-station-audit-body'>${table}${consumoStep}${mermaStep}${subtotalStep}</div>`;
+}
+
+// Auditoría de Sellos por motivo: desglosa sello por sello (origen, ancho, largo, in²,
+// costo) usando exactamente calcularSelloSqIn() y type.inkStationPlates/versionAdditionalPlates/
+// estampadoPlates — misma fuente que ya llena la columna "Sellos" y el loop de Costo Externo,
+// para que nunca puedan desacordar. Incluye las pulgadas cuadradas totales, útiles para pedirlas
+// al proveedor externo que cobra por in².
+function motivoPlatesAuditHtml(row, plateMetrics, plateUnitAreaIn2) {
+  const inkStationPlates = Math.max(0, Math.floor(n(row.inkStationPlates, 0)));
+  const inkStationsForRow = Array.isArray(row.inkStations) ? row.inkStations : [];
+  const barnizStationPlates = Math.min(inkStationPlates, inkStationsForRow.filter((s) => s.tipo === "barniz").length);
+  const otherStationPlates = inkStationPlates - barnizStationPlates;
+  const versionAdditionalPlates = Math.max(0, Math.floor(n(row.versionAdditionalPlates, 0)));
+  const estampadoPlates = Math.max(0, Math.floor(n(row.estampadoPlates, 0)));
+  const costPerSqIn = n(plateMetrics.costPerSqIn, 0);
+  const dieDevIn = n(plateMetrics.dieDevIn, 0);
+  const materialWidthIn = n(plateMetrics.materialWidthIn, 0);
+  const excesoIn = n(plateMetrics.excesoIn, 0);
+  const plateWidthIn = n(plateMetrics.plateWidthIn, 0);
+  const plateHeightIn = n(plateMetrics.plateHeightIn, 0);
+  const plateCost = costPerSqIn > 0 ? r(plateUnitAreaIn2 * costPerSqIn, 2) : 0;
+  const plateRows = [];
+  let plateNum = 0;
+  const pushPlateRows = (count, origin) => {
+    for (let i = 0; i < count; i += 1) {
+      plateNum += 1;
+      plateRows.push(`<tr><td>Sello ${plateNum} (${origin})</td><td>${num(plateWidthIn, 3)} in × ${num(plateHeightIn, 2)} in = ${num(plateUnitAreaIn2, 2)} in²</td><td>${money(plateCost)}</td></tr>`);
+    }
+  };
+  pushPlateRows(otherStationPlates, "tinta configurada");
+  pushPlateRows(barnizStationPlates, "barniz");
+  pushPlateRows(estampadoPlates, "estampado");
+  pushPlateRows(versionAdditionalPlates, "versión adicional");
+  const totalPlates = inkStationPlates + estampadoPlates + versionAdditionalPlates;
+  const totalSqIn = r(plateUnitAreaIn2 * totalPlates, 2);
+  const totalCost = costPerSqIn > 0 ? r(totalSqIn * costPerSqIn, 2) : 0;
+  const table = totalPlates > 0
+    ? `<table class='motivo-station-audit-table'><tbody>${plateRows.join("")}</tbody></table>`
+    : `<p>Sin sellos configuradas.</p>`;
+  const areaStep = auditFormulaStepHtml(
+    "Tamaño de sello",
+    "Tamaño = (Desarrollo de Troquel + Exceso Sellos × 2) × (Ancho Material + Exceso Sellos × 2)",
+    `(${num(dieDevIn, 3)} in + ${num(excesoIn, 2)} in × 2) × (${num(materialWidthIn, 2)} in + ${num(excesoIn, 2)} in × 2) = ${num(plateWidthIn, 3)} in × ${num(plateHeightIn, 2)} in`,
+    `= ${num(plateUnitAreaIn2, 2)} in²`
+  );
+  const subtotalStep = auditFormulaStepHtml(
+    "Subtotal",
+    "Subtotal = N sellos × Tamaño de sello × Costo/in²",
+    `${formatInteger(totalPlates)} × ${num(plateUnitAreaIn2, 2)} in² × ${money(costPerSqIn)}/in²`,
+    `= ${money(totalCost)}`
+  );
+  const availableNote = `<div class='motivo-station-audit-formula'><strong>Pulgadas cuadradas disponibles para solicitar</strong><span class='motivo-station-audit-result'>${num(totalSqIn, 2)} in² (para pedir al proveedor externo, que cobra por in²)</span></div>`;
+  return `<div class='motivo-station-audit-body'>${table}${areaStep}${subtotalStep}${availableNote}</div>`;
+}
+
+// Botón del subtotal (Fase 17.1): variante propia de infoPopoverButton — mismo mecanismo de
+// popover global (ensureInfoPopover/openInfoPopover), pero marcado con data-info-audit para que
+// el panel use su propio estilo neutro (motivo-station-audit-panel), sin depender del ancho fijo
+// ni de las reglas .formula-issues (rojas, pensadas para errores) que causaban la confusión visual.
+function motivoStationAuditButton(title, bodyHtml) {
+  const { icon, color: iconColor, size: iconSize } = fieldInfoIconConfig();
+  return `<button type="button" class="info-popover-trigger motivo-station-audit-trigger" style="--info-icon-color:${esc(iconColor)};--info-icon-size:${esc(iconSize)}px;" aria-label="${esc(title)}" aria-expanded="false" aria-haspopup="dialog" data-info-title="${esc(title)}" data-info-body-html="${bodyHtml || ""}" data-info-audit="true">${renderIconMarkup(icon, title, "info-popover-icon")}</button>`;
+}
+
+// Celdas de parámetros de la estación de tinta, inline en la propia fila (antes vivían en un
+// modal). Solo se muestran con valor en estaciones configuradas que no sean Barniz; en el resto
+// se dejan celdas vacías para no descuadrar la retícula. Editables (data-ink-field, misma
+// delegación de eventos que el resto de la fila): Cobertura, BCM Anilox, Transferencia, Densidad
+// y Costo/kg (este último puede reajustarse a mano). De solo lectura: Carga Mínima (variable de
+// la máquina, fija) y Consumo (se calcula a partir de los demás parámetros). Cada celda usa el
+// patrón display-input del proyecto: la unidad ($, %, kg/L, kg, BCM) vive embebida en la máscara
+// del campo, no en un rótulo aparte. Al enfocar un campo editable la máscara se oculta y se ve el
+// número puro; al salir vuelve a formatearse con unidad.
+function motivoStationParamCellsHtml(motivoIndex, sIndex, station, configured, isBarniz, cargaMinimaKg, detail) {
+  if (!configured || isBarniz) {
+    return `<span class="motivo-station-param-empty"></span>`.repeat(5);
+  }
+  const di = (field, value, opts) => {
+    const { min = "0", max = "", step = "0.0001", maximumFractionDigits = 2, prefix = "", suffix = "", title, aria } = opts;
+    const mask = formatDisplayNumber(value, { prefix, suffix, maximumFractionDigits });
+    const cls = `display-input-wrap motivo-station-di${prefix ? " has-prefix" : ""}${suffix ? " has-suffix" : ""}`;
+    return `<span class="${cls}"><input type="number" min="${min}"${max === "" ? "" : ` max="${max}"`} step="${step}" class="display-input motivo-station-param" data-type-index="${motivoIndex}" data-type-field="inkStations" data-ink-index="${sIndex}" data-ink-field="${field}" value="${esc(String(value))}" title="${esc(title)}" aria-label="${esc(aria)} estación ${sIndex + 1}"><span class="display-input-mask">${esc(mask)}</span></span>`;
+  };
+  const ro = (value, opts) => {
+    const { maximumFractionDigits = 4, prefix = "", suffix = "", title, dash = false } = opts;
+    const mask = dash ? "—" : formatDisplayNumber(value, { prefix, suffix, maximumFractionDigits });
+    const cls = `display-input-wrap readonly-display motivo-station-di${prefix ? " has-prefix" : ""}${suffix ? " has-suffix" : ""}`;
+    return `<span class="${cls}" title="${esc(title)}"><input class="display-input" type="text" value="${esc(mask)}" readonly tabindex="-1"><span class="display-input-mask">${esc(mask)}</span></span>`;
+  };
+  // Celda BCM: botón (mismo formato que el campo) que abre el selector de anilox del inventario.
+  // El BCM ya no se teclea aquí: lo define el anilox elegido (mismo dato en el modal y en la tabla).
+  const bcmMask = formatDisplayNumber(n(station.aniloxBcm, 0), { suffix: "BCM", maximumFractionDigits: 4 }) || "— BCM";
+  const bcmCell = `<button type="button" class="motivo-station-di motivo-station-bcm-pick" data-anilox-pick data-station-index="${sIndex}" title="Elegir anilox del inventario" aria-label="Elegir anilox estación ${sIndex + 1}">${esc(bcmMask)}</button>`;
+  return di("coveragePct", n(station.coveragePct, 0), { min: "0", max: "100", step: "1", suffix: "%", title: "Cobertura de tinta (%)", aria: "Cobertura" })
+    + bcmCell
+    + ro(cargaMinimaKg, { suffix: "kg", title: "Carga Mínima (kg)", dash: cargaMinimaKg === null })
+    + di("inkCostPerKg", n(station.inkCostPerKg, 0), { step: "0.01", prefix: "$", maximumFractionDigits: 4, title: "Costo por kg", aria: "Costo por kg" })
+    + ro(detail.consumptionKg, { suffix: "kg", title: "Consumo de tinta (kg)", maximumFractionDigits: 2 });
+}
+
+function motivoStationRowHtml(motivoIndex, type, station, sIndex, printedAreaIn2, cargaMinimaMl, mermaRatio = 1) {
+  const detail = calcMotivoInkStationRow(printedAreaIn2, station, mermaRatio);
+  const configured = Boolean(station.tipo);
+  const isBarniz = station.tipo === "barniz";
+  // El Barniz ya se elige libremente y se puede mover/repetir (brillante + mate).
+  const tipoOptions = `<option value=""></option>${MOTIVO_STATION_TIPOS.map((t) => `<option value="${t.value}" ${t.value === station.tipo ? "selected" : ""}>${t.label}</option>`).join("")}`;
+  const cargaMinimaKg = configured && cargaMinimaMl !== undefined && cargaMinimaMl !== null ? r((n(cargaMinimaMl, 0) / 1000) * n(station.inkDensity, 0), 4) : null;
+  const dragHandle = !configured
+    ? `<span class="motivo-station-drag motivo-station-drag-disabled"></span>`
+    : `<span class="motivo-station-drag" draggable="true" data-drag-index="${sIndex}" title="Arrastrar para reordenar" aria-label="Reordenar estación ${sIndex + 1}">${renderIconMarkup(iconPresentation("lineReorder", "⋮⋮", "#607286", 16).value, "Reordenar", "motivo-station-drag-icon")}</span>`;
+  const tintaHex = motivoStationTintaHex(station);
+  const tintaDot = tintaHex
+    ? `<span class="calc-motivo-tinta-dot" style="--tinta-dot:${esc(tintaHex)}"></span>`
+    : `<span class="calc-motivo-tinta-dot calc-motivo-tinta-dot-none"></span>`;
+  const subtotalCell = configured
+    ? `<span class="motivo-station-subtotal-cell"><strong>${money(detail.subtotal)}</strong>${motivoStationAuditButton(`Detalle — ${station.inkLabel || tipoLabelFor(station.tipo)}`, motivoStationAuditHtml(type, station, sIndex, printedAreaIn2, cargaMinimaMl, detail))}</span>`
+    : `<span class="motivo-station-subtotal"></span>`;
+  const stationDeleteIcon = getProcessDeleteIconConfig();
+  // Cualquier estación configurada se puede borrar (incluido un barniz — el barniz de máquina
+  // se re-crea desde su switch si sigue activo).
+  const deleteButton = configured
+    ? `<button type="button" class="process-trash-button motivo-station-delete" data-action="remove-station" data-station-index="${sIndex}" aria-label="Eliminar estación ${sIndex + 1}" title="Eliminar tinta" style="--process-delete-icon-color:${esc(stationDeleteIcon.primary)};--process-delete-icon-hover:${esc(stationDeleteIcon.hover)};--process-delete-icon-size:28px;">${renderIconMarkup(stationDeleteIcon.value, "Eliminar tinta", "process-delete-icon")}</button>`
+    : `<span class="motivo-station-delete-placeholder"></span>`;
+  const paramCells = motivoStationParamCellsHtml(motivoIndex, sIndex, station, configured, isBarniz, cargaMinimaKg, detail);
+  return `<div class="station-row${isBarniz ? " station-row-barniz" : ""}" data-type-index="${motivoIndex}" data-station-index="${sIndex}">
+    ${dragHandle}
+    <span class="motivo-station-num">${sIndex + 1}</span>
+    <select data-type-index="${motivoIndex}" data-type-field="inkStations" data-ink-index="${sIndex}" data-ink-field="tipo" aria-label="Tipo estación ${sIndex + 1}">${tipoOptions}</select>
+    <span class="calc-tinta-detalle-cell">${tintaDot}<select data-type-index="${motivoIndex}" data-type-field="inkStations" data-ink-index="${sIndex}" data-ink-field="tintaRefId" aria-label="Detalle estación ${sIndex + 1}" ${configured ? "" : "disabled"}>${motivoStationTintaOptionsHtml(station)}</select></span>
+    ${paramCells}
+    ${subtotalCell}
+    ${deleteButton}
+  </div>`;
+}
+
+// Fila de Tintas inline bajo el Motivo (reemplaza el modal): mismo contenido de
+// motivoStationsModalHtml pero síncrono, leyendo los catálogos ya precargados por
+// ensureTintasStationCatalogs()/ensureMachineStationsConfig() (ver prefetchMotivoStationsCatalogs).
+function motivoStationsRowHtml(motivoIndex) {
+  const type = state.form.types?.[motivoIndex];
+  if (!type) return "";
+  const stations = ensureMotivoStationsList(type);
+  const areaIn2 = inkUnitAreaIn2(state.form);
+  const printedAreaIn2 = state.form.header?.noPrint ? 0 : r(areaIn2 * Math.max(0, n(type.quantity, 0)), 6);
+  const mermaRatio = inkMermaRatio(state.form);
+  const machineId = state.form.printStages?.[0]?.machineId || "";
+  const stationsConfig = machineId ? (state.catalogs.machineStationsByMachine?.[machineId] || {}) : {};
+  const rows = stations.map((station, sIndex) => motivoStationRowHtml(motivoIndex, type, station, sIndex, printedAreaIn2, stationsConfig[sIndex + 1], mermaRatio)).join("");
+  const subtotal = stations.reduce((sum, station) => sum + n(calcMotivoInkStationRow(printedAreaIn2, station, mermaRatio).subtotal, 0), 0);
+  return `<div class="station-table-wrap">
+    <div class="station-row station-row-head">
+      <span></span><span>#</span><span>Tipo</span><span>Detalle</span><span title="Cobertura de tinta (%)">Cobertura</span><span title="BCM del Anilox">BCM Anilox</span><span title="Carga Mínima (kg)">Carga Min.</span><span title="Costo por kg">Costo/kg</span><span title="Consumo de tinta (kg)">Consumo</span><span class="station-col-subtotal">Subtotal</span><span></span>
+    </div>
+    ${rows}
+    <div class="station-subtotal-bar"><span>Subtotal</span><strong>${money(r(subtotal))}</strong></div>
+  </div>`;
+}
+
+// Precarga los catálogos que motivoStationsRowHtml necesita (antes se cargaban al abrir el modal
+// de Tintas); ahora la fila vive siempre en la página, así que se cargan una vez al iniciar y al
+// cambiar de máquina de impresión, y se re-renderiza cuando terminan de llegar.
+async function prefetchMotivoStationsCatalogs() {
+  await ensureTintasStationCatalogs();
+  const machineId = state.form.printStages?.[0]?.machineId || "";
+  if (machineId) await ensureMachineStationsConfig(machineId);
+  renderProcesses();
 }
 
 function renderTypesQuantitiesWarning() {
@@ -6402,13 +9942,15 @@ function renderTypesQuantitiesWarning() {
   const mismatch = Math.abs(sum - total) > 0.5;
   els.typesQuantitiesWarning.hidden = !mismatch;
   els.typesQuantitiesWarning.textContent = mismatch
-    ? `La suma de las cantidades de los tipos o motivos (${formatInteger(sum)}) debe ser igual a la cantidad total de la orden (${formatInteger(total)}).`
+    ? `La suma de las cantidades de los tipos o artes (${formatInteger(sum)}) debe ser igual a la cantidad total de la orden (${formatInteger(total)}).`
     : "";
 }
 
 function renderTypesChanges() {
   if (!state.form?.header) return;
-  renderTypesBreakdown();
+  const breakdown = calcTypes();
+  refreshTypesInfoModal(breakdown);
+  refreshChangesInfoModals(breakdown);
   renderTypesQuantitiesWarning();
 }
 
@@ -6417,21 +9959,29 @@ function renderHeader() {
   fillSelect(els.productType, resolveProductTypes().map((item) => ({ value: item, label: item })), state.form.header.productType);
   fillSelect(els.workType, WORK_TYPES.map((item) => ({ value: item, label: item })), state.form.header.workType);
   fillSelect(els.outputType, outputTypesCatalog().map((item) => ({ value: item.id || item.codigo, label: item.name || item.nombre || item.id || item.codigo })), state.form.header.outputType);
-  fillSelect(els.coreDiameter, coreDiameterSelectOptions(), state.form.header.coreDiameter);
-  [["customerCode", els.customerCode], ["customerName", els.customerName], ["jobName", els.jobName], ["salespersonName", els.salespersonName], ["labelWidthIn", els.labelWidthIn], ["labelHeightIn", els.labelHeightIn], ["rollWidthIn", els.rollWidthIn], ["coreDiameter", els.coreDiameter], ["labelsPerRoll", els.labelsPerRoll], ["applicationType", els.applicationType], ["applicationEnvironment", els.applicationEnvironment], ["surfaceType", els.surfaceType], ["quantityTypes", els.quantityTypes], ["quantityChanges", els.quantityChanges], ["pantoneCount", els.pantoneCount]].forEach(([key, element]) => { element.value = state.form.header[key] ?? ""; });
+  fillSelect(els.applicationEnvironment, [{ value: "", label: "Seleccionar..." }, ...resolveApplicationOptions().map((item) => ({ value: item, label: item }))], state.form.header.applicationEnvironment);
+  fillSelect(els.surfaceType, [{ value: "", label: "Seleccionar..." }, ...resolveSurfaceOptions().map((item) => ({ value: item, label: item }))], state.form.header.surfaceType);
+  [["customerCode", els.customerCode], ["customerName", els.customerName], ["codigoCliente", els.codigoCliente], ["productCode", els.productCode], ["jobName", els.jobName], ["salespersonName", els.salespersonName], ["labelWidthIn", els.labelWidthIn], ["labelHeightIn", els.labelHeightIn], ["rollWidthIn", els.rollWidthIn], ["applicationType", els.applicationType], ["referencia", els.referencia], ["referenciaComentario", els.referenciaComentario]].forEach(([key, element]) => { if (element) element.value = state.form.header[key] ?? ""; });
+  if (els.referenciaCambioMedidas) els.referenciaCambioMedidas.checked = Boolean(state.form.header.referenciaCambios?.medidas);
+  if (els.referenciaCambioArte) els.referenciaCambioArte.checked = Boolean(state.form.header.referenciaCambios?.arte);
+  if (els.referenciaCambioTextos) els.referenciaCambioTextos.checked = Boolean(state.form.header.referenciaCambios?.textos);
+  if (els.referenciaCambioOtros) els.referenciaCambioOtros.checked = Boolean(state.form.header.referenciaCambios?.otros);
+  if (els.referenciaChangesField) els.referenciaChangesField.hidden = !String(state.form.header.referencia || "").trim();
+  autoGrowReferenciaComentario();
+  if (els.insumoArteDigital) els.insumoArteDigital.checked = Boolean(state.form.header.insumos?.arteDigital);
+  if (els.insumoMuestrasFisicas) els.insumoMuestrasFisicas.checked = Boolean(state.form.header.insumos?.muestrasFisicas);
+  if (els.insumoEnvase) els.insumoEnvase.checked = Boolean(state.form.header.insumos?.envase);
   syncTypesChangesFields();
   renderTypesChanges();
   if (els.embeddedLabelWidth) els.embeddedLabelWidth.value = state.form.header.labelWidthIn ?? "";
   if (els.embeddedLabelHeight) els.embeddedLabelHeight.value = state.form.header.labelHeightIn ?? "";
-  els.useCmyk.checked = Boolean(state.form.header.useCmyk);
-  els.useWhiteInk.checked = Boolean(state.form.header.useWhiteInk);
-  els.doubleWhitePass.checked = Boolean(state.form.header.doubleWhitePass);
   els.noPrint.checked = Boolean(state.form.header.noPrint);
   els.overheadPct.value = state.form.commercial.overheadPct;
   els.marginPct.value = state.form.commercial.marginPct;
   els.discountPct.value = state.form.commercial.discountPct ?? 0;
   els.taxPct.value = state.form.commercial.taxPct;
   if (els.customerNameDisplay) els.customerNameDisplay.textContent = state.form.header.customerName || "";
+  if (els.contactNameDisplay) els.contactNameDisplay.textContent = state.form.header.contactName || "";
   if (els.salespersonDisplay) els.salespersonDisplay.textContent = state.form.header.salespersonName || "";
   syncHeaderUnitMasks();
   renderFavoriteDocumentButton();
@@ -6439,6 +9989,7 @@ function renderHeader() {
   renderFrontBackElementsCard();
   renderQuantities();
   outputPreview();
+  renderVendorComments();
   renderTechnicalCollapsedSummary();
   refreshCalculationValidation();
 }
@@ -6452,35 +10003,38 @@ function syncFrontBackCalculationShell() {
   document.body.classList.toggle("is-front-back-embedded", isEmbeddedView());
   document.body.classList.toggle("is-front-back-embedded-element", isEmbeddedElement);
   document.documentElement.classList.toggle("is-front-back-embedded-early", isEmbeddedElement);
-  if (els.printConfigCard) els.printConfigCard.hidden = false;
 }
 
 function renderFrontBackElementsCard() {
   if (!els.frontBackElementsCard || !els.frontBackElementsBody) return;
   if (isFrontBackEmbeddedElementContext()) {
     els.frontBackElementsCard.hidden = true;
+    els.frontBackElementsCard.classList.remove("has-active-element");
     els.frontBackElementsBody.innerHTML = "";
     return;
   }
   const group = currentFrontBackGroup();
   if (!group) {
     els.frontBackElementsCard.hidden = true;
+    els.frontBackElementsCard.classList.remove("has-active-element");
     els.frontBackElementsBody.innerHTML = "";
     return;
   }
   const { groupLine, elements } = relatedFrontBackLines(group);
   if (!elements.length) {
     els.frontBackElementsCard.hidden = true;
+    els.frontBackElementsCard.classList.remove("has-active-element");
     els.frontBackElementsBody.innerHTML = "";
     return;
   }
   els.frontBackElementsCard.hidden = false;
   if (isFrontBackElementContext()) {
+    els.frontBackElementsCard.classList.remove("has-active-element");
     const groupRoute = storedLineRoute(groupLine || {});
     els.frontBackElementsBody.innerHTML = `
       <div class="front-back-group-note">
         <strong>Elemento ${esc(group.elementRole || "")}</strong>
-        <span>La cantidad, sustrato, preprensa, planchas, impresión y troquel se controlan desde la línea grupo ${esc(group.groupLineCode)}.</span>
+        <span>La cantidad, sustrato, preprensa, sellos, impresión y troquel se controlan desde la línea grupo ${esc(group.groupLineCode)}.</span>
         ${groupRoute ? `<button type="button" class="inline-button" data-front-back-open-line="${esc(group.groupLineCode)}">Abrir grupo</button>` : ""}
       </div>
     `;
@@ -6490,6 +10044,7 @@ function renderFrontBackElementsCard() {
     state.frontBackActiveElementLineCode = "";
   }
   const active = elements.find((item) => item.code === state.frontBackActiveElementLineCode) || null;
+  els.frontBackElementsCard.classList.toggle("has-active-element", Boolean(active));
   const tabMarkup = elements.map((item) => {
     const isActive = item.code === active?.code;
     const name = storedLineJobName(item.line) || item.code;
@@ -6609,6 +10164,358 @@ function totalsForQuantity(quantity) {
   }
 }
 
+const CLAVES_PORCENTAJE_COMERCIAL = ["overheadPct", "marginPct", "discountPct", "taxPct"];
+
+function normalizarPorcentajesPorCantidad(valor) {
+  const salida = {};
+  if (!valor || typeof valor !== "object") return salida;
+  Object.entries(valor).forEach(([cantidadId, porcentajes]) => {
+    if (!cantidadId || !porcentajes || typeof porcentajes !== "object") return;
+    const limpio = {};
+    CLAVES_PORCENTAJE_COMERCIAL.forEach((clave) => {
+      const numero = numOrUndefined(first(porcentajes[clave]));
+      if (numero !== undefined) limpio[clave] = numero;
+    });
+    if (Object.keys(limpio).length) salida[cantidadId] = limpio;
+  });
+  return salida;
+}
+
+function cantidadesDelDetalle() {
+  return normalizeQuantities(state.form?.header?.quantities || [])
+    .filter((item) => n(item.value, 0) > 0)
+    .slice(0, 6);
+}
+
+// La primera cantidad usa los porcentajes generales (son los que viajan a la proforma);
+// las demás usan los suyos propios y, mientras no se toquen, heredan los generales.
+function porcentajesDeCantidad(cantidadId, esPrimera) {
+  const base = state.form.commercial;
+  const propios = esPrimera ? {} : (base.porcentajesPorCantidad?.[cantidadId] || {});
+  return Object.fromEntries(CLAVES_PORCENTAJE_COMERCIAL.map((clave) => [clave, n(first(propios[clave], base[clave]), 0)]));
+}
+
+function resultadosPorCantidad(cantidades = cantidadesDelDetalle(), baseResult = totals()) {
+  const cantidadBase = currentQuantity(state.form);
+  return cantidades.map((item, index) => {
+    const esPrimera = index === 0;
+    if (esPrimera && n(item.value, 0) === cantidadBase) return baseResult;
+    const original = state.form.commercial;
+    try {
+      state.form.commercial = { ...original, ...porcentajesDeCantidad(item.id, esPrimera) };
+      return totalsForQuantity(item.value);
+    } finally {
+      state.form.commercial = original;
+    }
+  });
+}
+
+function textoNumeroPorcentaje(valor) {
+  const redondeado = Math.round(n(valor, 0) * 100) / 100;
+  return num(redondeado, Number.isInteger(redondeado) ? 0 : 2);
+}
+
+function textoPorcentaje(valor) {
+  return `${textoNumeroPorcentaje(valor)}%`;
+}
+
+// El número y el signo % van en piezas separadas: al editar solo se escribe el número.
+function celdaPorcentajeEditable(clave, valor, cantidadId, esPrimera, opciones = {}) {
+  const clases = ["details-cost-value", "celda-porcentaje"];
+  if (opciones.bandera) clases.push(`es-bandera-${opciones.bandera}`);
+  const numero = Math.round(n(valor, 0) * 10000) / 10000;
+  const titulo = opciones.titulo || "Toca para cambiar este porcentaje solo en esta cantidad";
+  return `<div class="${clases.join(" ")}" title="${esc(titulo)}"><span class="details-cost-value-text">${opciones.recalcular || ""}<span class="texto-porcentaje" data-porcentaje-clave="${esc(clave)}" data-cantidad-id="${esc(cantidadId)}" data-primera="${esPrimera ? "1" : "0"}" data-valor="${esc(numero)}">${esc(textoNumeroPorcentaje(valor))}</span><span class="signo-porcentaje">%</span></span></div>`;
+}
+
+function leerNumeroEscrito(texto) {
+  let limpio = String(texto ?? "").replace(/[^0-9.,-]/g, "");
+  if (/^-?\d{1,3}(,\d{3})+$/.test(limpio)) limpio = limpio.replace(/,/g, "");
+  else if (limpio.includes(",") && !limpio.includes(".")) limpio = limpio.replace(",", ".");
+  else limpio = limpio.replace(/,/g, "");
+  if (limpio === "" || limpio === "-" || !Number.isFinite(Number(limpio))) return null;
+  return Number(limpio);
+}
+
+const ETIQUETAS_PORCENTAJE_COMERCIAL = {
+  overheadPct: "% Overhead",
+  marginPct: "% Utilidad Bruta",
+  discountPct: "% Descuento",
+  taxPct: "% IVA"
+};
+
+// Cada cantidad es independiente: antes de cambiar el porcentaje general (el de la primera
+// cantidad), las demás que todavía no tenían uno propio se quedan con el valor que ya tenían.
+function congelarCantidadesQueHeredan(clave) {
+  const commercial = state.form.commercial;
+  const valorActual = n(commercial[clave], 0);
+  cantidadesDelDetalle().slice(1).forEach((item) => {
+    if (!commercial.porcentajesPorCantidad || typeof commercial.porcentajesPorCantidad !== "object") commercial.porcentajesPorCantidad = {};
+    const propios = commercial.porcentajesPorCantidad[item.id] || {};
+    if (propios[clave] === undefined) commercial.porcentajesPorCantidad[item.id] = { ...propios, [clave]: valorActual };
+  });
+}
+
+// Deja el valor en el cálculo sin dibujar ni anotar en el historial (lo usan cambios y reversiones).
+function fijarPorcentajeCantidad(cantidadId, esPrimera, clave, valor) {
+  const numero = n(valor, 0);
+  if (esPrimera) {
+    congelarCantidadesQueHeredan(clave);
+    state.form.commercial[clave] = numero;
+    if (els[clave]) els[clave].value = numero;
+    return;
+  }
+  const commercial = state.form.commercial;
+  if (!commercial.porcentajesPorCantidad || typeof commercial.porcentajesPorCantidad !== "object") commercial.porcentajesPorCantidad = {};
+  commercial.porcentajesPorCantidad[cantidadId] = { ...(commercial.porcentajesPorCantidad[cantidadId] || {}), [clave]: numero };
+}
+
+function guardarVariosPorcentajes(cambios = [], origen = "") {
+  const cantidades = cantidadesDelDetalle();
+  const instantanea = tomarInstantaneaValores();
+  const entradas = [];
+  cambios.forEach(({ cantidadId, esPrimera, clave, valor }) => {
+    const anterior = porcentajesDeCantidad(cantidadId, esPrimera)[clave];
+    const nuevo = Math.round(n(valor, 0) * 10000) / 10000;
+    if (Math.abs(n(anterior, 0) - nuevo) < 0.00005) return;
+    fijarPorcentajeCantidad(cantidadId, esPrimera, clave, nuevo);
+    entradas.push({
+      cantidadId, cantidad: cantidades.find((item) => item.id === cantidadId)?.value || 0, esPrimera, campo: clave,
+      etiqueta: ETIQUETAS_PORCENTAJE_COMERCIAL[clave] || clave, valorAnterior: anterior, valorNuevo: nuevo, anteriorHeredado: false, origen, tipo: "cambio"
+    });
+  });
+  if (!entradas.length) return false;
+  scheduleSave();
+  renderProcesses();
+  registrarHistorialPorcentajes(entradas);
+  resaltarValoresMovidos(instantanea, origen || entradas.map((entrada) => `${entrada.etiqueta} de ${num(entrada.cantidad, 0)} u: ${textoPorcentaje(entrada.valorAnterior)} → ${textoPorcentaje(entrada.valorNuevo)}`).join("; "));
+  return true;
+}
+
+function guardarPorcentajeCantidad(cantidadId, esPrimera, clave, valor, origen = "") {
+  if (!guardarVariosPorcentajes([{ cantidadId, esPrimera, clave, valor }], origen)) renderProcesses();
+}
+
+// Valores de referencia: los configurados en Costos → Configuración General.
+function valoresReferenciaPorcentajes() {
+  const general = state.costsConfig?.general || {};
+  return {
+    overheadPct: n(first(general.defaultOverheadPct, 0), 0),
+    marginPct: n(first(general.defaultMarginPct, 35), 35),
+    discountPct: 0,
+    taxPct: n(first(general.defaultTaxPct, 13), 13)
+  };
+}
+
+function restaurarPorcentajesReferencia(cantidadId, esPrimera, claves = []) {
+  const referencia = valoresReferenciaPorcentajes();
+  const cambios = claves.filter((clave) => CLAVES_PORCENTAJE_COMERCIAL.includes(clave)).map((clave) => ({ cantidadId, esPrimera, clave, valor: referencia[clave] }));
+  if (!guardarVariosPorcentajes(cambios, "Se volvió al valor de referencia")) showCenterMessage("Esta cantidad ya tiene los valores de referencia.");
+}
+
+function botonRecalcularMarkup(claves, cantidadId, esPrimera, titulo) {
+  const icono = iconPresentation("calcRecalcularPorcentaje", "↺", "#5b7896", 14);
+  return `<button type="button" class="boton-recalcular" data-recalcular="${esc(claves.join(","))}" data-cantidad-id="${esc(cantidadId)}" data-primera="${esPrimera ? "1" : "0"}" title="${esc(titulo)}" aria-label="${esc(titulo)}" style="--recalcular-icon-color:${esc(icono.color)};--recalcular-icon-hover:${esc(icono.hover)};--recalcular-icon-size:${icono.size}px;">${renderIconMarkup(icono.value, "", "recalcular-icon")}</button>`;
+}
+
+// Porcentaje que se escribe (Overhead, Utilidad Bruta, Descuento, IVA): referencia en la ayuda
+// y botón para volver a ella cuando el valor de esa cantidad es distinto.
+function opcionesReferenciaEntrada(clave, valor, cantidadId, esPrimera) {
+  const referencia = valoresReferenciaPorcentajes()[clave];
+  const distinto = Math.abs(n(valor, 0) - n(referencia, 0)) >= 0.005;
+  return {
+    titulo: `Referencia: ${textoPorcentaje(referencia)}. Toca para cambiar este porcentaje solo en esta cantidad.`,
+    recalcular: distinto ? botonRecalcularMarkup([clave], cantidadId, esPrimera, `Volver a la referencia (${textoPorcentaje(referencia)})`) : ""
+  };
+}
+
+// Los porcentajes de resultado del Análisis (Utilidad Bruta real, Markup y Materia Prima)
+// no se guardan: se busca el % de Utilidad Bruta que da ese resultado, sin tocar Overhead ni Descuento.
+const NOMBRES_OBJETIVO = { objetivoUtilidad: "Utilidad Bruta %", objetivoMarkup: "Markup %", objetivoMateriaPrima: "% Materia Prima sobre Venta" };
+
+function resultadoDeCantidad(cantidadId, esPrimera, cambios = {}) {
+  const cantidad = cantidadesDelDetalle().find((item) => item.id === cantidadId);
+  if (!cantidad) return null;
+  const original = state.form.commercial;
+  try {
+    state.form.commercial = { ...original, ...porcentajesDeCantidad(cantidadId, esPrimera), ...cambios };
+    return { cantidad: cantidad.value, resultado: totalsForQuantity(cantidad.value) };
+  } finally {
+    state.form.commercial = original;
+  }
+}
+
+// Límite de cada porcentaje de resultado: el precio nunca baja de donde la Utilidad Bruta de
+// arriba quedaría en 0% (costo más overhead, menos el descuento).
+function limiteObjetivo(clave, resultado, metricas) {
+  const costo = n(resultado?.overhead, 0);
+  const descuento = n(resultado?.discountPct, 0) / 100;
+  const precioMinimo = costo * (1 - descuento);
+  if (!(precioMinimo > 0)) return null;
+  if (clave === "objetivoMateriaPrima") return { tipo: "máximo", valor: (n(metricas?.materiaPrima, 0) / precioMinimo) * 100 };
+  if (clave === "objetivoUtilidad") return { tipo: "mínimo", valor: (1 - (costo / precioMinimo)) * 100 };
+  if (clave === "objetivoMarkup") return { tipo: "mínimo", valor: ((precioMinimo / costo) - 1) * 100 };
+  return null;
+}
+
+function explicacionLimite(clave, valorObjetivo, limite) {
+  const nombre = NOMBRES_OBJETIVO[clave] || "este porcentaje";
+  const verbo = limite.tipo === "máximo" ? "subir" : "bajar";
+  const porQue = clave === "objetivoMateriaPrima"
+    ? "Subir la Materia Prima obliga a bajar el precio"
+    : `Bajar ${nombre} obliga a bajar el precio`;
+  return `No se puede ${verbo} ${nombre} a ${textoPorcentaje(valorObjetivo)}. ${porQue}, y con ese número quedaría por debajo del costo más overhead. Lo ${limite.tipo} para esta cantidad es ${textoPorcentaje(limite.valor)}.`;
+}
+
+// Calcula qué % Utilidad Bruta (el de arriba) hace falta para llegar al resultado pedido.
+function calcularMargenObjetivo(cantidadId, esPrimera, clave, valorObjetivo) {
+  const base = resultadoDeCantidad(cantidadId, esPrimera);
+  if (!base) return { ok: false, mensaje: "Esa cantidad ya no está en el cálculo." };
+  const { resultado, cantidad } = base;
+  const metricas = metricasRentabilidad(resultado, cantidad);
+  const costo = n(resultado.overhead, 0);
+  const descuento = n(resultado.discountPct, 0) / 100;
+  const objetivo = n(valorObjetivo, 0) / 100;
+  if (!(costo > 0) || !(descuento < 1)) return { ok: false, mensaje: "Todavía no hay costo para esta cantidad. Completa el cálculo y prueba de nuevo." };
+  let precio = 0;
+  if (clave === "objetivoUtilidad") {
+    if (!(objetivo < 1)) return { ok: false, mensaje: "La Utilidad Bruta tiene que ser menor a 100%." };
+    precio = costo / (1 - objetivo);
+  } else if (clave === "objetivoMarkup") {
+    if (!(objetivo > -1)) return { ok: false, mensaje: "El Markup tiene que ser mayor a -100%." };
+    precio = costo * (1 + objetivo);
+  } else if (clave === "objetivoMateriaPrima") {
+    if (!(objetivo > 0) || !(n(metricas?.materiaPrima, 0) > 0)) return { ok: false, mensaje: "El % de Materia Prima tiene que ser mayor a 0%." };
+    precio = n(metricas.materiaPrima, 0) / objetivo;
+  } else {
+    return { ok: false, mensaje: "" };
+  }
+  const margen = Math.round(((precio / (costo * (1 - descuento))) - 1) * 1000000) / 10000;
+  if (margen < 0) {
+    const limite = limiteObjetivo(clave, resultado, metricas);
+    return { ok: false, mensaje: limite ? explicacionLimite(clave, valorObjetivo, limite) : `Con ${textoPorcentaje(valorObjetivo)} el precio quedaría por debajo del costo.` };
+  }
+  return { ok: true, margen };
+}
+
+function resolverPorcentajeObjetivo(cantidadId, esPrimera, clave, valorObjetivo) {
+  const calculo = calcularMargenObjetivo(cantidadId, esPrimera, clave, valorObjetivo);
+  if (!calculo.ok) {
+    if (calculo.mensaje) showCenterMessage(calculo.mensaje);
+    return false;
+  }
+  guardarPorcentajeCantidad(cantidadId, esPrimera, "marginPct", calculo.margen, `Se escribió ${textoPorcentaje(valorObjetivo)} en ${NOMBRES_OBJETIVO[clave]} (Análisis de Rentabilidad)`);
+  return true;
+}
+
+// ── Vista previa mientras se escribe un porcentaje ──────────────────────────────
+const TEXTOS_ESTADO_UTILIDAD = { ok: "Utilidad saludable", warn: "Utilidad baja", bad: "Utilidad bajo el mínimo" };
+
+function simularCambioPorcentaje(cantidadId, esPrimera, clave, valor) {
+  let claveReal = clave;
+  let valorReal = valor;
+  if (clave.startsWith("objetivo")) {
+    const calculo = calcularMargenObjetivo(cantidadId, esPrimera, clave, valor);
+    if (!calculo.ok) return { bloqueado: true, mensaje: calculo.mensaje };
+    claveReal = "marginPct";
+    valorReal = calculo.margen;
+  } else if (clave === "discountPct" && valor > 100) {
+    return { bloqueado: true, mensaje: "El descuento no puede pasar de 100%." };
+  }
+  const antes = resultadoDeCantidad(cantidadId, esPrimera);
+  const despues = resultadoDeCantidad(cantidadId, esPrimera, { [claveReal]: valorReal });
+  if (!antes || !despues) return { bloqueado: true, mensaje: "Esa cantidad ya no está en el cálculo." };
+  return {
+    bloqueado: false,
+    cantidad: antes.cantidad,
+    claveReal,
+    porcentajeAntes: porcentajesDeCantidad(cantidadId, esPrimera)[claveReal],
+    porcentajeDespues: valorReal,
+    antes: { resultado: antes.resultado, metricas: metricasRentabilidad(antes.resultado, antes.cantidad) },
+    despues: { resultado: despues.resultado, metricas: metricasRentabilidad(despues.resultado, despues.cantidad) }
+  };
+}
+
+function cerrarVistaPreviaPorcentaje() {
+  document.querySelector(".vista-previa-porcentaje")?.remove();
+}
+
+function mostrarVistaPreviaPorcentaje(texto, valor) {
+  const clave = texto.dataset.porcentajeClave;
+  const nombre = clave.startsWith("objetivo") ? NOMBRES_OBJETIVO[clave] : ETIQUETAS_PORCENTAJE_COMERCIAL[clave];
+  let tarjeta = document.querySelector(".vista-previa-porcentaje");
+  if (!tarjeta) {
+    tarjeta = document.createElement("div");
+    tarjeta.className = "vista-previa-porcentaje";
+    tarjeta.setAttribute("role", "status");
+    document.body.appendChild(tarjeta);
+  }
+  let contenido = "";
+  if (valor === null) {
+    tarjeta.classList.remove("es-bloqueado");
+    contenido = `<div class="vp-titulo">${esc(nombre)}</div><div class="vp-mensaje">Escribe el nuevo porcentaje. Aquí verás qué le pasa al precio antes de aplicarlo.</div><div class="vp-pie">Esc para cancelar</div>`;
+  } else {
+    const simulacion = simularCambioPorcentaje(texto.dataset.cantidadId || "", texto.dataset.primera === "1", clave, valor);
+    tarjeta.classList.toggle("es-bloqueado", simulacion.bloqueado);
+    if (simulacion.bloqueado) {
+      contenido = `<div class="vp-titulo">No se puede aplicar ${esc(textoPorcentaje(valor))}</div><div class="vp-mensaje">${esc(simulacion.mensaje)}</div><div class="vp-pie">Esc para cancelar</div>`;
+    } else {
+      const a = simulacion.antes.metricas;
+      const d = simulacion.despues.metricas;
+      const fila = (etiqueta, antes, despues) => `<div class="vp-fila"><span>${esc(etiqueta)}</span><span class="vp-cambio"><span class="vp-antes">${esc(antes)}</span><span aria-hidden="true">→</span><strong>${esc(despues)}</strong></span></div>`;
+      const filas = [
+        fila("Precio de Venta", money(n(simulacion.antes.resultado.afterDiscount, 0)), money(n(simulacion.despues.resultado.afterDiscount, 0))),
+        fila("Total Final (con IVA)", money(n(simulacion.antes.resultado.total, 0)), money(n(simulacion.despues.resultado.total, 0)))
+      ];
+      if (clave.startsWith("objetivo")) filas.push(fila("% Utilidad Bruta (Detalles)", textoPorcentaje(simulacion.porcentajeAntes), textoPorcentaje(simulacion.porcentajeDespues)));
+      if (a && d) filas.push(fila("Utilidad Bruta real", textoPorcentaje(a.margenPct), textoPorcentaje(d.margenPct)));
+      const estado = d ? `<div class="vp-estado es-${esc(d.semKey)}"><i></i>${esc(TEXTOS_ESTADO_UTILIDAD[d.semKey])}</div>` : "";
+      contenido = `<div class="vp-titulo">Si pones ${esc(textoPorcentaje(valor))} en ${esc(nombre)} · ${esc(num(simulacion.cantidad, 0))} u</div>${filas.join("")}${estado}<div class="vp-pie">Enter para aplicar · Esc para cancelar</div>`;
+    }
+  }
+  tarjeta.innerHTML = contenido;
+  const celda = texto.closest(".details-cost-value") || texto;
+  const rect = celda.getBoundingClientRect();
+  const ancho = tarjeta.offsetWidth || 320;
+  const alto = tarjeta.offsetHeight || 160;
+  const izquierda = Math.min(Math.max(8, rect.right - ancho), window.innerWidth - ancho - 8);
+  const abajo = rect.bottom + 8 + alto <= window.innerHeight;
+  tarjeta.style.left = `${izquierda}px`;
+  tarjeta.style.top = `${abajo ? rect.bottom + 8 : Math.max(8, rect.top - alto - 8)}px`;
+}
+
+// ── Resaltar los valores que se movieron después de un cambio ───────────────────
+function tablasDeValores() {
+  return [els.detailsCostTable, els.profitabilityRows, ...Object.values(ventanasPanelAbiertas).map((abierta) => abierta.cuerpo)].filter(Boolean);
+}
+
+function tomarInstantaneaValores() {
+  const mapa = new Map();
+  tablasDeValores().forEach((tabla, indiceTabla) => {
+    tabla.querySelectorAll(".details-cost-row:not(.details-cost-head)").forEach((fila) => {
+      const etiqueta = String(fila.firstElementChild?.textContent || "").trim();
+      [...fila.children].slice(1).forEach((celda, columna) => mapa.set(`${indiceTabla}|${etiqueta}|${columna}`, String(celda.textContent || "").trim()));
+    });
+  });
+  return mapa;
+}
+
+function resaltarValoresMovidos(instantanea, motivo) {
+  window.setTimeout(() => {
+    tablasDeValores().forEach((tabla, indiceTabla) => {
+      tabla.querySelectorAll(".details-cost-row:not(.details-cost-head)").forEach((fila) => {
+        const etiqueta = String(fila.firstElementChild?.textContent || "").trim();
+        [...fila.children].slice(1).forEach((celda, columna) => {
+          const antes = instantanea.get(`${indiceTabla}|${etiqueta}|${columna}`);
+          if (antes === undefined || antes === String(celda.textContent || "").trim()) return;
+          celda.classList.add("se-movio");
+          celda.title = `Cambió por: ${motivo}. Antes: ${antes}.`;
+        });
+      });
+    });
+  }, 320);
+}
+
 function sumInlineFinish(result = {}, match = {}) {
   return r((result.print?.items || []).reduce((sum, item) => {
     return sum + (item.inlineItems || []).reduce((inner, inline) => {
@@ -6666,8 +10573,8 @@ function detailPrintMetricSum(result = {}, field = "") {
 
 function detailDisplayValue(row = {}, result = {}) {
   const value = row.value?.(result) ?? 0;
-  if (row.format === "feet") return `${num(value, 2)} ft`;
-  if (row.format === "area") return `${num(value, 2)} ft²`;
+  if (row.format === "meters") return `${num(value, 2)} m`;
+  if (row.format === "area") return `${num(value, 2)} m²`;
   return money(value || 0);
 }
 
@@ -6713,8 +10620,9 @@ function detailMachineName(machineId = "", fallback = "") {
 function detailDieSummary() {
   const code = detailCleanText(state.form?.troquel?.dieCode || "");
   const description = detailCleanText(state.form?.troquel?.dieDescription || "");
-  if (code && description && !norm(description).includes(norm(code))) return `${code} ${description}`;
-  return description || code;
+  const esNuevo = normalizeDieMode(state.form?.troquel?.dieMode) === "external";
+  const base = (code && description && !norm(description).includes(norm(code))) ? `${code} ${description}` : (description || code);
+  return base && esNuevo ? `${base} (Nuevo)` : base;
 }
 
 function detailPlateSize(item = {}) {
@@ -6747,7 +10655,10 @@ function detailInlineFinishSummary(inline = {}, stage = {}) {
   if (key === "numerado") return detailNumberingSummary(inline);
   if (key === "troquelado") return detailDieSummary();
   if (key === "embosado") return detailPlateSize(inline);
-  if (key === "estampado" || key === "laminado") {
+  if (key === "estampado") {
+    return detailJoin([detailMaterialName(inline.materialId, inline.materialName)]);
+  }
+  if (key === "laminado") {
     return detailJoin([
       detailMaterialName(inline.materialId, inline.materialName),
       detailDimension(inline.supplyWidthIn, "in", 2, "Ancho ")
@@ -6763,7 +10674,7 @@ function detailExternalFinishSummary(finish = {}, config = {}) {
   if (key === "barnizado") {
     return detailJoin([
       detailMaterialName(finish.materialId, finish.materialName),
-      detailDimension(finish.layerGft2, "g/ft²", 2)
+      detailDimension(finish.layerGm2, "g/m²", 2)
     ]);
   }
   if (key === "estampado" || key === "laminado") {
@@ -6820,18 +10731,18 @@ function detailAmountTooltip(row = {}, result = {}, quantity = 0) {
       `Total tinta: ${money(result.print?.inkSubtotal || 0)}.`
     ] : [
       "Costo Tinta: área impresa x cobertura x BCM x transferencia x densidad x tintas.",
-      `Consumo: ${num(result.print?.inkConsumption || 0, 6)} lb x ${money(sample.inkCostPerLb || 0)}.`,
+      `Consumo: ${num(result.print?.inkConsumption || 0, 6)} kg x ${money(sample.inkCostPerKg || 0)}.`,
       `Total tinta: ${money(result.print?.inkSubtotal || 0)}.`
     ]);
   }
   if (row.type === "printWaste") {
-    const setupFeet = detailPrintMetricSum(result, "maculaSetupFeet") || result.print?.maculaSetupFeet || 0;
-    const tirajeFeet = detailPrintMetricSum(result, "maculaTirajeFeet") || result.print?.maculaTirajeFeet || 0;
-    const totalFeet = detailPrintMetricSum(result, "startupWasteFeet") || result.print?.maculaTotalFeet || 0;
+    const setupMeters = detailPrintMetricSum(result, "maculaSetupMeters") || result.print?.maculaSetupMeters || 0;
+    const tirajeMeters = detailPrintMetricSum(result, "maculaTirajeMeters") || result.print?.maculaTirajeMeters || 0;
+    const totalMeters = detailPrintMetricSum(result, "startupWasteMeters") || result.print?.maculaTotalMeters || 0;
     const wasteCost = detailPrintMetricSum(result, "maculaMaterialSubtotal");
     return detailTooltipText([
       "Merma de proceso: montaje + tiraje de impresión.",
-      `Montaje: ${num(setupFeet, 2)} ft | Tiraje: ${num(tirajeFeet, 2)} ft | Total: ${num(totalFeet, 2)} ft.`,
+      `Montaje: ${num(setupMeters, 2)} m | Tiraje: ${num(tirajeMeters, 2)} m | Total: ${num(totalMeters, 2)} m.`,
       `Costo referencia: ${money(wasteCost)}.`,
       "Este material se cobra dentro del sustrato; aquí se muestra como detalle operativo de impresión."
     ]);
@@ -6849,8 +10760,8 @@ function detailAmountTooltip(row = {}, result = {}, quantity = 0) {
     }
     if (sample.key === "laminado" || sample.key === "estampado") {
       return detailTooltipText([
-        `${row.label} en línea: longitud total x costo por pie lineal.`,
-        `Base: ${num(detailSum(items, "materialBase"), 2)} ft | Costo pie: ${money(sample.costPerFoot || 0)}.`,
+        `${row.label} en línea: longitud total x costo por metro lineal.`,
+        `Base: ${num(detailSum(items, "materialBase"), 2)} m | Costo metro: ${money(sample.costPerMeter || 0)}.`,
         `Subtotal material: ${money(detailSum(items, "materialSubtotal"))}.`,
         `Total ${row.label}: ${money(row.value(result) || 0)}.`
       ]);
@@ -6866,7 +10777,7 @@ function detailAmountTooltip(row = {}, result = {}, quantity = 0) {
     if (sample.key === "troquelado") {
       return detailTooltipText([
         "Troquelado en línea: no agrega costo externo.",
-        `Montaje: ${num(detailSum(items, "setupMinutes"), 2)} min | Merma ajuste: ${num(detailSum(items, "setupWasteFeet"), 2)} ft.`,
+        `Montaje: ${num(detailSum(items, "setupMinutes"), 2)} min | Merma ajuste: ${num(detailSum(items, "setupWasteMeters"), 2)} m.`,
         "El montaje y la merma se integran al proceso de impresión."
       ]);
     }
@@ -6874,7 +10785,7 @@ function detailAmountTooltip(row = {}, result = {}, quantity = 0) {
     return detailTooltipText([
       `${row.label}: acabado dentro de impresión.`,
       "Fórmula: insumos propios + fijos; el montaje queda en impresión.",
-      `Base: ${num(detailSum(items, "calcBase"), 2)} ft | Insumos: ${money(extras)}.`,
+      `Base: ${num(detailSum(items, "calcBase"), 2)} m | Insumos: ${money(extras)}.`,
       `Total ${row.label}: ${money(row.value(result) || 0)}.`
     ]);
   }
@@ -6884,7 +10795,7 @@ function detailAmountTooltip(row = {}, result = {}, quantity = 0) {
     const extras = r(detailSum(items, "materialSubtotal") + detailSum(items, "plateCost") + detailSum(items, "fixedCost") + items.reduce((sum, item) => sum + (n(item.calcBase, 0) * n(item.variableUnitCost, 0)), 0));
     return detailTooltipText([
       `${row.label}: ${finish.formulaText || "costo máquina + operador + insumos."}`,
-      `Base: ${num(detailSum(items, "calcBase"), 2)} pies | Tiempo: ${num(detailSum(items, "runMinutes"), 2)} min.`,
+      `Base: ${num(detailSum(items, "calcBase"), 2)} m | Tiempo: ${num(detailSum(items, "runMinutes"), 2)} min.`,
       `Ejemplo: ${money(detailSum(items, "machineSubtotal"))} + ${money(detailSum(items, "operatorSubtotal"))} + ${money(extras)} = ${money(row.value(result) || 0)}.`
     ]);
   }
@@ -6892,10 +10803,10 @@ function detailAmountTooltip(row = {}, result = {}, quantity = 0) {
     const s = result.sustrato || {};
     return detailTooltipText([
       `Cantidad: ${num(quantity, 0)}.`,
-      "Fórmula: longitud total x costo/ft.",
-      `Ejemplo: ${num(s.totalLengthFeet, 2)} ft x ${money(s.unitCost || 0)} = ${money(s.rawSubtotal ?? s.subtotal ?? 0)}.`,
-      `Merma: montaje ${num(s.maculaSetupFeet, 2)} ft + tiraje ${num(s.maculaTirajeFeet, 2)} ft = ${num(s.startupWasteFeet, 2)} ft.`,
-      `Área impresión: ${num(s.printedAreaFt2, 2)} ft².`,
+      "Fórmula: longitud total x costo/m.",
+      `Ejemplo: ${num(s.totalLengthMeters, 2)} m x ${money(s.unitCost || 0)} = ${money(s.rawSubtotal ?? s.subtotal ?? 0)}.`,
+      `Merma: montaje ${num(s.maculaSetupMeters, 2)} m (Impresión × tintas por arte + acabados activos una vez) + tiraje ${num(s.maculaTirajeMeters, 2)} m (% sobre longitud total) = ${num(s.startupWasteMeters, 2)} m.`,
+      `Área impresión: ${num(s.printedAreaM2, 2)} m².`,
       detailMinimumLine(s)
     ]);
   }
@@ -6915,7 +10826,7 @@ function detailAmountTooltip(row = {}, result = {}, quantity = 0) {
       detailMinimumLine(p)
     ]);
   }
-  if (key === "planchas") {
+  if (key === "sellos") {
     const p = result.plates || {};
     const laser = Object.values(p.breakdown || {}).map((item) => item?.laserMetrics).find(Boolean) || {};
     const parts = PLATE_KEYS.map((entry) => {
@@ -6923,8 +10834,8 @@ function detailAmountTooltip(row = {}, result = {}, quantity = 0) {
       return subtotal ? `${entry.label}: ${money(subtotal)}` : "";
     }).filter(Boolean).join(" · ");
     return detailTooltipText([
-      "Fórmula: plancha + grabado + revelado + limpieza + secado.",
-      `Planchas/colores: ${num(laser.totalColors || 0, 0)} | Área: ${num(laser.totalArea || 0, 2)} in².`,
+      "Fórmula: sello + grabado + revelado + limpieza + secado.",
+      `Sellos/colores: ${num(laser.totalColors || 0, 0)} | Área: ${num(laser.totalArea || 0, 2)} in².`,
       parts ? `Detalle: ${parts}.` : "",
       detailMinimumLine(p)
     ]);
@@ -6980,7 +10891,7 @@ function detailAmountTooltip(row = {}, result = {}, quantity = 0) {
     ]);
   }
   if (key === "overhead") {
-    const pct = n(state.form.commercial.overheadPct, 0);
+    const pct = n(result.overheadPct, n(state.form.commercial.overheadPct, 0));
     return detailTooltipText([
       `Overhead: ${num(pct, 2)}%.`,
       `Fórmula: subtotal x porcentaje.`,
@@ -6988,29 +10899,29 @@ function detailAmountTooltip(row = {}, result = {}, quantity = 0) {
     ]);
   }
   if (key === "margen") {
-    const pct = n(state.form.commercial.marginPct, 0);
+    const pct = n(result.marginPct, n(state.form.commercial.marginPct, 0));
     return detailTooltipText([
-      `Margen: ${num(pct, 2)}%.`,
+      `Utilidad Bruta: ${num(pct, 2)}%.`,
       `Fórmula: total con overhead x porcentaje.`,
       `Ejemplo: ${money(result.overhead || 0)} x ${num(pct, 2)}% = ${money(row.value(result) || 0)}.`
     ]);
   }
   if (key === "descuento") {
-    const pct = n(state.form.commercial.discountPct, 0);
+    const pct = n(result.discountPct, n(state.form.commercial.discountPct, 0));
     return detailTooltipText([
       `Descuento: ${num(pct, 2)}%.`,
-      `Fórmula: total con margen x porcentaje.`,
+      `Fórmula: total con utilidad bruta x porcentaje.`,
       `Ejemplo: ${money(result.margin || 0)} x ${num(pct, 2)}% = ${money(Math.abs(row.value(result) || 0))}.`
     ]);
   }
   if (key === "totalAjustes") {
     return detailTooltipText([
-      "Fórmula: subtotal + overhead + margen - descuento.",
+      "Fórmula: subtotal + overhead + utilidad bruta - descuento.",
       `Ejemplo: ${money(result.margin || 0)} - ${money(result.discount || 0)} = ${money(result.afterDiscount || 0)}.`
     ]);
   }
   if (key === "iva") {
-    const pct = n(state.form.commercial.taxPct, 0);
+    const pct = n(result.taxPct, n(state.form.commercial.taxPct, 0));
     return detailTooltipText([
       `IVA: ${num(pct, 2)}%.`,
       `Fórmula: total con ajustes x IVA.`,
@@ -7038,7 +10949,8 @@ function detailAmountTooltip(row = {}, result = {}, quantity = 0) {
   return detailTooltipText([`Monto: ${money(row.value?.(result) || 0)}.`]);
 }
 
-function detailAmountCell(row = {}, result = {}, index = 0, quantity = 0) {
+function detailAmountCell(row = {}, result = {}, index = 0, quantity = 0, cantidadId = "") {
+  if (row.pctKey) return celdaPorcentajeEditable(row.pctKey, result[row.pctKey], cantidadId, index === 0, opcionesReferenciaEntrada(row.pctKey, result[row.pctKey], cantidadId, index === 0));
   const tooltip = detailAmountTooltip(row, result, quantity);
   const classes = ["details-cost-value"];
   if (index === 0) classes.push("is-edit-target");
@@ -7048,11 +10960,11 @@ function detailAmountCell(row = {}, result = {}, index = 0, quantity = 0) {
 
 function detailSubstrateRows() {
   return [
-    { key: "sustratoCantidad", type: "measure", label: "Sustrato", child: true, breakdown: true, format: "feet", tooltip: "Sustrato neto antes de merma.", value: (result) => result.sustrato?.linealFeet },
-    { key: "sustratoMermaMontaje", type: "measure", label: "Merma Sustrato Montaje", child: true, breakdown: true, format: "feet", tooltip: "Merma de montaje tomada de Costos por estación/proceso.", value: (result) => result.sustrato?.maculaSetupFeet },
-    { key: "sustratoMermaTiraje", type: "measure", label: "Merma Sustrato Tiraje", child: true, breakdown: true, format: "feet", tooltip: "Merma de tiraje calculada con el porcentaje definido en Costos.", value: (result) => result.sustrato?.maculaTirajeFeet },
-    { key: "sustratoTotalCantidad", type: "measure", label: "Total Sustrato", child: true, breakdown: true, format: "feet", tooltip: "Sustrato neto más merma de montaje y merma de tiraje.", value: (result) => result.sustrato?.totalLengthFeet },
-    { key: "sustratoAreaImpresion", type: "measure", label: "Área de Impresión", child: true, breakdown: true, format: "area", tooltip: "Área neta impresa del trabajo.", value: (result) => result.sustrato?.printedAreaFt2 }
+    { key: "sustratoCantidad", type: "measure", label: "Sustrato", child: true, breakdown: true, format: "meters", tooltip: "Sustrato neto antes de merma.", value: (result) => result.sustrato?.linealMeters },
+    { key: "sustratoMermaMontaje", type: "measure", label: "Merma Sustrato Montaje", child: true, breakdown: true, format: "meters", tooltip: "Merma de montaje: Metros por Estación de Impresión × tintas de cada arte (estaciones de tinta, sin barniz: el barniz es un acabado general compartido entre artes), más los acabados activos una sola vez. Valores de la máquina (Configuración → Inventario de Máquinas → merma de arranque) o de la tabla maestra (Configuración → Costos → Convencional → Merma en Metros por Estación de Montaje).", value: (result) => result.sustrato?.maculaSetupMeters },
+    { key: "sustratoMermaTiraje", type: "measure", label: "Merma Sustrato Tiraje", child: true, breakdown: true, format: "meters", tooltip: "Merma porcentual calculada una sola vez sobre la longitud total, con el porcentaje de la combinación de procesos activa (Impresión + Troquelado + Laminado + ...) definido en Configuración → Costos → Convencional → Merma en Porcentaje de Tiraje.", value: (result) => result.sustrato?.maculaTirajeMeters },
+    { key: "sustratoTotalCantidad", type: "measure", label: "Total Sustrato", child: true, breakdown: true, format: "meters", tooltip: "Tiraje bueno (cantidad y medidas del encabezado de la cotización) más merma de montaje y merma porcentual.", value: (result) => result.sustrato?.totalLengthMeters },
+    { key: "sustratoAreaImpresion", type: "measure", label: "Área de Impresión", child: true, breakdown: true, format: "area", tooltip: "Área neta impresa del trabajo.", value: (result) => result.sustrato?.printedAreaM2 }
   ];
 }
 
@@ -7140,7 +11052,7 @@ function detailCostRows(baseResult = {}) {
     ...(state.detailsOpen?.sustrato && hasActiveProcess("sustrato") ? detailSubstrateRows() : []),
     optionalRow("diseno", { key: "diseno", label: "Diseño", jumpKey: "diseno", value: (result) => result.design?.subtotal }),
     optionalRow("preprensa", { key: "preprensa", label: "Preprensa", jumpKey: "preprensa", value: (result) => result.prepress?.subtotal }),
-    optionalRow("planchas", { key: "planchas", label: "Planchas", jumpKey: "planchas", value: (result) => result.plates?.subtotal }),
+    optionalRow("sellos", { key: "sellos", label: "Sellos", jumpKey: "sellos", value: (result) => result.plates?.subtotal }),
     optionalRow("impresion", { key: "impresion", label: "Impresión", detail: detailPrintSummary(baseResult), jumpKey: "impresion", expandKey: "impresion", value: (result) => result.print?.subtotal }),
     ...(state.detailsOpen?.impresion && hasActiveProcess("impresion") ? detailPrintRows(baseResult) : []),
     ...externalFinishes,
@@ -7150,11 +11062,15 @@ function detailCostRows(baseResult = {}) {
     ...frontBackElementRows,
     ...frontBackElementTotalRow,
     { key: "subtotal", label: "Subtotal", value: (result) => result.industrial, total: true },
-    { key: "overhead", label: "Overhead", commercialKey: "overheadPct", value: (result) => r(n(result.overhead, 0) - n(result.industrial, 0)) },
-    { key: "margen", label: "Margen", commercialKey: "marginPct", value: (result) => r(n(result.margin, 0) - n(result.overhead, 0)) },
-    { key: "descuento", label: "Descuento", commercialKey: "discountPct", value: (result) => -n(result.discount, 0) },
+    { key: "porcentajeOverhead", label: "% Overhead", pctKey: "overheadPct" },
+    { key: "overhead", label: "Overhead", value: (result) => r(n(result.overhead, 0) - n(result.industrial, 0)) },
+    { key: "porcentajeMargen", label: "% Utilidad Bruta", pctKey: "marginPct" },
+    { key: "margen", label: "Utilidad Bruta", value: (result) => r(n(result.margin, 0) - n(result.overhead, 0)) },
+    { key: "porcentajeDescuento", label: "% Descuento", pctKey: "discountPct" },
+    { key: "descuento", label: "Descuento", value: (result) => -n(result.discount, 0) },
     { key: "totalAjustes", label: "Total con Ajustes", value: (result) => result.afterDiscount, total: true },
-    { key: "iva", label: "IVA", commercialKey: "taxPct", value: (result) => result.tax },
+    { key: "porcentajeIva", label: "% IVA", pctKey: "taxPct" },
+    { key: "iva", label: "IVA", value: (result) => result.tax },
     { key: "totalFinal", label: "Total Final", value: (result) => result.total, total: true, final: true },
     { key: "precioUnitario", label: "Precio Unitario", value: (result) => result.unit },
     { key: "precioMillar", label: "Precio por Millar", value: (result) => r(n(result.unit, 0) * 1000) }
@@ -7202,10 +11118,6 @@ function detailLabelMarkup(row = {}) {
 }
 
 function detailRowLabel(row = {}) {
-  if (row.commercialKey) {
-    const pct = n(state.form?.commercial?.[row.commercialKey], 0);
-    return `<button type="button" class="details-adjust-trigger" data-details-edit="${esc(row.commercialKey)}"><span>${esc(row.label)}</span><small>${num(pct, 2)}%</small></button>`;
-  }
   if (row.expandKey) {
     const expanded = Boolean(state.detailsOpen?.[row.expandKey]);
     const toggle = `<button type="button" class="details-expand-toggle" data-details-toggle="${esc(row.expandKey)}" aria-expanded="${expanded ? "true" : "false"}" aria-label="${expanded ? "Contraer" : "Expandir"} ${esc(row.label)}">${expanded ? "▾" : "▸"}</button>`;
@@ -7230,7 +11142,7 @@ function detailRowLabelWithAlert(row = {}, alertMessages = []) {
 
 function detailsGridStyle(quantityCount) {
   const count = Math.max(1, Number(quantityCount) || 1);
-  return `grid-template-columns:minmax(170px,220px) repeat(${count}, minmax(104px,1fr));`;
+  return `grid-template-columns:minmax(var(--detalles-etiqueta-min, 170px),var(--detalles-etiqueta-max, 220px)) repeat(${count}, minmax(var(--detalles-valor-min, 104px),1fr));`;
 }
 
 function detailEditableLabel(row = {}) {
@@ -7279,16 +11191,26 @@ async function renderQuoteTracking() {
       const orderLink = closure?.orderCode ? `<a class="summary-row-link" href="/orden-produccion/${encodeURIComponent(closure.orderCode)}" data-route="/orden-produccion/${esc(encodeURIComponent(closure.orderCode))}" data-label="Orden ${esc(closure.orderCode)}">${esc(closure.orderCode)}</a>` : "";
       const closureText = closure
         ? (closure.outcome === "accepted"
-          ? `Venta aceptada`
+          ? `Venta aceptada${n(closure.cantidadAceptada, 0) > 0 ? ` · ${formatInteger(closure.cantidadAceptada)} unidades` : ""}`
           : closure.outcome === "expired"
           ? `Expirada / Sin respuesta`
           : `Rechazada · ${closure.reason || "Sin motivo"}`)
         : "";
       const closureNote = closureText ? `<div class="tracking-close-note"><strong>${esc(closureText)}${orderLink ? " · " + orderLink : ""}</strong>${closure.comments ? `<span>${esc(closure.comments)}</span>` : ""}</div>` : "";
+      const lineProductCode = calcLineProductCode();
+      // El producto se crea por motivo/versión desde el modal de "Registrar Producto"
+      // (solo en Seguimiento). El botón se mantiene mientras algún motivo o versión no
+      // tenga producto.
+      const motivoProductEntries = calcMotivoProductEntries();
+      const createdProductEntries = motivoProductEntries.filter((entry) => entry.productCode);
+      const pendingProductCount = motivoProductEntries.length - createdProductEntries.length;
+      const productRef = (motivoProductEntries.length ? pendingProductCount > 0 : !lineProductCode)
+        ? `<button type="button" class="btn-mark tracking-product-action" data-tracking-create-product aria-label="Registrar producto"><i class="ti ti-box" style="font-size:12px;" aria-hidden="true"></i>Registrar Producto</button>`
+        : "";
       const postAcceptActions = closure?.outcome === "accepted"
         ? (closure?.orderCode
-          ? `<div class="tracking-close-menu"><button type="button" class="btn-mark tracking-product-action" data-tracking-create-product aria-label="Registrar producto"><i class="ti ti-box" style="font-size:12px;" aria-hidden="true"></i>Registrar Producto</button></div>`
-          : `<div class="tracking-close-menu"><button type="button" class="btn-mark tracking-primary-action" data-tracking-create-order="${index}" aria-label="Crear orden de producción"><i class="ti ti-check" style="font-size:12px;" aria-hidden="true"></i>Crear Orden de Producción</button><button type="button" class="btn-mark tracking-product-action" data-tracking-create-product aria-label="Registrar producto"><i class="ti ti-box" style="font-size:12px;" aria-hidden="true"></i>Registrar Producto</button></div>`)
+          ? (productRef ? `<div class="tracking-close-menu">${productRef}</div>` : "")
+          : `<div class="tracking-close-menu"><button type="button" class="btn-mark tracking-primary-action" data-tracking-create-order="${index}" aria-label="Crear orden de producción"><i class="ti ti-check" style="font-size:12px;" aria-hidden="true"></i>Crear Orden de Producción</button>${productRef}</div>`)
         : '';
       const closeActions = item.key === "cierre" ? quoteTrackingCloseActionsMarkup(index) : "";
       content = `<div class="tl-content-anim" style="padding-bottom:18px;"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;"><i class="ti ${esc(item.icon)}" style="font-size:14px;color:var(--color-text-secondary);" aria-hidden="true"></i><span style="font-size:13px;font-weight:500;color:var(--color-text-primary);">${esc(item.label)}</span></div><div style="font-size:13px;color:var(--color-text-primary);">${esc(item.user || "")}</div><div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px;">${esc(item.date || "Pendiente")}</div>${closureNote}${closeActions}${postAcceptActions}${changeButton}${form}</div>`;
@@ -7306,9 +11228,14 @@ async function renderQuoteTracking() {
     }
     return `<div style="display:grid;grid-template-columns:48px 1fr;gap:0 14px;opacity:${opacity};"><div style="display:flex;flex-direction:column;align-items:center;">${node}${line}</div>${content}</div>`;
   }).join("");
+  const bloqueo = calcBloqueoState();
+  const bloqueoPill = bloqueo.locked
+    ? `<span class="quote-tracking-lock-pill" title="${esc(bloqueo.reason)} · Cálculo de solo lectura"><i class="ti ti-lock" aria-hidden="true"></i>Bloqueado</span>`
+    : "";
   els.quoteTrackingMount.innerHTML = `
     <h2 class="sr-only">Panel de seguimiento con solicitudes de cambio por hito</h2>
     <div class="quote-tracking-toolbar">
+      ${bloqueoPill}
       <span class="quote-tracking-status">${esc(statusText)}</span>
       <button type="button" id="tl-btn" class="quote-tracking-toggle${panelOpen ? " is-open" : ""}" data-tracking-toggle aria-expanded="${panelOpen ? "true" : "false"}">
         <i class="ti ti-route" aria-hidden="true"></i>Seguimiento
@@ -7329,30 +11256,113 @@ async function renderQuoteTracking() {
       </div>`;
   }
   bindTrackingAvatarFallback(els.quoteTrackingPanelMount || els.quoteTrackingMount);
+  applyCalcBloqueo();
+  marcarCantidadAceptada();
+}
+
+function marcarCantidadAceptada() {
+  const aceptada = cantidadAceptadaVigente();
+  els.quantityRepeater?.querySelectorAll("input[data-quantity-index]").forEach((input) => {
+    const valor = n(state.form?.header?.quantities?.[Number(input.dataset.quantityIndex)]?.value, 0);
+    const card = input.closest(".quantity-card");
+    const esAceptada = aceptada > 0 && valor === aceptada;
+    card?.classList.toggle("is-aceptada", esAceptada);
+    if (esAceptada) card?.setAttribute("title", "Cantidad aceptada por el cliente");
+    else card?.removeAttribute("title");
+  });
+}
+
+let adjuntosProductoWidget = null;
+function renderAdjuntosProducto() {
+  const cont = document.getElementById("calcAdjuntosProducto");
+  if (!cont || !window.AdjuntosProducto || !state.form) return;
+  const contexto = {
+    cotizacion: String(state.form?.header?.quoteCode || "").trim(),
+    linea: String(state.form?.header?.lineCode || "").trim(),
+    producto: String(state.form?.header?.productCode || "").trim()
+  };
+  if (!contexto.cotizacion && !contexto.linea && !contexto.producto) {
+    cont.innerHTML = '<p class="adj-exp-vacio">Esta cotización todavía no tiene base para adjuntos.</p>';
+    return;
+  }
+  if (adjuntosProductoWidget) {
+    adjuntosProductoWidget.fijarContexto(contexto);
+    return;
+  }
+  adjuntosProductoWidget = window.AdjuntosProducto.crear({
+    contenedor: cont,
+    contexto: contexto,
+    origenSubida: "cotizacion",
+    titulo: "Adjuntos del Producto",
+    sessionHeaders: typeof sessionHeaders === "function" ? sessionHeaders : undefined,
+    renderizarIcono: function (el, cual) {
+      if (!el) return;
+      var conf;
+      if (cual === "audio") conf = iconPresentation("quoteRequestRecord", "●", "#1e516d", 18);
+      else if (cual === "descargar") conf = iconPresentation("attachmentDownload", "⇩", "#0b81b8", 16);
+      else conf = iconPresentation("quoteRequestAttachment", "📎", "#1e516d", 18);
+      el.innerHTML = renderIconMarkup(conf.value, "", "");
+      var host = el.closest(".quote-request-icon-action, .adj-prod-card-action");
+      if (host) {
+        host.style.setProperty("--icon-color", conf.color);
+        host.style.setProperty("--icon-hover-color", conf.hover);
+      }
+      el.style.setProperty("--config-icon-size", conf.size + "px");
+    }
+  });
 }
 
 async function renderDetailsDemo(baseResult = totals()) {
   if (!els.detailsCostTable) return;
   await renderQuoteTracking();
-  const quantities = detailQuantityValues();
+  try { renderAdjuntosProducto(); } catch (e) { /* visor de adjuntos opcional */ }
+  const cantidades = cantidadesDelDetalle();
+  const quantities = cantidades.map((item) => item.value);
   const quoteCode = String(state.form.header.quoteCode || "").trim();
-  const lineCode = String(state.form.header.lineCode || "").trim();
   if (els.detailsLineBadge) {
+    const lineCode = String(state.form?.header?.lineCode || "").trim();
+    const enlaceFlotante = (route, label, texto) => `<a class="summary-row-link" href="${esc(route)}" data-route="${esc(route)}" data-label="${esc(label)}" data-flotante="1">${esc(texto)}</a>`;
+    const calculoMarkup = lineCode
+      ? `<span class="details-line-label">Cálculo</span><span class="details-calculo-code">${esc(lineCode)}</span>`
+      : "";
     const quoteRoute = quoteCode ? `/cotizaciones/documento?codigo=${encodeURIComponent(quoteCode)}` : "";
-    const quoteMarkup = quoteCode
-      ? `<a class="details-quote-code summary-row-link" href="${esc(quoteRoute)}" data-route="${esc(quoteRoute)}" data-label="Cotización ${esc(quoteCode)}">${esc(quoteCode)}</a>`
-      : `<span class="details-quote-code">Cotización sin base</span>`;
-    els.detailsLineBadge.innerHTML = `<span class="details-line-code">${lineCode ? `Línea ${esc(lineCode)}` : "Línea sin base"}</span>${quoteMarkup}`;
+    const origen = [];
+    origen.push({
+      etiqueta: "Cotización",
+      valor: quoteCode ? enlaceFlotante(quoteRoute, `Cotización ${quoteCode}`, quoteCode) : `<span>Cotización sin base</span>`
+    });
+    const orderCode = calcLineOrderCode();
+    if (orderCode) {
+      origen.push({ etiqueta: "Orden", valor: enlaceFlotante(`/orden-produccion/${encodeURIComponent(orderCode)}`, `Orden ${orderCode}`, orderCode) });
+    }
+    const rutaProducto = (codigo) => (codigo && codigo !== lineCode) ? `/producto-documento?codigo=${encodeURIComponent(codigo)}` : "/productos";
+    const createdProductEntries = calcMotivoProductEntries().filter((entry) => String(entry.productSku || "").trim());
+    let skuMarkup = "";
+    if (createdProductEntries.length) {
+      skuMarkup = createdProductEntries
+        .map((entry) => {
+          const sku = String(entry.productSku || "").trim();
+          return enlaceFlotante(rutaProducto(entry.productCode), `SKU ${sku}`, sku);
+        })
+        .join(`<span class="details-line-sep">/</span>`);
+    } else {
+      const largo = String(calcLineProductSku() || "").trim();
+      if (largo) skuMarkup = enlaceFlotante(rutaProducto(calcLineProductCode()), `SKU ${largo}`, largo);
+    }
+    if (skuMarkup) origen.push({ etiqueta: "SKU", valor: skuMarkup });
+    const origenMarkup = `<span class="details-line-label">${origen.map((item) => item.etiqueta).join(" / ")}</span>`
+      + `<span class="details-line-links">${origen.map((item) => item.valor).join(`<span class="details-line-sep">/</span>`)}</span>`;
+    els.detailsLineBadge.innerHTML = `${calculoMarkup}${origenMarkup}`;
   }
   if (!quantities.length) {
     els.detailsCostTable.innerHTML = '<div class="details-empty">Agrega cantidades para ver el detalle.</div>';
     return;
   }
-  const results = quantities.map((quantity, index) => (index === 0 && n(quantity, 0) === currentQuantity(state.form)) ? baseResult : totalsForQuantity(quantity));
+  const results = resultadosPorCantidad(cantidades, baseResult);
   const rows = detailCostRows(baseResult);
   const validationState = buildCalculationValidationState(baseResult);
   const gridStyle = detailsGridStyle(quantities.length);
-  const header = `<div class="details-cost-row details-cost-head" style="${esc(gridStyle)}"><div>Cantidades</div>${quantities.map((quantity) => `<div class="details-cost-value details-quantity-cell">${esc(num(quantity, 0))}</div>`).join("")}</div>`;
+  const header = `<div class="details-cost-row details-cost-head" style="${esc(gridStyle)}"><div>Cantidades</div>${quantities.map((quantity, index) => `<div class="details-cost-value details-quantity-cell"><span class="cabeza-cantidad">${esc(num(quantity, 0))}</span><span class="cabeza-extra">Total ${esc(money(results[index]?.total || 0))}</span></div>`).join("")}</div>`;
   const body = rows.map((row) => {
     const classes = ["details-cost-row"];
     if (row.child) classes.push("is-child");
@@ -7363,10 +11373,222 @@ async function renderDetailsDemo(baseResult = totals()) {
     const alertMessages = detailAlertMessagesForRow(row, validationState);
     const alertText = summarizeMessages(alertMessages, 2);
     if (alertMessages.length) classes.push("is-alert");
-    const cells = results.map((result, index) => detailAmountCell(row, result, index, quantities[index])).join("");
+    const cells = results.map((result, index) => detailAmountCell(row, result, index, quantities[index], cantidades[index].id)).join("");
     return `<div class="${classes.join(" ")}" style="${esc(gridStyle)}"${alertText ? ` title="${esc(alertText)}"` : ""}><div>${detailRowLabelWithAlert(row, alertMessages)}</div>${cells}</div>`;
   }).join("");
   els.detailsCostTable.innerHTML = header + body;
+}
+
+function profitabilityThresholds() {
+  const general = state.costsConfig?.general || {};
+  const saludable = numericValue(general.margenSaludablePct, 30);
+  let minimo = numericValue(general.margenMinimoPct, 20);
+  if (minimo > saludable) minimo = saludable;
+  const materiaPrimaMaxima = numericValue(general.materiaPrimaMaximaPct, 55);
+  return { saludable, minimo, materiaPrimaMaxima };
+}
+
+function profitabilityFlagNarrative(semKey, margenPct, minimo, saludable, markupPct) {
+  const m = `${num(margenPct, 2)} %`;
+  if (semKey === "bad") {
+    return `La utilidad bruta (${m}) está por debajo del mínimo permitido (${num(minimo, 2)} %). Antes de enviar la cotización conviene revisar el precio de venta, el descuento aplicado o los costos de materia prima y conversión.`;
+  }
+  if (semKey === "warn") {
+    return `La utilidad bruta (${m}) está entre el mínimo (${num(minimo, 2)} %) y el nivel saludable (${num(saludable, 2)} %). Se puede cotizar, pero deja poco colchón ante imprevistos de producción; revisá si hay espacio para mejorar precio o bajar merma.`;
+  }
+  return `La utilidad bruta (${m}) está en el nivel saludable (desde ${num(saludable, 2)} %). El markup sobre el costo es ${num(markupPct, 2)} %.`;
+}
+
+function metricasRentabilidad(result = {}, quantity = 0) {
+  const precioVenta = r(n(result.afterDiscount, 0));
+  if (!(quantity > 0) || !(precioVenta > 0)) return null;
+  const costoDirecto = r(n(result.industrial, 0));
+  const overheadMonto = r(Math.max(0, n(result.overhead, 0) - n(result.industrial, 0)));
+  const costoTotal = r(n(result.overhead, costoDirecto));
+  const utilidad = r(precioVenta - costoTotal);
+  const margenPct = precioVenta > 0 ? (utilidad / precioVenta) * 100 : 0;
+  const markupPct = costoTotal > 0 ? (utilidad / costoTotal) * 100 : 0;
+
+  // --- Materia prima: producto neto vs merma, desglosado por insumo ---
+  const sustrato = result.sustrato || {};
+  const sustratoSubtotal = n(sustrato.subtotal, 0);
+  const sustratoUnitCost = n(sustrato.unitCost, 0);
+  const sustratoWasteMeters = n(sustrato.startupWasteMeters, n(sustrato.maculaTotalMeters, 0));
+  const sustratoTotalMeters = n(sustrato.totalLengthMeters, 0);
+  const mermaSustrato = r(Math.max(0, Math.min(sustratoSubtotal, sustratoWasteMeters * sustratoUnitCost)));
+  const netSustrato = r(Math.max(0, sustratoSubtotal - mermaSustrato));
+  const wasteRatioSustrato = sustratoTotalMeters > 0 ? (sustratoWasteMeters / sustratoTotalMeters) : 0;
+
+  const printItems = Array.isArray(result.print?.items) ? result.print.items : [];
+  const tintaSubtotal = n(result.print?.inkSubtotal, 0);
+  const mermaTinta = r(Math.max(0, printItems.reduce((sum, item) => sum + n(item.inkMermaSubtotal, 0), 0)));
+  const netTinta = r(Math.max(0, tintaSubtotal - mermaTinta));
+
+  const inlineItems = printItems
+    .flatMap((item) => Array.isArray(item.inlineItems) ? item.inlineItems : [])
+    .filter((slot) => slot && n(slot.subtotal, 0) > 0);
+  const inlineByKey = (key) => inlineItems.filter((slot) => slot.key === key);
+  const externalFinishItems = Array.isArray(result.finishes?.items) ? result.finishes.items : [];
+  const extByKey = (key) => externalFinishItems.filter((item) => item.processKey === key);
+  const sumField = (list, field) => r(list.reduce((sum, entry) => sum + n(entry[field], 0), 0));
+
+  // Barniz: se aplica por sello, no genera merma de material -> todo va a neto.
+  const barniz = r(sumField(inlineByKey("barniz"), "materialSubtotal") + sumField(extByKey("barnizado"), "materialSubtotal"));
+  // Gomas / adhesivo de laminado y cold foil.
+  const gomas = r(sumField(inlineItems, "adhesivoSubtotal"));
+
+  const finishNetMerma = (inlineKey, externalKey) => {
+    const inlineSub = sumField(inlineByKey(inlineKey), "materialSubtotal");
+    const inlineMerma = r(inlineSub * wasteRatioSustrato);
+    const externalNet = sumField(extByKey(externalKey), "netMaterialSubtotal");
+    const externalMerma = sumField(extByKey(externalKey), "mermaMaterialSubtotal");
+    return { net: r(Math.max(0, inlineSub - inlineMerma) + externalNet), merma: r(inlineMerma + externalMerma) };
+  };
+  const laminante = finishNetMerma("laminado", "laminado");
+  const foil = finishNetMerma("estampado", "estampado");
+
+  const acabadosNet = r(laminante.net + foil.net);
+  const mermaAcabados = r(laminante.merma + foil.merma);
+  const mermaTotal = r(mermaSustrato + mermaTinta + mermaAcabados);
+
+  const cores = n(result.packaging?.costoCores, 0);
+  const cajas = n(result.packaging?.costoCajas, 0);
+  const bolsasCosto = n(result.packaging?.costoBolsas, 0);
+  const empaque = r(cores + cajas + bolsasCosto);
+
+  const materiaPrima = r(netSustrato + netTinta + barniz + gomas + acabadosNet + empaque + mermaTotal);
+  const mpPct = precioVenta > 0 ? (materiaPrima / precioVenta) * 100 : 0;
+  const otrosCostos = r(n(result.additional?.subtotal, 0));
+  const costoConversion = r(Math.max(0, costoDirecto - materiaPrima - otrosCostos));
+
+  const { saludable, minimo, materiaPrimaMaxima } = profitabilityThresholds();
+  let semKey = "ok";
+  if (margenPct < minimo) semKey = "bad";
+  else if (margenPct < saludable) semKey = "warn";
+  return {
+    quantity, precioVenta, costoTotal, utilidad, margenPct, markupPct, overheadMonto, overheadPct: n(result.overheadPct, 0),
+    sustrato, mermaSustrato, netSustrato, mermaTinta, netTinta, barniz, gomas, laminante, foil, acabadosNet, mermaTotal,
+    cores, cajas, bolsasCosto, empaque, materiaPrima, materiaPrimaNeta: r(Math.max(0, materiaPrima - mermaTotal)),
+    mpPct, superaMateriaPrima: mpPct > materiaPrimaMaxima, otrosCostos, costoConversion, semKey, saludable, minimo, materiaPrimaMaxima
+  };
+}
+
+function renderProfitabilityPanel(result = totals()) {
+  if (!els.profitabilityRows) return;
+  const cantidades = cantidadesDelDetalle();
+  const resultados = cantidades.length ? resultadosPorCantidad(cantidades, result) : [];
+  const columnas = cantidades.map((item, index) => ({ id: item.id, esPrimera: index === 0, metricas: metricasRentabilidad(resultados[index], item.value) }));
+  const referenciaPorcentajes = valoresReferenciaPorcentajes();
+  const referencias = cantidades.map((item) => {
+    const original = state.form.commercial;
+    try {
+      state.form.commercial = { ...original, ...referenciaPorcentajes, porcentajesPorCantidad: {} };
+      return metricasRentabilidad(totalsForQuantity(item.value), item.value);
+    } catch (error) {
+      return null;
+    } finally {
+      state.form.commercial = original;
+    }
+  });
+  const clavesResultado = ["overheadPct", "marginPct", "discountPct"];
+  const opcionesReferenciaResultado = (columna, indiceColumna, row, m) => {
+    const referencia = referencias[indiceColumna];
+    const valorReferencia = referencia && row.referencia ? row.referencia(referencia) : null;
+    const actuales = porcentajesDeCantidad(columna.id, columna.esPrimera);
+    const distinto = clavesResultado.some((clave) => Math.abs(n(actuales[clave], 0) - n(referenciaPorcentajes[clave], 0)) >= 0.005);
+    const textoReferencia = valorReferencia === null ? "" : `Con los porcentajes de referencia sería ${textoPorcentaje(valorReferencia)}. `;
+    return {
+      titulo: `${textoReferencia}${row.titulo ? row.titulo(m) : ""}`,
+      recalcular: distinto ? botonRecalcularMarkup(clavesResultado, columna.id, columna.esPrimera, `Recalcular esta cantidad con los porcentajes de referencia (Overhead ${textoPorcentaje(referenciaPorcentajes.overheadPct)}, Utilidad Bruta ${textoPorcentaje(referenciaPorcentajes.marginPct)}, Descuento ${textoPorcentaje(referenciaPorcentajes.discountPct)})`) : ""
+    };
+  };
+  const base = columnas.find((columna) => columna.metricas)?.metricas || null;
+  if (!base) {
+    if (els.profitabilityStatus) els.profitabilityStatus.innerHTML = "";
+    if (els.profitabilityNote) { els.profitabilityNote.hidden = true; els.profitabilityNote.textContent = ""; }
+    els.profitabilityRows.innerHTML = '<div class="profitability-empty">Datos insuficientes para calcular este indicador.</div>';
+    return;
+  }
+  const { saludable, minimo, materiaPrimaMaxima } = base;
+  if (els.profitabilityStatus) els.profitabilityStatus.innerHTML = "";
+  if (els.profitabilityNote) {
+    const conDatos = columnas.filter((columna) => columna.metricas).map((columna) => columna.metricas);
+    const problemas = conDatos.filter((m) => m.semKey !== "ok" || m.superaMateriaPrima);
+    const peor = conDatos.some((m) => m.semKey === "bad") ? "bad" : conDatos.some((m) => m.semKey === "warn") ? "warn" : "ok";
+    els.profitabilityNote.hidden = false;
+    els.profitabilityNote.dataset.semaforo = peor;
+    els.profitabilityNote.textContent = problemas.length
+      ? problemas.map((m) => {
+        const partes = [];
+        if (m.semKey === "bad") partes.push(`utilidad bruta de ${textoPorcentaje(m.margenPct)}, por debajo del mínimo (${textoPorcentaje(minimo)})`);
+        else if (m.semKey === "warn") partes.push(`utilidad bruta de ${textoPorcentaje(m.margenPct)}, baja (saludable desde ${textoPorcentaje(saludable)})`);
+        if (m.superaMateriaPrima) partes.push(`la materia prima es ${textoPorcentaje(m.mpPct)} del precio y supera el máximo de ${textoPorcentaje(materiaPrimaMaxima)}`);
+        return `${num(m.quantity, 0)} u: ${partes.join("; ")}.`;
+      }).join(" ")
+      : `Todas las cantidades tienen utilidad bruta saludable (desde ${textoPorcentaje(saludable)}).`;
+  }
+
+  const perUnit = (m, value) => money(m.quantity > 0 ? r(value / m.quantity, 6) : 0);
+  // Merma como % del producto neto (misma definición que merma_*_pct_cotizada en la orden/producto:
+  // (consumo total - consumo neto) / consumo neto). Se agrega al lado del monto para verla en el cálculo.
+  const mermaPct = (mermaVal, netVal) => (netVal > 0 ? `${num((mermaVal / netVal) * 100, 1)} %` : "");
+  const alguna = (condicion) => columnas.some((columna) => columna.metricas && condicion(columna.metricas));
+  const tituloObjetivo = "Toca para escribir el % que buscas y el sistema ajusta el precio de esta cantidad.";
+  const rows = [
+    { label: "Precio de Venta", valor: (m) => money(m.precioVenta), strong: true, hint: "Precio final de la cotización para cada cantidad, ya con descuento y sin IVA. Es la referencia contra la que se mide todo lo demás." },
+    { label: "Costo Estimado de Materia Prima", valor: (m) => money(m.materiaPrima), hint: "Suma de todos los insumos físicos que consume el trabajo (sustrato, tintas, barniz, gomas, acabados, empaque) incluyendo su merma. No incluye tiempo de máquina ni mano de obra." },
+    { label: "Sustrato (neto)", valor: (m) => money(m.netSustrato), child: true, hint: "Material base para la cantidad buena a entregar, sin la merma de arranque ni la de tiraje." },
+    { label: "Tintas (neto)", valor: (m) => money(m.netTinta), child: true, hint: "Tinta consumida sobre el producto bueno. No incluye barniz ni gomas: cada uno tiene su propia línea." },
+    ...(alguna((m) => m.barniz > 0) ? [{ label: "Barniz", valor: (m) => money(m.barniz), child: true, hint: "Barniz aplicado, inline o como proceso aparte. No genera merma de material porque se aplica por sello." }] : []),
+    ...(alguna((m) => m.gomas > 0) ? [{ label: "Gomas / Adhesivo", valor: (m) => money(m.gomas), child: true, hint: "Adhesivo de laminado y de cold foil consumido en el trabajo." }] : []),
+    ...(alguna((m) => m.acabadosNet > 0) ? [{ label: "Material de Acabados", valor: (m) => money(m.acabadosNet), child: true, hint: "Laminante y foil consumidos sobre el producto bueno. Su merma se muestra abajo, en Maculatura / Merma." }] : []),
+    ...(alguna((m) => m.laminante.net > 0) ? [{ label: "Laminante (neto)", valor: (m) => money(m.laminante.net), subchild: true, hint: "Película de laminado sobre la cantidad buena." }] : []),
+    ...(alguna((m) => m.foil.net > 0) ? [{ label: "Foil / Estampado (neto)", valor: (m) => money(m.foil.net), subchild: true, hint: "Foil de estampado sobre la cantidad buena." }] : []),
+    ...(alguna((m) => m.empaque > 0) ? [{ label: "Empaque", valor: (m) => money(m.empaque), child: true, hint: "Cores, cajas y bolsas para el despacho del trabajo." }] : []),
+    ...(alguna((m) => m.cores > 0) ? [{ label: "Cores", valor: (m) => money(m.cores), subchild: true, hint: "Cores necesarios = cantidad / etiquetas por rollo." }] : []),
+    ...(alguna((m) => m.cajas > 0) ? [{ label: "Cajas", valor: (m) => money(m.cajas), subchild: true, hint: "Cajas necesarias para empacar los rollos del trabajo." }] : []),
+    ...(alguna((m) => m.bolsasCosto > 0) ? [{ label: "Bolsas", valor: (m) => money(m.bolsasCosto), subchild: true, hint: "Bolsas plásticas seleccionadas para el empaque del trabajo." }] : []),
+    ...(alguna((m) => m.mermaTotal > 0) ? [{ label: "Maculatura / Merma", valor: (m) => money(m.mermaTotal), extra: (m) => mermaPct(m.mermaTotal, m.materiaPrimaNeta), child: true, hint: "Material que se consume de más y no llega al cliente: merma de arranque de máquina y merma porcentual de tiraje. Se calcula sobre la longitud total del sustrato, no solo sobre la cantidad pedida. El % es respecto al material neto (producto bueno)." }] : []),
+    ...(alguna((m) => m.mermaTotal > 0 && m.mermaSustrato > 0) ? [{ label: "Merma de Sustrato", valor: (m) => money(m.mermaSustrato), extra: (m) => mermaPct(m.mermaSustrato, m.netSustrato), subchild: true, hint: `Merma de montaje (${num(n(base.sustrato.maculaSetupMeters, 0), 2)} m) + merma porcentual de tiraje (${num(n(base.sustrato.maculaTirajeMeters, 0), 2)} m) valorizadas al costo por metro del material. El % es respecto al sustrato neto.` }] : []),
+    ...(alguna((m) => m.mermaTotal > 0 && m.mermaTinta > 0) ? [{ label: "Merma de Tinta", valor: (m) => money(m.mermaTinta), extra: (m) => mermaPct(m.mermaTinta, m.netTinta), subchild: true, hint: "Tinta consumida sobre la merma de arranque y de tiraje. El % es respecto a la tinta neta." }] : []),
+    ...(alguna((m) => m.mermaTotal > 0 && m.laminante.merma > 0) ? [{ label: "Merma de Laminante", valor: (m) => money(m.laminante.merma), extra: (m) => mermaPct(m.laminante.merma, m.laminante.net), subchild: true, hint: "Excedente de laminante por la longitud extra del sustrato y la merma propia del proceso. El % es respecto al laminante neto." }] : []),
+    ...(alguna((m) => m.mermaTotal > 0 && m.foil.merma > 0) ? [{ label: "Merma de Foil", valor: (m) => money(m.foil.merma), extra: (m) => mermaPct(m.foil.merma, m.foil.net), subchild: true, hint: "Excedente de foil por la longitud extra del sustrato y la merma propia del proceso. El % es respecto al foil neto." }] : []),
+    { label: "% Materia Prima sobre Venta", editable: "objetivoMateriaPrima", porcentaje: (m) => m.mpPct, referencia: (m) => m.mpPct, flag: (m) => (m.superaMateriaPrima ? "bad" : ""), titulo: (m) => (m.superaMateriaPrima ? `Supera el máximo permitido de ${num(materiaPrimaMaxima, 0)}%. ${tituloObjetivo}` : tituloObjetivo), hint: `Cuánto del precio de venta se va solo en insumos. Máximo permitido ${num(materiaPrimaMaxima, 0)}%; por encima se marca en rojo. Si escribes otro %, el sistema cambia la Utilidad Bruta de esa cantidad para llegar a ese número.` },
+    { label: "Costo de Conversión", valor: (m) => money(m.costoConversion), hint: "Lo que cuesta transformar la materia prima: tiempo de máquina, mano de obra, preprensa, sellos, troquel y acabados por servicio (sin el material)." },
+    ...(alguna((m) => m.otrosCostos > 0) ? [{ label: "Otros Costos", valor: (m) => money(m.otrosCostos), hint: "Procesos adicionales cargados manualmente en la cotización." }] : []),
+    { label: "% Overhead", editable: "overheadPct", porcentaje: (m) => m.overheadPct, hint: "Porcentaje de gastos generales de esta cantidad. Es el mismo que se ve en Detalles: si lo cambias aquí, también cambia allá." },
+    ...(alguna((m) => m.overheadMonto > 0) ? [{ label: "Gastos Generales (Overhead)", valor: (m) => money(m.overheadMonto), hint: "Gastos fijos de la planta prorrateados sobre el costo industrial, según el % Overhead de cada cantidad." }] : []),
+    { label: "Costo Estimado Total", valor: (m) => money(m.costoTotal), strong: true, hint: "Materia prima + conversión + otros costos + overhead. Es el costo real estimado del trabajo." },
+    { label: "Utilidad Bruta Estimada", valor: (m) => money(m.utilidad), strong: true, hint: "Precio de venta menos costo estimado total. Lo que queda antes de impuestos." },
+    { label: "Utilidad Bruta %", editable: "objetivoUtilidad", porcentaje: (m) => m.margenPct, referencia: (m) => m.margenPct, flag: (m) => m.semKey, titulo: () => tituloObjetivo, hint: `Utilidad bruta sobre el precio de venta. Mínimo permitido ${num(minimo, 2)} %; saludable desde ${num(saludable, 2)} %. Si escribes otro %, el sistema cambia la Utilidad Bruta de Detalles para esa cantidad.` },
+    { label: "Markup %", editable: "objetivoMarkup", porcentaje: (m) => m.markupPct, referencia: (m) => m.markupPct, titulo: () => tituloObjetivo, hint: "Utilidad sobre el costo, no sobre la venta. Un markup de 100 % equivale a 50 % de margen. Si escribes otro %, el sistema cambia la Utilidad Bruta de Detalles para esa cantidad." },
+    { label: "Precio por Unidad", valor: (m) => perUnit(m, m.precioVenta), hint: "Precio de venta dividido entre la cantidad." },
+    { label: "Costo por Unidad", valor: (m) => perUnit(m, m.costoTotal), hint: "Costo estimado total dividido entre la cantidad." },
+    { label: "Utilidad por Unidad", valor: (m) => perUnit(m, m.utilidad), hint: "Utilidad bruta estimada dividida entre la cantidad." }
+  ];
+  const gridStyle = detailsGridStyle(columnas.length);
+  const header = `<div class="details-cost-row details-cost-head" style="${esc(gridStyle)}"><div>Cantidades</div>${columnas.map((columna, index) => `<div class="details-cost-value details-quantity-cell"><span class="cabeza-cantidad">${esc(num(cantidades[index].value, 0))}</span>${columna.metricas ? `<span class="cabeza-estado es-${esc(columna.metricas.semKey)}" title="${esc(`${TEXTOS_ESTADO_UTILIDAD[columna.metricas.semKey]}: ${textoPorcentaje(columna.metricas.margenPct)}`)}"><i></i>${esc({ ok: "Saludable", warn: "Baja", bad: "Bajo el mínimo" }[columna.metricas.semKey])}</span><span class="cabeza-extra">Utilidad ${esc(textoPorcentaje(columna.metricas.margenPct))}</span>` : ""}</div>`).join("")}</div>`;
+  const body = rows.map((row) => {
+    const classes = ["details-cost-row", "fila-rentabilidad"];
+    if (row.child) classes.push("is-child");
+    if (row.subchild) classes.push("is-child", "es-subnivel");
+    if (row.strong) classes.push("is-total");
+    const celdas = columnas.map((columna, indiceColumna) => {
+      const m = columna.metricas;
+      if (!m) return '<div class="details-cost-value"></div>';
+      const bandera = row.flag ? row.flag(m) : "";
+      if (row.editable) {
+        const referencia = row.editable.startsWith("objetivo")
+          ? opcionesReferenciaResultado(columna, indiceColumna, row, m)
+          : opcionesReferenciaEntrada(row.editable, row.porcentaje(m), columna.id, columna.esPrimera);
+        return celdaPorcentajeEditable(row.editable, row.porcentaje(m), columna.id, columna.esPrimera, { bandera, ...referencia });
+      }
+      const extra = row.extra ? row.extra(m) : "";
+      return `<div class="details-cost-value${bandera ? ` es-bandera-${bandera}` : ""}"><span class="details-cost-value-text">${esc(row.valor(m))}</span>${extra ? `<span class="valor-extra"><span class="valor-extra-separador"> · </span>${esc(extra)}</span>` : ""}</div>`;
+    }).join("");
+    return `<div class="${classes.join(" ")}" style="${esc(gridStyle)}"${row.hint ? ` title="${esc(row.hint)}"` : ""}><div><span class="details-label-text">${esc(row.label)}</span></div>${celdas}</div>`;
+  }).join("");
+  els.profitabilityRows.innerHTML = header + body;
 }
 
 function updateProcessLauncherMenuPlacement() {
@@ -7406,6 +11628,7 @@ function injectProcessRemoveButtons() {
 
 function renderSidebar(result) {
   renderDetailsDemo(result).catch(() => {});
+  renderProfitabilityPanel(result);
   const material = findMaterial(state.form.substrate.materialId);
   const printProcess = findProcess(state.form.print.processId);
   const quantities = normalizeQuantities(state.form.header.quantities).map((item) => num(item.value, 0)).join(" │ ");
@@ -7430,15 +11653,25 @@ function renderSidebar(result) {
     || (currentLabelsPerRoll > 0 && autoLabelsPerRoll > 0 && currentLabelsPerRoll !== autoLabelsPerRoll)
     || (processProductiveType && currentAutoRoute && norm(processProductiveType) !== norm(currentAutoRoute))
   );
-  const plateRule = digitalPlateRuleApplies() ? "Planchas no se cobran" : "Planchas sí se cobran";
+  const plateRule = digitalPlateRuleApplies() ? "Sellos no se cobran" : "Sellos sí se cobran";
   const statusBase = state.form.header.quoteCode && state.form.header.lineCode ? `Evaluando ${state.form.header.quoteCode} / ${state.form.header.lineCode}.` : "Evaluando cálculo de flexografía.";
-  els.calcStatus.textContent = digitalPlateRuleApplies() ? `${statusBase} ${digitalPlateRuleMessage()}` : statusBase;
+  const dimStatusErr = productDimensionErrors(state.form);
+  els.calcStatus.textContent = dimStatusErr.blocked
+    ? dimStatusErr.message
+    : (digitalPlateRuleApplies() ? `${statusBase} ${digitalPlateRuleMessage()}` : statusBase);
+  els.calcStatus.classList.toggle("calc-status-error", dimStatusErr.blocked);
+  if (els.dimensionBlockBanner) {
+    els.dimensionBlockBanner.hidden = !dimStatusErr.blocked;
+    els.dimensionBlockBanner.textContent = dimStatusErr.blocked
+      ? `Cálculo detenido — ${dimStatusErr.message}`
+      : "";
+  }
   const quoteCode = String(state.form.header.quoteCode || "").trim();
   const quoteRoute = quoteCode ? `/cotizaciones/documento?codigo=${encodeURIComponent(quoteCode)}` : "";
   const quoteValue = quoteRoute
     ? `<a class="summary-row-link" href="${esc(quoteRoute)}" data-route="${esc(quoteRoute)}" data-label="Cotización ${esc(quoteCode)}">${esc(quoteCode)}</a>`
     : esc("Sin base");
-  els.contextRows.innerHTML = [["Cotización", quoteValue, true], ["Línea", state.form.header.lineCode || "Sin base"], ["Cantidades productos", quantities || "Sin definir"], ["Cantidad base", num(currentQuantity(state.form), 0)], ["Troquel", state.form.troquel.dieCode || "No definido"], ["Sustrato", state.form.substrate.nombreComercial || material?.descripcion || "No definido"], ["Máquina impresión", printProcess?.machine_name || state.form.print.machineName || "No definida"], ["Proceso productivo", processProductiveType], ["Ruta automática", state.context?.calculo?.processType || autoSelection?.route || "No definida"], ["Montaje base", first(autoSelection?.mounting?.summary, state.context?.calculo?.raw_data?.["REQ | Montaje Automático"], "Pendiente")], ["Regla planchas", plateRule], ["Estado línea", state.form.header.lineStatus || "En evaluación"]].map(([label, value, html]) => `<div class="summary-row"><span>${esc(label)}</span><span class="summary-row-value">${html ? value : esc(value)}</span></div>`).join("");
+  els.contextRows.innerHTML = [["Cotización", quoteValue, true], ["Línea", state.form.header.lineCode || "Sin base"], ["Cantidades productos", quantities || "Sin definir"], ["Cantidad base", num(currentQuantity(state.form), 0)], ["Troquel", state.form.troquel.dieCode || "No definido"], ["Sustrato", state.form.substrate.nombreComercial || material?.descripcion || "No definido"], ["Máquina impresión", printProcess?.machine_name || state.form.print.machineName || "No definida"], ["Proceso productivo", processProductiveType], ["Ruta automática", state.context?.calculo?.processType || autoSelection?.route || "No definida"], ["Montaje base", first(autoSelection?.mounting?.summary, state.context?.calculo?.raw_data?.["REQ | Montaje Automático"], "Pendiente")], ["Regla sellos", plateRule], ["Estado línea", state.form.header.lineStatus || "En evaluación"]].map(([label, value, html]) => `<div class="summary-row"><span>${esc(label)}</span><span class="summary-row-value">${html ? value : esc(value)}</span></div>`).join("");
   if (els.automaticSummaryRows) {
     const processSequence = autoProcesses.length
       ? autoProcesses.map((item) => item.processName || item.name || item.processKey || "").filter(Boolean).join(" → ")
@@ -7467,10 +11700,8 @@ function renderSidebar(result) {
     : [];
   const typesChangesSection = [
     `<div class="summary-row summary-row-section"><span>Resumen de Tipos y Cambios</span><span></span></div>`,
-    ["Tipos o Motivos", String(Math.max(1, n(state.form.header.quantityTypes, 1)))],
-    ["Cambios por Tipos", String(n(state.form.header.changesByTypes, changesByTypesCount(state.form.header.quantityTypes)))],
-    ["Cambios Adicionales", String(Math.max(0, n(state.form.header.quantityChanges, 0)))],
-    ["Cambios Totales", String(n(state.form.header.totalChanges, totalChangesCount(state.form.header.quantityTypes, state.form.header.quantityChanges)))]
+    ["Tipos o Artes", String(Math.max(1, n(state.form.header.quantityTypes, 1)))],
+    ["Cambios", String(n(state.form.header.totalChanges, changesByTypesCount(state.form.header.quantityTypes)))],
   ].map((entry) => Array.isArray(entry)
     ? `<div class="summary-row"><span>${esc(entry[0])}</span><span class="summary-row-value">${esc(entry[1])}</span></div>`
     : entry).join("");
@@ -7478,10 +11709,11 @@ function renderSidebar(result) {
     ["Sustrato", money(result.sustrato.subtotal)],
     ["Diseño", money(result.design.subtotal)],
     ["Preprensa", money(result.prepress.subtotal)],
-    ["Planchas", money(result.plates.subtotal)],
+    ["Sellos", money(result.plates.subtotal)],
     ["Impresión", money(result.print.subtotal)],
     ["Acabados", money(result.finishes.subtotal)],
     ["Empaque", money(result.packaging.subtotal)],
+    ...(hasActiveProcess("empaque") ? [["Costo Cores", money(result.packaging.costoCores || 0)], ["Costo Cajas", money(result.packaging.costoCajas || 0)], ["Costo Bolsas", money(result.packaging.costoBolsas || 0)]] : []),
     ["Adicionales", money(result.additional.subtotal)],
     ["Cambios de Producción", money(result.cambios.subtotal)],
     ["Costo Industrial Total", money(result.industrial)],
@@ -7529,7 +11761,7 @@ function buildSapPreviewPayloads(result) {
       "Sustrato",
       material.id,
       material.descripcion || material.nombre || material.id,
-      first(result?.sustrato?.totalLengthFeet, result?.sustrato?.linealFeet, quantity)
+      first(result?.sustrato?.totalLengthMeters, result?.sustrato?.linealMeters, quantity)
     );
   }
 
@@ -7547,12 +11779,12 @@ function buildSapPreviewPayloads(result) {
         stage.inkMaterialId,
         inkMaterial?.descripcion || inkMaterial?.nombre || stage.inkMaterialId,
         cmykQuantity,
-        { UnitHint: isDigitalMachine ? "kg" : "lb" }
+        { UnitHint: "kg" }
       );
     }
     const whiteQuantity = isDigitalMachine
       ? n(printItem?.digitalWhiteKg, 0)
-      : r(n(printItem?.inkConsumptionPerColorLb, 0) * (state.form?.header?.doubleWhitePass ? 2 : 1), 6);
+      : r((n(printItem?.inkConsumptionPerColorKg, 0) > 0 ? n(printItem?.inkConsumptionPerColorKg, 0) : legacyInkConsumptionKg(printItem?.inkConsumptionPerColorLb)) * (state.form?.header?.doubleWhitePass ? 2 : 1), 6);
     if (state.form?.header?.useWhiteInk && stage.whiteInkMaterialId && whiteQuantity > 0) {
       const whiteMaterial = findMaterial(stage.whiteInkMaterialId);
       pushComponent(
@@ -7560,7 +11792,7 @@ function buildSapPreviewPayloads(result) {
         stage.whiteInkMaterialId,
         whiteMaterial?.descripcion || whiteMaterial?.nombre || stage.whiteInkMaterialId,
         whiteQuantity,
-        { UnitHint: isDigitalMachine ? "kg" : "lb" }
+        { UnitHint: "kg" }
       );
     }
     (printItem?.inlineItems || []).forEach((inlineItem) => {
@@ -7570,8 +11802,8 @@ function buildSapPreviewPayloads(result) {
         inlineItem.label || inlineItem.key || "Acabado Inline",
         inlineItem.materialId,
         inlineMaterial?.descripcion || inlineMaterial?.nombre || inlineItem.materialId,
-        first(inlineItem.materialConsumptionLb, inlineItem.materialBase, 0),
-        { UnitHint: inlineItem.key === "barniz" ? "lb" : "base" }
+        first(inlineItem.materialConsumptionKg, inlineItem.materialConsumptionLb ? r(inlineItem.materialConsumptionLb * 0.45359237, 6) : 0, inlineItem.materialBase, 0),
+        { UnitHint: inlineItem.key === "barniz" ? "kg" : "base" }
       );
     });
   });
@@ -8096,16 +12328,11 @@ function applyDefaultLauncherPosition() {
 
 function renderPlateModeSelector() {
   const current = normalizePlateMode(state.form.plates?.plateMode);
-  return `<div class="front-back-element-tabs plate-mode-tabs" role="tablist" aria-label="Tipo de plancha">${plateModeOptions().map((option) => `<button type="button" class="front-back-element-tab plate-mode-tab${current === option.key ? " is-active" : ""}" data-action="set-plate-mode" data-plate-mode="${esc(option.key)}" role="tab" aria-selected="${current === option.key ? "true" : "false"}"><strong>${esc(option.label)}</strong></button>`).join("")}</div>`;
-}
-
-function renderDieModeSelector() {
-  const current = normalizeDieMode(state.form.troquel?.dieMode);
-  return `<div class="front-back-element-tabs plate-mode-tabs" role="tablist" aria-label="Tipo de troquel">${dieModeOptions().map((option) => `<button type="button" class="front-back-element-tab plate-mode-tab${current === option.key ? " is-active" : ""}" data-action="set-die-mode" data-die-mode="${esc(option.key)}" role="tab" aria-selected="${current === option.key ? "true" : "false"}"><strong>${esc(option.label)}</strong></button>`).join("")}</div>`;
+  return `<div class="front-back-element-tabs plate-mode-tabs" role="tablist" aria-label="Tipo de sello">${plateModeOptions().map((option) => `<button type="button" class="front-back-element-tab plate-mode-tab${current === option.key ? " is-active" : ""}" data-action="set-plate-mode" data-plate-mode="${esc(option.key)}" role="tab" aria-selected="${current === option.key ? "true" : "false"}"><strong>${esc(option.label)}</strong></button>`).join("")}</div>`;
 }
 
 function renderPlatePendingPanel() {
-  return `<div class="plate-disabled-panel"><span>Selecciona planchas en inventario o costo externo.</span></div>`;
+  return `<div class="plate-disabled-panel"><span>Selecciona sellos en inventario o costo externo.</span></div>`;
 }
 
 function renderDiePendingPanel() {
@@ -8122,58 +12349,49 @@ function renderPlateExternalAttachmentTable(item = {}, index = 0) {
 
 function renderPlateExternalRow(item = {}, index = 0) {
   const deleteIcon = getProcessDeleteIconConfig();
-  if (item.isAuto) {
-    return `<div class="additional-item"><div class="additional-row plancha-auto-table-row"><span class="plancha-auto-desc">${esc(item.description || "")}</span><span class="plancha-auto-cost-val">${money(item.cost || 0)}</span><span class="plancha-auto-comments">${esc(item.comments || "")}</span><span></span></div></div>`;
-  }
   return `<div class="additional-item"><div class="additional-row"><input data-scope="plates.external.${index}" data-field="description" type="text" value="${esc(item.description || "")}" placeholder="Descripción">${displayInput(`plates.external.${index}`, "cost", item.cost || 0, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}<input data-scope="plates.external.${index}" data-field="comments" type="text" value="${esc(item.comments || "")}" placeholder="Comentarios"><button type="button" class="process-trash-button" data-action="remove-plate-external" data-index="${index}" aria-label="Eliminar fila" title="Eliminar fila" style="--process-delete-icon-color:${esc(deleteIcon.primary)};--process-delete-icon-hover:${esc(deleteIcon.hover)};--process-delete-icon-size:${deleteIcon.size}px;">${renderIconMarkup(deleteIcon.value, "Eliminar fila", "process-delete-icon")}</button></div>${renderPlateExternalAttachmentTable(item, index)}</div>`;
 }
 
+function renderPlateMotivoRow(row, index, acumuladoIn2) {
+  return `<div class="plate-motivo-row">
+    <span class="plate-motivo-num">${row.motivoNumber}</span>
+    <input data-scope="plates.rowsAuto.${index}" data-field="detalle" type="text" value="${esc(row.detalle || "")}" placeholder="Detalle">
+    ${displayInput(`plates.rowsAuto.${index}`, "cantidad", row.cantidad || 0, { integer: true, maximumFractionDigits: 0, step: "1" })}
+    ${displayInput(`plates.rowsAuto.${index}`, "inPorSello", row.inPorSello || 0, { suffix: "in²", maximumFractionDigits: 2, step: "0.01" })}
+    ${readonlyDisplay(`${num(row.inTotalMotivo || 0, 2)} in²`)}
+    ${readonlyDisplay(`${num(acumuladoIn2, 2)} in²`)}
+    ${displayInput(`plates.rowsAuto.${index}`, "costoPorIn2", row.costoPorIn2 || 0, { prefix: "$", maximumFractionDigits: 4, step: "0.0001" })}
+    ${displayInput(`plates.rowsAuto.${index}`, "subtotal", row.subtotal || 0, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}
+  </div>`;
+}
+
 function renderPlateExternalPanel(plates) {
+  const autoRows = state.form.plates.rowsAuto || [];
+  let acumulado = 0;
+  const autoRowsHtml = autoRows.map((row, index) => {
+    acumulado = r(acumulado + n(row.inTotalMotivo, 0), 4);
+    return renderPlateMotivoRow(row, index, acumulado);
+  }).join("");
+  const addIcon = iconPresentation("quantityAdd", "+", "#738196", 18);
+  const addRowButton = `<button type="button" class="quantity-inline-action quantity-inline-add" data-action="add-plate-external" aria-label="Agregar costo externo adicional" title="Agregar costo externo adicional" style="--quantity-add-icon-color:${esc(addIcon.color)};--quantity-add-icon-hover:${esc(addIcon.hover)};--quantity-add-icon-size:${addIcon.size}px;">${renderIconMarkup(addIcon.value, "Agregar costo externo adicional", "quantity-add-icon")}</button>`;
   const rows = normalizePlateExternalRows(state.form.plates.external);
-  const autoRows = rows.filter((r) => r.isAuto);
-  const hasAuto = autoRows.length > 0;
-  const exampleLines = plates.formulaText ? [] : [];
-  if (hasAuto) {
-    const p = calcularPlanchaSqIn();
-    if (p.totalSqIn > 0) {
-      let formulaParts = [];
-      if (p.printingSqIn > 0) formulaParts.push(`${num(p.colors, 0)} tintas × (${num(p.machineMaxWidthIn, 2)} in ancho máq. × ${num(p.dieDevIn, 3)} in desarrollo)`);
-      if (p.stampingSqIn > 0) formulaParts.push(`${num(p.machineMaxWidthIn, 2)} in ancho rollo × ${num(p.dieDevIn, 3)} in desarrollo (estampado)`);
-      if (formulaParts.length) exampleLines.push(`Área plancha = ${formulaParts.join(' + ')} = ${num(p.totalSqIn, 2)} in²`);
-      exampleLines.push(`Costo plancha = ${num(p.totalSqIn, 2)} in² × $${num(p.costPerSqIn, 4)}/in² = ${formulaValue(p.totalCost, 2)}`);
-    }
-  }
-  rows.forEach((row) => { if (!row.isAuto && n(row.cost, 0) > 0) exampleLines.push(`Costo externo: ${formulaValue(row.cost || 0, 2)}`); });
-  return `<div class="table-toolbar"><button type="button" class="inline-button" data-action="add-plate-external">Agregar fila</button></div><div class="additional-table plate-external-table"><div class="additional-head"><span>Descripción</span><span>Costo</span><span>Comentarios</span><span></span></div>${rows.map((item, index) => renderPlateExternalRow(item, index)).join("")}</div><div class="readonly-grid compact-top subtotal-right">${metric("Subtotal Planchas", money(plates.subtotal))}</div>${formula("Costo Externo", plates.formulaText, plates.explanation, {
+  const exampleLines = [];
+  autoRows.forEach((row) => {
+    if (n(row.subtotal, 0) <= 0) return;
+    exampleLines.push(`${row.detalle || `Arte ${row.motivoNumber}`}: ${formatInteger(row.cantidad)} sello(s) × ${num(row.inPorSello, 2)} in² × $${num(row.costoPorIn2, 4)}/in² = ${formulaValue(row.subtotal, 2)}`);
+  });
+  rows.forEach((row) => {
+    if (n(row.cost, 0) <= 0) return;
+    exampleLines.push(`Costo externo: ${formulaValue(row.cost, 2)}`);
+  });
+  return `<div class="plate-motivo-table"><div class="plate-motivo-head"><span>#</span><span>Detalle</span><span>Cant. Sellos</span><span>in² x Sello</span><span>in² Arte</span><span>in² Acum.</span><span>Costo x in²</span><span>Subtotal</span></div>${autoRowsHtml}</div><div class="table-toolbar">${addRowButton}</div><div class="additional-table plate-external-table"><div class="additional-head"><span>Descripción</span><span>Costo</span><span>Comentarios</span><span></span></div>${rows.map((item, index) => renderPlateExternalRow(item, index)).join("")}</div><div class="readonly-grid compact-top subtotal-right">${metric("Subtotal Sellos", money(plates.subtotal))}</div>${formula("Costo Externo", plates.formulaText, plates.explanation, {
     exampleLines,
-    answer: `R/ El total a cobrar por planchas es ${money(plates.subtotal || 0)}`
-  })}`;
-}
-
-function renderDieExternalAttachmentTable(item = {}, index = 0) {
-  const fileName = String(item.attachmentName || "").trim();
-  const attachIcon = iconPresentation("quoteRequestAttachment", "📎", "#1e516d", 18);
-  const deleteIcon = iconPresentation("quoteRequestAttachmentDelete", "×", "#b94848", 18);
-  const extension = fileName.includes(".") ? fileName.split(".").pop().slice(0, 5).toUpperCase() : "FILE";
-  return `<div class="additional-attachments-card"><div class="additional-attachment-actions"><label class="additional-icon-action" title="Adjuntar archivo" aria-label="Adjuntar archivo" style="--icon-color:${esc(attachIcon.color)};--icon-hover-color:${esc(attachIcon.hover)};--config-icon-size:${attachIcon.size}px;">${renderIconMarkup(attachIcon.value, "Adjuntar archivo", "additional-attachment-icon")}<input data-scope="troquel.external.${index}" data-field="attachmentName" data-kind="file" type="file"></label></div><div class="additional-attachment-list">${fileName ? `<div class="additional-attachment-card"><div class="additional-attachment-filetile"><strong>${esc(extension)}</strong><span>Adjunto</span></div><div class="additional-attachment-body"><span class="additional-attachment-name" title="${esc(fileName)}">${esc(fileName)}</span><span class="additional-attachment-size">Archivo asociado al costo externo</span></div><button type="button" class="additional-attachment-remove" data-action="clear-die-external-attachment" data-index="${index}" aria-label="Eliminar adjunto" title="Eliminar adjunto" style="--icon-color:${esc(deleteIcon.color)};--icon-hover-color:${esc(deleteIcon.hover)};--config-icon-size:${deleteIcon.size}px;">${renderIconMarkup(deleteIcon.value, "Eliminar adjunto", "additional-attachment-delete-icon")}</button></div>` : `<div class="additional-attachment-empty">Sin adjuntos</div>`}</div></div>`;
-}
-
-function renderDieExternalRow(item = {}, index = 0) {
-  const deleteIcon = getProcessDeleteIconConfig();
-  return `<div class="additional-item"><div class="additional-row"><input data-scope="troquel.external.${index}" data-field="description" type="text" value="${esc(item.description || "")}" placeholder="Descripción">${displayInput(`troquel.external.${index}`, "cost", item.cost || 0, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}<input data-scope="troquel.external.${index}" data-field="comments" type="text" value="${esc(item.comments || "")}" placeholder="Comentarios"><button type="button" class="process-trash-button" data-action="remove-die-external" data-index="${index}" aria-label="Eliminar fila" title="Eliminar fila" style="--process-delete-icon-color:${esc(deleteIcon.primary)};--process-delete-icon-hover:${esc(deleteIcon.hover)};--process-delete-icon-size:${deleteIcon.size}px;">${renderIconMarkup(deleteIcon.value, "Eliminar fila", "process-delete-icon")}</button></div>${renderDieExternalAttachmentTable(item, index)}</div>`;
-}
-
-function renderDieExternalPanel(troquel) {
-  const rows = normalizeDieExternalRows(state.form.troquel.external);
-  state.form.troquel.external = rows;
-  return `<div class="table-toolbar"><button type="button" class="inline-button" data-action="add-die-external">Agregar fila</button></div><div class="additional-table plate-external-table"><div class="additional-head"><span>Descripción</span><span>Costo</span><span>Comentarios</span><span></span></div>${rows.map((item, index) => renderDieExternalRow(item, index)).join("")}</div><div class="readonly-grid compact-top subtotal-right">${metric("Subtotal Troquel", money(troquel.subtotal))}</div>${formula("Costo Externo", "Subtotal troquel = suma de costos externos registrados.", troquel.explanation, {
-    exampleLines: rows.map((row, index) => `Costo externo ${index + 1}: ${formulaValue(row.cost || 0, 2)}`),
-    answer: `R/ El total a cobrar por troquel externo es ${money(troquel.subtotal || 0)}`
+    answer: `R/ El total a cobrar por sellos es ${money(plates.subtotal || 0)}`
   })}`;
 }
 
 function renderPlateInventoryPanel(plates) {
-  return `<div class="plate-disabled-panel"><label class="inline-process-check plate-virgin-check"><input type="checkbox" checked disabled><span>Planchas en Inventario</span></label></div>`;
+  return `<div class="plate-disabled-panel"><label class="inline-process-check plate-virgin-check"><input type="checkbox" checked disabled><span>Sellos en Inventario</span></label></div>`;
 }
 
 function resolveDieImageUrl(die) {
@@ -8183,58 +12401,191 @@ function resolveDieImageUrl(die) {
   return `/${source.replace(/^\.?\//, "")}`;
 }
 
+function computeTroquelFallbackDescription(die) {
+  const clasificacion = String(die?.clasificacion || die?.classification || "").trim();
+  const forma = String(die?.formato || die?.forma_troquel || die?.formaTroquel || "").trim();
+  const parts = [clasificacion, forma].filter(Boolean);
+  let text = parts.join(" ");
+  const w = firstPositiveNumber(die?.ancho_etiqueta_in, die?.anchoEtiquetaIn);
+  const l = firstPositiveNumber(die?.largo_etiqueta_in, die?.largoEtiquetaIn);
+  if (w > 0 && l > 0) {
+    const dims = `(${num(w, 3)}" x ${num(l, 3)}")`;
+    text = text ? `${text} ${dims}` : dims;
+  }
+  return text;
+}
+
 function renderDieInventoryPanel(troquel) {
   const dieSelected = String(state.form.troquel.dieCode || "").trim();
   const selectedDie = dieSelected ? findDie(state.form.troquel.dieCode) : null;
   const dieCode = esc(state.form.troquel.dieCode || "");
-  const actualDesc = selectedDie ? String(selectedDie.descripcion || selectedDie.description || "").trim() : "";
+  const actualDesc = selectedDie ? (String(selectedDie.descripcion || selectedDie.description || "").trim() || computeTroquelFallbackDescription(selectedDie)) : (dieSelected ? String(state.form.troquel.dieDescription || "").trim() : "");
   const hasActualDesc = Boolean(actualDesc);
-  const prodWidth = n(state.form.header.labelWidthIn, 0);
-  const prodHeight = n(state.form.header.labelHeightIn, 0);
-  const prodSummary = prodWidth > 0 && prodHeight > 0 ? `${num(prodWidth, 3)} x ${num(prodHeight, 3)} in` : "";
   const labelWidth = n(state.form.troquel.productWidthIn, 0);
   const labelHeight = n(state.form.troquel.productLengthIn, 0);
-  const labelSummary = labelWidth > 0 && labelHeight > 0 ? `${num(labelWidth, 3)} x ${num(labelHeight, 3)} in` : "";
+  const prodSummary = labelWidth > 0 && labelHeight > 0 ? `${num(labelWidth, 3)} x ${num(labelHeight, 3)} in` : "";
   const labelArea = labelWidth > 0 && labelHeight > 0 ? r(labelWidth * labelHeight, 4) : 0;
-  const dieWidth = n(state.form.troquel.widthIn, 0);
-  const dieLength = n(state.form.troquel.lengthIn, 0);
   const development = n(state.form.troquel.cylinderDevelopmentIn, 0);
+  const teeth = n(state.form.troquel.teeth, 0);
+  const rows = n(state.form.troquel.rows, 0);
+  const repeats = n(state.form.troquel.repeats, 0);
   const imageUrl = selectedDie ? resolveDieImageUrl(selectedDie) : "";
   const hasImage = Boolean(imageUrl);
   const infoVisible = dieSelected ? "" : " hidden";
-  const addTroquelIcon = iconPresentation("quantityAdd", "+", "#738196", 18);
-  const addIconHtml = renderIconMarkup(addTroquelIcon.value, "Buscar troquel en el catálogo", "troquel-add-icon");
-  const rightCol = hasImage ? `<div class="troquel-image-col"><img src="${esc(imageUrl)}" alt="${dieCode}" class="troquel-selected-image"></div>` : "";
-  return `<div class="troquel-layout"><div class="troquel-layout-left"><div class="troquel-header-row"><div class="troquel-select-row">${metric("Troquel", dieCode ? `${dieCode}${hasActualDesc ? ` - ${esc(actualDesc)}` : ""}` : `<span class="troquel-placeholder">Ningún troquel seleccionado</span>`)}</div><div class="troquel-add-col"><button type="button" class="troquel-add-btn" data-action="open-troquel-catalog" title="Buscar troquel en el catálogo" style="--troquel-add-icon-color:${esc(addTroquelIcon.color)};--troquel-add-icon-hover:${esc(addTroquelIcon.hover)};--troquel-add-icon-size:${addTroquelIcon.size}px;">${addIconHtml}</button></div></div><div class="troquel-info-row${infoVisible}"><div class="troquel-info-data"><div class="readonly-grid compact-top troquel-metrics-grid">${metric("Dimensiones Producto", prodSummary || "-")}${metric("Dimensiones Etiqueta", labelSummary || "-")}${metric("Ancho Troquel", dieWidth > 0 ? `${num(dieWidth, 3)} in` : "-")}${metric("Largo Troquel", dieLength > 0 ? `${num(dieLength, 3)} in` : "-")}${metric("Área Etiqueta", labelArea > 0 ? `${num(labelArea, 4)} in²` : "-")}${metric("Desarrollo", development > 0 ? `${num(development, 3)} in` : "-")}</div></div></div>${dieDimensionWarningMarkup()}${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
+  const searchTroquelIcon = iconPresentation("troquelBuscar", "🔍", "#738196", 18);
+  const searchIconHtml = renderIconMarkup(searchTroquelIcon.value, "Buscar troquel en el catálogo", "troquel-add-icon");
+  const calcTroquelIcon = iconPresentation("quantityAdd", "+", "#738196", 18);
+  const calcIconHtml = renderIconMarkup(calcTroquelIcon.value, "Calculadora de Troquel", "troquel-add-icon");
+  const rightCol = hasImage ? `<div class="troquel-image-col"><button type="button" class="troquel-image-preview-trigger" data-action="preview-troquel-image" data-image-url="${esc(imageUrl)}" data-image-alt="${dieCode}" title="Ver imagen ampliada"><img src="${esc(imageUrl)}" alt="${dieCode}" class="troquel-selected-image"></button></div>` : "";
+  const dieModeEsNuevo = normalizeDieMode(state.form.troquel?.dieMode) === "external";
+  const rightColFinal = dieModeEsNuevo && dieSelected ? `<div class="troquel-forma-col" data-troquel-forma-externa>${htmlFormaTroquelExterna(dieSelected)}</div>` : rightCol;
+  const costoNuevoHtml = dieModeEsNuevo ? `<div class="readonly-grid compact-top subtotal-right">${metric("Costo Troquel Nuevo", money(troquel.subtotal))}</div>` : "";
+  return `<div class="troquel-layout${rightColFinal !== rightCol ? " troquel-layout-con-forma" : ""}"><div class="troquel-layout-left"><div class="troquel-header-row"><div class="troquel-select-row">${metric("Troquel", dieCode ? `${dieCode}${dieModeEsNuevo ? `${prodSummary ? ` <span class="troquel-dim-inline">${esc(prodSummary)}</span>` : ""} <span class="troquel-nuevo-tag">Nuevo</span>` : (hasActualDesc ? ` - ${esc(actualDesc)}` : "")}` : `<span class="troquel-placeholder">Ningún troquel seleccionado</span>`)}</div><div class="troquel-add-col"><button type="button" class="troquel-add-btn" data-action="open-troquel-catalog" title="Buscar troquel en el catálogo" style="--troquel-add-icon-color:${esc(searchTroquelIcon.color)};--troquel-add-icon-hover:${esc(searchTroquelIcon.hover)};--troquel-add-icon-size:${searchTroquelIcon.size}px;">${searchIconHtml}</button><button type="button" class="troquel-add-btn" data-action="open-troquel-calculadora-directo" title="Calculadora de Troquel" style="--troquel-add-icon-color:${esc(calcTroquelIcon.color)};--troquel-add-icon-hover:${esc(calcTroquelIcon.hover)};--troquel-add-icon-size:${calcTroquelIcon.size}px;">${calcIconHtml}</button></div></div><div class="troquel-info-row${infoVisible}"><div class="troquel-info-data"><div class="readonly-grid compact-top troquel-metrics-grid">${metric("Dimensiones Producto", prodSummary || "-")}${metric("Ancho Etiqueta", labelWidth > 0 ? `${num(labelWidth, 3)} in` : "-")}${metric("Largo Etiqueta", labelHeight > 0 ? `${num(labelHeight, 3)} in` : "-")}${metric("Área Etiqueta", labelArea > 0 ? `${num(labelArea, 4)} in²` : "-")}${metric("Desarrollo", development > 0 ? `${num(development, 3)} in` : "-")}<div class="metric-cell troquel-metric-vacio" aria-hidden="true"></div>${metric("Dientes", teeth > 0 ? num(teeth, 0) : "-")}${metric("Filas", rows > 0 ? num(rows, 0) : "-")}${metric("Repeticiones", repeats > 0 ? num(repeats, 0) : "-")}</div>${costoNuevoHtml}</div></div>${dieDimensionWarningMarkup()}${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
     exampleLines: [
       `Etiquetas por repetición: ${formulaValue(state.form.troquel.rows || 0, 0)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.labelsPerRepeat || 0, 0)}`,
       `Desarrollo total: ${formulaValue(state.form.troquel.lengthIn || 0, 2)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.development || 0, 2)} in`,
       ...minimumCostExampleLines(troquel, "Troquel")
     ],
     answer: `R/ El troquel actual entrega ${formulaValue(troquel.labelsPerRepeat || 0, 0)} etiquetas por vuelta y ${formulaValue(troquel.development || 0, 2)} in de desarrollo`
-  })}</div><div class="troquel-layout-right">${rightCol}</div></div>`;
+  })}</div><div class="troquel-layout-right">${rightColFinal}</div></div>`;
+}
+
+// Forma del troquelado de un troquel nuevo (calculado), mostrada afuera de la calculadora.
+// El cálculo se trae una sola vez por código y se guarda aquí para no pedirlo en cada repintado.
+const formaTroquelExternaCache = { codigo: "", calculo: null, estado: "" };
+const FORMA_TROQUEL_EXTERNA_LADO = 240;
+
+function htmlFormaTroquelExterna(codigo) {
+  const cache = formaTroquelExternaCache;
+  if (cache.codigo === codigo && cache.estado === "listo" && cache.calculo) {
+    return renderVistaEtiquetaTroquel(cache.calculo, { externa: true, lado: FORMA_TROQUEL_EXTERNA_LADO });
+  }
+  if (cache.codigo === codigo && cache.estado === "fallo") {
+    return `<div class="ct-svg-empty">No pudimos traer la forma del troquel en este momento. Revisa la conexión e intenta de nuevo.</div>`;
+  }
+  if (!(cache.codigo === codigo && cache.estado === "cargando")) cargarFormaTroquelExterna(codigo);
+  return `<div class="ct-svg-empty">Cargando la forma del troquel, un momento por favor…</div>`;
+}
+
+async function cargarFormaTroquelExterna(codigo) {
+  Object.assign(formaTroquelExternaCache, { codigo, calculo: null, estado: "cargando" });
+  const { quoteCode, lineCode } = currentQuoteLineIdentity();
+  let calculo = null;
+  try {
+    if (quoteCode && lineCode) {
+      const payload = await getJson(`/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/calculo-troquel`);
+      calculo = payload?.calculo || null;
+    }
+  } catch (error) {
+    calculo = null;
+  }
+  if (formaTroquelExternaCache.codigo !== codigo) return;
+  const coincide = calculo && String(calculo.codigo_calculo || "") === codigo;
+  Object.assign(formaTroquelExternaCache, { calculo: coincide ? calculo : null, estado: coincide ? "listo" : "fallo" });
+  document.querySelectorAll("[data-troquel-forma-externa]").forEach((el) => {
+    el.innerHTML = htmlFormaTroquelExterna(codigo);
+  });
+}
+
+const dieCatalogFilters = { shape: "" };
+
+function renderDieCatalogShapeChips() {
+  const shapes = dieShapeOptionsFromConfig();
+  const allChip = `<button type="button" class="troquel-catalog-shape-chip${dieCatalogFilters.shape ? "" : " is-active"}" data-shape-filter="">Todas</button>`;
+  const shapeChips = shapes.map((shape) => `<button type="button" class="troquel-catalog-shape-chip${dieCatalogFilters.shape === shape.value ? " is-active" : ""}" data-shape-filter="${esc(shape.value)}">${esc(shape.label)}</button>`).join("");
+  return allChip + shapeChips;
+}
+
+function parseTroquelDimsQuery(term) {
+  const match = String(term || "").trim().match(/^(\d+(?:[.,]\d+)?)[\sx×*]+(\d+(?:[.,]\d+)?)$/i);
+  if (!match) return null;
+  const a = parseFloat(match[1].replace(",", "."));
+  const b = parseFloat(match[2].replace(",", "."));
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  return { a, b };
+}
+
+function dieMatchesDimsQuery(die, dims, tolerance = 0.15) {
+  const labelW = firstPositiveNumber(die.ancho_etiqueta_in, die.anchoEtiquetaIn, die.ancho_mm ? r(die.ancho_mm / 25.4, 4) : 0) || null;
+  const labelH = firstPositiveNumber(die.largo_etiqueta_in, die.largoEtiquetaIn, die.largo_mm ? r(die.largo_mm / 25.4, 4) : 0) || null;
+  const close = (x, y) => x != null && Number.isFinite(x) && Math.abs(x - y) <= tolerance;
+  return (close(labelW, dims.a) && close(labelH, dims.b)) || (close(labelW, dims.b) && close(labelH, dims.a));
+}
+
+function applyDieCatalogFilters() {
+  const searchInput = document.getElementById("troquelCatalogSearch");
+  const term = String(searchInput?.value || "").trim();
+  const lowerTerm = term.toLowerCase();
+  const dims = parseTroquelDimsQuery(term);
+  const dies = state.catalogs.troqueles || [];
+  let anyVisible = false;
+  document.querySelectorAll(".troquel-catalog-item").forEach((item) => {
+    const code = item.dataset.dieCode;
+    const die = dies.find((d) => String(d.codigoTroquel || d.codigo || d.id || "") === code);
+    let visible = true;
+    if (dieCatalogFilters.shape) visible = die ? dieMatchesShape(die, dieCatalogFilters.shape) : false;
+    if (visible && term) {
+      if (dims) visible = die ? dieMatchesDimsQuery(die, dims) : false;
+      else visible = (item.textContent || "").toLowerCase().includes(lowerTerm);
+    }
+    item.style.display = visible ? "" : "none";
+    if (visible) anyVisible = true;
+  });
+  const noMatches = document.getElementById("troquelCatalogNoMatches");
+  if (noMatches) noMatches.hidden = anyVisible || dies.length === 0;
+  const clearBtn = document.getElementById("troquelCatalogClearBtn");
+  if (clearBtn) clearBtn.hidden = !(term || dieCatalogFilters.shape);
+}
+
+function applyDieCatalogSimilarSizeSearch() {
+  // Medidas reales del producto (Información de Producto → Ancho/Largo), no las que quedaron en
+  // el troquel actualmente seleccionado — esas son una copia del troquel elegido antes y pueden
+  // no coincidir con lo que el usuario está buscando ahora.
+  const width = n(state.form.header?.labelWidthIn, 0);
+  const length = n(state.form.header?.labelHeightIn, 0);
+  const searchInput = document.getElementById("troquelCatalogSearch");
+  if (!(width > 0 && length > 0)) {
+    showCenterMessage("Define primero las medidas del producto para buscar troqueles con medidas similares.");
+    return;
+  }
+  if (searchInput) {
+    searchInput.value = `${num(width, 3)}x${num(length, 3)}`;
+    applyDieCatalogFilters();
+  }
+}
+
+function clearDieCatalogFilters() {
+  dieCatalogFilters.shape = "";
+  document.querySelectorAll(".troquel-catalog-shape-chip").forEach((chip) => chip.classList.toggle("is-active", !chip.dataset.shapeFilter));
+  const searchInput = document.getElementById("troquelCatalogSearch");
+  if (searchInput) searchInput.value = "";
+  applyDieCatalogFilters();
 }
 
 function renderDieCatalogModal() {
+  return `<div id="troquelCatalogOverlay" class="troquel-catalog-overlay" style="display:none"><div class="troquel-catalog-modal">${renderDieCatalogModalContent()}</div></div>`;
+}
+
+function renderDieCatalogModalContent() {
   const allDies = state.catalogs.troqueles || [];
   const rows = allDies.length ? allDies.map((die) => renderDieCatalogRow(die)).join("") : `<div class="troquel-catalog-empty">No hay troqueles disponibles en el catálogo.</div>`;
-  return `<div id="troquelCatalogOverlay" class="troquel-catalog-overlay" style="display:none"><div class="troquel-catalog-modal"><div class="troquel-catalog-head"><h3>Catálogo de Troqueles</h3><button type="button" class="troquel-catalog-close" data-action="close-troquel-catalog" aria-label="Cerrar">&times;</button></div><div class="troquel-catalog-search"><input type="text" id="troquelCatalogSearch" placeholder="Buscar por código, descripción o forma..." data-action="troquel-catalog-search"><span class="troquel-catalog-search-icon">&#128269;</span></div><div class="troquel-catalog-body"><div class="troquel-catalog-list">${rows}</div></div></div></div>`;
+  return `<div class="troquel-catalog-head"><h3>Catálogo de Troqueles</h3><div class="troquel-catalog-head-actions"><button type="button" class="troquel-catalog-close" data-action="close-troquel-catalog" aria-label="Cerrar">&times;</button></div></div><div class="troquel-catalog-shapes" id="troquelCatalogShapes">${renderDieCatalogShapeChips()}</div><div class="troquel-catalog-search"><div class="troquel-catalog-search-input-wrap"><input type="text" id="troquelCatalogSearch" placeholder="Buscar por código, descripción o medida (ej. 2x2)…" data-action="troquel-catalog-search"><span class="troquel-catalog-search-icon">&#128269;</span></div><button type="button" id="troquelCatalogSimilarBtn" data-action="troquel-catalog-similar" class="troquel-catalog-similar-btn" title="Buscar troqueles con medidas similares a las del producto">Medidas Similares</button><button type="button" id="troquelCatalogClearBtn" data-action="troquel-catalog-clear" class="troquel-catalog-clear-btn" hidden title="Limpiar filtros">Limpiar Filtros &times;</button></div><div class="troquel-catalog-body"><div class="troquel-catalog-list">${rows}</div><div id="troquelCatalogNoMatches" class="troquel-catalog-empty" hidden>Ningún troquel coincide con el filtro aplicado.</div></div>`;
 }
 
 function renderDieCatalogRow(die) {
   const code = esc(die.codigoTroquel || die.codigo || die.id || "");
-  const description = esc(die.descripcion || "");
-  const width = num(firstPositiveNumber(die.ancho_total_troquel_in, die.ancho_mm ? r(die.ancho_mm / 25.4, 4) : 0), 3);
-  const length = num(firstPositiveNumber(die.largo_total_troquel_in, die.largo_mm ? r(die.largo_mm / 25.4, 4) : 0), 3);
+  const description = esc(die.descripcion || computeTroquelFallbackDescription(die));
+  const width = num(firstPositiveNumber(die.ancho_etiqueta_in, die.anchoEtiquetaIn, die.ancho_mm ? r(die.ancho_mm / 25.4, 4) : 0), 3);
+  const length = num(firstPositiveNumber(die.largo_etiqueta_in, die.largoEtiquetaIn, die.largo_mm ? r(die.largo_mm / 25.4, 4) : 0), 3);
   const development = num(firstPositiveNumber(die.desarrollo_in, die.desarrolloIn, die.desarrolloTotalIn, die.repeatIn), 3);
   const teeth = num(die.dientes || die.teeth || 0, 0);
   const repeats = num(die.repeticiones || die.repetitions || 0, 0);
   const shape = esc(die.clasificacion || die.classification || die.formaTroquel || die.forma_troquel || die.formato || die.tipoTroquel2 || die.tipo_troquel_2 || "");
   const imageUrl = resolveDieImageUrl(die);
-  const imageHtml = imageUrl ? `<div class="troquel-catalog-img"><img src="${esc(imageUrl)}" alt="${code}" loading="lazy"></div>` : "";
+  const imageHtml = imageUrl ? `<button type="button" class="troquel-catalog-img" data-action="preview-troquel-image" data-image-url="${esc(imageUrl)}" data-image-alt="${code}" title="Ver imagen ampliada"><img src="${esc(imageUrl)}" alt="${code}" loading="lazy"></button>` : "";
   const selectIcon = iconPresentation("quantityAdd", "+", "#738196", 18);
   const selectIconHtml = renderIconMarkup(selectIcon.value, "Seleccionar troquel", "troquel-catalog-select-icon");
-  return `<div class="troquel-catalog-item">${imageHtml}<div class="troquel-catalog-info"><div class="troquel-catalog-code">${code}</div><div class="troquel-catalog-desc">${description || "Sin descripción"}</div><div class="troquel-catalog-metrics"><span>Ancho: ${width} in</span><span>Largo: ${length} in</span><span>Desarrollo: ${development} in</span><span>Dientes: ${teeth}</span><span>Repeticiones: ${repeats}</span><span>Forma: ${shape || "-"}</span></div></div><div class="troquel-catalog-action"><button type="button" class="troquel-catalog-select-btn" data-action="select-troquel-from-catalog" data-die-code="${esc(die.codigoTroquel || die.codigo || die.id || "")}" title="Seleccionar troquel" style="--troquel-select-icon-color:${esc(selectIcon.color)};--troquel-select-icon-hover:${esc(selectIcon.hover)};--troquel-select-icon-size:${selectIcon.size}px;">${selectIconHtml}</button></div></div>`;
+  return `<div class="troquel-catalog-item" data-die-code="${esc(die.codigoTroquel || die.codigo || die.id || "")}">${imageHtml}<div class="troquel-catalog-info"><div class="troquel-catalog-code">${code}</div><div class="troquel-catalog-desc">${description || "Sin descripción"}</div><div class="troquel-catalog-metrics"><span>Ancho Etiqueta: ${width} in</span><span>Largo Etiqueta: ${length} in</span><span>Desarrollo: ${development} in</span><span>Dientes: ${teeth}</span><span>Repeticiones: ${repeats}</span><span>Forma: ${shape || "-"}</span></div></div><div class="troquel-catalog-action"><button type="button" class="troquel-catalog-select-btn" data-action="select-troquel-from-catalog" data-die-code="${esc(die.codigoTroquel || die.codigo || die.id || "")}" title="Seleccionar troquel" style="--troquel-select-icon-color:${esc(selectIcon.color)};--troquel-select-icon-hover:${esc(selectIcon.hover)};--troquel-select-icon-size:${selectIcon.size}px;">${selectIconHtml}</button></div></div>`;
 }
 
 function openDieCatalogModal() {
@@ -8243,15 +12594,33 @@ function openDieCatalogModal() {
     document.body.insertAdjacentHTML("beforeend", renderDieCatalogModal());
     overlay = document.getElementById("troquelCatalogOverlay");
     overlay.addEventListener("click", (event) => {
-      if (event.target === overlay || event.target.closest("[data-action='close-troquel-catalog']")) {
-        closeDieCatalogModal();
+      // El clic fuera del panel solo cierra el catálogo simple; la calculadora tiene muchos
+      // campos y un clic accidental afuera no debe perder lo que el usuario ya llenó.
+      const esCalculadora = overlay.querySelector(".troquel-catalog-modal")?.classList.contains("troquel-catalog-modal-wide");
+      if ((event.target === overlay && !esCalculadora) || event.target.closest("[data-action='close-troquel-catalog']")) {
+        solicitarCierreCalculadoraTroquel();
       }
     });
     const searchInput = document.getElementById("troquelCatalogSearch");
     if (searchInput) {
-      searchInput.addEventListener("input", () => filterDieCatalogRows(searchInput.value));
+      searchInput.addEventListener("input", () => applyDieCatalogFilters());
     }
     overlay.addEventListener("click", (event) => {
+      const shapeChip = event.target.closest("[data-shape-filter]");
+      if (shapeChip) {
+        dieCatalogFilters.shape = shapeChip.dataset.shapeFilter || "";
+        document.querySelectorAll(".troquel-catalog-shape-chip").forEach((chip) => chip.classList.toggle("is-active", chip === shapeChip));
+        applyDieCatalogFilters();
+        return;
+      }
+      if (event.target.closest("[data-action='troquel-catalog-similar']")) {
+        applyDieCatalogSimilarSizeSearch();
+        return;
+      }
+      if (event.target.closest("[data-action='troquel-catalog-clear']")) {
+        clearDieCatalogFilters();
+        return;
+      }
       const selectBtn = event.target.closest("[data-action='select-troquel-from-catalog']");
       if (selectBtn) {
         const dieCode = selectBtn.dataset.dieCode;
@@ -8260,6 +12629,49 @@ function openDieCatalogModal() {
         }
       }
     });
+    overlay.addEventListener("click", (event) => {
+      const previewBtn = event.target.closest("[data-action='preview-troquel-image']");
+      if (previewBtn) {
+        event.preventDefault();
+        openTroquelImagePreview(previewBtn.dataset.imageUrl, previewBtn.dataset.imageAlt);
+      }
+    });
+    overlay.addEventListener("click", (event) => {
+      if (event.target.closest("[data-action='cancel-troquel-create']")) {
+        closeDieCatalogModal();
+        return;
+      }
+      if (event.target.closest("[data-action='calcular-troquel']")) {
+        calcularTroquel();
+        return;
+      }
+      if (event.target.closest("[data-action='abrir-panel-ajuste']")) {
+        ctAjustesDemo.panelVisible = !ctAjustesDemo.panelVisible;
+        const panel = document.getElementById("ctPanelAjuste");
+        if (panel) panel.style.display = ctAjustesDemo.panelVisible ? "block" : "none";
+        return;
+      }
+      if (event.target.closest("[data-action='buscar-troquel-compatible']")) {
+        buscarTroquelesCompatibles();
+        return;
+      }
+      if (event.target.closest("[data-action='marcar-troquel-nuevo']")) {
+        marcarTroquelNuevo();
+        return;
+      }
+      const seleccionarBtn = event.target.closest("[data-action='seleccionar-troquel-compatible']");
+      if (seleccionarBtn) {
+        seleccionarTroquelCompatible(seleccionarBtn.dataset.idTroquel);
+      }
+    });
+  }
+  const selectedDie = state.form.troquel?.dieCode ? findDie(state.form.troquel.dieCode) : null;
+  dieCatalogFilters.shape = selectedDie ? dieInventoryShapeType(selectedDie) : "";
+  const modal = overlay.querySelector(".troquel-catalog-modal");
+  if (modal) {
+    modal.innerHTML = renderDieCatalogModalContent();
+    const searchInput = document.getElementById("troquelCatalogSearch");
+    if (searchInput) searchInput.addEventListener("input", () => applyDieCatalogFilters());
   }
   overlay.style.display = "flex";
   document.body.classList.add("popover-open");
@@ -8273,17 +12685,1449 @@ function closeDieCatalogModal() {
   const overlay = document.getElementById("troquelCatalogOverlay");
   if (overlay) {
     overlay.style.display = "none";
+    overlay.querySelector(".troquel-catalog-modal")?.classList.remove("troquel-catalog-modal-wide");
     document.body.classList.remove("popover-open");
   }
 }
 
-function filterDieCatalogRows(searchTerm) {
-  const term = String(searchTerm || "").trim().toLowerCase();
-  const items = document.querySelectorAll(".troquel-catalog-item");
-  items.forEach((item) => {
-    const text = (item.textContent || "").toLowerCase();
-    item.style.display = !term || text.includes(term) ? "" : "none";
+// Al cerrar la calculadora con un cálculo todavía sin aplicar (Borrador), se advierte al
+// usuario antes de perder el contexto: puede guardar (aplicar a la cotización) o salir
+// sin guardar. El cálculo queda en la base como borrador, no se borra nada.
+function solicitarCierreCalculadoraTroquel() {
+  const overlay = document.getElementById("troquelCatalogOverlay");
+  const esCalculadora = overlay?.querySelector(".troquel-catalog-modal")?.classList.contains("troquel-catalog-modal-wide");
+  const c = calculadoraTroquelEstado.calculo;
+  if (solicitarCierreCalculadoraTroquel.enDialogo) return;
+  if (!esCalculadora || !c || c.estado !== "Borrador") {
+    closeDieCatalogModal();
+    return;
+  }
+  solicitarCierreCalculadoraTroquel.enDialogo = true;
+  document.body.classList.add("popover-open");
+  const dialogo = document.createElement("div");
+  dialogo.className = "quote-order-quantity-dialog ct-fabricacion-confirm-dialog";
+  dialogo.innerHTML = `<div class="quote-order-quantity-panel" role="dialog" aria-modal="true" aria-label="Salir de la Calculadora de Troquel">
+    <div class="quote-order-quantity-title">Salir de la Calculadora de Troquel</div>
+    <p style="font-size:13px;color:var(--app-text-muted,#94a3b8);line-height:1.5;">Está por salir del modal y el cálculo actual todavía no se ha guardado en la cotización. ¿Qué desea hacer?</p>
+    <div class="quote-order-quantity-actions">
+      <button type="button" class="action-btn" data-action="salir-sin-guardar">Salir sin Guardar</button>
+      <button type="button" class="action-btn action-btn-primary" data-action="guardar-y-salir">Guardar y Salir</button>
+    </div>
+  </div>`;
+  document.body.appendChild(dialogo);
+  const cerrar = (guardar) => {
+    dialogo.remove();
+    document.body.classList.remove("popover-open");
+    solicitarCierreCalculadoraTroquel.enDialogo = false;
+    if (guardar) marcarTroquelNuevo();
+    closeDieCatalogModal();
+  };
+  dialogo.addEventListener("click", (event) => {
+    if (event.target === dialogo || event.target.closest("[data-action='salir-sin-guardar']")) {
+      cerrar(false);
+      return;
+    }
+    if (event.target.closest("[data-action='guardar-y-salir']")) cerrar(true);
   });
+}
+
+// Modal de búsqueda de Referencia: lista órdenes de producción (OP-…) y productos del
+// catálogo (P-…) del MISMO cliente de la cotización para que el usuario elija cuál está
+// referenciando, en vez de escribirlo a ciegas. Al elegir un producto se autocompleta
+// también el campo "Código de Producto".
+const referenciaSearchState = { items: [], filter: "", sortDir: "desc", tipoFilter: "todo" };
+const REFERENCIA_TIPO_LABEL = { orden: "Orden", producto: "SKU" };
+const referenciaArteState = { open: false, codigo: "", tipo: "", nombre: "", images: [], index: 0, loading: false };
+
+async function fetchReferenciaSearchResults() {
+  const customerCode = String(state.form?.header?.customerCode || "").trim();
+  if (!customerCode) return [];
+  const params = new URLSearchParams({ customerCode });
+  try {
+    const payload = await getJson(`/api/flexo/referencias-por-cliente?${params.toString()}`);
+    return Array.isArray(payload?.items) ? payload.items : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function referenciaRowCodeLabel(item) {
+  return item.sku || item.codigo || "—";
+}
+
+function renderReferenciaSearchRows() {
+  const filterText = norm(referenciaSearchState.filter);
+  const tipoFilter = referenciaSearchState.tipoFilter;
+  let items = referenciaSearchState.items.filter((item) => {
+    if (tipoFilter !== "todo" && item.tipo !== tipoFilter) return false;
+    if (!filterText) return true;
+    const haystack = norm([REFERENCIA_TIPO_LABEL[item.tipo] || item.tipo, item.codigo, item.productCode, item.sku, item.nombre].filter(Boolean).join(" "));
+    return haystack.includes(filterText);
+  });
+  items = items.slice().sort((a, b) => {
+    const da = new Date(a.fecha || 0).getTime();
+    const db = new Date(b.fecha || 0).getTime();
+    return referenciaSearchState.sortDir === "asc" ? da - db : db - da;
+  });
+  if (!items.length) {
+    return `<div class="referencia-search-empty">${referenciaSearchState.filter || tipoFilter !== "todo" ? "Ninguna referencia coincide con el filtro." : "Este cliente no tiene órdenes ni SKU registrados."}</div>`;
+  }
+  return `<div class="referencia-search-list">${items
+    .map((item) => {
+      const hasArt = Number(item.artCount || 0) > 0;
+      const arteBtn = hasArt
+        ? `<button type="button" class="referencia-row-art" data-action="ver-arte-referencia" data-tipo="${esc(item.tipo)}" data-codigo="${esc(item.codigo)}" data-nombre="${esc(item.nombre || "")}" title="Ver arte (${Number(item.artCount)})" aria-label="Ver arte">${iconPresentationMarkup("quoteRequestAttachment", "🖼", "referencia-row-art-icon")}<span class="referencia-row-art-count">${Number(item.artCount)}</span></button>`
+        : "";
+      return `<div class="referencia-search-row" data-action="select-referencia" data-tipo="${esc(item.tipo)}" data-codigo="${esc(item.codigo)}" data-nombre="${esc(item.nombre || "")}" data-product-code="${esc(item.productCode || "")}" data-sku="${esc(item.sku || "")}" role="button" tabindex="0">
+        <span class="referencia-search-chip referencia-search-chip-${esc(item.tipo)}">${esc(REFERENCIA_TIPO_LABEL[item.tipo] || item.tipo)}</span>
+        <span class="referencia-row-code">${esc(referenciaRowCodeLabel(item))}</span>
+        <span class="referencia-row-name">${esc(item.nombre || "Sin nombre")}</span>
+        <span class="referencia-row-date">Producido el ${esc(formatTimelineStamp(item.fecha) || "—")}</span>
+        ${arteBtn}
+      </div>`;
+    })
+    .join("")}</div>`;
+}
+
+function iconPresentationMarkup(iconKey, fallbackGlyph, className) {
+  try {
+    const pres = iconPresentation(iconKey, fallbackGlyph, "#5b7896", 16);
+    return renderIconMarkup(pres.value, "", className);
+  } catch (error) {
+    return `<span class="${className}">${fallbackGlyph}</span>`;
+  }
+}
+
+function renderReferenciaSearchModalContent() {
+  const sortIcon = referenciaSearchState.sortDir === "asc" ? "▲" : "▼";
+  const tipoBtn = (value, label) => `<button type="button" class="referencia-search-tipo-btn${referenciaSearchState.tipoFilter === value ? " is-active" : ""}" data-action="referencia-tipo-filter" data-tipo="${value}">${label}</button>`;
+  return `<div class="referencia-search-head"><h3>Buscar Referencia del Cliente</h3><button type="button" class="referencia-search-close" data-action="close-referencia-search" aria-label="Cerrar">&times;</button></div>
+    <div class="referencia-search-toolbar">
+      <input type="text" id="referenciaSearchInput" placeholder="Buscar por tipo, código, SKU o nombre…" value="${esc(referenciaSearchState.filter)}">
+      <button type="button" class="referencia-search-sort-btn" data-action="toggle-referencia-sort" title="Ordenar por fecha">Fecha ${sortIcon}</button>
+    </div>
+    <div class="referencia-search-tipo-filters">${tipoBtn("todo", "Todo")}${tipoBtn("orden", "Órdenes")}${tipoBtn("producto", "SKU")}</div>
+    <div class="referencia-search-body">${renderReferenciaSearchRows()}</div>`;
+}
+
+function selectReferenciaFromSearch(tipo, codigo, nombre, productCode, sku) {
+  if (!els.referencia) return;
+  const shown = sku || codigo;
+  els.referencia.value = nombre ? `${shown} — ${nombre}` : shown;
+  els.referencia.dispatchEvent(new Event("input", { bubbles: true }));
+  els.referencia.dispatchEvent(new Event("change", { bubbles: true }));
+  const skuOrCode = sku || productCode;
+  if (tipo === "producto" && skuOrCode && els.productCode) {
+    els.productCode.value = skuOrCode;
+    els.productCode.dispatchEvent(new Event("input", { bubbles: true }));
+    els.productCode.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  closeReferenciaSearchModal();
+}
+
+// ── Ver Arte: modal ENCIMA del buscador de Referencia (no lo cierra), imagen
+//    grande y panel redimensionable (CSS resize). Trae las imágenes reales del
+//    expediente de esa orden / ese SKU vía /api/adjuntos-producto. ──────────────
+async function openReferenciaArteModal(tipo, codigo, nombre) {
+  referenciaArteState.open = true;
+  referenciaArteState.tipo = tipo;
+  referenciaArteState.codigo = codigo;
+  referenciaArteState.nombre = nombre || "";
+  referenciaArteState.images = [];
+  referenciaArteState.index = 0;
+  referenciaArteState.loading = true;
+  let overlay = document.getElementById("referenciaArteOverlay");
+  if (!overlay) {
+    document.body.insertAdjacentHTML("beforeend", `<div id="referenciaArteOverlay" class="referencia-arte-overlay" style="display:none"><div class="referencia-arte-modal"></div></div>`);
+    overlay = document.getElementById("referenciaArteOverlay");
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay || event.target.closest("[data-action='close-referencia-arte']")) {
+        closeReferenciaArteModal();
+        return;
+      }
+      const nav = event.target.closest("[data-action='referencia-arte-nav']");
+      if (nav) {
+        const dir = Number(nav.dataset.dir || 0);
+        const total = referenciaArteState.images.length;
+        if (total > 0) {
+          referenciaArteState.index = (referenciaArteState.index + dir + total) % total;
+          renderReferenciaArteModal();
+        }
+        return;
+      }
+      const thumb = event.target.closest("[data-arte-thumb]");
+      if (thumb) {
+        referenciaArteState.index = Number(thumb.dataset.arteThumb || 0);
+        renderReferenciaArteModal();
+      }
+    });
+  }
+  overlay.style.display = "flex";
+  renderReferenciaArteModal();
+  try {
+    const params = new URLSearchParams();
+    params.set(tipo === "orden" ? "orden" : "producto", codigo);
+    const payload = await getJson(`/api/adjuntos-producto?${params.toString()}`);
+    const items = Array.isArray(payload?.items) ? payload.items : [];
+    referenciaArteState.images = items
+      .filter((item) => String(item.mime || "").toLowerCase().startsWith("image/"))
+      .map((item) => ({
+        url: `${item.descargarUrl || `/api/adjuntos-producto/${item.id}/descargar`}${(item.descargarUrl || "").includes("?") ? "&" : "?"}inline=1`,
+        name: item.nombre || item.nombre_archivo || "Arte",
+        origen: item.origen || ""
+      }));
+  } catch (error) {
+    referenciaArteState.images = [];
+  }
+  referenciaArteState.loading = false;
+  if (referenciaArteState.open) renderReferenciaArteModal();
+}
+
+function renderReferenciaArteModal() {
+  const overlay = document.getElementById("referenciaArteOverlay");
+  if (!overlay) return;
+  const modal = overlay.querySelector(".referencia-arte-modal");
+  if (!modal) return;
+  const { images, index, loading, nombre, codigo } = referenciaArteState;
+  const current = images[index];
+  const title = nombre ? `${nombre} · ${codigo}` : codigo;
+  let body;
+  if (loading) {
+    body = `<div class="referencia-arte-empty">Cargando artes…</div>`;
+  } else if (!images.length) {
+    body = `<div class="referencia-arte-empty">Esta referencia no tiene artes cargados.</div>`;
+  } else {
+    body = `<div class="referencia-arte-stage">
+        ${images.length > 1 ? `<button type="button" class="referencia-arte-nav referencia-arte-nav-prev" data-action="referencia-arte-nav" data-dir="-1" aria-label="Arte anterior">‹</button>` : ""}
+        <img class="referencia-arte-image" src="${esc(current.url)}" alt="${esc(current.name)}">
+        ${images.length > 1 ? `<button type="button" class="referencia-arte-nav referencia-arte-nav-next" data-action="referencia-arte-nav" data-dir="1" aria-label="Arte siguiente">›</button>` : ""}
+      </div>
+      <div class="referencia-arte-caption">${esc(current.name)}${images.length > 1 ? ` · ${index + 1} de ${images.length}` : ""}</div>
+      ${images.length > 1 ? `<div class="referencia-arte-thumbs">${images.map((img, i) => `<button type="button" class="referencia-arte-thumb${i === index ? " is-active" : ""}" data-arte-thumb="${i}"><img src="${esc(img.url)}" alt="${esc(img.name)}"></button>`).join("")}</div>` : ""}`;
+  }
+  modal.innerHTML = `<div class="referencia-arte-head">
+      <h3>Arte — ${esc(title)}</h3>
+      <button type="button" class="referencia-search-close" data-action="close-referencia-arte" aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="referencia-arte-body">${body}</div>
+    <div class="referencia-arte-hint">Arrastra la esquina para ampliar la ventana.</div>`;
+}
+
+function closeReferenciaArteModal() {
+  referenciaArteState.open = false;
+  const overlay = document.getElementById("referenciaArteOverlay");
+  if (overlay) overlay.style.display = "none";
+}
+
+async function openReferenciaSearchModal() {
+  const customerCode = String(state.form?.header?.customerCode || "").trim();
+  if (!customerCode) {
+    showCenterMessage("Esta cotización todavía no tiene un cliente asociado.");
+    return;
+  }
+  let overlay = document.getElementById("referenciaSearchOverlay");
+  if (!overlay) {
+    document.body.insertAdjacentHTML("beforeend", `<div id="referenciaSearchOverlay" class="referencia-search-overlay" style="display:none"><div class="referencia-search-modal"></div></div>`);
+    overlay = document.getElementById("referenciaSearchOverlay");
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay || event.target.closest("[data-action='close-referencia-search']")) {
+        closeReferenciaSearchModal();
+        return;
+      }
+      if (event.target.closest("[data-action='toggle-referencia-sort']")) {
+        referenciaSearchState.sortDir = referenciaSearchState.sortDir === "asc" ? "desc" : "asc";
+        const modal = overlay.querySelector(".referencia-search-modal");
+        if (modal) modal.innerHTML = renderReferenciaSearchModalContent();
+        return;
+      }
+      const tipoBtn = event.target.closest("[data-action='referencia-tipo-filter']");
+      if (tipoBtn) {
+        referenciaSearchState.tipoFilter = tipoBtn.dataset.tipo || "todo";
+        const modal = overlay.querySelector(".referencia-search-modal");
+        if (modal) modal.innerHTML = renderReferenciaSearchModalContent();
+        setTimeout(() => { document.getElementById("referenciaSearchInput")?.focus(); }, 30);
+        return;
+      }
+      const arteBtn = event.target.closest("[data-action='ver-arte-referencia']");
+      if (arteBtn) {
+        event.stopPropagation();
+        openReferenciaArteModal(arteBtn.dataset.tipo || "", arteBtn.dataset.codigo || "", arteBtn.dataset.nombre || "");
+        return;
+      }
+      const row = event.target.closest("[data-action='select-referencia']");
+      if (row) {
+        selectReferenciaFromSearch(row.dataset.tipo || "", row.dataset.codigo || "", row.dataset.nombre || "", row.dataset.productCode || "", row.dataset.sku || "");
+      }
+    });
+    overlay.addEventListener("input", (event) => {
+      if (event.target.id === "referenciaSearchInput") {
+        referenciaSearchState.filter = event.target.value || "";
+        const body = overlay.querySelector(".referencia-search-body");
+        if (body) body.innerHTML = renderReferenciaSearchRows();
+      }
+    });
+  }
+  referenciaSearchState.filter = "";
+  referenciaSearchState.sortDir = "desc";
+  referenciaSearchState.tipoFilter = "todo";
+  const modal = overlay.querySelector(".referencia-search-modal");
+  if (modal) modal.innerHTML = `<div class="referencia-search-loading">Buscando referencias del cliente…</div>`;
+  overlay.style.display = "flex";
+  document.body.classList.add("popover-open");
+  referenciaSearchState.items = await fetchReferenciaSearchResults();
+  if (modal) modal.innerHTML = renderReferenciaSearchModalContent();
+  setTimeout(() => { document.getElementById("referenciaSearchInput")?.focus(); }, 50);
+}
+
+function closeReferenciaSearchModal() {
+  const overlay = document.getElementById("referenciaSearchOverlay");
+  if (overlay) {
+    overlay.style.display = "none";
+    document.body.classList.remove("popover-open");
+  }
+}
+
+// El campo "Describe qué cambia" crece hacia abajo según el texto (mín. 1 línea,
+// tope por CSS con max-height + scroll). Se llama al escribir y al restaurar el estado.
+function autoGrowReferenciaComentario() {
+  const el = els.referenciaComentario;
+  if (!el || el.tagName !== "TEXTAREA") return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+}
+
+// Calculadora y Solicitud Técnica de Troquel: reemplaza el antiguo "Troquel Temporal"
+// (efímero, sin persistencia) por un cálculo persistente en `calculo_troquel`, con
+// búsqueda de compatibilidad contra el inventario real antes de asumir que se necesita
+// fabricar un troquel nuevo.
+let calculadoraTroquelEstado = { calculo: null, compatibles: null, cargando: false };
+
+// Butt Cut no tiene geometría propia (son cuchillas de separación colocadas a intervalos,
+// no una forma que se pueda dibujar ni fabricar como troquel de corte): se excluye de esta
+// calculadora, que existe específicamente para especificar el montaje.
+function formasParaCalculadoraTroquel() {
+  return dieShapeOptionsFromConfig().filter((item) => dieShapeToken(item.value) !== "butt cut");
+}
+
+// Texto de ayuda por campo: el usuario pidió explícitamente que cada etiqueta indique
+// de qué se trata, para que la calculadora se entienda sin necesidad de explicación externa.
+const CALCULADORA_TROQUEL_TOOLTIPS = {
+  ancho_producto_in: "Ancho real de la pieza (etiqueta/producto) que se va a troquelar.",
+  alto_producto_in: "Alto real de la pieza (etiqueta/producto) que se va a troquelar.",
+  forma: "Forma de la cavidad del troquel. Circular y Cuadrado exigen que ancho y alto sean iguales.",
+  radio_esquina_in: "Redondeo de las esquinas. Aplica solo a formas Cuadrado y Rectangular.",
+  ancho_material_in: "Ancho del rollo o material donde se monta el troquel. Define cuántas cavidades caben a través.",
+  direccion_avance: "Indica si el Ancho o el Alto del producto queda orientado a través del material (perpendicular al avance).",
+  separacion_lateral_in: "Espacio entre cavidades a lo ancho del material, entre columnas.",
+  separacion_longitudinal_in: "Espacio entre cavidades en la dirección de avance, entre repeticiones.",
+  margen_in: "Espacio libre entre el borde del material y la primera/última cavidad, a ambos lados.",
+  numero_repeticiones: "Cantidad de vueltas del troquel que se repiten alrededor del cilindro. Define el desarrollo.",
+  dientes: "Cantidad de dientes del cilindro porta-troquel. Se calcula en vivo dividiendo el Desarrollo entre el Paso del Engranaje de la máquina de impresión seleccionada. Ej.: 2.000 in ÷ 0.125 in = 16 dientes. Si el desarrollo no cae exacto en el paso, se ajusta la separación longitudinal para completar el diente.",
+  area_util_in2: "Área que realmente ocupan las piezas (sin separaciones ni márgenes). Se recalcula en vivo con cada cambio.",
+  aprovechamiento_pct: "Porcentaje de material aprovechado: área útil ÷ área total. Se recalcula en vivo con cada cambio.",
+  area_total_in2: "Área total del montaje, incluyendo separaciones y márgenes. Se recalcula en vivo con cada cambio.",
+  pulgadas_lineales_in: "Total de pulgadas de corte del troquel: perímetro de una cavidad × cantidad de cavidades × repeticiones.",
+  costo_pulgada_lineal: "Costo de fabricar cada pulgada lineal de corte de este troquel nuevo. Por defecto toma el valor de Configuración General, pero se puede ajustar aquí.",
+  costo_total_troquel: "Costo total del troquel nuevo = Pulgadas Lineales × Costo por Pulgada Lineal. Es lo que se cobra en el proceso Troquel al usar este troquel nuevo.",
+  numero_cavidades: "Filas: cuántas piezas caben a lo ancho del material, una junto a otra (mismo concepto \"Filas\" del inventario de troqueles).",
+  paso_transversal_in: "Distancia de centro a centro entre cavidades a lo ancho (ancho de pieza + separación lateral).",
+  paso_longitudinal_in: "Distancia de centro a centro entre cavidades en el avance (alto de pieza + separación longitudinal).",
+  desarrollo_in: "Circunferencia de trabajo del cilindro: paso longitudinal x repeticiones.",
+  ancho_total_in: "Ancho total que ocupa el montaje sobre el material, incluyendo los márgenes de ambos lados.",
+  area_util_in2: "Área que realmente ocupan las piezas (sin separaciones ni márgenes).",
+  area_total_in2: "Área total del montaje, incluyendo separaciones y márgenes.",
+  aprovechamiento_pct: "Porcentaje de material aprovechado: área útil ÷ área total."
+};
+
+// El patrón display-input de este proyecto exige un <span class="display-input-mask">
+// hermano por cada input (el input real queda con texto transparente y la máscara es la
+// que se ve). Sin la máscara, el valor escrito queda invisible en cuanto se pierde el foco
+// — ese fue el bug real detrás de "los campos aparecen vacíos".
+const CT_CAMPO_SUFIJO = {
+  ancho_producto_in: "in", alto_producto_in: "in", radio_esquina_in: "in",
+  ancho_material_in: "in", separacion_lateral_in: "in", separacion_longitudinal_in: "in",
+  margen_in: "in", numero_repeticiones: "", costo_pulgada_lineal: "/in"
+};
+const CT_CAMPO_PREFIJO = { costo_pulgada_lineal: "$" };
+const CT_CAMPO_DECIMALES = { costo_pulgada_lineal: 2 };
+
+// Ajuste temporal de dibujo (SOLO DEMO para implementadores): vive únicamente en la
+// memoria de la página, nunca se guarda en la base de datos. Al recargar se pierde.
+let ctAjustesDemo = { grosor: 0.6, anguloArco: 90, desplazV: -14, desplazH: 14, panelVisible: false };
+
+function textoMascaraCalculadoraTroquel(field, rawValue) {
+  const raw = String(rawValue ?? "").trim();
+  if (!raw) return "";
+  const suffix = CT_CAMPO_SUFIJO[field] || "";
+  const prefix = CT_CAMPO_PREFIJO[field] || "";
+  const decimals = CT_CAMPO_DECIMALES[field] !== undefined ? CT_CAMPO_DECIMALES[field] : (suffix === "in" ? 3 : 0);
+  return `${prefix}${num(n(raw, 0), decimals)}${suffix ? ` ${suffix}` : ""}`;
+}
+
+function sincronizarMascarasCalculadoraTroquel() {
+  Object.keys(CT_CAMPO_SUFIJO).forEach((field) => {
+    const input = document.getElementById(`ct_${field}`);
+    const mask = document.getElementById(`ct_${field}_mask`);
+    if (!input || !mask) return;
+    mask.textContent = textoMascaraCalculadoraTroquel(field, input.value);
+  });
+}
+
+function htmlModalCalculadoraTroquel() {
+  const shapeOptions = formasParaCalculadoraTroquel();
+  const shapeOptionsHtml = shapeOptions.map((item) => `<option value="${esc(item.value)}"${calculadoraTroquelEstado.calculo?.forma === item.value ? " selected" : ""}>${esc(item.label)}</option>`).join("");
+  const c = calculadoraTroquelEstado.calculo || {};
+  const valorCampo = (field) => (c[field] !== undefined && c[field] !== null ? c[field] : "");
+  const etiquetaConTooltip = (label, field) => `<span class="ct-field-label" tabindex="0" data-ct-tooltip="${esc(CALCULADORA_TROQUEL_TOOLTIPS[field] || "")}">${esc(label)}</span>`;
+  const campoEntrada = (label, field, opts = {}) => {
+    const { step = "0.001", fallback = "" } = opts;
+    const raw = valorCampo(field);
+    const valorInicial = raw !== "" ? raw : fallback;
+    return `<label>${etiquetaConTooltip(label, field)}<div class="display-input-wrap has-suffix"><input id="ct_${field}" class="display-input" type="number" step="${step}" min="0" value="${esc(String(valorInicial))}"><span id="ct_${field}_mask" class="display-input-mask">${esc(textoMascaraCalculadoraTroquel(field, valorInicial))}</span></div></label>`;
+  };
+  const campoCalculado = (label, field, suffix = "", decimals = 3) => `<div class="metric-cell ct-calc-cell">${etiquetaConTooltip(label, field)}<strong id="ct_out_${field}">${c[field] !== undefined && c[field] !== null ? `${num(c[field], decimals)}${suffix ? ` ${suffix}` : ""}` : "-"}</strong></div>`;
+  // Campo de SOLO LECTURA con el mismo formato visual que los campos editables
+  // (etiqueta arriba, display-input abajo), para Pulgadas Lineales y Costo Total.
+  // La etiqueta de Pulgadas Lineales abre un panel con el desglose del cálculo en vivo.
+  const campoSoloLectura = (labelHtml, field, valorFormateado) => `<label>${labelHtml}<div class="display-input-wrap has-suffix"><input id="ct_in_${field}" class="display-input" type="text" readonly tabindex="-1" value="${esc(valorFormateado)}"><span id="ct_in_${field}_mask" class="display-input-mask">${esc(valorFormateado)}</span></div></label>`;
+  const etiquetaDetallePulgadas = `<span class="ct-field-label" tabindex="0" data-ct-detalle="pulgadas" role="button">Pulgadas Lineales</span>`;
+  const puedeBuscarCompatibles = Boolean(c.estado && c.estado !== "Borrador");
+
+  if (calculadoraTroquelEstado.cargando) {
+    return `<div id="ctArrastre" class="troquel-catalog-head ct-modal-drag-handle"><h3>Calculadora de Troquel</h3><button type="button" class="troquel-catalog-close" data-action="close-troquel-catalog" aria-label="Cerrar">&times;</button></div><div class="ct-calculadora-body"><div class="ct-calculadora-left">Cargando...</div></div>`;
+  }
+
+  return `<div id="ctArrastre" class="troquel-catalog-head ct-modal-drag-handle"><h3>Calculadora de Troquel</h3><div class="ct-head-actions"><button type="button" class="inline-button troquel-create-confirm" data-action="marcar-troquel-nuevo">Guardar</button><button type="button" class="troquel-catalog-close" data-action="close-troquel-catalog" aria-label="Cerrar">&times;</button></div></div>${htmlPanelAjusteDemo()}
+<div class="ct-calculadora-body">
+  <div class="ct-calculadora-left">
+    <div class="ct-section"><h4>1. Producto a Troquelar</h4><div class="editable-grid ct-grid">
+      ${campoEntrada("Ancho Producto", "ancho_producto_in")}
+      ${campoEntrada("Alto Producto", "alto_producto_in")}
+      <label>${etiquetaConTooltip("Forma", "forma")}<select id="ct_forma"><option value="">Seleccionar...</option>${shapeOptionsHtml}</select></label>
+      <label id="ctRadioEsquinaCampo"${formaPermiteRadioEsquina(valorCampo("forma")) ? "" : ' style="display:none"'}>${etiquetaConTooltip("Radio de Esquina", "radio_esquina_in")}<div class="display-input-wrap has-suffix"><input id="ct_radio_esquina_in" class="display-input" type="number" step="0.001" min="0" value="${esc(String(valorCampo("radio_esquina_in")))}"><span id="ct_radio_esquina_in_mask" class="display-input-mask">${esc(textoMascaraCalculadoraTroquel("radio_esquina_in", valorCampo("radio_esquina_in")))}</span></div></label>
+    </div></div>
+    <div class="ct-section"><h4>2. Montaje sobre el Material</h4><div class="editable-grid ct-grid">
+      ${campoEntrada("Ancho de Material Disponible", "ancho_material_in")}
+      <label>${etiquetaConTooltip("Dirección de Avance", "direccion_avance")}<select id="ct_direccion_avance"><option value="ancho"${valorCampo("direccion_avance") === "ancho" || !valorCampo("direccion_avance") ? " selected" : ""}>Ancho a Través</option><option value="largo"${valorCampo("direccion_avance") === "largo" ? " selected" : ""}>Alto a Través</option></select></label>
+      ${campoEntrada("Separación Lateral", "separacion_lateral_in")}
+      ${campoEntrada("Separación Longitudinal", "separacion_longitudinal_in")}
+      ${campoEntrada("Margen", "margen_in")}
+      ${campoEntrada("Repeticiones", "numero_repeticiones", { step: "1" })}
+    </div></div>
+    <div class="ct-section ct-section-costo"><h4>3. Costo del Troquel Nuevo</h4><div class="editable-grid ct-cost-grid">
+      ${campoSoloLectura(etiquetaDetallePulgadas, "pulgadas_lineales_in", c.pulgadas_lineales_in !== undefined && c.pulgadas_lineales_in !== null ? `${num(c.pulgadas_lineales_in, 2)} in` : "")}
+      ${campoEntrada("Costo por Pulgada Lineal", "costo_pulgada_lineal", { step: "0.01", fallback: n(state.costsConfig?.general?.defaultCostoPulgadaLinealTroquel, 0) > 0 ? String(n(state.costsConfig?.general?.defaultCostoPulgadaLinealTroquel, 0)) : "" })}
+      ${campoSoloLectura("Costo Total", "costo_total_troquel", c.costo_total_troquel !== undefined && c.costo_total_troquel !== null ? money(c.costo_total_troquel) : "")}
+    </div></div>
+  </div>
+  <div class="ct-calculadora-right">
+    <div id="ctMensaje" class="ct-mensaje"></div>
+    <div id="ctResultado" class="ct-resultado"></div>
+    <div id="ctTooltipModal" class="ct-tooltip-modal" hidden></div>
+    <div id="ctSvgPreview" class="ct-svg-preview">${renderVistasTroquel(c)}${CT_BOTON_ZOOM_HTML}</div>
+  </div>
+</div>
+<div class="ct-section ct-section-calculado ct-resultado-full"><h4>Resultado del Montaje</h4><div class="readonly-grid compact-top ct-calc-grid">
+      ${campoCalculado("Filas (a Través del Material)", "numero_cavidades", "", 0)}
+      ${campoCalculado("Paso Transversal", "paso_transversal_in", "in")}
+      ${campoCalculado("Paso Longitudinal", "paso_longitudinal_in", "in")}
+      ${campoCalculado("Desarrollo", "desarrollo_in", "in")}
+      ${campoCalculado("Dientes", "dientes", "", 0)}
+      ${campoCalculado("Ancho Total (con Márgenes)", "ancho_total_in", "in")}
+      ${campoCalculado("Alto Total (con Márgenes)", "alto_total_in", "in")}
+      ${campoCalculado("Área Útil", "area_util_in2", "in²")}
+      ${campoCalculado("Área Total", "area_total_in2", "in²")}
+      ${campoCalculado("Aprovechamiento", "aprovechamiento_pct", "%", 1)}
+    </div></div>`;
+}
+
+// El radio de esquina solo tiene sentido en formas con esquinas rectas (Cuadrado/Rectangular);
+// Circular, Ovalado y Especial no lo usan, así que se oculta para no confundir.
+function formaPermiteRadioEsquina(forma) {
+  const token = dieShapeToken(forma || "");
+  return token === "cuadrado" || token === "rectangular";
+}
+
+// Ícono "+" junto a "Buscar Troquel": abre la Calculadora de Troquel directo, sin pasar
+// primero por la pantalla de búsqueda en el catálogo.
+async function openTroquelCalculadoraDirecto() {
+  openDieCatalogModal();
+  await abrirModalCalculadoraTroquel();
+}
+
+async function abrirModalCalculadoraTroquel() {
+  const overlay = document.getElementById("troquelCatalogOverlay");
+  const modal = overlay?.querySelector(".troquel-catalog-modal");
+  if (!modal) return;
+  modal.classList.add("troquel-catalog-modal-wide");
+  const { quoteCode, lineCode } = currentQuoteLineIdentity();
+  calculadoraTroquelEstado = { calculo: null, compatibles: null, cargando: true, imagenContornoPendiente: undefined };
+  modal.innerHTML = htmlModalCalculadoraTroquel();
+  if (quoteCode && lineCode) {
+    try {
+      const payload = await getJson(`/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/calculo-troquel`);
+      calculadoraTroquelEstado.calculo = payload.calculo || null;
+    } catch (error) {
+      // Sin cálculo previo: se inicia uno nuevo al presionar "Calcular".
+    }
+  }
+  calculadoraTroquelEstado.cargando = false;
+  modal.innerHTML = htmlModalCalculadoraTroquel();
+  bindCalculadoraTroquelEvents();
+}
+
+let ctDebounceTimer = null;
+
+// Panel de ajuste del dibujo (SOLO DEMO para implementadores): permite modificar grosor,
+// ángulo del arco y desplazar las líneas de cota, con vista en vivo y un botón para copiar
+// los valores y coordenadas. Nada se guarda: al recargar la página vuelve al valor original.
+function htmlPanelAjusteDemo() {
+  const a = ctAjustesDemo;
+  const fila = (titulo, controlsHtml) => `<div class="ct-ajuste-fila"><span class="ct-ajuste-titulo">${titulo}</span><div class="ct-ajuste-controles">${controlsHtml}</div></div>`;
+  const btnPaso = (accion, flecha) => `<button type="button" class="ct-ajuste-btn" data-action="ajuste-demo" data-ajuste="${accion}">${flecha}</button>`;
+  return `<div id="ctPanelAjuste" class="ct-ajuste-panel" style="display:${a.panelVisible ? "block" : "none"}">
+    <div class="ct-ajuste-head"><span>Ajuste de Dibujo (Temporal)</span><button type="button" class="troquel-catalog-close" data-action="cerrar-panel-ajuste" aria-label="Cerrar">&times;</button></div>
+    ${fila("Grosor", `<input type="range" min="0.3" max="3" step="0.1" value="${a.grosor}" data-ajuste-input="grosor"><span class="ct-ajuste-valor" id="ctAjusteGrosorVal">${a.grosor}</span>`)}
+    ${fila("Ángulo Arco", `<input type="range" min="5" max="180" step="1" value="${a.anguloArco}" data-ajuste-input="anguloArco"><span class="ct-ajuste-valor" id="ctAjusteAnguloVal">${a.anguloArco}°</span>`)}
+    ${fila("Línea Horizontal", `${btnPaso("h-subir", "↑")}${btnPaso("h-bajar", "↓")}<span class="ct-ajuste-valor">${a.desplazH >= 0 ? "+" : ""}${a.desplazH}</span>`)}
+    ${fila("Línea Vertical", `${btnPaso("v-izq", "←")}${btnPaso("v-der", "→")}<span class="ct-ajuste-valor">${a.desplazV >= 0 ? "+" : ""}${a.desplazV}</span>`)}
+    <div class="ct-ajuste-acciones">
+      <button type="button" class="ct-svg-zoom-btn" data-action="copiar-ajuste-demo">Copiar Valores</button>
+      <button type="button" class="ct-svg-zoom-btn ct-ajuste-reset" data-action="reset-ajuste-demo">Restablecer</button>
+    </div>
+  </div>`;
+}
+
+// Detalle del cálculo de Pulgadas Lineales: usa el MISMO panel de información global de
+// los procesos del cálculo (info-popover), con Fórmula, Explicación y Ejemplo Actual.
+// Se recalcula en vivo con los valores del formulario para que siempre coincida.
+function mostrarDetallePulgadasLineales(etiqueta) {
+  const c = calculadoraTroquelEstado.calculo || {};
+  const leer = (id) => { const v = Number(document.getElementById(id)?.value); return Number.isFinite(v) ? v : null; };
+  const ancho = leer("ct_ancho_producto_in") ?? n(c.ancho_producto_in, 0);
+  const alto = leer("ct_alto_producto_in") ?? n(c.alto_producto_in, 0);
+  const forma = String(document.getElementById("ct_forma")?.value || c.forma || "").trim().toLowerCase();
+  const radio = leer("ct_radio_esquina_in") ?? n(c.radio_esquina_in, 0);
+  const filas = n(c.numero_cavidades, 0);
+  const reps = leer("ct_numero_repeticiones") ?? n(c.numero_repeticiones, 0);
+  const total = n(c.pulgadas_lineales_in, null);
+  let cuerpoFormula = "";
+  let perimetro = null;
+  let explicacion = "";
+  if (forma === "circular") {
+    perimetro = Math.PI * ancho;
+    cuerpoFormula = `Perímetro Cavidad = π × Ancho = π × ${num(ancho, 3)} = ${num(perimetro, 3)} in\nPulgadas Lineales = Perímetro Cavidad × Filas × Repeticiones`;
+    explicacion = "En un círculo el corte recorre toda la circunferencia de la pieza, por eso el perímetro es π por el ancho (diámetro).";
+  } else if (forma === "ovalado") {
+    const a = ancho / 2, b = alto / 2;
+    perimetro = Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)));
+    cuerpoFormula = `Perímetro Cavidad = Ramanujan con semiejes ${num(a, 3)} × ${num(b, 3)} = ${num(perimetro, 3)} in\nPulgadas Lineales = Perímetro Cavidad × Filas × Repeticiones`;
+    explicacion = "En un óvalo no existe fórmula exacta del perímetro: se usa la aproximación de Ramanujan, precisa para elipses, con los semiejes (mitad del ancho y del alto).";
+  } else if (forma === "cuadrado" || forma === "rectangular") {
+    perimetro = 2 * (ancho + alto) - (8 - 2 * Math.PI) * radio;
+    cuerpoFormula = `Perímetro Cavidad = 2 × (Ancho + Alto) − (8 − 2π) × Radio\nPerímetro Cavidad = 2 × (${num(ancho, 3)} + ${num(alto, 3)}) − ${(8 - 2 * Math.PI).toFixed(3)} × ${num(radio, 3)} = ${num(perimetro, 3)} in\nPulgadas Lineales = Perímetro Cavidad × Filas × Repeticiones`;
+    explicacion = "El corte recorre los cuatro lados, pero en cada esquina el radio de esquina recorta un pedazo de rectángulo y lo cambia por un arco: se resta (8 − 2π) por el radio para no contar de más.";
+  } else if (forma) {
+    perimetro = 2 * (ancho + alto);
+    cuerpoFormula = `Perímetro Cavidad = 2 × (Ancho + Alto) = 2 × (${num(ancho, 3)} + ${num(alto, 3)}) = ${num(perimetro, 3)} in\nPulgadas Lineales = Perímetro Cavidad × Filas × Repeticiones`;
+    explicacion = "Para una forma especial sin geometría definida se usa el perímetro del rectángulo que la contiene, como aproximación conservadora del corte.";
+  }
+  const ejemplo = perimetro !== null && filas > 0 && total !== null
+    ? `▸ ${num(perimetro, 3)} in × ${num(filas, 0)} filas × ${num(reps, 0)} repeticiones = ${num(total, 2)} in`
+    : "▸ Presione Calcular para ver el ejemplo con datos.";
+  const cuerpo = `<b>Fórmula:</b><br>${cuerpoFormula.split("\n").filter(Boolean).map((l) => `&nbsp;&nbsp;▸ ${esc(l)}`).join("<br>")}<br><br><b>Ejemplo Actual:</b><br>&nbsp;&nbsp;${esc(ejemplo.replace("▸ ", ""))}<br><br><b>Explicación:</b><br>&nbsp;&nbsp;${esc(explicacion)}`;
+  const disparador = etiqueta;
+  disparador.dataset.infoTitle = "Detalle del Cálculo: Pulgadas Lineales";
+  disparador.dataset.infoBodyHtml = cuerpo;
+  disparador.dataset.infoWide = "1";
+  openInfoPopover(disparador);
+}
+
+function copiarValoresAjusteDemo() {
+  const svg = document.querySelector(".ct-svg-etiqueta");
+  const exts = [...(svg?.querySelectorAll(".ct-svg-dim-ext") || [])].map((l) => ({ de: `${l.getAttribute("x1")},${l.getAttribute("y1")}`, a: `${l.getAttribute("x2")},${l.getAttribute("y2")}` }));
+  const lineas = [...(svg?.querySelectorAll(".ct-svg-dim-line") || [])].map((l) => ({ de: `${l.getAttribute("x1")},${l.getAttribute("y1")}`, a: `${l.getAttribute("x2")},${l.getAttribute("y2")}` }));
+  const flechas = [...(svg?.querySelectorAll(".ct-svg-dim-arrow") || [])].map((p) => p.getAttribute("points"));
+  const arco = svg?.querySelector(".ct-svg-radius");
+  const texto = [
+    "=== AJUSTE DEMO CALCULADORA TROQUEL ===",
+    `grosor: ${ctAjustesDemo.grosor}`,
+    `anguloArco: ${ctAjustesDemo.anguloArco}`,
+    `desplazV (línea vertical ←→): ${ctAjustesDemo.desplazV}`,
+    `desplazH (línea horizontal ↑↓): ${ctAjustesDemo.desplazH}`,
+    "",
+    `coordenadas lineas de cota: ${JSON.stringify(lineas)}`,
+    `coordenadas extensiones: ${JSON.stringify(exts)}`,
+    `flechas (puntos): ${JSON.stringify(flechas)}`,
+    `arco del radio (path): ${arco ? arco.getAttribute("d") : "sin arco"}`
+  ].join("\n");
+  const pegar = document.createElement("textarea");
+  pegar.value = texto;
+  document.body.appendChild(pegar);
+  pegar.select();
+  try { document.execCommand("copy"); showCenterMessage("Valores copiados. Pégalos en el chat para fijarlos en el código."); } catch (e) { showCenterMessage("No se pudo copiar automáticamente; copia manualmente del cuadro."); pegar.style.position = "fixed"; pegar.style.zIndex = "9999"; }
+  pegar.remove();
+}
+
+function moverLineaAjusteDemo(accion) {
+  const paso = 1;
+  if (accion === "h-subir") ctAjustesDemo.desplazH -= paso;
+  if (accion === "h-bajar") ctAjustesDemo.desplazH += paso;
+  if (accion === "v-izq") ctAjustesDemo.desplazV -= paso;
+  if (accion === "v-der") ctAjustesDemo.desplazV += paso;
+  refrescarVistasCalculadoraTroquel();
+  sincronizarPanelAjusteDemo();
+}
+
+function sincronizarPanelAjusteDemo() {
+  const panel = document.getElementById("ctPanelAjuste");
+  if (!panel) return;
+  const valores = panel.querySelectorAll(".ct-ajuste-valor");
+  if (valores[0]) valores[0].textContent = ctAjustesDemo.grosor;
+  if (valores[1]) valores[1].textContent = `${ctAjustesDemo.anguloArco}°`;
+  if (valores[2]) valores[2].textContent = `${ctAjustesDemo.desplazH >= 0 ? "+" : ""}${ctAjustesDemo.desplazH}`;
+  if (valores[3]) valores[3].textContent = `${ctAjustesDemo.desplazV >= 0 ? "+" : ""}${ctAjustesDemo.desplazV}`;
+}
+
+function debouncedCalcularTroquel() {
+  if (ctDebounceTimer) clearTimeout(ctDebounceTimer);
+  ctDebounceTimer = setTimeout(() => {
+    calcularTroquel();
+  }, 250);
+}
+
+function bindCalculadoraTroquelEvents() {
+  const camposConRecalculo = [
+    "ct_ancho_producto_in", "ct_alto_producto_in", "ct_forma", "ct_radio_esquina_in",
+    "ct_ancho_material_in", "ct_direccion_avance",
+    "ct_separacion_lateral_in", "ct_separacion_longitudinal_in", "ct_margen_in", "ct_numero_repeticiones",
+    "ct_costo_pulgada_lineal"
+  ];
+  camposConRecalculo.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("change", () => calcularTroquel());
+    el.addEventListener("input", () => {
+      sincronizarMascarasCalculadoraTroquel();
+      debouncedCalcularTroquel();
+    });
+  });
+  Object.keys(CT_CAMPO_SUFIJO).forEach((field) => {
+    const input = document.getElementById(`ct_${field}`);
+    if (input) input.addEventListener("input", () => sincronizarMascarasCalculadoraTroquel());
+  });
+  const formaSelect = document.getElementById("ct_forma");
+  if (formaSelect) {
+    formaSelect.addEventListener("change", () => {
+      const radioEsquinaCampo = document.getElementById("ctRadioEsquinaCampo");
+      if (radioEsquinaCampo) radioEsquinaCampo.style.display = formaPermiteRadioEsquina(formaSelect.value) ? "" : "none";
+      calcularTroquel();
+    });
+  }
+  const overlay = document.getElementById("troquelCatalogOverlay");
+  if (overlay && overlay.dataset.ctZoomListo !== "1") {
+    overlay.dataset.ctZoomListo = "1";
+    overlay.addEventListener("click", (event) => {
+      if (event.target.closest("[data-action='zoom-troquel-svg']")) abrirZoomMontajeTroquel();
+      const btnAjuste = event.target.closest("[data-action='ajuste-demo']");
+      if (btnAjuste) { moverLineaAjusteDemo(btnAjuste.dataset.ajuste); return; }
+      if (event.target.closest("[data-action='copiar-ajuste-demo']")) { copiarValoresAjusteDemo(); return; }
+      if (event.target.closest("[data-action='reset-ajuste-demo']")) { ctAjustesDemo = { grosor: 0.6, anguloArco: 90, desplazV: -14, desplazH: 14, panelVisible: true }; refrescarVistasCalculadoraTroquel(); sincronizarPanelAjusteDemo(); return; }
+      if (event.target.closest("[data-action='cerrar-panel-ajuste']")) { ctAjustesDemo.panelVisible = false; const p = document.getElementById("ctPanelAjuste"); if (p) p.style.display = "none"; return; }
+      const detalle = event.target.closest("[data-ct-detalle='pulgadas']");
+      if (detalle) { event.preventDefault(); mostrarDetallePulgadasLineales(detalle); return; }
+      const carga = event.target.closest("[data-action='cargar-imagen-contorno']");
+      if (carga) {
+        const input = carga.parentElement?.querySelector("[data-ct-imagen-input]");
+        if (input) input.click();
+        return;
+      }
+      if (event.target.closest("[data-action='quitar-imagen-contorno']")) {
+        quitarImagenContornoCalculadoraTroquel();
+        return;
+      }
+    });
+    overlay.addEventListener("change", (event) => {
+      const input = event.target.closest("[data-ct-imagen-input]");
+      if (input && input.files && input.files[0]) cargarImagenContornoCalculadoraTroquel(input.files[0]);
+    });
+  }
+  // Panel de ajuste demo: controles deslizantes (grosor y ángulo) con vista en vivo.
+  overlay?.querySelectorAll("[data-ajuste-input]").forEach((input) => {
+    input.addEventListener("input", () => {
+      const campo = input.dataset.ajusteInput;
+      ctAjustesDemo[campo] = n(input.value, campo === "anguloArco" ? 90 : 1);
+      refrescarVistasCalculadoraTroquel();
+      sincronizarPanelAjusteDemo();
+    });
+  });
+  activarArrastreModalCalculadoraTroquel();
+  sincronizarMascarasCalculadoraTroquel();
+  activarTooltipsCalculadoraTroquel();
+  setTimeout(() => document.getElementById("ct_ancho_producto_in")?.focus(), 60);
+}
+
+// Tooltip enriquecido para los valores calculados: al pasar el cursor (o enfocar con el
+// teclado) sobre una etiqueta con explicación, se abre una caja flotante que describe
+// cómo se calcula ese dato. La caja es única y se mueve junto al elemento activo.
+function activarTooltipsCalculadoraTroquel() {
+  const overlay = document.getElementById("troquelCatalogOverlay");
+  if (!overlay || overlay.dataset.ctTooltipListo === "1") return;
+  overlay.dataset.ctTooltipListo = "1";
+  const mostrar = (etiqueta) => {
+    const texto = etiqueta.getAttribute("data-ct-tooltip");
+    const caja = document.getElementById("ctTooltipModal");
+    if (!texto || !caja) return;
+    caja.textContent = texto;
+    caja.hidden = false;
+    const destino = etiqueta.getBoundingClientRect();
+    const cajaRect = caja.getBoundingClientRect();
+    let izquierda = destino.left + window.scrollX;
+    let arriba = destino.bottom + window.scrollY + 6;
+    if (izquierda + cajaRect.width > window.innerWidth + window.scrollX - 12) {
+      izquierda = window.innerWidth + window.scrollX - cajaRect.width - 12;
+    }
+    if (arriba + cajaRect.height > window.innerHeight + window.scrollY - 12) {
+      arriba = destino.top + window.scrollY - cajaRect.height - 6;
+    }
+    caja.style.left = `${izquierda}px`;
+    caja.style.top = `${arriba}px`;
+  };
+  const ocultar = () => {
+    const caja = document.getElementById("ctTooltipModal");
+    if (caja) caja.hidden = true;
+  };
+  overlay.addEventListener("mouseover", (event) => {
+    const etiqueta = event.target.closest("[data-ct-tooltip]");
+    if (etiqueta) mostrar(etiqueta);
+  });
+  overlay.addEventListener("mouseout", (event) => {
+    if (event.target.closest("[data-ct-tooltip]")) ocultar();
+  });
+  overlay.addEventListener("focusin", (event) => {
+    const etiqueta = event.target.closest("[data-ct-tooltip]");
+    if (etiqueta) mostrar(etiqueta);
+  });
+  overlay.addEventListener("focusout", ocultar);
+}
+
+function obtenerValoresCalculadoraTroquel() {
+  const valorNumerico = (id) => {
+    // Input nativo type="number": el value del DOM siempre usa punto decimal (spec HTML),
+    // nunca coma de miles, así que no debe pasar por n() (que asume formato localizado).
+    const raw = document.getElementById(id)?.value;
+    if (raw === "" || raw === undefined) return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  return {
+    ancho_producto_in: valorNumerico("ct_ancho_producto_in"),
+    alto_producto_in: valorNumerico("ct_alto_producto_in"),
+    forma: String(document.getElementById("ct_forma")?.value || ""),
+    radio_esquina_in: valorNumerico("ct_radio_esquina_in"),
+    ancho_material_in: valorNumerico("ct_ancho_material_in"),
+    direccion_avance: String(document.getElementById("ct_direccion_avance")?.value || "ancho"),
+    separacion_lateral_in: valorNumerico("ct_separacion_lateral_in"),
+    separacion_longitudinal_in: valorNumerico("ct_separacion_longitudinal_in"),
+    margen_in: valorNumerico("ct_margen_in"),
+    numero_repeticiones: valorNumerico("ct_numero_repeticiones"),
+    paso_engranaje_troquel_in: pasoEngranajeTroquelDeLaMaquinaSeleccionada(),
+    costo_pulgada_lineal: valorNumerico("ct_costo_pulgada_lineal")
+  };
+}
+
+function imagenContornoParaEnviar() {
+  if (calculadoraTroquelEstado.imagenContornoPendiente === undefined) return undefined;
+  return calculadoraTroquelEstado.imagenContornoPendiente || "";
+}
+
+// El Paso del Engranaje del troquel es una ficha técnica de la máquina de impresión (Configuración
+// > Catálogo de Máquinas). Se toma de la máquina seleccionada en Impresión, con respaldo de 0.125 in (1/8").
+function pasoEngranajeTroquelDeLaMaquinaSeleccionada() {
+  const machineId = state.form.printStages?.[0]?.machineId || state.form.print?.machineId || state.form.selectedMachineId || "";
+  const machine = findMachine(machineId);
+  return n(machine?.pasoEngranajeTroquelIn, 0) || 0.125;
+}
+
+async function calcularTroquel() {
+  const { quoteCode, lineCode } = currentQuoteLineIdentity();
+  const mensajeEl = document.getElementById("ctMensaje");
+  if (!quoteCode || !lineCode) {
+    if (mensajeEl) mensajeEl.textContent = "Guarda la cotización antes de calcular el troquel.";
+    return;
+  }
+  const valores = obtenerValoresCalculadoraTroquel();
+  const imagenContorno = imagenContornoParaEnviar();
+  if (imagenContorno !== undefined) valores.imagen_contorno = imagenContorno;
+  try {
+    const payload = await postJson(`/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/calculo-troquel`, valores);
+    calculadoraTroquelEstado.calculo = payload.calculo;
+    calculadoraTroquelEstado.compatibles = null;
+    if (imagenContorno !== undefined) delete calculadoraTroquelEstado.imagenContornoPendiente;
+    if (mensajeEl) {
+      mensajeEl.textContent = payload.error_geometria || "";
+      mensajeEl.classList.toggle("ct-mensaje-error", Boolean(payload.error_geometria));
+    }
+    actualizarPanelCalculadoTroquel();
+  } catch (error) {
+    if (mensajeEl) {
+      mensajeEl.textContent = error.message;
+      mensajeEl.classList.add("ct-mensaje-error");
+    }
+  }
+}
+
+function actualizarPanelCalculadoTroquel() {
+  const c = calculadoraTroquelEstado.calculo || {};
+  const campos = [
+    ["numero_cavidades", "", 0],
+    ["paso_transversal_in", "in", 3],
+    ["paso_longitudinal_in", "in", 3],
+    ["desarrollo_in", "in", 3],
+    ["dientes", "", 0],
+    ["ancho_total_in", "in", 3],
+    ["alto_total_in", "in", 3],
+    ["area_util_in2", "in²", 3],
+    ["area_total_in2", "in²", 3],
+    ["aprovechamiento_pct", "%", 1],
+    ["pulgadas_lineales_in", "in", 2]
+  ];
+  campos.forEach(([field, suffix, decimals]) => {
+    const el = document.getElementById(`ct_out_${field}`);
+    if (el) el.textContent = c[field] !== undefined && c[field] !== null ? `${num(c[field], decimals)}${suffix ? ` ${suffix}` : ""}` : "-";
+    // Pulgadas Lineales ahora vive en el campo de solo lectura de la sección de costos.
+    if (field === "pulgadas_lineales_in") {
+      const entrada = document.getElementById(`ct_in_${field}`);
+      const mascara = document.getElementById(`ct_in_${field}_mask`);
+      const texto = c[field] !== undefined && c[field] !== null ? `${num(c[field], 2)} in` : "";
+      if (entrada) entrada.value = texto;
+      if (mascara) mascara.textContent = texto;
+    }
+  });
+  const costoTotalEl = document.getElementById("ct_in_costo_total_troquel");
+  const costoTotalMascara = document.getElementById("ct_in_costo_total_troquel_mask");
+  const costoTotalTexto = c.costo_total_troquel !== undefined && c.costo_total_troquel !== null ? money(c.costo_total_troquel) : "";
+  if (costoTotalEl) costoTotalEl.value = costoTotalTexto;
+  if (costoTotalMascara) costoTotalMascara.textContent = costoTotalTexto;
+  refrescarVistasCalculadoraTroquel();
+  const btnUsarNuevo = document.querySelector("[data-action='marcar-troquel-nuevo']");
+  if (btnUsarNuevo) btnUsarNuevo.disabled = !c.estado || c.estado === "Borrador";
+  const preview = document.getElementById("ctSvgPreview");
+  if (preview) preview.innerHTML = renderVistasTroquel(c) + CT_BOTON_ZOOM_HTML;
+  const resultadoEl = document.getElementById("ctResultado");
+  if (resultadoEl) resultadoEl.innerHTML = "";
+
+  const radioEsquinaCampo = document.getElementById("ctRadioEsquinaCampo");
+  if (radioEsquinaCampo) radioEsquinaCampo.style.display = formaPermiteRadioEsquina(c.forma) ? "" : "none";
+}
+
+async function buscarTroquelesCompatibles() {
+  const c = calculadoraTroquelEstado.calculo;
+  const resultadoEl = document.getElementById("ctResultado");
+  if (!c || !c.codigo_calculo) {
+    showCenterMessage("Calcule el troquel antes de buscar troqueles compatibles.");
+    return;
+  }
+  if (resultadoEl) resultadoEl.innerHTML = "Buscando troqueles compatibles...";
+  try {
+    const payload = await postJson(`/api/calculo-troquel/${encodeURIComponent(c.codigo_calculo)}/buscar-compatibles`, {});
+    calculadoraTroquelEstado.compatibles = payload.compatibles || [];
+    renderResultadoCompatibilidadTroquel();
+  } catch (error) {
+    if (resultadoEl) resultadoEl.innerHTML = `<div class="ct-mensaje-error">${esc(error.message)}</div>`;
+  }
+}
+
+function renderResultadoCompatibilidadTroquel() {
+  const resultadoEl = document.getElementById("ctResultado");
+  if (!resultadoEl) return;
+  const lista = calculadoraTroquelEstado.compatibles || [];
+  if (!lista.length) {
+    resultadoEl.innerHTML = `<div class="ct-resultado-nuevo"><strong>Se requiere un nuevo troquel</strong><p>No se encontró ningún troquel compatible en el inventario.</p><button type="button" class="inline-button troquel-create-confirm" data-action="marcar-troquel-nuevo">Usar Troquel Nuevo</button></div>`;
+    return;
+  }
+  const items = lista.map((t) => `<div class="ct-compatible-item"><div class="ct-compatible-info"><strong>${esc(t.codigo)}</strong><span>${esc(t.descripcion || "Sin descripción")}</span><span>Ancho Etiqueta: ${num(t.ancho_etiqueta_in, 3)} in · Largo Etiqueta: ${num(t.largo_etiqueta_in, 3)} in</span><span>Cavidades: ${num(t.cantidad_filas || 0, 0)} · Repeticiones: ${num(t.repeticiones || 0, 0)}</span></div><button type="button" class="inline-button" data-action="seleccionar-troquel-compatible" data-id-troquel="${esc(t.id)}">Seleccionar</button></div>`).join("");
+  resultadoEl.innerHTML = `<div class="ct-resultado-existente"><strong>Troquel(es) existente(s) compatible(s)</strong>${items}<button type="button" class="inline-button" data-action="marcar-troquel-nuevo">Ninguno me sirve, usar troquel nuevo</button></div>`;
+}
+
+async function seleccionarTroquelCompatible(idTroquel) {
+  const c = calculadoraTroquelEstado.calculo;
+  if (!c) return;
+  try {
+    const payload = await postJson(`/api/calculo-troquel/${encodeURIComponent(c.codigo_calculo)}/seleccionar-existente`, { id_troquel: idTroquel });
+    calculadoraTroquelEstado.calculo = payload.calculo;
+    aplicarCalculoTroquelAlFormulario(payload.calculo, "existente");
+  } catch (error) {
+    showCenterMessage(error.message);
+  }
+}
+
+async function marcarTroquelNuevo() {
+  const c = calculadoraTroquelEstado.calculo;
+  if (!c) return;
+  try {
+    const payload = await postJson(`/api/calculo-troquel/${encodeURIComponent(c.codigo_calculo)}/marcar-nuevo`, {});
+    calculadoraTroquelEstado.calculo = payload.calculo;
+    Object.assign(formaTroquelExternaCache, { codigo: String(payload.calculo?.codigo_calculo || ""), calculo: payload.calculo, estado: "listo" });
+    aplicarCalculoTroquelAlFormulario(payload.calculo, "nuevo");
+  } catch (error) {
+    showCenterMessage(error.message);
+  }
+}
+
+function aplicarCalculoTroquelAlFormulario(calculo, origen) {
+  if (origen === "existente" && calculo.codigo_troquel_fisico) {
+    applyDieDefaults(calculo.codigo_troquel_fisico);
+    state.form.troquel.dieMode = "inventory";
+  } else {
+    Object.assign(state.form.troquel, {
+      dieCode: calculo.codigo_calculo,
+      dieDescription: `Nuevo · ${num(n(calculo.ancho_producto_in, 0), 3)} x ${num(n(calculo.alto_producto_in, 0), 3)} in`,
+      productWidthIn: r(n(calculo.ancho_producto_in, 0), 4),
+      productLengthIn: r(n(calculo.alto_producto_in, 0), 4),
+      widthIn: r(n(calculo.ancho_total_in, 0), 4),
+      lengthIn: r(n(calculo.desarrollo_in, 0), 4),
+      mountWidthIn: r(n(calculo.ancho_total_in, 0), 4),
+      mountLengthIn: r(n(calculo.desarrollo_in, 0), 4),
+      cylinderDevelopmentIn: r(n(calculo.desarrollo_in, 0), 4),
+      rows: n(calculo.numero_cavidades, 0),
+      repeats: n(calculo.numero_repeticiones, 0),
+      acrossCount: n(calculo.numero_cavidades, 0),
+      teeth: n(calculo.dientes, 0),
+      dieShape: dieShapeOptionValue(calculo.forma || "")
+    });
+    // Un troquel "nuevo" no es de inventario (no está en bodega, hay que mandarlo a fabricar),
+    // así que sí se cobra: se llena la fila de Costo Externo del proceso Troquel con el costo
+    // calculado (pulgadas lineales × costo por pulgada). El cotizador puede editarla después.
+    state.form.troquel.dieMode = "external";
+    state.form.troquel.external = [{
+      description: `Troquel nuevo ${calculo.codigo_calculo} · ${num(n(calculo.pulgadas_lineales_in, 0), 2)} in × ${money(n(calculo.costo_pulgada_lineal, 0))}/in`,
+      cost: n(calculo.costo_total_troquel, 0),
+      comments: "",
+      attachmentName: "",
+      isAuto: true
+    }];
+  }
+  state.form.plates.laser.area = laserPlateMetrics(state.form).totalArea;
+  closeDieCatalogModal();
+  renderProcesses();
+  scheduleSave();
+}
+
+// Dibuja la cavidad según la forma real seleccionada, en vez de siempre un rectángulo:
+// una forma Circular/Ovalada que se dibujara como caja rectangular escondería el problema
+// de que el troquel no puede tener esa forma con esas medidas.
+function formaCavidadSvg(forma, x, y, w, h, radioEsquinaPx) {
+  const token = dieShapeToken(forma || "");
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  if (token === "circular") {
+    const radio = Math.max(Math.min(w, h) / 2, 1);
+    return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${radio.toFixed(1)}" class="ct-svg-cavity"></circle>`;
+  }
+  if (token === "ovalado") {
+    return `<ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="${Math.max(w / 2, 1).toFixed(1)}" ry="${Math.max(h / 2, 1).toFixed(1)}" class="ct-svg-cavity"></ellipse>`;
+  }
+  if (token === "especial") {
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(w, 1).toFixed(1)}" height="${Math.max(h, 1).toFixed(1)}" class="ct-svg-cavity ct-svg-cavity-especial"></rect>`;
+  }
+  const rx = Math.min(Math.max(radioEsquinaPx, 0), Math.min(w, h) / 2);
+  return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(w, 1).toFixed(1)}" height="${Math.max(h, 1).toFixed(1)}" rx="${rx.toFixed(1)}" class="ct-svg-cavity"></rect>`;
+}
+
+// Botón para ver el montaje en su propia ventana más grande; se re-dibuja junto con la
+// vista previa cada vez que se recalcula, por eso vive en una constante compartida.
+const CT_BOTON_ZOOM_HTML = `<button type="button" class="ct-svg-zoom-btn" data-action="zoom-troquel-svg" title="Ver el montaje en una ventana más grande">Ampliar Montaje</button>`;
+
+// Lee la imagen elegida por el usuario, la ajusta a un tamaño razonable y la muestra en
+// las dos vistas. Se guarda en el cálculo hasta el momento de persistir (Código de ética:
+// sin sorpresas: el usuario ve exactamente lo que se va a guardar).
+function cargarImagenContornoCalculadoraTroquel(archivo) {
+  const lector = new FileReader();
+  lector.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const maxLado = 900;
+      const factor = Math.min(1, maxLado / Math.max(img.width, img.height));
+      const lienzo = document.createElement("canvas");
+      lienzo.width = Math.max(1, Math.round(img.width * factor));
+      lienzo.height = Math.max(1, Math.round(img.height * factor));
+      lienzo.getContext("2d").drawImage(img, 0, 0, lienzo.width, lienzo.height);
+      calculadoraTroquelEstado.imagenContornoPendiente = lienzo.toDataURL("image/png");
+      refrescarVistasCalculadoraTroquel();
+    };
+    img.src = String(lector.result || "");
+  };
+  lector.readAsDataURL(archivo);
+}
+
+function quitarImagenContornoCalculadoraTroquel() {
+  calculadoraTroquelEstado.imagenContornoPendiente = "";
+  refrescarVistasCalculadoraTroquel();
+}
+
+// Re-dibuja las dos vistas donde estén (modal y ventana ampliada) sin recalcular nada.
+function refrescarVistasCalculadoraTroquel() {
+  const c = calculadoraTroquelEstado.calculo || {};
+  const preview = document.getElementById("ctSvgPreview");
+  if (preview) preview.innerHTML = renderVistasTroquel(c) + CT_BOTON_ZOOM_HTML;
+  const zoomBody = document.querySelector("#ctZoomOverlay .ct-zoom-body");
+  if (zoomBody) zoomBody.innerHTML = renderVistasTroquel(c);
+}
+
+function abrirZoomMontajeTroquel() {
+  const c = calculadoraTroquelEstado.calculo;
+  const tieneForma = c && (n(c.numero_cavidades, 0) > 0 || (n(c.ancho_producto_in, 0) > 0 && n(c.alto_producto_in, 0) > 0));
+  if (!tieneForma) {
+    showCenterMessage("Calcule el troquel antes de ampliar el montaje.");
+    return;
+  }
+  cerrarZoomMontajeTroquel();
+  const overlay = document.createElement("div");
+  overlay.id = "ctZoomOverlay";
+  overlay.className = "ct-zoom-overlay";
+  overlay.innerHTML = `<div class="ct-zoom-panel"><div class="ct-zoom-head"><h3>Forma del Troquelado y Montaje Ampliados</h3><button type="button" class="troquel-catalog-close" data-ct-zoom-close aria-label="Cerrar">&times;</button></div><div class="ct-zoom-body">${renderVistasTroquel(c)}</div></div>`;
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay || event.target.closest("[data-ct-zoom-close]")) cerrarZoomMontajeTroquel();
+  });
+  overlay.dataset.imagenActiva = "1";
+  document.body.appendChild(overlay);
+}
+
+function cerrarZoomMontajeTroquel() {
+  document.getElementById("ctZoomOverlay")?.remove();
+}
+
+// El modal de la Calculadora de Troquel se puede mover arrastrándolo desde la barra de
+// título y agrandar desde su esquina inferior derecha; así no queda atorado en el centro
+// de la pantalla tapando el resto de la cotización.
+function activarArrastreModalCalculadoraTroquel() {
+  const modal = document.querySelector("#troquelCatalogOverlay .troquel-catalog-modal");
+  const barra = document.getElementById("ctArrastre");
+  if (!modal || !barra || barra.dataset.arrastreListo === "1") return;
+  barra.dataset.arrastreListo = "1";
+  let arrastre = null;
+  const mover = (event) => {
+    if (!arrastre) return;
+    const punto = event.touches ? event.touches[0] : event;
+    const izquierda = punto.clientX - arrastre.desplazamientoX;
+    const arriba = punto.clientY - arrastre.desplazamientoY;
+    modal.style.left = `${Math.min(Math.max(izquierda, -modal.offsetWidth + 80), window.innerWidth - 80)}px`;
+    modal.style.top = `${Math.min(Math.max(arriba, 0), window.innerHeight - 50)}px`;
+    event.preventDefault();
+  };
+  const soltar = () => {
+    arrastre = null;
+    document.body.style.userSelect = "";
+    window.removeEventListener("mousemove", mover);
+    window.removeEventListener("mouseup", soltar);
+    window.removeEventListener("touchmove", mover);
+    window.removeEventListener("touchend", soltar);
+  };
+  const iniciar = (event) => {
+    if (event.target.closest("button, input, select, textarea")) return;
+    const rect = modal.getBoundingClientRect();
+    modal.style.position = "absolute";
+    modal.style.margin = "0";
+    modal.style.width = `${rect.width}px`;
+    modal.style.left = `${rect.left}px`;
+    modal.style.top = `${rect.top}px`;
+    const punto = event.touches ? event.touches[0] : event;
+    arrastre = { desplazamientoX: punto.clientX - rect.left, desplazamientoY: punto.clientY - rect.top };
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", mover);
+    window.addEventListener("mouseup", soltar);
+    window.addEventListener("touchmove", mover, { passive: false });
+    window.addEventListener("touchend", soltar);
+    event.preventDefault();
+  };
+  barra.addEventListener("mousedown", iniciar);
+  barra.addEventListener("touchstart", iniciar, { passive: false });
+
+  const modalYaTieneManija = modal.querySelector(".ct-modal-resize-handle");
+  if (modalYaTieneManija) return;
+  const manija = document.createElement("div");
+  manija.className = "ct-modal-resize-handle";
+  manija.title = "Arrastra para agrandar o achicar la ventana";
+  modal.appendChild(manija);
+  let redimension = null;
+  const redimensionar = (event) => {
+    if (!redimension) return;
+    const punto = event.touches ? event.touches[0] : event;
+    const anchoNuevo = Math.min(Math.max(punto.clientX - redimension.izquierda + 12, 520), window.innerWidth - redimension.izquierda - 10);
+    const altoNuevo = Math.min(Math.max(punto.clientY - redimension.arriba + 12, 380), window.innerHeight - redimension.arriba - 10);
+    modal.style.width = `${anchoNuevo}px`;
+    modal.style.maxWidth = "none";
+    modal.style.height = `${altoNuevo}px`;
+    modal.style.maxHeight = "none";
+    event.preventDefault();
+  };
+  const soltarRedimension = () => {
+    redimension = null;
+    document.body.style.userSelect = "";
+    window.removeEventListener("mousemove", redimensionar);
+    window.removeEventListener("mouseup", soltarRedimension);
+    window.removeEventListener("touchmove", redimensionar);
+    window.removeEventListener("touchend", soltarRedimension);
+  };
+  manija.addEventListener("mousedown", (event) => {
+    const rect = modal.getBoundingClientRect();
+    redimension = { izquierda: rect.left, arriba: rect.top };
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", redimensionar);
+    window.addEventListener("mouseup", soltarRedimension);
+    event.preventDefault();
+  });
+  manija.addEventListener("touchstart", (event) => {
+    const rect = modal.getBoundingClientRect();
+    redimension = { izquierda: rect.left, arriba: rect.top };
+    document.body.style.userSelect = "none";
+    window.addEventListener("touchmove", redimensionar, { passive: false });
+    window.addEventListener("touchend", soltarRedimension);
+    event.preventDefault();
+  }, { passive: false });
+}
+
+// Imagen del contorno en curso para forma Especial: lo pendiente de guardar manda sobre
+// lo guardado en base de datos (null pendiente = el usuario la quitó).
+function imagenContornoCalculadoraTroquel(c) {
+  if (calculadoraTroquelEstado.imagenContornoPendiente !== undefined) {
+    return calculadoraTroquelEstado.imagenContornoPendiente || "";
+  }
+  return String(c?.imagen_contorno || "").trim();
+}
+
+function nombreMaterialCalculadoraTroquel() {
+  const material = selectedSubstrateMaterial(state.form);
+  return String(state.form.substrate?.nombreComercial || first(material?.nombre, material?.name, material?.descripcion, "") || "").trim();
+}
+
+// Contenedor de las dos vistas del troquel: la forma del troquelado (una etiqueta, estilo
+// plano simple) y el montaje completo (la grilla del rollo). Cada una con su bloque de
+// datos debajo, en español e inglés.
+function renderVistasTroquel(c) {
+  const esEspecial = dieShapeToken(c?.forma || "") === "especial";
+  const imagen = imagenContornoCalculadoraTroquel(c);
+  return `<div class="ct-vistas-wrap">
+    <div class="ct-vista">
+      <div class="ct-vista-titulo">Forma del Troquelado</div>
+      ${renderVistaEtiquetaTroquel(c)}
+      ${esEspecial ? `<div class="ct-vista-imagen-acciones"><button type="button" class="ct-svg-zoom-btn" data-action="cargar-imagen-contorno">${imagen ? "Cambiar Imagen del Contorno" : "Cargar Imagen del Contorno"}</button>${imagen ? `<button type="button" class="ct-svg-zoom-btn ct-imagen-quitar" data-action="quitar-imagen-contorno">Quitar</button>` : ""}<input type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" data-ct-imagen-input hidden></div>` : ""}
+    </div>
+    <div class="ct-vista">
+      <div class="ct-vista-titulo">Montaje Completo</div>
+      ${renderVistaMontajeTroquel(c)}
+    </div>
+  </div>`;
+}
+
+// Convierte un decimal de pulgada a fracción de plano (0.125 → "1/8", 0.5 → "1/2",
+// 1.25 → "1 1/4"), igual que el documento de referencia del proveedor.
+function mcd(a, b) {
+  return b ? mcd(b, a % b) : a;
+}
+
+function decimalAFraccion(valor) {
+  const v = n(valor, 0);
+  if (v <= 0) return "0";
+  const enteras = Math.floor(v + 1e-9);
+  const resto = v - enteras;
+  if (resto < 1e-9) return `${enteras}`;
+  let mejor = { den: 0, num: 0, err: Infinity };
+  for (const den of [2, 4, 8, 16, 32]) {
+    const num = Math.round(resto * den);
+    if (num === 0) continue;
+    const err = Math.abs(resto - (num >= den ? 1 : num / den));
+    if (err < mejor.err) mejor = num >= den ? { den: 1, num: 1, err } : { den, num, err };
+    if (err < 1e-9) break;
+  }
+  if (mejor.den === 0) return num(v, 3);
+  const divisor = mcd(mejor.num, mejor.den);
+  const nu = mejor.num / divisor;
+  const de = mejor.den / divisor;
+  return enteras > 0 ? `${enteras} ${nu}/${de}` : `${nu}/${de}`;
+}
+
+// Vista 1: UNA etiqueta con sus cotas cerca del dibujo (estilo hoja 2 del documento de
+// referencia): línea de cota vertical (Across), línea de cota horizontal (Around) y la
+// flechita de radio en la esquina. Toda la información completa va en el bloque de abajo.
+function renderVistaEtiquetaTroquel(c, opciones = {}) {
+  const anchoProducto = n(c?.ancho_producto_in, 0);
+  const altoProducto = n(c?.alto_producto_in, 0);
+  if (!c || anchoProducto <= 0 || altoProducto <= 0) {
+    return `<div class="ct-svg-empty">Complete los datos y presione "Calcular" para ver la vista previa del troquel.</div>`;
+  }
+  const externa = Boolean(opciones.externa);
+  const forma = dieShapeToken(c.forma || "");
+  const imagen = externa ? String(c.imagen_contorno || "").trim() : imagenContornoCalculadoraTroquel(c);
+  const radioEsquina = n(c.radio_esquina_in, 0);
+  const mostrarRadio = radioEsquina > 0 && formaPermiteRadioEsquina(c.forma || "");
+
+  const datosHtml = externa ? "" : `<div class="ct-vista-datos">
+    ${datoVistaTroquel("Forma", dieShapeOpcionEtiqueta(c.forma))}
+    ${datoVistaTroquel("Ancho", `${num(anchoProducto, 3)} in`)}
+    ${datoVistaTroquel("Alto", `${num(altoProducto, 3)} in`)}
+    ${mostrarRadio ? datoVistaTroquel("Radio", `${decimalAFraccion(radioEsquina)} in`) : ""}
+  </div>`;
+
+  if (imagen) {
+    return `<div class="ct-vista-grafico"><img class="ct-imagen-contorno" src="${esc(imagen)}" alt="Contorno del troquel"></div>${datosHtml}`;
+  }
+
+  // Igual que el documento de referencia: la etiqueta se dibuja en vertical, con la medida
+  // "a través del material" como alto y el desarrollo como ancho.
+  const avanceLargo = String(c.direccion_avance || "ancho") === "largo";
+  const dimVertical = avanceLargo ? anchoProducto : altoProducto;
+  const dimHorizontal = avanceLargo ? altoProducto : anchoProducto;
+
+  const margenCota = 36;
+  const etiquetaX = 78;
+  const etiquetaY = 40;
+  // Afuera de la calculadora el dibujo se agranda o achica para llenar el cuadro, pero los
+  // textos quedan del mismo tamaño: el SVG se pinta a su tamaño real, sin estirarse.
+  const lado = n(opciones.lado, 0);
+  const escala = externa && lado > 0
+    ? Math.min((lado - etiquetaX - margenCota - 20) / dimHorizontal, (lado - etiquetaY - 56) / dimVertical)
+    : Math.min(150 / dimHorizontal, 150 / dimVertical);
+  const wPx = Math.max(dimHorizontal * escala, 1);
+  const hPx = Math.max(dimVertical * escala, 1);
+  const radioPx = Math.min(radioEsquina * escala, Math.min(wPx, hPx) / 2);
+  const anchoSvg = wPx + etiquetaX + margenCota + 20;
+  const altoSvg = hPx + etiquetaY + 56;
+  const tituloX = etiquetaX + wPx / 2;
+
+  // Grosor del panel de ajuste (demo): escala las líneas Y el tamaño de las flechas
+  // proporcionalmente (nunca línea delgada con flechotas). Tamaño de flecha ESTÁNDAR:
+  // no crece con el tamaño de la etiqueta.
+  const g = Math.max(n(ctAjustesDemo.grosor, 0.6), 0.3);
+
+  // Radio de esquina igual al documento de referencia: arco CONCÉNTRICO con la curva de la
+  // esquina (mismo centro que el redondeo), por dentro de ella. Sus extremos quedan alineados
+  // con los puntos exactos donde la curva se une con los bordes rectos, y las flechas (del
+  // mismo tamaño estándar que las de las cotas) apuntan hacia afuera con la punta sobre esa
+  // alineación. El ángulo del panel controla cuánto barrido cubre el arco, siempre centrado
+  // en la diagonal de la esquina. Si la esquina es demasiado pequeña para el arco, se dibuja
+  // una sola flecha señalando la curva.
+  const radioSvg = mostrarRadio && radioPx > 1.5
+    ? (() => {
+        const cx = etiquetaX + radioPx;
+        const cy = etiquetaY + radioPx;
+        const arrowLen = 8 * g;
+        const arrowHalf = 2.6 * g;
+        const flechaRadial = (px, py, ang) => {
+          const dx = Math.cos(ang), dy = Math.sin(ang);
+          const nx = -dy, ny = dx;
+          const puntaX = px + dx * arrowLen, puntaY = py + dy * arrowLen;
+          return `<polygon points="${puntaX.toFixed(1)},${puntaY.toFixed(1)} ${(px + nx * arrowHalf).toFixed(1)},${(py + ny * arrowHalf).toFixed(1)} ${(px - nx * arrowHalf).toFixed(1)},${(py - ny * arrowHalf).toFixed(1)}" class="ct-svg-dim-arrow"></polygon>`;
+        };
+        // MARGEN: ni el arco ni sus flechas tocan el perímetro de la etiqueta. El arco es
+        // concéntrico con el redondeo pero acortado en ambos extremos, dejando un aire visible
+        // entre las puntas y los puntos donde la curva se une con los bordes rectos.
+        const R = radioPx - arrowLen - 4;
+        if (R >= 7) {
+          const cobertura = (Math.min(Math.max(n(ctAjustesDemo.anguloArco, 90), 10), 150) * Math.PI) / 180;
+          const aire = 7 * Math.PI / 180;
+          const centro = -3 * Math.PI / 4;
+          const angA = centro - cobertura / 2 + aire;
+          const angB = centro + cobertura / 2 - aire;
+          const ax = cx + R * Math.cos(angA);
+          const ay = cy + R * Math.sin(angA);
+          const bx = cx + R * Math.cos(angB);
+          const by = cy + R * Math.sin(angB);
+          const arco = `M ${ax.toFixed(1)} ${ay.toFixed(1)} A ${R.toFixed(1)} ${R.toFixed(1)} 0 0 0 ${bx.toFixed(1)} ${by.toFixed(1)}`;
+          const puntaA = flechaRadial(ax, ay, angA);
+          const puntaB = flechaRadial(bx, by, angB);
+          // Valor desde el PUNTO MEDIO de la curva (diagonal de la esquina), desplazado en
+          // diagonal hacia abajo-derecha, POR FUERA de la curva (lado del cuerpo de la etiqueta).
+          // El salto es dinámico: crece con el radio, nunca queda encima de la línea.
+          const medioX = cx + R * Math.cos(centro);
+          const medioY = cy + R * Math.sin(centro);
+          const salto = 12 + R * 0.35;
+          const textX = medioX + salto * Math.SQRT1_2;
+          const textY = medioY + salto * Math.SQRT1_2;
+          const texto = `<text x="${textX.toFixed(1)}" y="${textY.toFixed(1)}" class="ct-svg-dim-text" text-anchor="start" dominant-baseline="central">${decimalAFraccion(radioEsquina)} in</text>`;
+          return `<path d="${arco}" class="ct-svg-radius" fill="none" stroke-width="${g.toFixed(2)}"></path>${puntaA}${puntaB}${texto}`;
+        }
+        // Esquina muy pequeña: una sola flecha señalando la curva en su diagonal. La punta
+        // también respeta el margen: se detiene antes de tocar el perímetro de la etiqueta.
+        const dirX = -Math.SQRT1_2, dirY = -Math.SQRT1_2;
+        const margenPerimetro = 5;
+        const puntaX = cx + dirX * (radioPx - margenPerimetro), puntaY = cy + dirY * (radioPx - margenPerimetro);
+        const colaX = puntaX - dirX * (arrowLen + 7), colaY = puntaY - dirY * (arrowLen + 7);
+        const nx = -dirY, ny = dirX;
+        const linea = `<line x1="${colaX.toFixed(1)}" y1="${colaY.toFixed(1)}" x2="${(puntaX - dirX * arrowLen).toFixed(1)}" y2="${(puntaY - dirY * arrowLen).toFixed(1)}" class="ct-svg-radius" stroke-width="${g.toFixed(2)}"></line>`;
+        const punta = `<polygon points="${puntaX.toFixed(1)},${puntaY.toFixed(1)} ${(colaX + nx * arrowHalf).toFixed(1)},${(colaY + ny * arrowHalf).toFixed(1)} ${(colaX - nx * arrowHalf).toFixed(1)},${(colaY - ny * arrowHalf).toFixed(1)}" class="ct-svg-dim-arrow"></polygon>`;
+        // Valor a 5px EN DIAGONAL del fin de la flecha (su cola), extendiéndose a la derecha.
+        const texto = `<text x="${(colaX + 5 * Math.SQRT1_2).toFixed(1)}" y="${(colaY + 5 * Math.SQRT1_2).toFixed(1)}" class="ct-svg-dim-text" text-anchor="start" dominant-baseline="central">${decimalAFraccion(radioEsquina)} in</text>`;
+        return `${linea}${punta}${texto}`;
+      })()
+    : "";
+
+  // Cotas según norma de plano técnico: línea fina continua, paralela a la arista medida,
+  // perpendicular a las líneas de extensión (que salen desde la pieza y sobresalen un poco),
+  // flechas en ambos extremos ancladas al punto exacto del límite, y la cifra AL COSTADO de
+  // la línea (nunca interrumpiéndola), como en el documento de referencia del proveedor.
+  // Desplazamientos del panel de ajuste (demo): la vertical se mueve ←→, la horizontal ↑↓.
+  const dimX = etiquetaX - 20 + n(ctAjustesDemo.desplazV, 0);
+  const dimY = etiquetaY + hPx + 20 + n(ctAjustesDemo.desplazH, 0);
+  const flechaLen = 8 * g;
+  const flechaAncho = 2.6 * g;
+  // Extensiones: rayitas cortas de 10px máximo, CENTRADAS en la punta de la flecha (5px a
+  // cada lado de la línea de cota). Siempre en contacto con la flecha, sin alargarse hacia
+  // la pieza ni del lado de afuera.
+  const rayita = 5;
+  const extV = `
+    <line x1="${(dimX - rayita).toFixed(1)}" y1="${etiquetaY.toFixed(1)}" x2="${(dimX + rayita).toFixed(1)}" y2="${etiquetaY.toFixed(1)}" class="ct-svg-dim-ext"></line>
+    <line x1="${(dimX - rayita).toFixed(1)}" y1="${(etiquetaY + hPx).toFixed(1)}" x2="${(dimX + rayita).toFixed(1)}" y2="${(etiquetaY + hPx).toFixed(1)}" class="ct-svg-dim-ext"></line>`;
+  const extH = `
+    <line x1="${etiquetaX.toFixed(1)}" y1="${(dimY - rayita).toFixed(1)}" x2="${etiquetaX.toFixed(1)}" y2="${(dimY + rayita).toFixed(1)}" class="ct-svg-dim-ext"></line>
+    <line x1="${(etiquetaX + wPx).toFixed(1)}" y1="${(dimY - rayita).toFixed(1)}" x2="${(etiquetaX + wPx).toFixed(1)}" y2="${(dimY + rayita).toFixed(1)}" class="ct-svg-dim-ext"></line>`;
+  // Vertical: línea continua de extremo a extremo, flechas ancladas a cada límite,
+  // cifra rotada -90° ubicada AL COSTADO de la línea (nunca interrumpiéndola).
+  const textoVy = etiquetaY + hPx / 2;
+  const textoV = `<text x="${(dimX - 7).toFixed(1)}" y="${textoVy.toFixed(1)}" class="ct-svg-dim-text" text-anchor="middle" dominant-baseline="central" transform="rotate(-90 ${(dimX - 7).toFixed(1)} ${textoVy.toFixed(1)})">${num(dimVertical, 3)} in</text>`;
+  // Horizontal: línea continua de extremo a extremo, flechas ancladas a cada límite,
+  // cifra centrada debajo de la línea (al costado, sin cortarla).
+  const textoHx = etiquetaX + wPx / 2;
+  const textoH = `<text x="${textoHx.toFixed(1)}" y="${(dimY + 12).toFixed(1)}" class="ct-svg-dim-text" text-anchor="middle">${num(dimHorizontal, 3)} in</text>`;
+  const lineasCota = `
+    ${extV}
+    ${extH}
+    <line x1="${dimX.toFixed(1)}" y1="${etiquetaY.toFixed(1)}" x2="${dimX.toFixed(1)}" y2="${(etiquetaY + hPx).toFixed(1)}" class="ct-svg-dim-line" stroke-width="${g.toFixed(2)}"></line>
+    <polygon points="${dimX.toFixed(1)},${etiquetaY.toFixed(1)} ${(dimX + flechaAncho).toFixed(1)},${(etiquetaY + flechaLen).toFixed(1)} ${(dimX - flechaAncho).toFixed(1)},${(etiquetaY + flechaLen).toFixed(1)}" class="ct-svg-dim-arrow"></polygon>
+    <polygon points="${dimX.toFixed(1)},${(etiquetaY + hPx).toFixed(1)} ${(dimX + flechaAncho).toFixed(1)},${(etiquetaY + hPx - flechaLen).toFixed(1)} ${(dimX - flechaAncho).toFixed(1)},${(etiquetaY + hPx - flechaLen).toFixed(1)}" class="ct-svg-dim-arrow"></polygon>
+    ${textoV}
+    <line x1="${etiquetaX.toFixed(1)}" y1="${dimY.toFixed(1)}" x2="${(etiquetaX + wPx).toFixed(1)}" y2="${dimY.toFixed(1)}" class="ct-svg-dim-line" stroke-width="${g.toFixed(2)}"></line>
+    <polygon points="${etiquetaX.toFixed(1)},${dimY.toFixed(1)} ${(etiquetaX + flechaLen).toFixed(1)},${(dimY + flechaAncho).toFixed(1)} ${(etiquetaX + flechaLen).toFixed(1)},${(dimY - flechaAncho).toFixed(1)}" class="ct-svg-dim-arrow"></polygon>
+    <polygon points="${(etiquetaX + wPx).toFixed(1)},${dimY.toFixed(1)} ${(etiquetaX + wPx - flechaLen).toFixed(1)},${(dimY + flechaAncho).toFixed(1)} ${(etiquetaX + wPx - flechaLen).toFixed(1)},${(dimY - flechaAncho).toFixed(1)}" class="ct-svg-dim-arrow"></polygon>
+    ${textoH}`;
+
+  const tamanoReal = externa ? ` width="${anchoSvg.toFixed(0)}" height="${altoSvg.toFixed(0)}"` : "";
+  return `<div class="ct-vista-grafico"><svg viewBox="0 0 ${anchoSvg.toFixed(0)} ${altoSvg.toFixed(0)}"${tamanoReal} xmlns="http://www.w3.org/2000/svg" class="ct-svg ct-svg-etiqueta${externa ? " ct-svg-etiqueta-externa" : ""}">
+    <text x="${tituloX.toFixed(1)}" y="20" class="ct-svg-titulo" text-anchor="middle">Etiqueta</text>
+    ${formaCavidadSvg(c.forma, etiquetaX, etiquetaY, wPx, hPx, radioPx).replace('class="ct-svg-cavity', 'class="ct-svg-cavity ct-svg-cavity-plana')}
+    ${radioSvg}
+    ${lineasCota}
+  </svg></div>${datosHtml}`;
+}
+
+// Vista 2: el montaje completo del rollo, limpio como la hoja 1 del documento de
+// referencia: la grilla de etiquetas, el borde del sustrato y la flecha AROUND abajo.
+// Sin cotas dentro del dibujo: todos los números van en el bloque de datos de abajo.
+function renderVistaMontajeTroquel(c) {
+  const numeroCavidades = n(c?.numero_cavidades, 0);
+  if (!c || numeroCavidades <= 0) {
+    return `<div class="ct-svg-empty">Complete los datos y presione "Calcular" para ver la vista previa del troquel.</div>`;
+  }
+  const anchoProducto = n(c.ancho_producto_in, 0);
+  const altoProducto = n(c.alto_producto_in, 0);
+  const sepLateral = n(c.separacion_lateral_in, 0);
+  const sepLongitudinal = n(c.separacion_longitudinal_in, 0);
+  const margen = n(c.margen_in, 0);
+  const radioEsquina = n(c.radio_esquina_in, 0);
+  const avanceLargo = String(c.direccion_avance || "ancho") === "largo";
+  const dimAlTraves = avanceLargo ? altoProducto : anchoProducto;
+  const dimRepeticion = avanceLargo ? anchoProducto : altoProducto;
+  const cavidades = Math.max(1, numeroCavidades);
+  // Las repeticiones del cálculo se dibujan completas (antes estaban fijas en 3 y por eso
+  // el montaje no cambiaba al editarlas); el tope de 12 es solo por legibilidad del dibujo.
+  const repeticionesVisual = Math.min(12, Math.max(1, n(c.numero_repeticiones, 1)));
+  const pasoTransversal = n(c.paso_transversal_in, dimAlTraves) || dimAlTraves || 1;
+  const pasoLongitudinal = n(c.paso_longitudinal_in, dimRepeticion) || dimRepeticion || 1;
+  const imagen = dieShapeToken(c.forma || "") === "especial" ? imagenContornoCalculadoraTroquel(c) : "";
+
+  // Grilla limpia: sin sustrato ni recuadro de márgenes (las líneas naranjas no aportaban
+  // nada en el montaje); solo las cavidades y la flecha de dirección de avance abajo.
+  const anchoGrilla = cavidades * pasoTransversal;
+  const altoGrilla = repeticionesVisual * pasoLongitudinal;
+  const anchoBloque = anchoGrilla + margen * 2;
+  const altoBloque = altoGrilla + margen * 2;
+
+  const maxCanvas = 230;
+  const escala = Math.min(maxCanvas / anchoBloque, maxCanvas / altoBloque);
+  const margenPx = margen * escala;
+  const originX = 40 + margenPx;
+  const originY = 26 + margenPx;
+  const wGrilla = anchoGrilla * escala;
+  const hGrilla = altoGrilla * escala;
+  const flechaY = originY + hGrilla + margenPx + 34;
+  const centroX = originX + wGrilla / 2;
+  const anchoSvg = wGrilla + margenPx * 2 + 80;
+  const altoSvg = flechaY + 42;
+
+  let cavidadesSvg = "";
+  for (let col = 0; col < cavidades; col++) {
+    for (let fila = 0; fila < repeticionesVisual; fila++) {
+      const x = originX + col * pasoTransversal * escala + (sepLateral * escala) / 2;
+      const y = originY + fila * pasoLongitudinal * escala + (sepLongitudinal * escala) / 2;
+      const w = Math.max(dimAlTraves * escala, 1);
+      const h = Math.max(dimRepeticion * escala, 1);
+      cavidadesSvg += imagen
+        ? `<image href="${esc(imagen)}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" preserveAspectRatio="xMidYMid meet"></image>`
+        : formaCavidadSvg(c.forma, x, y, w, h, Math.min(radioEsquina * escala, Math.min(w, h) / 2));
+    }
+  }  const material = nombreMaterialCalculadoraTroquel();
+  const datosHtml = `<div class="ct-vista-datos">
+    ${datoVistaTroquel("Dientes", `${num(n(c.dientes, 0), 0)}`)}
+    ${datoVistaTroquel("Desarrollo", `${num(n(c.desarrollo_in, 0), 3)} in`)}
+    ${datoVistaTroquel("Ancho Total", `${num(n(c.ancho_total_in, 0), 3)} in`)}
+    ${datoVistaTroquel("Sep. Lateral", `${num(sepLateral, 3)} in`)}
+    ${datoVistaTroquel("Sep. Longitudinal", `${num(sepLongitudinal, 3)} in`)}
+    ${datoVistaTroquel("Repetición del Rollo", `${num(n(c.roll_repeat_in, 0), 3)} in`)}
+    ${n(c.radio_esquina_in, 0) > 0 ? datoVistaTroquel("Radio", `${decimalAFraccion(n(c.radio_esquina_in, 0))} in`) : ""}
+    ${datoVistaTroquel("Repeticiones", `${num(repeticionesVisual, 0)}`)}
+    ${material ? datoVistaTroquel("Material", material) : ""}
+  </div>`;
+
+  return `<div class="ct-vista-grafico"><svg viewBox="0 0 ${anchoSvg.toFixed(0)} ${altoSvg.toFixed(0)}" xmlns="http://www.w3.org/2000/svg" class="ct-svg ct-svg-montaje">
+    ${cavidadesSvg}
+    <line x1="${centroX.toFixed(1)}" y1="${flechaY.toFixed(1)}" x2="${centroX.toFixed(1)}" y2="${(flechaY - 16).toFixed(1)}" class="ct-svg-arrow"></line>
+    <polygon points="${(centroX - 4).toFixed(1)},${(flechaY - 16).toFixed(1)} ${(centroX + 4).toFixed(1)},${(flechaY - 16).toFixed(1)} ${centroX.toFixed(1)},${(flechaY - 24).toFixed(1)}" class="ct-svg-arrow-head"></polygon>
+    <text x="${centroX.toFixed(1)}" y="${(flechaY + 14).toFixed(1)}" class="ct-svg-titulo" text-anchor="middle">Dirección de Avance</text>
+  </svg></div>${datosHtml}`;
+}
+
+function datoVistaTroquel(etiquetaEs, valor) {
+  return `<div class="ct-dato"><span class="ct-dato-etiqueta">${esc(etiquetaEs)}</span><strong>${esc(valor || "-")}</strong></div>`;
+}
+
+function dieShapeOpcionEtiqueta(forma) {
+  const token = dieShapeToken(forma || "");
+  const opciones = { circular: "Circular", ovalado: "Ovalado", cuadrado: "Cuadrado", rectangular: "Rectangular", especial: "Especial" };
+  return opciones[token] || String(forma || "").trim();
+}
+
+function renderTroquelImagePreviewModal() {
+  return `<div id="troquelImagePreviewOverlay" class="troquel-image-preview-overlay" style="display:none"><div class="troquel-image-preview-panel"><button type="button" class="troquel-image-preview-close" data-action="close-troquel-image-preview" aria-label="Cerrar">&times;</button><img id="troquelImagePreviewImg" src="" alt=""></div></div>`;
+}
+
+function openTroquelImagePreview(imageUrl, imageAlt) {
+  if (!imageUrl) return;
+  let overlay = document.getElementById("troquelImagePreviewOverlay");
+  if (!overlay) {
+    document.body.insertAdjacentHTML("beforeend", renderTroquelImagePreviewModal());
+    overlay = document.getElementById("troquelImagePreviewOverlay");
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay || event.target.closest("[data-action='close-troquel-image-preview']")) {
+        closeTroquelImagePreview();
+      }
+    });
+  }
+  const img = document.getElementById("troquelImagePreviewImg");
+  if (img) {
+    img.src = imageUrl;
+    img.alt = imageAlt || "";
+  }
+  overlay.style.display = "flex";
+  document.body.classList.add("popover-open");
+}
+
+function closeTroquelImagePreview() {
+  const overlay = document.getElementById("troquelImagePreviewOverlay");
+  if (overlay) {
+    overlay.style.display = "none";
+    document.body.classList.remove("popover-open");
+  }
 }
 
 function selectDieFromCatalog(dieCode) {
@@ -8300,7 +14144,7 @@ function selectDieFromCatalog(dieCode) {
 }
 
 function renderPlateCreatePanel(plates) {
-  return `<div class="process-zone"><div class="process-zone-head"><h4>Creación</h4></div>${PLATE_KEYS.map((entry) => renderPlateStep(entry, plates)).join("")}</div><div class="readonly-grid compact-top subtotal-right">${metric("Subtotal Planchas", money(plates.subtotal))}</div>`;
+  return `<div class="process-zone"><div class="process-zone-head"><h4>Creación</h4></div>${PLATE_KEYS.map((entry) => renderPlateStep(entry, plates)).join("")}</div><div class="readonly-grid compact-top subtotal-right">${metric("Subtotal Sellos", money(plates.subtotal))}</div>`;
 }
 
 function renderPlateStep(entry, plates) {
@@ -8314,11 +14158,11 @@ function renderPlateStep(entry, plates) {
     const laser = step.laserMetrics || laserPlateMetrics();
     const stockOptions = plateStockMaterials(item.processId).map((material) => ({ id: material.id, nombre: material.descripcion || material.nombre || material.codigo || material.id }));
     const titleMarkup = `<label class="inline-process-check plate-virgin-check"><input data-scope="plates" data-field="chargeVirginPlate" type="checkbox"${state.form.plates.chargeVirginPlate !== false ? " checked" : ""}><span>${esc(entry.label)}</span></label>`;
-    const body = `<div class="editable-grid plate-grid plate-grid-virgin"><label class="span-2"><span>Tipo de Plancha</span><select class="${laser.missing.material ? "field-required-input" : ""}" data-scope="plates.${entry.key}" data-field="materialId">${processOptions(stockOptions, item.materialId)}</select></label><label><span>Costo por in²</span><input type="text" value="${laser.costPerIn2 > 0 ? `$${num(laser.costPerIn2, 4)}` : ""}" readonly></label><label><span>Subtotal Suministro</span><input type="text" value="${esc(money(step.materialSubtotal || 0))}" readonly></label></div><div class="readonly-grid compact-top plate-metrics-grid plate-metrics-grid-focus">${metricBox("Cantidad Planchas", laser.totalColors > 0 ? num(laser.totalColors, 0) : "Pendiente", laser.missing.totalColors, laser.hasAbsurdData)}${metricBox("Área por Plancha", laser.areaPerColor > 0 ? `${num(laser.areaPerColor, 4)} in²` : "Pendiente", laser.missing.mountWidthIn || laser.missing.mountLengthIn || laser.missing.elongationPct, laser.hasAbsurdData)}${metricBox("Área Total", laser.totalArea > 0 ? `${num(laser.totalArea, 4)} in²` : "Pendiente", laser.missing.totalColors || laser.missing.mountWidthIn || laser.missing.mountLengthIn || laser.missing.elongationPct, laser.hasAbsurdData)}${metricBox("Costo por in²", laser.costPerIn2 > 0 ? `$${num(laser.costPerIn2, 4)}` : "Pendiente", laser.missing.sheetCost, laser.hasAbsurdData)}${metricBox("Costo Total Plancha", step.materialSubtotal > 0 ? money(step.materialSubtotal) : "Pendiente", laser.missing.sheetCost || laser.totalArea <= 0, laser.hasAbsurdData)}</div>${formula(entry.label, step.formulaText, step.explanation, {
+    const body = `<div class="editable-grid plate-grid plate-grid-virgin"><label class="span-2"><span>Tipo de Sello</span><select class="${laser.missing.material ? "field-required-input" : ""}" data-scope="plates.${entry.key}" data-field="materialId">${processOptions(stockOptions, item.materialId)}</select></label><label><span>Costo por in²</span><input type="text" value="${laser.costPerIn2 > 0 ? `$${num(laser.costPerIn2, 4)}` : ""}" readonly></label><label><span>Subtotal Suministro</span><input type="text" value="${esc(money(step.materialSubtotal || 0))}" readonly></label></div><div class="readonly-grid compact-top plate-metrics-grid plate-metrics-grid-focus">${metricBox("Cantidad Sellos", laser.totalColors > 0 ? num(laser.totalColors, 0) : "Pendiente", laser.missing.totalColors, laser.hasAbsurdData)}${metricBox("Área por Sello", laser.areaPerColor > 0 ? `${num(laser.areaPerColor, 4)} in²` : "Pendiente", laser.missing.mountWidthIn || laser.missing.mountLengthIn || laser.missing.elongationPct, laser.hasAbsurdData)}${metricBox("Área Total", laser.totalArea > 0 ? `${num(laser.totalArea, 4)} in²` : "Pendiente", laser.missing.totalColors || laser.missing.mountWidthIn || laser.missing.mountLengthIn || laser.missing.elongationPct, laser.hasAbsurdData)}${metricBox("Costo por in²", laser.costPerIn2 > 0 ? `$${num(laser.costPerIn2, 4)}` : "Pendiente", laser.missing.sheetCost, laser.hasAbsurdData)}${metricBox("Costo Total Sello", step.materialSubtotal > 0 ? money(step.materialSubtotal) : "Pendiente", laser.missing.sheetCost || laser.totalArea <= 0, laser.hasAbsurdData)}</div>${formula(entry.label, step.formulaText, step.explanation, {
       exampleLines: [
-        `Costo Plancha Virgen: ${formulaValue(laser.totalArea, 2)} x ${formulaValue(laser.costPerIn2, 4)} = ${formulaValue(step.materialSubtotal || 0, 2)}`
+        `Costo Sello Virgen: ${formulaValue(laser.totalArea, 2)} x ${formulaValue(laser.costPerIn2, 4)} = ${formulaValue(step.materialSubtotal || 0, 2)}`
       ],
-      answer: `R/ El total a cobrar por plancha virgen es ${money(step.subtotal || 0)}`
+      answer: `R/ El total a cobrar por sello virgen es ${money(step.subtotal || 0)}`
     })}`;
     return subprocessCard(openKey, titleMarkup, step.subtotal, body, "plate-virgin-card", false);
   }
@@ -8336,7 +14180,7 @@ function renderPlateStep(entry, plates) {
 
   const laser = step.laserMetrics || laserPlateMetrics();
   const stockOptions = plateStockMaterials(item.processId).map((material) => ({ id: material.id, nombre: material.descripcion || material.nombre || material.codigo || material.id }));
-  const body = `<div class="editable-grid plate-grid plate-grid-laser"><label class="span-2"><span>Máquina</span><select class="${laser.missing.machine ? "field-required-input" : ""}" data-scope="plates.${entry.key}" data-field="processId">${processOptions(machineOptions, item.processId)}</select></label><label class="span-2"><span>Plancha Virgen</span><select class="${laser.missing.material ? "field-required-input" : ""}" data-scope="plates.${entry.key}" data-field="materialId">${processOptions(stockOptions, item.materialId)}</select></label><label><span>Planchas por Hora</span>${displayInput(`plates.${entry.key}`, "speed", item.speed, { suffix: "pl/h", maximumFractionDigits: 4 })}</label><label><span>Costo Hora Máquina</span>${displayInput(`plates.${entry.key}`, "costHourMachine", item.costHourMachine, { prefix: "$", maximumFractionDigits: 2 })}</label><label><span>Costo Hora Hombre</span>${displayInput(`plates.${entry.key}`, "costHourOperator", item.costHourOperator, { prefix: "$", maximumFractionDigits: 2 })}</label><label><span>Margen Pegado</span>${displayInput(`plates.${entry.key}`, "safetyMarginIn", item.safetyMarginIn, { suffix: "in", maximumFractionDigits: 4 })}</label></div><div class="readonly-grid compact-top plate-metrics-grid plate-metrics-grid-focus">${metricBox("Tintas Activas", laser.totalColors > 0 ? num(laser.totalColors, 0) : "Pendiente", laser.missing.totalColors, laser.hasAbsurdData)}${metricBox("Área por Color", laser.areaPerColor > 0 ? `${num(laser.areaPerColor, 4)} in²` : "Pendiente", laser.missing.mountWidthIn || laser.missing.mountLengthIn || laser.missing.elongationPct, laser.hasAbsurdData)}${metricBox("Área Total", laser.totalArea > 0 ? `${num(laser.totalArea, 4)} in²` : "Pendiente", laser.missing.totalColors || laser.missing.mountWidthIn || laser.missing.mountLengthIn || laser.missing.elongationPct, laser.hasAbsurdData)}${metricBox("Área Procesada por Hora", laser.processedAreaPerHour > 0 ? `${num(laser.processedAreaPerHour, 0)} in²` : "Pendiente", laser.missing.speed || laser.missing.sheetAreaIn2, laser.hasAbsurdData)}${metricBox("Tiempo Total", laser.totalMinutes > 0 ? `${num(laser.totalMinutes, 2)} min` : "Pendiente", laser.missing.speed || laser.missing.sheetAreaIn2, laser.hasAbsurdData)}</div><div class="readonly-grid compact-top step-metrics">${metric("Costo Máquina", money(step.machineSubtotal))}${metric("Costo Hombre", money(step.operatorSubtotal))}${metric("Subtotal", money(step.subtotal))}</div>${formula(entry.label, step.formulaText, step.explanation, {
+  const body = `<div class="editable-grid plate-grid plate-grid-laser"><label class="span-2"><span>Máquina</span><select class="${laser.missing.machine ? "field-required-input" : ""}" data-scope="plates.${entry.key}" data-field="processId">${processOptions(machineOptions, item.processId)}</select></label><label class="span-2"><span>Sello Virgen</span><select class="${laser.missing.material ? "field-required-input" : ""}" data-scope="plates.${entry.key}" data-field="materialId">${processOptions(stockOptions, item.materialId)}</select></label><label><span>Sellos por Hora</span>${displayInput(`plates.${entry.key}`, "speed", item.speed, { suffix: "pl/h", maximumFractionDigits: 4 })}</label><label><span>Costo Hora Máquina</span>${displayInput(`plates.${entry.key}`, "costHourMachine", item.costHourMachine, { prefix: "$", maximumFractionDigits: 2 })}</label><label><span>Costo Hora Hombre</span>${displayInput(`plates.${entry.key}`, "costHourOperator", item.costHourOperator, { prefix: "$", maximumFractionDigits: 2 })}</label><label><span>Margen Pegado</span>${displayInput(`plates.${entry.key}`, "safetyMarginIn", item.safetyMarginIn, { suffix: "in", maximumFractionDigits: 4 })}</label></div><div class="readonly-grid compact-top plate-metrics-grid plate-metrics-grid-focus">${metricBox("Tintas Activas", laser.totalColors > 0 ? num(laser.totalColors, 0) : "Pendiente", laser.missing.totalColors, laser.hasAbsurdData)}${metricBox("Área por Color", laser.areaPerColor > 0 ? `${num(laser.areaPerColor, 4)} in²` : "Pendiente", laser.missing.mountWidthIn || laser.missing.mountLengthIn || laser.missing.elongationPct, laser.hasAbsurdData)}${metricBox("Área Total", laser.totalArea > 0 ? `${num(laser.totalArea, 4)} in²` : "Pendiente", laser.missing.totalColors || laser.missing.mountWidthIn || laser.missing.mountLengthIn || laser.missing.elongationPct, laser.hasAbsurdData)}${metricBox("Área Procesada por Hora", laser.processedAreaPerHour > 0 ? `${num(laser.processedAreaPerHour, 0)} in²` : "Pendiente", laser.missing.speed || laser.missing.sheetAreaIn2, laser.hasAbsurdData)}${metricBox("Tiempo Total", laser.totalMinutes > 0 ? `${num(laser.totalMinutes, 2)} min` : "Pendiente", laser.missing.speed || laser.missing.sheetAreaIn2, laser.hasAbsurdData)}</div><div class="readonly-grid compact-top step-metrics">${metric("Costo Máquina", money(step.machineSubtotal))}${metric("Costo Hombre", money(step.operatorSubtotal))}${metric("Subtotal", money(step.subtotal))}</div>${formula(entry.label, step.formulaText, step.explanation, {
     exampleLines: [
       `Tiempo ${entry.label}: ${formulaValue(laser.totalArea, 2)} / ${formulaValue(laser.processedAreaPerHour, 2)} = ${formulaValue(step.hours, 2)} h`,
       `Subtotal ${entry.label}: (${formulaValue(step.hours, 2)} x ${formulaValue(item.costHourMachine, 2)}) + (${formulaValue(step.hours, 2)} x ${formulaValue(item.costHourOperator, 2)}) = ${formulaValue(step.subtotal, 2)}`
@@ -8402,6 +14246,11 @@ function numberingAttachmentField(scope, item = {}) {
   }).join("")}</div>`;
 }
 
+function renderClipAdjuntoLinea() {
+  const attachIcon = iconPresentation("lineAttachments", "📎", "#1e516d", 18);
+  return `<span class="field-unit-clip" style="--icon-color:${esc(attachIcon.color)};--icon-hover-color:${esc(attachIcon.hover)};--config-icon-size:${attachIcon.size}px;">${renderIconMarkup(attachIcon.value, "Adjuntar archivo", "field-unit-clip")}</span>`;
+}
+
 function renderAdditionalAttachmentTable(item = {}, index = 0) {
   const fileName = String(item.attachmentName || "").trim();
   const attachIcon = iconPresentation("quoteRequestAttachment", "📎", "#1e516d", 18);
@@ -8411,12 +14260,96 @@ function renderAdditionalAttachmentTable(item = {}, index = 0) {
 }
 
 function renderAdditionalProcessRow(item = {}, index = 0) {
-  return `<div class="additional-item"><div class="additional-row"><input data-scope="additional.${index}" data-field="description" type="text" value="${esc(item.description || "")}">${displayInput(`additional.${index}`, "cost", item.cost || 0, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}<input data-scope="additional.${index}" data-field="comments" type="text" value="${esc(item.comments || "")}"><button type="button" class="process-trash-button" data-action="remove-additional" data-index="${index}" aria-label="Eliminar fila" title="Eliminar fila"><span class="process-delete-icon" aria-hidden="true">&#128465;</span></button></div>${renderAdditionalAttachmentTable(item, index)}</div>`;
+  const deleteIcon = getProcessDeleteIconConfig();
+  return `<div class="additional-item"><div class="additional-row"><input data-scope="additional.${index}" data-field="description" type="text" value="${esc(item.description || "")}">${displayInput(`additional.${index}`, "cost", item.cost || 0, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}<input data-scope="additional.${index}" data-field="comments" type="text" value="${esc(item.comments || "")}"><button type="button" class="process-trash-button" data-action="remove-additional" data-index="${index}" aria-label="Eliminar fila" title="Eliminar fila" style="--process-delete-icon-color:${esc(deleteIcon.primary)};--process-delete-icon-hover:${esc(deleteIcon.hover)};--process-delete-icon-size:${deleteIcon.size}px;">${renderIconMarkup(deleteIcon.value, "Eliminar fila", "process-delete-icon")}</button></div>${renderAdditionalAttachmentTable(item, index)}</div>`;
 }
 
 function renderNumberingFields(scope, item = {}) {
   const numberingType = normalizeNumberingType(item.numberingType, item.rangeFrom, item.rangeTo);
   return `<label><span>Tipo Numerado</span><select data-scope="${scope}" data-field="numberingType">${processOptionsStrict(numberingTypeOptions(), numberingType)}</select></label><label><span>Tiempo Montaje</span>${displayInput(scope, "setupMinutes", item.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Costo Fijo</span>${displayInput(scope, "fixedCost", item.fixedCost, { prefix: "$", maximumFractionDigits: 2 })}</label>`;
+}
+
+// Números de estación (base 1) ya ocupados por tintas del Motivo 1 o por otros acabados en
+// línea. Sirve para armar el desplegable de "Nº de Estación": solo se ofrecen torres libres.
+// exceptKey = el acabado que se está editando (su propia estación no cuenta como ocupada).
+function estacionesAcabadoOcupadas(exceptKey) {
+  const ocupadas = new Set();
+  const stations = state.form?.types?.[0]?.inkStations;
+  if (Array.isArray(stations)) {
+    stations.forEach((s, i) => {
+      if (!s || !s.tipo) return;
+      if (exceptKey === "barniz" && s.tipo === "barniz") return;
+      if (s.tipo === exceptKey) return;
+      ocupadas.add(i + 1);
+    });
+  }
+  const inf = state.form?.printStages?.[0]?.inlineFinishes || {};
+  ["barniz", "barniz2", "barniz3", "laminado", "estampado", "troquelado"].forEach((k) => {
+    if (k === exceptKey) return;
+    const num = n(inf[k]?.estacionNumero, 0);
+    if (num > 0) ocupadas.add(num);
+  });
+  return ocupadas;
+}
+
+// Desplegable de "Nº de Estación" para un acabado en línea: muestra "—" (sin estación) y las
+// torres que siguen libres, más la que el acabado ya tiene. Elegir una ocupada no es posible.
+function acabadoEstacionSelect(scope, inlineKey, currentNum) {
+  const torres = Math.max(9, motivoStationCount(state.form));
+  const ocupadas = estacionesAcabadoOcupadas(inlineKey);
+  const cur = Math.round(n(currentNum, 0));
+  let opts = `<option value=""${cur > 0 ? "" : " selected"}>—</option>`;
+  for (let i = 1; i <= torres; i++) {
+    if (ocupadas.has(i) && i !== cur) continue;
+    opts += `<option value="${i}"${i === cur ? " selected" : ""}>Estación ${i}</option>`;
+  }
+  return `<label><span>Nº de Estación</span><select data-scope="${scope}" data-field="estacionNumero">${opts}</select></label>`;
+}
+
+// Campos de un panel de barniz (el principal y los adicionales barniz2 / barniz3 comparten el
+// mismo juego de casillas). p = objeto inlineFinishes[panelKey].
+function barnizPanelFieldsHtml(stageIndex, panelKey, p) {
+  const scope = `printStages.${stageIndex}.inlineFinishes.${panelKey}`;
+  const materialOptions = getFinishMaterialOptions("barniz", ["barniz"]);
+  const barnizRows = Array.isArray(state.costsConfig?.acabados?.barniz) ? state.costsConfig.acabados.barniz : [];
+  const row = barnizRows.find((b) => String(b.id || b.nombre) === String(p.materialId)) || {};
+  const bcm = firstPositiveNumber(n(p.varnishBcm, 0), n(row.bcmAnilox, 0));
+  const cob = firstPositiveNumber(n(p.coveragePct, 0), n(row.porcentajeCobertura, 0));
+  const fac = firstPositiveNumber(n(p.factorTransferencia, 0), n(row.factorTransferencia, 0), 0.35);
+  const den = firstPositiveNumber(n(p.densidad, 0), n(row.densidad, 0), 1.05);
+  const vis = firstPositiveNumber(n(p.visc, 0), n(row.visc, 0), 18);
+  return [
+    acabadoEstacionSelect(scope, panelKey, n(p.estacionNumero, 0)),
+    `<label class="span-2"><span>Material</span><select data-scope="${scope}" data-field="materialId">${processOptions(materialOptions, p.materialId)}</select></label>`,
+    `<label><span>BCM Anilox</span>${displayInput(scope, "varnishBcm", bcm, { maximumFractionDigits: 4, step: "0.01" })}</label>`,
+    `<label><span>Cobertura <span class="field-unit">%</span></span>${displayInput(scope, "coveragePct", cob, { suffix: "%", maximumFractionDigits: 2 })}</label>`,
+    `<label><span>Factor de Transferencia</span>${displayInput(scope, "factorTransferencia", fac, { maximumFractionDigits: 2, step: "0.01" })}</label>`,
+    `<label><span>Densidad <span class="field-unit">kg/L</span></span>${displayInput(scope, "densidad", den, { suffix: "kg/L", maximumFractionDigits: 2, step: "0.01" })}</label>`,
+    `<label><span>Costo por Kilo <span class="field-unit">$/kg</span></span>${displayInput(scope, "costPerKg", p.costPerKg, { prefix: "$", maximumFractionDigits: 6 })}</label>`,
+    `<label><span>Viscosidad <span class="field-unit">seg</span></span>${displayInput(scope, "visc", vis, { suffix: "seg", maximumFractionDigits: 1 })}</label>`,
+    `<label class="inline-process-check span-2"><input data-scope="${scope}" data-field="sonified" type="checkbox"${p.sonified ? " checked" : ""}><span>Barniz Reservado</span></label>`,
+    `<label class="span-full comment-wide"><span>Comentario</span><input data-scope="${scope}" data-field="comment" type="text" value="${esc(p.comment || "")}"></label>`
+  ].join("");
+}
+
+// Bloques del 2º y 3º barniz (solo si están activos) + botón "Agregar Barniz". Se coloca dentro
+// de la zona de configuración del barniz principal.
+function barnizExtrasHtml(stage, stageIndex) {
+  const inf = stage.inlineFinishes || {};
+  const addIcon = iconPresentation("quantityAdd", "+", "#738196", 24);
+  const delIcon = getProcessDeleteIconConfig();
+  let html = "";
+  [["barniz2", "Barniz 2"], ["barniz3", "Barniz 3"]].forEach(([k, label]) => {
+    if (inf[k]?.active !== true) return;
+    html += `<div class="inline-barniz-extra"><div class="inline-barniz-extra-head"><h5>${label}</h5>`
+      + `<button type="button" class="inline-barniz-action inline-barniz-remove" data-action="remove-barniz" data-barniz-key="${k}" title="Quitar ${label}" aria-label="Quitar ${label}" style="--process-delete-icon-color:${esc(delIcon.primary)};--process-delete-icon-hover:${esc(delIcon.hover)};--process-delete-icon-size:22px;">${renderIconMarkup(delIcon.value, "Quitar " + label, "process-delete-icon")}</button></div>`
+      + `<div class="process-finish-grid inline-barniz-grid">${barnizPanelFieldsHtml(stageIndex, k, inf[k])}</div></div>`;
+  });
+  const nextKey = inf.barniz2?.active !== true ? "barniz2" : (inf.barniz3?.active !== true ? "barniz3" : null);
+  if (nextKey) {
+    html += `<div class="inline-barniz-addrow"><button type="button" class="inline-barniz-action inline-barniz-add" data-action="add-barniz" data-barniz-key="${nextKey}" title="Agregar Barniz" aria-label="Agregar Barniz" style="--quantity-add-icon-color:${esc(addIcon.color)};--quantity-add-icon-hover:${esc(addIcon.hover)};--quantity-add-icon-size:24px;">${renderIconMarkup(addIcon.value, "Agregar Barniz", "quantity-add-icon")}<span>Agregar Barniz</span></button></div>`;
+  }
+  return html;
 }
 
 function renderInlinePrintBlock(stage, stageIndex, inline) {
@@ -8426,6 +14359,13 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
     ? `<label class="span-full comment-wide"><span>Comentario</span><input data-scope="${scope}" data-field="comment" type="text" value="${esc(inline.comment || "")}"></label>`
     : `<label class="span-full comment-wide"><span>Comentario</span><input data-scope="${scope}" data-field="comment" type="text" value="${esc(inline.comment || "")}"></label>`;
   const materialSelect = (label = "Material", span = "span-3") => `<label class="${span}"><span>${label}</span><select data-scope="${scope}" data-field="materialId">${processOptions(materialOptions, inline.materialId)}</select></label>`;
+  // Nº de Estación (torre de la máquina donde va montado el acabado). Desplegable: solo ofrece
+  // las torres libres más la que el acabado ya ocupa, para que no se pueda elegir una estación
+  // ya usada. Bidireccional con el modal de máquina / tabla de tintas. Para el barniz principal
+  // representa la primera instancia.
+  const estacionField = MOTIVO_STATION_ACABADO_TIPOS.indexOf(inline.key) !== -1
+    ? acabadoEstacionSelect(scope, inline.key, acabadoEstacionNumeroActual(inline.key))
+    : "";
   let fields = "";
   let extraConfig = "";
   let gridClass = "";
@@ -8434,35 +14374,50 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
     const isInlineDie = externalConfig.key === "troquelado";
     if (inline.key === "barniz") {
       const varnishProfile = varnishProfileInfo(stage);
-      const varnishBcm = firstPositiveNumber(inline.varnishBcm, varnishProfile.bcm);
-      const coveragePct = firstPositiveNumber(inline.coveragePct, varnishProfile.coveragePct);
+      // Todos los datos técnicos del barniz salen de Costos › Acabados › Barniz (fila del
+      // Material elegido; si aún no hay Material, la primera fila del catálogo).
+      const barnizRows = Array.isArray(state.costsConfig?.acabados?.barniz) ? state.costsConfig.acabados.barniz : [];
+      const barnizItem = barnizRows.find((b) => String(b.id || b.nombre) === String(inline.materialId)) || barnizRows[0] || {};
+      const varnishBcm = firstPositiveNumber(inline.varnishBcm, n(barnizItem.bcmAnilox, 0), varnishProfile.bcm);
+      const coveragePct = firstPositiveNumber(inline.coveragePct, n(barnizItem.porcentajeCobertura, 0), varnishProfile.coveragePct);
+      const barnizVisc = firstPositiveNumber(inline.visc, n(barnizItem.visc, 0), 18);
+      const barnizFactor = firstPositiveNumber(inline.factorTransferencia, n(barnizItem.factorTransferencia, 0), 0.35);
+      const barnizDensidad = firstPositiveNumber(inline.densidad, n(barnizItem.densidad, 0), 1.05);
       gridClass = "inline-barniz-grid";
       fields = [
+        estacionField,
         materialSelect("Material", "span-2"),
         `<label><span>BCM Anilox</span>${displayInput(scope, "varnishBcm", varnishBcm, { maximumFractionDigits: 4, step: "0.01" })}</label>`,
         `<label><span>Cobertura <span class="field-unit">%</span></span>${displayInput(scope, "coveragePct", coveragePct, { suffix: "%", maximumFractionDigits: 2 })}</label>`,
+        `<label><span>Factor de Transferencia</span>${displayInput(scope, "factorTransferencia", barnizFactor, { maximumFractionDigits: 2, step: "0.01" })}</label>`,
+        `<label><span>Densidad <span class="field-unit">kg/L</span></span>${displayInput(scope, "densidad", barnizDensidad, { suffix: "kg/L", maximumFractionDigits: 2, step: "0.01" })}</label>`,
         `<label><span>Costo por Kilo <span class="field-unit">$/kg</span></span>${displayInput(scope, "costPerKg", inline.costPerKg, { prefix: "$", maximumFractionDigits: 6 })}</label>`,
-        `<label class="inline-zonified-field"><span>Zonificado</span><div class="inline-zonified-control"><input data-scope="${scope}" data-field="sonified" type="checkbox"${inline.sonified ? " checked" : ""}></div></label>`,
+        `<label><span>Viscosidad <span class="field-unit">seg</span></span>${displayInput(scope, "visc", barnizVisc, { suffix: "seg", maximumFractionDigits: 1 })}</label>`,
+        `<label class="inline-process-check span-2"><input data-scope="${scope}" data-field="sonified" type="checkbox"${inline.sonified ? " checked" : ""}><span>Barniz Reservado</span></label>`,
         commentField
       ].join("");
+      extraConfig = barnizExtrasHtml(stage, stageIndex);
     } else if (inline.key === "laminado") {
       gridClass = "inline-laminado-grid";
       fields = [
+        estacionField,
         materialSelect("Material", "span-2"),
-        `<label><span>Costo por Pie Lineal</span>${displayInput(scope, "costPerFoot", inline.costPerFoot, { prefix: "$", suffix: "/pie", maximumFractionDigits: 6 })}</label>`,
+        `<label><span>Costo por Metro Lineal</span>${displayInput(scope, "costPerMeter", inline.costPerMeter, { prefix: "$", suffix: "/m", maximumFractionDigits: 6 })}</label>`,
         `<label><span>Montaje <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>`,
         commentField
       ].join("");
     } else if (inline.key === "estampado") {
       gridClass = "inline-estampado-grid";
-      const hasColdfoilData = inline.coldfoil && Object.keys(inline.coldfoil).length > 0;
+      const gomaOpciones = `<option value="">— Sin goma —</option>` + gomaMaterialList()
+        .map((g) => `<option value="${esc(g.id)}"${String(g.id) === String(inline.gomaMaterialId || "") ? " selected" : ""}>${esc(g.nombre || g.descripcion || g.codigo || "")}</option>`)
+        .join("");
       fields = [
+        estacionField,
         materialSelect("Material", "span-2"),
-        `<label><span>Ancho del Rollo <span class="field-unit">in</span></span>${displayInput(scope, "supplyWidthIn", inline.supplyWidthIn, { suffix: "in", maximumFractionDigits: 4 })}</label>`,
-        `<label><span>Costo por Pie Lineal</span>${displayInput(scope, "costPerFoot", inline.costPerFoot, { prefix: "$", suffix: "/pie", maximumFractionDigits: 6 })}</label>`,
+        `<label class="span-2"><span>Goma (Adicionales)</span><select data-scope="${scope}" data-field="gomaMaterialId">${gomaOpciones}</select></label>`,
+        `<label><span>Costo por Metro Lineal</span>${displayInput(scope, "costPerMeter", inline.costPerMeter, { prefix: "$", suffix: "/m", maximumFractionDigits: 6 })}</label>`,
         `<label><span>Montaje <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>`,
-        `<div class="coldfoil-btn-wrap"><button type="button" class="coldfoil-open-btn" data-coldfoil-open data-stage-index="${stageIndex}" title="Abrir montaje Cold Foil" aria-label="Abrir montaje Cold Foil">${renderColdfoilIcon()} Montaje Cold Foil</button></div>`,
-        hasColdfoilData ? `<div class="coldfoil-summary" data-coldfoil-summary="${stageIndex}">${renderColdfoilSummary(inline.coldfoil)}</div>` : "",
+        `<label><span>Costo Sello</span>${displayInput(scope, "plateCost", inline.plateCost, { prefix: "$", maximumFractionDigits: 2 })}</label>`,
         commentField
       ].join("");
     } else if (inline.key === "embosado") {
@@ -8482,9 +14437,9 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
         `<label><span>Costo Máquina <span class="field-unit">$/h</span></span>${displayInput(scope, "costHourMachine", inline.costHourMachine, { prefix: "$", maximumFractionDigits: 2 })}</label>`,
         `<label><span>Costo Operador <span class="field-unit">$/h</span></span>${displayInput(scope, "costHourOperator", inline.operatorHourCost || inline.costHourOperator, { prefix: "$", maximumFractionDigits: 2 })}</label>`,
         ...(isInlineDie ? [] : [
-          `<label><span>Velocidad <span class="field-unit">ft/min</span></span>${displayInput(scope, "speed", inline.speed, { suffix: "ft/min", maximumFractionDigits: 4 })}</label>`
+          `<label><span>Velocidad <span class="field-unit">m/min</span></span>${displayInput(scope, "speed", inline.speed, { suffix: "m/min", maximumFractionDigits: 4 })}</label>`
         ]),
-        `<label><span>Merma Ajuste <span class="field-unit">ft</span></span>${displayInput(scope, "setupWasteFeet", inline.setupWasteFeet, { suffix: "ft", maximumFractionDigits: 2 })}</label>`,
+        `<label><span>Merma Ajuste <span class="field-unit">m</span></span>${displayInput(scope, "setupWasteMeters", inline.setupWasteMeters, { suffix: "m", maximumFractionDigits: 2 })}</label>`,
         ...(isInlineDie ? [] : [`<label><span>Merma Operación <span class="field-unit">%</span></span>${displayInput(scope, "operationWastePct", inline.operationWastePct, { suffix: "%", maximumFractionDigits: 2 })}</label>`])
       ];
       if (externalConfig.key === "troquelado" && !isInlineDie) {
@@ -8494,7 +14449,7 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
       if (externalConfig.usesUnitMaterial) {
         materialFields.push(materialSelect("Material", "span-2"), `<label><span>Costo Unidad <span class="field-unit">$</span></span>${displayInput(scope, "costPerUnit", inline.costPerUnit, { prefix: "$", maximumFractionDigits: 6 })}</label>`);
       } else if (externalConfig.usesMaterial) {
-        materialFields.push(materialSelect("Material", "span-2"), `<label><span>Costo ft² <span class="field-unit">$/ft²</span></span>${displayInput(scope, "costPerFt2", inline.costPerFt2, { prefix: "$", maximumFractionDigits: 6 })}</label>`);
+        materialFields.push(materialSelect("Material", "span-2"), `<label><span>Costo m² <span class="field-unit">$/m²</span></span>${displayInput(scope, "costPerM2", inline.costPerM2, { prefix: "$", maximumFractionDigits: 6 })}</label>`);
       }
       if (externalConfig.usesPlateCost && !isInlineDie) {
         plateFields.push(
@@ -8503,34 +14458,47 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
           `<label><span>Costo Cliché</span>${displayInput(scope, "plateCost", inline.plateCost, { prefix: "$", maximumFractionDigits: 2 })}</label>`
         );
       }
-      fields = `${processFields.join("")}${plateFields.join("")}${materialFields.join("")}${commentField}`;
+      fields = `${estacionField}${processFields.join("")}${plateFields.join("")}${materialFields.join("")}${commentField}`;
     }
   } else if (inline.key === "numerado") {
     fields = `${renderNumberingFields(scope, inline)}${commentField}${numberingAttachmentField(scope, inline)}`;
   } else {
-    fields = `<label class="span-2"><span>Tiempo Montaje</span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>${inline.usesMaterial ? `${materialSelect("Material")}<label><span>Costo por Pie</span>${displayInput(scope, "costPerFoot", inline.costPerFoot, { prefix: "$", maximumFractionDigits: 6 })}</label>` : ""}${inline.usesPlateCost ? `<label class="span-2"><span>Costo Cliché</span>${displayInput(scope, "plateCost", inline.plateCost, { prefix: "$", maximumFractionDigits: 2 })}</label>` : ""}${commentField}`;
+    fields = `<label class="span-2"><span>Tiempo Montaje</span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>${inline.usesMaterial ? `${materialSelect("Material")}<label><span>Costo por Metro</span>${displayInput(scope, "costPerMeter", inline.costPerMeter, { prefix: "$", maximumFractionDigits: 6 })}</label>` : ""}${inline.usesPlateCost ? `<label class="span-2"><span>Costo Cliché</span>${displayInput(scope, "plateCost", inline.plateCost, { prefix: "$", maximumFractionDigits: 2 })}</label>` : ""}${commentField}`;
   }
   const configZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Configuración</h4></div><div class="process-finish-grid ${gridClass}">${fields}</div>${extraConfig}</div>`;
   const numberingSummary = inline.key === "numerado"
     ? `${metric("Tipo", esc(normalizeNumberingType(inline.numberingType, inline.rangeFrom, inline.rangeTo) || "Sin definir"))}${isConsecutiveNumbering(normalizeNumberingType(inline.numberingType, inline.rangeFrom, inline.rangeTo)) ? metric("Rango", esc([inline.rangeFrom, inline.rangeTo].filter(Boolean).join(" - ") || "Sin rango")) : ""}${metric("Adjunto", esc(inline.attachmentName || "Sin adjunto"))}`
     : "";
-  const barnizSummary = `${inline.sonified ? metric("Zonificado", "Sí") : ""}${metric("Longitud Total", `${num(inline.substrateTotalLengthFeet || inline.calcBase || 0, 2)} pies`)}${metric("Consumo Barniz", `${num(inline.materialConsumptionKg || 0, 4)} kg`)}${metric("BCM Anilox", num(inline.varnishBcm || 0, 4))}${metric("Cobertura", `${num(inline.coveragePct || 0, 2)} %`)}${metric("Costo por Kilo", money(inline.costPerKg || 0))}${metric("Subtotal", money(inline.subtotal))}`;
+  // El Resumen solo muestra lo que se calcula (Longitud, Consumo y Subtotal). Los datos
+  // que alimentan el valor (BCM, Cobertura, Factor, Densidad, Costo por Kilo) viven en los
+  // campos editables de arriba y no se repiten aquí.
+  const barnizInstancesSummary = Array.isArray(inline.barnizInstances) && inline.barnizInstances.length
+    ? inline.barnizInstances.map((bi) => metric(
+        `${esc(bi.motivoName)} · ${esc(bi.materialName || "Barniz")} (Est. ${n(bi.stationIndex, 0) + 1})`,
+        `${num(bi.consumptionKg || 0, 4)} kg · ${money(bi.subtotal || 0)}`
+      )).join("")
+    : "";
+  const barnizSummary = barnizInstancesSummary
+    ? `${barnizInstancesSummary}${metric("Consumo Barniz Total", `${num(inline.materialConsumptionKg || 0, 4)} kg`)}${metric("Subtotal", money(inline.subtotal))}`
+    : `${metric("Longitud Total", `${num(inline.substrateTotalLengthMeters || inline.calcBase || 0, 2)} m`)}${metric("Consumo Barniz", `${num(inline.materialConsumptionKg || 0, 4)} kg`)}${metric("Subtotal", money(inline.subtotal))}`;
   const standardSummary = `${metric("Tiempo Montaje", `${num(inline.setupMinutes, 2)} min`)}${inline.usesMaterial ? metric("Material", esc(inline.materialName || "Sin definir")) : ""}${inline.usesMaterial ? metric("Subtotal Material", money(inline.materialSubtotal)) : ""}${inline.usesPlateCost ? metric("Costo Cliché", money(inline.plateCost)) : ""}${n(inline.fixedCost, 0) > 0 ? metric("Costo Fijo", money(inline.fixedCost)) : ""}${numberingSummary}${metric("Subtotal", money(inline.subtotal))}`;
   const inlineDieSummary = [
     metric("Tiempo Montaje", `${num(inline.setupMinutes || 0, 2)} min`),
-    metric("Merma Ajuste", `${num(inline.setupWasteFeet || 0, 2)} ft`),
+    metric("Merma Ajuste", `${num(inline.setupWasteMeters || 0, 2)} m`),
     metric("Subtotal", money(inline.subtotal))
   ].join("");
   const isLinealInlineMaterial = ["laminado", "estampado"].includes(inline.key);
   const externalSummary = externalConfig ? (inline.key === "troquelado" ? inlineDieSummary : [
-    metric(isLinealInlineMaterial ? "Longitud Total" : "Base de Corrida", `${num(inline.calcBase || 0, 2)} pies`),
+    metric(isLinealInlineMaterial ? "Longitud Total" : "Base de Corrida", `${num(inline.calcBase || 0, 2)} m`),
     metric("Montaje a Impresión", `${num(inline.setupMinutes || 0, 2)} min`),
     inline.usesMaterial ? metric("Material", esc(inline.materialName || "Sin definir")) : "",
-    inline.usesMaterial && !isLinealInlineMaterial ? metric("Base Material", `${num(inline.materialBase || 0, 2)} ft²`) : "",
+    inline.usesMaterial && !isLinealInlineMaterial ? metric("Base Material", `${num(inline.materialBase || 0, 2)} m²`) : "",
     inline.usesWeightMaterial ? metric("Consumo Material", `${num(inline.materialConsumptionKg || 0, 4)} kg`) : "",
-    isLinealInlineMaterial ? metric("Costo Pie Lineal", money(inline.costPerFoot || 0)) : "",
+    isLinealInlineMaterial ? metric("Costo Metro Lineal", money(inline.costPerMeter || 0)) : "",
     inline.usesMaterial ? metric("Subtotal Material", money(inline.materialSubtotal)) : "",
     inline.usesPlateCost ? metric("Costo Cliché", money(inline.plateCost)) : "",
+    inline.key === "estampado" ? metric("Costo Sello", money(inline.plateCost || 0)) : "",
+    inline.key === "estampado" ? metric(inline.gomaMaterialId ? "Costo Goma" : "Costo Adhesivo", money(inline.adhesivoSubtotal || 0)) : "",
     inline.key === "troquelado" ? metric("Costo Lineal", money(inline.linearSubtotal || 0)) : "",
     metric("Subtotal", money(inline.subtotal))
   ].join("")) : "";
@@ -8544,9 +14512,9 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
     : inline.key === "barniz"
     ? "• Consumo (kg) = Área (in²) × Cobertura × BCM × Factor Transferencia × Densidad × 10⁻⁶\n• Subtotal Barniz = Consumo (kg) × Costo por Kilo"
     : inline.key === "laminado"
-    ? "Laminado = Longitud Total del sustrato x costo por pie lineal del laminado seleccionado."
+    ? "Laminado = Longitud Total del sustrato x costo por metro lineal del laminado seleccionado."
     : inline.key === "estampado"
-    ? "Estampado = Longitud Total del sustrato x costo por pie lineal del rollo seleccionado."
+    ? "Estampado = (Longitud Total del sustrato x costo por metro lineal del foil) + Costo Sello + Costo Adhesivo."
     : inline.key === "embosado"
     ? "Embosado = costo del cliché. El montaje se suma al tiempo de montaje de impresión."
     : externalConfig
@@ -8557,27 +14525,29 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
   const formulaExplanation = externalConfig && inline.key === "troquelado"
     ? "El troquelado en línea no agrega costo externo ni costo lineal; su tiempo se suma al montaje de impresión y su merma de ajuste al consumo de sustrato."
     : inline.key === "barniz"
-    ? "Barniz usa la Longitud Total del sustrato y el perfil Barniz UV configurado en Costos para tomar BCM y cobertura. La constante BCM convierte pies lineales y ancho de banda a kilogramos aplicados, considerando transferencia real y densidad estándar."
-    : inline.key === "laminado" || inline.key === "estampado"
-    ? "El material se calcula por pie lineal sobre la Longitud Total del sustrato. El montaje se agrega al tiempo de montaje de la prensa porque el proceso es en línea."
+    ? "Barniz usa la Longitud Total del sustrato y el perfil Barniz UV configurado en Costos para tomar BCM y cobertura. La constante BCM convierte metros lineales y ancho de banda a kilogramos aplicados, considerando transferencia real y densidad estándar."
+    : inline.key === "estampado"
+    ? "El foil se cobra por metro lineal sobre la Longitud Total del sustrato, igual que un sustrato. Se suma el costo de sello (manual) y el costo de adhesivo, calculado con la cobertura, gramaje, merma y precio configurados en Costos → Estampado."
+    : inline.key === "laminado"
+    ? "El material se calcula por metro lineal sobre la Longitud Total del sustrato. El montaje se agrega al tiempo de montaje de la prensa porque el proceso es en línea."
     : inline.key === "embosado"
     ? "El tiempo de montaje se agrega a impresión; en el subtotal del embosado queda el costo del cliché."
     : externalConfig
     ? "El acabado en línea usa la misma base de corrida de impresión. Su montaje se cobra en el tiempo de impresión y aquí solo se valoran insumos propios."
     : inline.explanation || "";
   const formulaExampleLine = inline.key === "troquelado"
-    ? `Montaje ${formulaValue(inline.setupMinutes || 0, 2)} min + Merma Ajuste ${formulaValue(inline.setupWasteFeet || 0, 2)} ft`
+    ? `Montaje ${formulaValue(inline.setupMinutes || 0, 2)} min + Merma Ajuste ${formulaValue(inline.setupWasteMeters || 0, 2)} m`
     : inline.key === "barniz"
       ? `Kg Barniz: Área ${formulaValue(inline.varnishAreaIn2 || 0, 2)} in² x Cobertura ${formulaValue((inline.coveragePct || 0) / 100, 4)} x BCM ${formulaValue(inline.varnishBcm || 0, 2)} x Transfer ${formulaValue(inline.factorTransferencia || 0, 2)} x Densidad ${formulaValue(inline.densidad || 0, 2)} x 10⁻⁶ = ${formulaValue(inline.materialConsumptionKg || 0, 4)} kg\nSubtotal: ${formulaValue(inline.materialConsumptionKg || 0, 4)} kg x ${formulaValue(inline.costPerKg || 0, 4)} = ${formulaValue(inline.materialSubtotal || 0, 2)}`
       : isLinealInlineMaterial
-        ? `Subtotal material: Longitud Total ${formulaValue(inline.materialBase || 0, 2)} pies x ${formulaValue(inline.costPerFoot || 0, 6)} = ${formulaValue(inline.materialSubtotal || 0, 2)}`
+        ? `Subtotal material: Longitud Total ${formulaValue(inline.materialBase || 0, 2)} m x ${formulaValue(inline.costPerMeter || 0, 6)} = ${formulaValue(inline.materialSubtotal || 0, 2)}`
         : inline.key === "embosado"
           ? `Subtotal ${inline.label}: Costo Cliché ${formulaValue(inline.plateCost || 0, 2)} = ${formulaValue(inline.subtotal || 0, 2)}`
           : `Subtotal ${inline.label}: Subtotal Material ${formulaValue(inline.materialSubtotal || 0, 2)}${inlineFormulaPlateExample} + Costo Fijo ${formulaValue(inline.fixedCost || 0, 2)} = ${formulaValue(inline.subtotal || 0, 2)}`;
   const info = formulaButton(`Cálculo ${inline.label}`, formulaText, formulaExplanation, {
     exampleLines: [formulaExampleLine],
     answer: inline.key === "troquelado"
-      ? `R/ El troquelado en línea no agrega costo externo; consume ${num(inline.setupWasteFeet || 0, 2)} ft de merma de ajuste.`
+      ? `R/ El troquelado en línea no agrega costo externo; consume ${num(inline.setupWasteMeters || 0, 2)} m de merma de ajuste.`
       : `R/ El total a cobrar por ${inline.label.toLowerCase()} es ${money(inline.subtotal || 0)}`
   });
   return `<details class="subprocess-card inline-process-card" data-open-key="${esc(scope)}"><summary class="inline-process-summary"><div class="inline-process-heading"><label class="inline-process-check"><input data-scope="printStages.${stageIndex}.inlineFinishes.${inline.key}" data-field="active" type="checkbox"${inline.active ? " checked" : ""}><span>${esc(inline.label)}</span></label></div><div class="process-summary-side"><em>${money(inline.subtotal)}</em>${info}</div></summary><div class="process-body"><div class="process-layout process-layout-inline"><div class="process-layout-main">${configZone}</div><div class="process-layout-side">${metricsZone}${issuesZone}</div></div></div></details>`;
@@ -8587,80 +14557,103 @@ function renderInlineToggleBar(stageIndex, inlineItems) {
   return `<div class="inline-toggle-bar">${inlineItems.map((inline) => `<label class="inline-toggle-chip"><input data-scope="printStages.${stageIndex}.inlineFinishes.${inline.key}" data-field="active" type="checkbox"${inline.active ? " checked" : ""}><span>${esc(inline.label)}</span></label>`).join("")}</div>`;
 }
 
-function renderPrintInkBlock(scope, item, printItem) {
-  const stations = Array.isArray(item.inkStations) ? item.inkStations : [];
-  const hasStations = stations.length > 0;
-  const details = Array.isArray(printItem.inkStationDetails) ? printItem.inkStationDetails : [];
-  const tintaOptions = conventionalInkMaterialOptions().map(function(entry) { return { id: entry.id, nombre: entry.descripcion || entry.nombre || entry.id }; });
-  const tintaOptionsHtml = tintaOptions.map(function(opt) { return { id: opt.id, nombre: opt.nombre }; });
-  var formulaBody = hasStations
-    ? "Consumo por estaci\u00f3n (lb) = \u00c1rea Impresa (in\u00b2) \u00d7 Cobertura% \u00d7 BCM \u00d7 Factor T. \u00d7 Densidad \u00d7 0.001 \u00f7 453.592\nSubtotal = Consumo (lb) \u00d7 Costo/libra\nTotal = Suma de todas las estaciones"
-    : "Consumo (lb) = \u00c1rea Impresa (in\u00b2) \u00d7 Cobertura% \u00d7 BCM \u00d7 Factor T. \u00d7 Densidad \u00d7 Tintas \u00d7 0.001 \u00f7 453.592\nSubtotal = Consumo (lb) \u00d7 Costo/libra";
-  var formulaExplain = hasStations
-    ? "Cada estaci\u00f3n usa sus propios par\u00e1metros (cobertura, BCM, factor de transferencia, densidad y costo por libra). El \u00e1rea impresa en in\u00b2 se calcula como (printedAreaFt2 \u00d7 144). El resultado es la suma del consumo de todas las estaciones activas."
-    : "Todas las tintas usan los mismos par\u00e1metros. El \u00e1rea impresa en in\u00b2 se calcula como (printedAreaFt2 \u00d7 144).";
-  var exLines = [];
-  if (hasStations && details.length) {
-    exLines.push("F\u00f3rmula por estaci\u00f3n: printedAreaFt2 \u00d7 144 \u00d7 (Cobertura/100) \u00d7 BCM \u00d7 Factor T. \u00d7 Densidad \u00d7 0.001 / 453.592");
-    details.forEach(function(d) {
-      exLines.push(d.inkLabel + ": " + formulaValue(printItem.printedAreaFt2 || 0, 4) + " ft\u00b2 \u00d7 144 \u00d7 " + formulaValue(d.coveragePct, 2) + "% \u00d7 " + formulaValue(d.aniloxBcm, 2) + " \u00d7 " + formulaValue(d.transferFactor, 2) + " \u00d7 " + formulaValue(d.inkDensity, 2) + " \u00d7 0.001 / 453.59 = " + formulaValue(d.consumptionLb, 6) + " lb \u00d7 $ " + formulaValue(d.inkCostPerLb, 4) + "/lb = " + money(d.subtotal));
+// Desglose de "Costo Tinta" por Tipo (Proceso/Directo/Adicional/Barniz): agrupa las estaciones ya
+// calculadas por calcMotivoInkTotals (todas las de todos los motivos) por station.tipo — mismos
+// consumptionKg/subtotal que ya usa cada estación, nada recalculado aparte. Antes el resumen solo
+// mostraba un monto suelto sin decir de qué tintas salía.
+function motivoInkTiposBreakdown(motivoInkTotals) {
+  const tipos = [
+    { key: "proceso", label: "Proceso" },
+    { key: "directo", label: "Directo" },
+    { key: "adicional", label: "Adicional" },
+    { key: "barniz", label: "Barniz" }
+  ];
+  const totals = {};
+  tipos.forEach((t) => { totals[t.key] = { count: 0, consumption: 0, subtotal: 0 }; });
+  (motivoInkTotals?.byType || []).forEach((motivo) => {
+    (motivo.stations || []).forEach((station) => {
+      const bucket = totals[station.tipo];
+      if (!bucket) return;
+      bucket.count += 1;
+      bucket.consumption += n(station.consumptionKg, 0);
+      bucket.subtotal += n(station.subtotal, 0);
     });
-  } else {
-    exLines.push("F\u00f3rmula: printedAreaFt2 \u00d7 144 \u00d7 (Cobertura/100) \u00d7 BCM \u00d7 Factor T. \u00d7 Densidad \u00d7 Tintas \u00d7 0.001 / 453.592");
-    exLines.push("\u00c1rea: " + formulaValue(printItem.printedAreaFt2 || 0, 4) + " ft\u00b2 \u00d7 144 = " + formulaValue((printItem.printedAreaFt2 || 0) * 144, 4) + " in\u00b2");
-    exLines.push("Por color: " + formulaValue((printItem.printedAreaFt2 || 0) * 144, 4) + " \u00d7 " + formulaValue(printItem.inkCoveragePct || 0, 2) + "% \u00d7 " + formulaValue(printItem.aniloxBcm || 0, 2) + " \u00d7 " + formulaValue(printItem.transferFactor || 0, 2) + " \u00d7 " + formulaValue(printItem.inkDensity || 0, 2) + " \u00d7 0.001 / 453.59 = " + formulaValue(printItem.inkConsumptionPerColorLb || 0, 6) + " lb");
-    exLines.push("Total: " + formulaValue(printItem.inkConsumptionPerColorLb || 0, 6) + " lb \u00d7 " + formulaValue(printItem.colors || 0, 0) + " tintas = " + formulaValue(printItem.inkConsumption || 0, 6) + " lb");
-    exLines.push("Subtotal: " + formulaValue(printItem.inkConsumption || 0, 6) + " lb \u00d7 $ " + formulaValue(printItem.inkCostPerLb || 0, 4) + " = " + money(printItem.inkSubtotal || 0));
-  }
-  const info = formulaButton("C\u00e1lculo de Tinta Convencional", formulaBody, formulaExplain, {
-    exampleLines: exLines,
-    answer: "R/ El total de tinta convencional calculado es " + money(printItem.inkSubtotal || 0) + "."
   });
-  var stationsHtml = "";
-  if (hasStations) {
-    var rows = stations.map(function(station, index) {
-      var stScope = scope + ".inkStations." + index;
-      var selId = station.inkMaterialId || (tintaOptionsHtml[0] ? tintaOptionsHtml[0].id : "") || "";
-      var opts = tintaOptionsHtml.map(function(o) { return "<option value=\"" + esc(o.id) + "\"" + (o.id === selId ? " selected" : "") + ">" + esc(o.nombre) + "</option>"; }).join("");
-      var detail = details[index] || null;
-      var consumptionStr = detail ? num(detail.consumptionLb, 4) : "—";
-      var subtotalStr = detail ? money(detail.subtotal) : "—";
-      return "<div class=\"ink-station-row\">" +
-        "<span class=\"station-num\">" + (index + 1) + "</span>" +
-        "<select data-scope=\"" + esc(stScope) + "\" data-field=\"inkMaterialId\">" + opts + "</select>" +
-        displayInput(stScope, "coveragePct", station.coveragePct, { suffix: "%", maximumFractionDigits: 2 }) +
-        displayInput(stScope, "aniloxBcm", station.aniloxBcm, { maximumFractionDigits: 4 }) +
-        displayInput(stScope, "transferFactor", station.transferFactor, { maximumFractionDigits: 4 }) +
-        displayInput(stScope, "inkDensity", station.inkDensity, { maximumFractionDigits: 4 }) +
-        "<span class=\"station-consumption\">" + esc(consumptionStr) + "</span>" +
-        "<span class=\"station-subtotal\">" + esc(subtotalStr) + "</span>" +
-        "</div>";
-    }).join("");
-    var totalLb = num(printItem.inkConsumption || 0, 4);
-    var totalSub = money(printItem.inkSubtotal || 0);
-    var totalRow = "<div class=\"ink-station-row ink-station-total\"><span class=\"station-num\"></span><span class=\"station-total-label\">Total</span><span></span><span></span><span></span><span></span><span class=\"station-consumption\">" + esc(totalLb) + " lb</span><span class=\"station-subtotal\">" + esc(totalSub) + "</span></div>";
-    stationsHtml = "<div class=\"process-zone\"><div class=\"process-zone-head\"><h4>Estaciones de Impresi\u00f3n</h4></div><div class=\"ink-stations-table\"><div class=\"ink-stations-head ink-station-row\"><span>#</span><span>Tinta</span><span>Cobertura</span><span>Anilox BCM</span><span>Factor T.</span><span>Densidad</span><span>Consumo (lb)</span><span>Subtotal</span></div>" + rows + totalRow + "</div></div>";
-  } else {
-    var tbOpts = whiteInkMaterialOptions().map(function(entry) { return { id: entry.id, nombre: entry.descripcion || entry.nombre || entry.id }; });
-    var selCmyk = "<label class=\"span-2\"><span>Tinta CMYK UV</span><select data-scope=\"" + esc(scope) + "\" data-field=\"inkMaterialId\">" + processOptions(tintaOptions, item.inkMaterialId) + "</select></label>";
-    var selWhite = state.form.header.useWhiteInk ? "<label class=\"span-2\"><span>Tinta Blanca</span><select data-scope=\"" + esc(scope) + "\" data-field=\"whiteInkMaterialId\">" + processOptions(tbOpts, item.whiteInkMaterialId) + "</select></label>" : "";
-    stationsHtml = "<div class=\"process-zone\"><div class=\"process-zone-head\"><h4>Par\u00e1metros de Tinta</h4></div><div class=\"process-print-grid process-print-grid-ink\">" + selCmyk + selWhite + "<label><span>Cobertura Tinta</span>" + displayInput(scope, "coveragePct", item.coveragePct, { suffix: "%", maximumFractionDigits: 2 }) + "</label><label><span>BCM Anilox</span>" + displayInput(scope, "aniloxBcm", item.aniloxBcm, { maximumFractionDigits: 4 }) + "</label><label><span>Factor Transferencia</span>" + displayInput(scope, "transferFactor", item.transferFactor, { maximumFractionDigits: 4 }) + "</label><label><span>Densidad Tinta</span>" + displayInput(scope, "inkDensity", item.inkDensity, { maximumFractionDigits: 4 }) + "</label><label><span>Costo Lb CMYK</span>" + displayInput(scope, "inkCostPerLb", item.inkCostPerLb, { prefix: "$", maximumFractionDigits: 4 }) + "</label><label><span>Costo Lb Blanco</span>" + displayInput(scope, "whiteInkCostPerLb", item.whiteInkCostPerLb, { prefix: "$", maximumFractionDigits: 4 }) + "</label><label><span>Costo Lb Pantone</span>" + displayInput(scope, "pantoneInkCostPerLb", item.pantoneInkCostPerLb, { prefix: "$", maximumFractionDigits: 4 }) + "</label></div></div>";
-  }
-  var motivoBreakdownHtml = "";
-  if (printItem.motivoInkTotals && printItem.motivoInkTotals.byType.length > 1) {
-    var motivoRows = printItem.motivoInkTotals.byType.map(function(row) {
-      return "<div class=\"types-summary-row\"><span>" + esc(row.name || ("Motivo " + (row.index + 1))) + " (" + num(row.quantity, 0) + ")</span><strong>" + num(row.consumption, 4) + " lb · " + money(row.subtotal) + "</strong></div>";
-    }).join("");
-    motivoBreakdownHtml = "<div class=\"process-zone\"><div class=\"process-zone-head\"><h4>Tinta por Motivo</h4></div><div class=\"types-summary-rows\">" + motivoRows + "<div class=\"types-summary-row is-total\"><span>Total</span><strong>" + num(printItem.motivoInkTotals.consumption, 4) + " lb · " + money(printItem.motivoInkTotals.subtotal) + "</strong></div></div></div>";
-  }
-  var profZone = "<div class=\"process-zone\"><div class=\"process-zone-head\"><h4>Tipos de Trabajo</h4></div><div class=\"process-inline-table-shell\">" + renderInkProfiles(scope, item.inkProfiles || []) + "</div></div>";
-  var metHtml = "";
-  if (hasStations) {
-    metHtml = "<div class=\"readonly-grid compact-top step-metrics\">" + metric("Consumo Total", num(printItem.inkConsumption || 0, 4) + " lb") + metric("Subtotal Tinta", money(printItem.inkSubtotal || 0)) + "</div>";
-  } else {
-    metHtml = "<div class=\"readonly-grid compact-top step-metrics\">" + metric("Tintas Requeridas", num(printItem.colors || 0, 0)) + metric("Consumo Tinta", num(printItem.inkConsumption || 0, 4) + " lb") + metric("Costo por Lb", money(printItem.inkCostPerLb || 0)) + metric("Subtotal Tinta", money(printItem.inkSubtotal || 0)) + "</div>";
-  }
-  return "<details class=\"subprocess-card inline-process-card print-ink-card\" data-open-key=\"" + esc(scope) + ".ink\"><summary class=\"inline-process-summary\"><div class=\"inline-process-heading\"><strong>C\u00e1lculo de Tinta Convencional</strong></div><div class=\"process-summary-side\"><em>" + money(printItem.inkSubtotal || 0) + "</em>" + info + "</div></summary><div class=\"process-body\">" + stationsHtml + motivoBreakdownHtml + profZone + metHtml + "</div></details>";
+  return tipos.map((t) => ({ ...t, count: totals[t.key].count, consumption: r(totals[t.key].consumption, 6), subtotal: r(totals[t.key].subtotal) }));
+}
+
+// Auditoría del monto de "Configuración de Impresión": describe paso a paso, con los datos reales
+// del cálculo actual, cómo se llega al costo de tinta (Σ de todas las estaciones de todos los
+// motivos). Misma fuente de verdad que la tabla (calcMotivoInkTotals / calcMotivoInkStationRow),
+// nunca un número recalculado aparte. El HTML viaja dentro de data-info-body-html="${esc(...)}"
+// (ver renderMotivoInkCostInfoAnchor), así que puede usar comillas dobles con normalidad.
+function motivoInkCostAuditHtml(form = state.form) {
+  const totals = calcMotivoInkTotals(form);
+  const widthIn = n(form.header?.labelWidthIn, 0);
+  const heightIn = n(form.header?.labelHeightIn, 0);
+  const areaPerLabel = r(widthIn * heightIn, 6);
+  const mermaRatio = n(totals.mermaRatio, 1);
+  const noPrint = Boolean(form.header?.noPrint);
+
+  const baseRows = [
+    ["Ancho de etiqueta", `${num(widthIn, 4)} in`],
+    ["Alto de etiqueta", `${num(heightIn, 4)} in`],
+    ["Área impresa por etiqueta", `${num(widthIn, 4)} in × ${num(heightIn, 4)} in = ${num(areaPerLabel, 4)} in²`],
+    ["Artes", formatInteger(totals.byType.length)],
+    ["Proporción de merma", `× ${num(mermaRatio, 4)} (longitud total con merma ÷ longitud neta, igual que Sustrato)`],
+    ["Sin impresión", noPrint ? "Sí — área impresa = 0" : "No"]
+  ];
+  const baseTable = `<table class="motivo-station-audit-table"><tbody>${baseRows.map((row) => `<tr><td>${row[0]}</td><td>${row[1]}</td></tr>`).join("")}</tbody></table>`;
+
+  const motivoBlocks = totals.byType.map((motivo) => {
+    const motivoName = esc(motivo.name || `Arte ${motivo.index + 1}`);
+    const printedArea = noPrint ? 0 : r(areaPerLabel * Math.max(0, n(motivo.quantity, 0)), 6);
+    const areaStep = auditFormulaStepHtml(
+      `Área impresa total — ${motivoName}`,
+      "Área impresa total = Área impresa por etiqueta × Cantidad de productos",
+      `${num(areaPerLabel, 4)} in² × ${formatInteger(motivo.quantity)} uds`,
+      `= ${num(printedArea, 2)} in²`
+    );
+    const stationLines = (motivo.stations || []).map((s, i) =>
+      `Estación ${i + 1} (${esc(s.inkLabel || tipoLabelFor(s.tipo) || "—")}): ${num(printedArea, 0)} in² × ${num(s.coveragePct, 2)}% × ${num(s.aniloxBcm, 4)} BCM × ${num(s.transferFactor, 4)} × ${num(s.inkDensity, 4)} kg/L × 0.001 ÷ 1000 = ${num(s.netConsumptionKg, 4)} kg neto → × ${num(mermaRatio, 4)} merma = ${num(s.consumptionKg, 4)} kg → × ${money(s.inkCostPerKg)}/kg = ${money(s.subtotal)}`
+    ).join("<br>");
+    const consumoStep = auditFormulaStepHtml(
+      `Consumo y costo de tinta — ${motivoName}`,
+      "Consumo neto (kg) = Área impresa total × (Cobertura ÷ 100) × BCM Anilox × Factor de Transferencia × Densidad × 0.001 ÷ 1000<br>Consumo facturado (kg) = Consumo neto × Proporción de merma<br>Subtotal de estación = Consumo facturado × Costo por kg",
+      stationLines || "Sin tintas configuradas en este arte.",
+      `Subtotal del arte = ${money(motivo.subtotal)}`
+    );
+    return `${areaStep}${consumoStep}`;
+  }).join("");
+
+  const totalStep = auditFormulaStepHtml(
+    "Costo de Configuración de Impresión",
+    "Total = Σ subtotales de todos los artes",
+    totals.byType.map((m) => money(m.subtotal)).join(" + ") || "0",
+    `= ${money(totals.subtotal)}`
+  );
+
+  return `<div class="motivo-station-audit-body">${baseTable}${motivoBlocks}${totalStep}</div>`;
+}
+
+// Ícono de información del monto de "Configuración de Impresión". Mismo patrón que
+// renderPackagingInfoButton: botón dentro de .process-info-anchor para que subprocessCard lo suba
+// al encabezado; el HTML se pasa esc() dentro del atributo, así que admite comillas dobles.
+function renderMotivoInkCostInfoAnchor() {
+  const { icon, color: iconColor, size: iconSize } = fieldInfoIconConfig();
+  const html = motivoInkCostAuditHtml(state.form);
+  return `<div class="process-info-anchor"><button type="button" class="info-popover-trigger formula-help" style="--info-icon-color:${esc(iconColor)};--info-icon-size:${esc(iconSize)}px;" aria-label="Costo de Configuración de Impresión" aria-expanded="false" aria-haspopup="dialog" data-info-title="Costo de Configuración de Impresión" data-info-body-html="${esc(html)}" data-info-wide="true">${renderIconMarkup(icon, "Costo de Configuración de Impresión", "info-popover-icon")}</button></div>`;
+}
+
+// Configuración de Impresión (reemplaza a Cálculo de Tinta Convencional, eliminado): la tabla de
+// Motivos + Tintas por estación, antes en un modal, ahora vive aquí como primer sub-bloque de la
+// tarjeta de Proceso de Impresión, antes de Merma de Procesos y Subprocesos Acabados Impresión.
+function renderMotivosConfigBlock(printItem) {
+  const body = `<div id="motivosInlineTable">${typesInfoTableHtml(calcTypes())}</div>${renderMotivoInkCostInfoAnchor()}`;
+  const subtotal = printItem.motivoInkTotals?.subtotal ?? printItem.inkSubtotal ?? 0;
+  const tintasSummary = motivoInkTiposBreakdown(printItem.motivoInkTotals).filter((t) => t.count > 0).map((t) => `${t.label} ${t.count}`).join(" · ");
+  const titleMarkup = tintasSummary ? `Configuración de Impresión<span class="motivos-config-tintas-summary">${esc(tintasSummary)}</span>` : "Configuración de Impresión";
+  return subprocessCard("motivos.config", titleMarkup, subtotal, body, "motivos-config-shell", true);
 }
 
 function renderDigitalPremierBlock(scope, item, printItem) {
@@ -8678,8 +14671,21 @@ function renderDigitalInkBlock(scope, item, printItem) {
 
 function renderPrintMaculaBlock(scope, printItem, isConventional) {
   if (!isConventional) return "";
-  const info = "La sumatoria de merma suma la merma de montaje y la merma de impresión. El costo de material usa el sustrato seleccionado y los pies adicionales consumidos.";
-  return `<details class="subprocess-card inline-process-card print-macula-card" data-open-key="${esc(scope)}.macula"><summary class="inline-process-summary"><div class="inline-process-heading"><strong>Merma de Procesos</strong></div><div class="process-summary-side"><em>${money(printItem.maculaMaterialSubtotal || 0)}</em>${infoPopoverButton("Merma de Procesos", info, "formula-help")}</div></summary><div class="process-body"><div class="editable-grid macula-cost-grid"><label><span>Merma Montaje</span>${displayInput(scope, "maculaSetupFeet", printItem.macula?.setupFeet || 0, { suffix: "pies", maximumFractionDigits: 2 })}</label><label><span>Merma Impresión</span>${displayInput(scope, "maculaTirajeFeet", printItem.macula?.tirajeFeet || 0, { suffix: "pies", maximumFractionDigits: 2 })}</label><label><span>Sumatoria</span>${readonlyDisplay(`${num(printItem.macula?.totalFeet || 0, 2)} pies`)}</label><label><span>% Merma Imp.</span>${displayInput(scope, "maculaTirajePct", printItem.macula?.tirajePct || 0, { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>Costo Merma</span>${readonlyDisplay(money(printItem.maculaMaterialSubtotal || 0))}</label></div></div></details>`;
+  const info = "Material requerido = Tiraje bueno + Merma de montaje + Merma porcentual. " +
+    "Merma de montaje: Impresión se calcula como Metros por Estación de Impresión x la cantidad de tintas de cada arte (cada arte usa exclusivamente sus propias tintas); los acabados de una sola estación (Troquelado, Laminado, Barniz, Embosado) se suman una sola vez por trabajo, sin importar la cantidad de artes. Los artes adicionales solo generan merma de montaje de impresión. " +
+    "Merma porcentual: se calcula una sola vez sobre la longitud total del trabajo, con el porcentaje de la combinación de procesos que la máquina de impresión realmente hace (impresión más sus acabados internos), baja de la combinación con más acabados hacia la de solo impresión hasta encontrar la que le corresponde; no se aplica nuevamente el porcentaje de solo impresión a los artes adicionales. " +
+    "Fuente de los valores: los metros por estación vienen de la máquina del trabajo (Configuración → Inventario de Máquinas → merma de arranque) si los define, o de la tabla maestra en Configuración → Costos → Convencional → Merma en Metros por Estación de Montaje (editable por etapa en esta pantalla); la cantidad de tintas sale de las estaciones de tinta de cada arte (el barniz en estación no se multiplica por arte: es un acabado general compartido entre artes); el porcentaje sale de Configuración → Costos → Convencional → Merma en Porcentaje de Tiraje según la combinación de procesos activa.";
+  const macula = printItem.macula || {};
+  const tintas = Array.isArray(macula.tintasPorMotivo) ? macula.tintasPorMotivo : [];
+  const acabados = Array.isArray(macula.acabadosActivos) ? macula.acabadosActivos : [];
+  const porEstacion = num(macula.impresionPorEstacion || 0, 2);
+  const desgloseImp = tintas.length
+    ? tintas.map((t, i) => `Arte ${i + 1}: ${porEstacion} m × ${num(t, 0)} tinta(s) = ${num((macula.impresionPorEstacion || 0) * t, 2)} m`).join(" · ")
+    : "Sin artes con tintas";
+  const desgloseAcabados = acabados.length
+    ? acabados.map((a) => `${esc(a.key)}: ${num(a.metros, 2)} m`).join(" · ")
+    : "Sin acabados activos";
+  return `<details class="subprocess-card inline-process-card print-macula-card" data-open-key="${esc(scope)}.macula"><summary class="inline-process-summary"><div class="inline-process-heading"><strong>Merma de Procesos</strong></div><div class="process-summary-side"><em>${money(printItem.maculaMaterialSubtotal || 0)}</em>${infoPopoverButton("Merma de Procesos", info, "formula-help")}</div></summary><div class="process-body"><div class="editable-grid macula-cost-grid"><label><span>Merma Montaje</span>${readonlyDisplay(`${num(macula.setupMeters || 0, 2)} m`)}</label><label><span>Merma Impresión</span>${displayInput(scope, "maculaTirajeMeters", macula.tirajeMeters || 0, { suffix: "m", maximumFractionDigits: 2 })}</label><label><span>Sumatoria</span>${readonlyDisplay(`${num(macula.totalMeters || 0, 2)} m`)}</label><label><span>% Merma Imp.</span>${displayInput(scope, "maculaTirajePct", macula.tirajePct || 0, { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>Costo Merma</span>${readonlyDisplay(money(printItem.maculaMaterialSubtotal || 0))}</label></div><div class="readonly-grid compact-top step-metrics">${metric("Impresión (por estación × tintas)", desgloseImp)}${metric("Acabados activos (una vez)", desgloseAcabados)}</div></div></details>`;
 }
 
 function renderPrintStageCard(item, printItem, index, orderNumber) {
@@ -8701,12 +14707,17 @@ function renderPrintStageCard(item, printItem, index, orderNumber) {
     : `<div class="inline-toggle-note">Esta máquina no tiene subprocesos inline habilitados para cotización.</div>`;
   const speedDisplayValue = n(item.speedMetersMin, 0);
   const speedUnit = printSpeedUnit(stageMachine);
-  const configZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Configuración</h4></div><div class="process-machine-row"><label class="span-2"><span>Máquina</span><select data-scope="${scope}" data-field="machineId">${processOptions(stagePrintOptions, item.machineId)}</select></label></div><div class="process-subsection"><h5>Producción</h5><div class="process-print-grid process-print-grid-production"><label><span>Setup <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", item.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Limpieza <span class="field-unit">min</span></span>${displayInput(scope, "cleaningMinutes", item.cleaningMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Montaje <span class="field-unit">min</span></span>${displayInput(scope, "mountingMinutes", item.mountingMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Merma Arranque <span class="field-unit">ft</span></span>${displayInput(scope, "maculaSetupFeet", item.maculaSetupFeet, { suffix: "ft", maximumFractionDigits: 2 })}</label><label><span>% Merma Tiraje</span>${displayInput(scope, "maculaTirajePct", firstPositiveNumber(printItem.macula?.tirajePct, item.maculaTirajePct), { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>Velocidad <span class="field-unit">${speedUnit}</span></span>${displayInput(scope, "speedMetersMin", item.speedMetersMin, { suffix: speedUnit, maximumFractionDigits: 2, inputValue: speedDisplayValue, displayValue: speedDisplayValue })}</label><label><span>Estaciones</span>${displayInput(scope, "availableColors", item.availableColors, { integer: true, maximumFractionDigits: 0, step: "1" })}</label><label><span>Costo Máquina <span class="field-unit">$/h</span></span>${displayInput(scope, "costHour", item.costHour, { prefix: "$", maximumFractionDigits: 2 })}</label><label><span>Costo Operador <span class="field-unit">$/h</span></span>${displayInput(scope, "operatorHourCost", item.operatorHourCost, { prefix: "$", maximumFractionDigits: 2 })}</label></div></div></div>`;
-  const costInfo = isConventionalMachine ? "Tiempo total = setup + limpieza + montaje + proceso lineal. Consumo tinta = área impresa x cobertura x BCM anilox x factor transferencia x densidad tinta x tintas requeridas." : "Tiempo total = setup + limpieza + montaje + proceso lineal. En digital, la tinta se cobra por consumo kg o por clic según la máquina; Premier se suma si el sustrato requiere tratamiento.";
-  const metricsZone = `<div class="process-zone process-zone-accent"><div class="process-zone-head"><h4>Indicadores del Proceso</h4></div><div class="process-kpi-grid">${metricBox("Pies Netos", printItem.linealFeet > 0 ? `${num(printItem.linealFeet || 0, 2)} pies` : "Pendiente", n(printItem.linealFeet, 0) <= 0)}${metricBox("Merma Total", printItem.startupWasteFeet > 0 ? `${num(printItem.startupWasteFeet || 0, 2)} pies` : "Pendiente", (printItem.issues || []).some((issue) => String(issue).toLowerCase().includes("merma")))}${metricBox("Longitud Total", printItem.totalLengthFeet > 0 ? `${num(printItem.totalLengthFeet || 0, 2)} pies` : "Pendiente", (printItem.issues || []).length > 0)}${metricBox("Tiempo Total", printItem.totalMinutes > 0 ? `${num(printItem.totalMinutes || 0, 2)} min` : "Pendiente", (printItem.issues || []).some((issue) => issue.includes("Velocidad") || issue.includes("Montaje y Ajuste")))}</div>${issueList("Problemas detectados en la fórmula", printItem.issues || [])}</div>`;
+  const volteadoraMachineOk = Boolean(stageMachine?.volteadora);
+  const volteadoraEnabled = Boolean(item.volteadora) && volteadoraMachineOk;
+  const configZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Configuración</h4></div><div class="process-machine-row"><label class="span-2"><span>Máquina</span><select data-scope="${scope}" data-field="machineId">${processOptions(stagePrintOptions, item.machineId)}</select></label></div><div class="process-subsection"><h5>Producción</h5><div class="process-print-grid process-print-grid-production"><label><span>Setup <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", item.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Lavado Estación <span class="field-unit">min</span></span>${displayInput(scope, "cleaningMinutes", item.cleaningMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Montaje <span class="field-unit">min</span></span>${displayInput(scope, "mountingMinutes", item.mountingMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label class="inline-process-check inline-field-check" title="Suma los minutos de setup de la volteadora configurados en el inventario de la máquina. Solo disponible si la máquina tiene volteadora."><input data-scope="${scope}" data-field="volteadora" type="checkbox"${item.volteadora ? " checked" : ""}${volteadoraMachineOk ? "" : " disabled"}><span>Volteadora</span></label><label><span>Min. Volteadora <span class="field-unit">min</span></span>${displayInput(scope, "volteadoraSetupMin", volteadoraEnabled ? n(machine?.volteadoraSetupMin, n(item.volteadoraSetupMin, 0)) : 0, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Merma Montaje Impresi&oacute;n <span class="field-unit">m/estaci&oacute;n</span></span>${displayInput(scope, "maculaSetupMeters", item.maculaSetupMeters, { suffix: "m/estación", maximumFractionDigits: 4 })}</label><label><span>% Merma Tiraje</span>${displayInput(scope, "maculaTirajePct", firstPositiveNumber(printItem.macula?.tirajePct, item.maculaTirajePct), { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>Velocidad <span class="field-unit">${speedUnit}</span></span>${displayInput(scope, "speedMetersMin", item.speedMetersMin, { suffix: speedUnit, maximumFractionDigits: 2, inputValue: speedDisplayValue, displayValue: speedDisplayValue })}</label><label><span>Estaciones</span>${displayInput(scope, "availableColors", item.availableColors, { integer: true, maximumFractionDigits: 0, step: "1" })}</label><label><span>Costo Máquina <span class="field-unit">$/h</span></span>${displayInput(scope, "costHour", item.costHour, { prefix: "$", maximumFractionDigits: 2 })}</label><label><span>Costo Operador <span class="field-unit">$/h</span></span>${displayInput(scope, "operatorHourCost", item.operatorHourCost, { prefix: "$", maximumFractionDigits: 2 })}</label></div></div></div>`;
+  const costInfo = isConventionalMachine ? "Tiempo total = setup + lavado estación + montaje + proceso lineal. Consumo tinta = área impresa x cobertura x BCM anilox x factor transferencia x densidad tinta x tintas requeridas." : "Tiempo total = setup + lavado estación + montaje + proceso lineal. En digital, la tinta se cobra por consumo kg o por clic según la máquina; Premier se suma si el sustrato requiere tratamiento.";
+  const metricsZone = `<div class="process-zone process-zone-accent"><div class="process-zone-head"><h4>Indicadores del Proceso</h4></div><div class="process-kpi-grid">${metricBox("Metros Netos", printItem.linealMeters > 0 ? `${num(printItem.linealMeters || 0, 2)} m` : "Pendiente", n(printItem.linealMeters, 0) <= 0)}${metricBox("Merma Total", printItem.startupWasteMeters > 0 ? `${num(printItem.startupWasteMeters || 0, 2)} m` : "Pendiente", (printItem.issues || []).some((issue) => String(issue).toLowerCase().includes("merma")))}${metricBox("Longitud Total", printItem.totalLengthMeters > 0 ? `${num(printItem.totalLengthMeters || 0, 2)} m` : "Pendiente", (printItem.issues || []).length > 0)}${metricBox("Tiempo Total", printItem.totalMinutes > 0 ? `${num(printItem.totalMinutes || 0, 2)} min` : "Pendiente", (printItem.issues || []).some((issue) => issue.includes("Velocidad") || issue.includes("Montaje y Ajuste")))}</div>${issueList("Problemas detectados en la fórmula", printItem.issues || [])}</div>`;
   const maculaZone = renderPrintMaculaBlock(scope, printItem, isConventionalMachine);
   const premierZone = !isConventionalMachine ? renderDigitalPremierBlock(scope, item, printItem) : "";
-  const inkZone = isConventionalMachine ? renderPrintInkBlock(scope, item, printItem) : renderDigitalInkBlock(scope, item, printItem);
+  const inkZone = isConventionalMachine ? (index === 0 ? renderMotivosConfigBlock(printItem) : "") : renderDigitalInkBlock(scope, item, printItem);
+  const inkTipoSummaryRows = isConventionalMachine && printItem.motivoInkTotals
+    ? motivoInkTiposBreakdown(printItem.motivoInkTotals).filter((t) => t.count > 0).map((t) => summaryRowWithInfo(`Costo Tinta ${t.label}`, money(t.subtotal), `${t.label}: ${num(t.consumption, 4)} kg × costo/kg de cada tinta configurada.`)).join("")
+    : "";
   const costZone = `<div class="process-zone process-zone-accent">
         <div class="process-zone-head"><h4>1. Configuración de Tintas</h4></div>
         <div class="summary-rows process-cost-summary">
@@ -8720,11 +14731,11 @@ function renderPrintStageCard(item, printItem, index, orderNumber) {
         
         <div class="process-zone-head"><h4>2. Merma de Procesos</h4></div>
         <div class="summary-rows process-cost-summary">
-            ${summaryRowWithInfo("Merma Montaje", `${num(printItem.macula?.setupFeet || 0, 2)} pies`, "Merma de montaje del proceso.")}
-            ${summaryRowWithInfo("Merma Impresión", `${num(printItem.macula?.tirajeFeet || 0, 2)} pies`, "Merma de impresión calculada para el tiraje.")}
-            ${summaryRowWithInfo("Sumatoria", `${num(printItem.macula?.totalFeet || printItem.startupWasteFeet || 0, 2)} pies`, "Suma de merma de montaje y merma de impresión.")}
+            ${summaryRowWithInfo("Merma Montaje", `${num(printItem.macula?.setupMeters || 0, 2)} m`, "Impresión = Metros por Estación de Impresión × tintas de cada arte; acabados activos se suman una sola vez. Los artes adicionales solo generan merma de montaje de impresión.")}
+            ${summaryRowWithInfo("Merma Impresión", `${num(printItem.macula?.tirajeMeters || 0, 2)} m`, "Merma porcentual calculada una sola vez sobre la longitud total del trabajo, con el porcentaje de la combinación de procesos.")}
+            ${summaryRowWithInfo("Sumatoria", `${num(printItem.macula?.totalMeters || printItem.startupWasteMeters || 0, 2)} m`, "Suma de merma de montaje y merma porcentual.")}
             ${isConventionalMachine ? summaryRowWithInfo("Costo Merma", money(printItem.maculaMaterialSubtotal || 0), "Costo de material adicional generado por merma. Se muestra aquí para lectura operativa y forma parte del consumo de sustrato.") : ""}
-            ${summaryRowWithInfo("Importe Merma", money(printItem.maculaTotalFeetCost || 0), "Merma = pies × $/pie. Se incluye en el consumo total de material.")}
+            ${summaryRowWithInfo("Importe Merma", money(printItem.maculaMaterialSubtotal || 0), "Merma = metros × $/metro. Se incluye en el consumo total de material.")}
         </div>
         
         <div class="process-zone-head"><h4>3. Costos por Tipo de Tinta</h4></div>
@@ -8732,6 +14743,8 @@ function renderPrintStageCard(item, printItem, index, orderNumber) {
             ${summaryRowWithInfo("Costo Máquina", money(printItem.machineSubtotal || 0), "Costo Máquina", costInfo)}
             ${summaryRowWithInfo("Costo Operador", money(printItem.operatorSubtotal || 0), "Costo Operador", costInfo)}
             ${summaryRowWithInfo("Costo Tinta", money(printItem.inkSubtotal || 0), "Costo Tinta = MSI consumida × $/MSI × Tintas requeridas", costInfo)}
+            ${isConventionalMachine ? summaryRowWithInfo("Costo Tinta Merma", money(printItem.inkMermaSubtotal || 0), "Porción del Costo Tinta que corresponde a la merma de montaje + tiraje (misma proporción que usa Sustrato), no al producto entregado al cliente.") : ""}
+            ${inkTipoSummaryRows}
             ${!isConventionalMachine ? summaryRowWithInfo("Premier", money(printItem.premierSubtotal || 0), "Premier", "Tratamiento de sustrato: líquido, setup y proceso offline o mantenimiento in-line.") : ""}
             ${!isConventionalMachine ? summaryRowWithInfo("Lavados Especiales", money(printItem.digitalWashSubtotal || 0), "Lavados Especiales", "Costo por lavados de tintas especiales o gamut extendido.") : ""}
         </div>
@@ -8742,11 +14755,11 @@ function renderPrintStageCard(item, printItem, index, orderNumber) {
             <div class="summary-row process-row-total"><span>Subtotal Impresión</span><strong>${money(printItem.subtotal || 0)}</strong></div>
         </div>
     </div>`;
-  const speedLengthUnit = speedUnit === "m/min" ? "metros" : "pies";
+  const speedLengthUnit = "metros";
   const lowerBlocks = [premierZone, inkZone, maculaZone, `<div class="inline-print-zone">${inlineZone}</div>`].filter(Boolean).join("");
-  const body = `<div class="process-layout process-layout-print"><div class="process-layout-main">${configZone}</div><div class="process-layout-side">${metricsZone}${costZone}</div></div><div class="print-stage-expanded-blocks">${lowerBlocks}</div>${formula("Fórmula de Tiempo Total", `Tiempo Total en Máquina (min) = (Longitud Total en ${speedLengthUnit} / Velocidad de Operación en ${speedUnit}) + Tiempo de Montaje y Ajuste`, "La longitud total de impresión suma la merma y luego se divide entre la velocidad real de operación. Después se agrega el tiempo de preparación, limpieza y montaje.", {
+  const body = `<div class="process-layout process-layout-print"><div class="process-layout-main">${configZone}${metricsZone}</div><div class="process-layout-side">${costZone}</div></div><div class="print-stage-expanded-blocks">${lowerBlocks}</div>${formula("Fórmula de Tiempo Total", `Tiempo Total en Máquina (min) = (Longitud Total en ${speedLengthUnit} / Velocidad de Operación en ${speedUnit}) + Tiempo de Montaje y Ajuste`, "La longitud total de impresión suma la merma y luego se divide entre la velocidad real de operación. Después se agrega el tiempo de preparación, limpieza y montaje.", {
     exampleLines: [
-      `Tiempo Total: (${formulaValue(printItem.totalLengthFeet || printItem.totalLengthMeters || 0, 2)} / ${formulaValue(item.speedMetersMin, 2)}) + ${formulaValue(printItem.setupAdjustmentMin || 0, 2)} = ${formulaValue(printItem.totalMinutes || 0, 2)} min`,
+      `Tiempo Total: (${formulaValue(printItem.totalLengthMeters || 0, 2)} / ${formulaValue(item.speedMetersMin, 2)}) + ${formulaValue(printItem.setupAdjustmentMin || 0, 2)} = ${formulaValue(printItem.totalMinutes || 0, 2)} min`,
       `Subtotal Impresión: ${formulaValue(printItem.machineSubtotal || 0, 2)} + ${formulaValue(printItem.operatorSubtotal || 0, 2)} + ${formulaValue(printItem.inkSubtotal || 0, 2)} + ${formulaValue(printItem.inlineSubtotal || 0, 2)} = ${formulaValue(printItem.rawSubtotal ?? printItem.subtotal ?? 0, 2)}`,
       ...minimumCostExampleLines(printItem, "Impresión")
     ],
@@ -8759,7 +14772,7 @@ function renderExternalFinishCard(config, finish, index, orderNumber) {
   const materialOptions = getFinishMaterialOptions(config.materialFamily, config.materialKeywords || []);
   const machineOptions = finishMachineOptions(config, finish.machineId);
   const scope = `finishes.${index}`;
-  const speedSuffix = "ft/min";
+  const speedSuffix = "m/min";
   const displayTotalMinutes = r(n(finish.setupMinutes, 0) + n(finish.runMinutes, 0), 6);
   const processMachineCost = r((displayTotalMinutes / 60) * n(first(finish.costHourMachine, finish.costHour), 0), 4);
   const processOperatorCost = r((displayTotalMinutes / 60) * n(finish.costHourOperator, 0), 4);
@@ -8771,8 +14784,8 @@ function renderExternalFinishCard(config, finish, index, orderNumber) {
     `<label><span>Montaje <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", finish.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>`,
     `<label><span>Costo Máquina <span class="field-unit">$/h</span></span>${displayInput(scope, "costHourMachine", finish.costHourMachine, { prefix: "$", maximumFractionDigits: 2 })}</label>`,
     `<label><span>Costo Operador <span class="field-unit">$/h</span></span>${displayInput(scope, "costHourOperator", finish.costHourOperator, { prefix: "$", maximumFractionDigits: 2 })}</label>`,
-    `<label><span>Velocidad <span class="field-unit">ft/min</span></span>${displayInput(scope, "speed", finish.speed, { suffix: speedSuffix, maximumFractionDigits: 4 })}</label>`,
-    `<label><span>Merma Ajuste <span class="field-unit">ft</span></span>${displayInput(scope, "setupWasteFeet", finish.setupWasteFeet, { suffix: "ft", maximumFractionDigits: 2 })}</label>`,
+    `<label><span>Velocidad <span class="field-unit">m/min</span></span>${displayInput(scope, "speed", finish.speed, { suffix: speedSuffix, maximumFractionDigits: 4 })}</label>`,
+    `<label><span>Merma Ajuste <span class="field-unit">m</span></span>${displayInput(scope, "setupWasteMeters", finish.setupWasteMeters, { suffix: "m", maximumFractionDigits: 2 })}</label>`,
     `<label><span>Merma Operación <span class="field-unit">%</span></span>${displayInput(scope, "operationWastePct", finish.operationWastePct, { suffix: "%", maximumFractionDigits: 2 })}</label>`
   ];
   const plateFields = [];
@@ -8780,7 +14793,7 @@ function renderExternalFinishCard(config, finish, index, orderNumber) {
   if (config.usesWeightMaterial) {
     materialFields.push(
       `<label class="span-2"><span>Material</span><select data-scope="${scope}" data-field="materialId">${processOptions(materialOptions, finish.materialId)}</select></label>`,
-      `<label><span>Rendimiento <span class="field-unit">g/ft²</span></span>${displayInput(scope, "layerGft2", finish.layerGft2, { maximumFractionDigits: 6 })}</label>`,
+      `<label><span>Rendimiento <span class="field-unit">g/m²</span></span>${displayInput(scope, "layerGm2", finish.layerGm2, { maximumFractionDigits: 6 })}</label>`,
       `<label><span>Costo por Kilo <span class="field-unit">$/kg</span></span>${displayInput(scope, "costPerKg", finish.costPerKg, { prefix: "$", maximumFractionDigits: 6 })}</label>`
     );
   } else if (config.usesUnitMaterial) {
@@ -8791,7 +14804,7 @@ function renderExternalFinishCard(config, finish, index, orderNumber) {
   } else if (config.usesMaterial) {
     materialFields.push(
       `<label class="span-2"><span>Material</span><select data-scope="${scope}" data-field="materialId">${processOptions(materialOptions, finish.materialId)}</select></label>`,
-      `<label><span>Costo ft² <span class="field-unit">$/ft²</span></span>${displayInput(scope, "costPerFt2", finish.costPerFt2, { prefix: "$", maximumFractionDigits: 6 })}</label>`
+      `<label><span>Costo m² <span class="field-unit">$/m²</span></span>${displayInput(scope, "costPerM2", finish.costPerM2, { prefix: "$", maximumFractionDigits: 6 })}</label>`
     );
   }
   if (showLinearCost) {
@@ -8807,24 +14820,31 @@ function renderExternalFinishCard(config, finish, index, orderNumber) {
     );
     plateFields.push(`<label><span>Costo Cliché</span>${displayInput(scope, "plateCost", finish.plateCost, { prefix: "$", maximumFractionDigits: 2 })}</label>`);
   }
+  if (config.key === "rebobinado") {
+    machineFields.push(`<label><span>Cantidad Empalmes Máximo</span>${displayInput(scope, "empalmesMaximo", finish.empalmesMaximo, { integer: true, maximumFractionDigits: 0, step: "1" })}</label>`);
+  }
   const configZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Configuración</h4></div><div class="process-finish-grid">${machineFields.join("")}${plateFields.join("")}${materialFields.join("")}<label class="span-4"><span>Comentario</span><input data-scope="${scope}" data-field="comment" type="text" value="${esc(finish.comment || "")}"></label></div></div>`;
   const indicatorMetrics = [
-    metric("Base de Corrida", `${num(finish.calcBase || 0, 2)} pies`),
+    metric("Base de Corrida", `${num(finish.calcBase || 0, 2)} m`),
     metric("Tiempo Total", `${num(displayTotalMinutes, 2)} min`)
   ];
   if (config.usesUnitMaterial) {
     indicatorMetrics.push(metric("Cantidad Rollos", `${num(finish.materialBase || 0, 0)} unid`));
   } else if (config.usesMaterial) {
-    indicatorMetrics.push(metric("Base Material", `${num(finish.materialBase || 0, 2)} ft²`));
+    indicatorMetrics.push(metric("Base Material", `${num(finish.materialBase || 0, 2)} m²`));
     indicatorMetrics.push(metric("Ancho Material", `${num(finish.supplyWidthIn || 0, 2)} in`));
     indicatorMetrics.push(metric("Merma Operación", `${num(finish.wastePct || 0, 2)} %`));
   }
-  indicatorMetrics.push(metric("Merma Ajuste", `${num(finish.setupWasteFeet || 0, 2)} ft`));
+  indicatorMetrics.push(metric("Merma Ajuste", `${num(finish.setupWasteMeters || 0, 2)} m`));
   if (config.usesWeightMaterial) {
     indicatorMetrics.push(metric("Consumo Material", `${num(finish.materialConsumptionKg || 0, 4)} kg`));
+    indicatorMetrics.push(metric("Consumo Producto", `${num(finish.netMaterialConsumptionKg || 0, 4)} kg`));
+    indicatorMetrics.push(metric("Consumo Merma", `${num(finish.mermaMaterialConsumptionKg || 0, 4)} kg`));
   }
   if (config.usesMaterial) {
     indicatorMetrics.push(metric("Subtotal Material", money(finish.materialSubtotal || 0)));
+    indicatorMetrics.push(metric("Subtotal Producto", money(finish.netMaterialSubtotal || 0)));
+    indicatorMetrics.push(metric("Subtotal Merma", money(finish.mermaMaterialSubtotal || 0)));
   }
   if (showLinearCost) {
     indicatorMetrics.push(metric("Costo Lineal", money(linearCost)));
@@ -8873,7 +14893,7 @@ function renderExternalFinishCard(config, finish, index, orderNumber) {
 
 function renderMaculaMontajeRows(rows = []) {
   if (!rows.length) return `<div class="macula-empty">Sin parámetros de montaje cargados en Costos.</div>`;
-  return `<div class="macula-table"><div class="macula-table-head macula-table-row"><span>Detalle</span><span>Por Estación</span><span>Cantidad Tintas</span><span>Total Pies</span></div>${rows.map((row, index) => `<div class="macula-table-row"><input data-scope="macula.montajeRows.${index}" data-field="detalle" type="text" value="${esc(row.detalle || "")}"><input data-scope="macula.montajeRows.${index}" data-field="porEstacion" type="number" step="0.01" value="${esc(row.porEstacion)}"><input data-scope="macula.montajeRows.${index}" data-field="cantidadTintas" type="number" step="1" value="${esc(row.cantidadTintas)}"><input data-scope="macula.montajeRows.${index}" data-field="totalPies" type="number" step="0.01" value="${esc(row.totalPies)}"></div>`).join("")}</div>`;
+  return `<div class="macula-table"><div class="macula-table-head macula-table-row"><span>Detalle</span><span>Metros por Estación</span></div>${rows.map((row, index) => `<div class="macula-table-row"><input data-scope="macula.montajeRows.${index}" data-field="detalle" type="text" value="${esc(row.detalle || "")}"><input data-scope="macula.montajeRows.${index}" data-field="porEstacion" type="number" step="0.01" value="${esc(row.porEstacion)}"></div>`).join("")}</div>`;
 }
 
 function renderMaculaTirajeRows(rows = []) {
@@ -8942,9 +14962,9 @@ function renderProcesses() {
   };
   const nextTitle = (label) => `${orderNumber++}. ${label}`;
   const sectionBuilders = {
-    macula: () => card("macula", nextTitle("Merma"), "", macula.subtotal, `<div class="process-zone"><div class="process-zone-head"><h4>Merma Montaje</h4></div>${renderMaculaMontajeRows(state.form.macula?.montajeRows || [])}</div><div class="process-zone"><div class="process-zone-head"><h4>Merma Tiraje</h4></div>${renderMaculaTirajeRows(state.form.macula?.tirajeRows || [])}</div>${formula("Base de merma", macula.formulaText, macula.explanation, {
+    macula: () => card("macula", nextTitle("Merma"), "", macula.subtotal, `<div class="process-zone"><div class="process-zone-head"><h4>Merma Montaje (Metros por Estación)</h4></div>${renderMaculaMontajeRows(state.form.macula?.montajeRows || [])}</div><div class="process-zone"><div class="process-zone-head"><h4>Merma Tiraje</h4></div>${renderMaculaTirajeRows(state.form.macula?.tirajeRows || [])}</div>${formula("Base de merma", macula.formulaText, macula.explanation, {
       exampleLines: [
-        `Merma Montaje actual: ${formulaValue(macula.montajeTotalPies || 0, 2)} pies`,
+        `Merma Montaje de referencia: ${formulaValue(macula.montajeTotalMetros || 0, 2)} m por estación en total`,
         `Merma Tiraje promedio: ${formulaValue(macula.tirajePromedioPct || 0, 2)} %`,
         ...minimumCostExampleLines(macula, "Merma")
       ],
@@ -8952,26 +14972,22 @@ function renderProcesses() {
     })}`),
     troquel: () => {
       const dieMode = normalizeDieMode(state.form.troquel?.dieMode);
-      const selector = renderDieModeSelector();
-      const body = dieMode === "external"
-        ? `${selector}${renderDieExternalPanel(troquel)}`
-        : (dieMode === "inventory"
-          ? `${selector}${renderDieInventoryPanel(troquel)}`
-          : `${selector}${renderDiePendingPanel()}`);
-      return card("troquel", nextTitle("Troquel"), dieMode === "inventory" ? state.form.troquel.dieDescription : "", dieMode === "inventory" ? null : troquel.subtotal, body);
+      const body = renderDieInventoryPanel(troquel);
+      const cardValue = dieMode === "external" && n(troquel.subtotal, 0) > 0 ? troquel.subtotal : null;
+      return card("troquel", nextTitle("Troquel"), dieMode === "inventory" ? state.form.troquel.dieDescription : "", cardValue, body);
     },
-    sustrato: () => card("sustrato", nextTitle("Sustrato"), sustrato.materialName || "Selecciona material", sustrato.subtotal, `<div class="editable-grid substrate-grid"><label class="span-3"><span>Material</span><select data-scope="substrate" data-field="materialId">${processOptions(substrateMaterialOptions().map((item) => ({ id: item.id, nombre: item.nombre || item.name || item.descripcion || item.id })), state.form.substrate.materialId)}</select></label><label><span>Costo/pie</span>${displayInput("substrate", "costPerFoot", state.form.substrate.costPerFoot, { prefix: "$", suffix: "/pie", maximumFractionDigits: 6, step: "0.000001" })}</label><label class="span-3"><span>Nombre Comercial</span><input data-scope="substrate" data-field="nombreComercial" type="text" value="${esc(state.form.substrate.nombreComercial || '')}" placeholder="Nombre del material"></label></div><div class="readonly-grid compact-top">${metricBox("Etiquetas al Través", sustrato.acrossCount > 0 ? num(sustrato.acrossCount, 0) : "Pendiente", n(sustrato.acrossCount, 0) <= 0)}${metricBox("Desarrollo del Cilindro", sustrato.cylinderDevelopmentIn > 0 ? `${num(sustrato.cylinderDevelopmentIn, 3)} in` : "Pendiente", n(sustrato.cylinderDevelopmentIn, 0) <= 0)}${metricBox("Merma Total", sustrato.startupWasteFeet > 0 ? `${num(sustrato.startupWasteFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).some((issue) => String(issue).toLowerCase().includes("merma")))}${metricBox("Longitud Total", sustrato.totalLengthFeet > 0 ? `${num(sustrato.totalLengthFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).length > 0)}${metricBox("Área Total Consumida", sustrato.totalAreaFt2 > 0 ? `${num(sustrato.totalAreaFt2, 2)} ft²` : "Pendiente", n(sustrato.webWidthIn, 0) <= 0 || (sustrato.issues || []).length > 0)}${metric("Costo por Pie", money(sustrato.unitCost))}${metric("$ / Metro", money(n(sustrato.unitCost, 0) / 0.3048))}${metric("Subtotal", money(sustrato.subtotal))}</div>${issueList("Problemas detectados en la fórmula", sustrato.issues || [])}${formula("Costo del Sustrato", sustrato.formulaCost, sustrato.explanation, {
+    sustrato: () => card("sustrato", nextTitle("Sustrato"), sustrato.materialName || "Selecciona material", sustrato.subtotal, `<div class="editable-grid substrate-grid"><label class="span-3"><span>Material</span><select data-scope="substrate" data-field="materialId">${processOptions(substrateMaterialOptions().map((item) => ({ id: item.id, nombre: item.nombre || item.name || item.descripcion || item.id })), state.form.substrate.materialId)}</select></label><label><span>Costo/metro</span>${displayInput("substrate", "costPerMeter", state.form.substrate.costPerMeter, { prefix: "$", suffix: "/m", maximumFractionDigits: 6, step: "0.000001" })}</label><label class="span-3"><span>Nombre Comercial</span><input data-scope="substrate" data-field="nombreComercial" type="text" value="${esc(state.form.substrate.nombreComercial || '')}" placeholder="Nombre del material"></label></div>${sustratoFichaSapPanel(material)}<div class="readonly-grid compact-top">${metricBox("Etiquetas al Través", sustrato.acrossCount > 0 ? num(sustrato.acrossCount, 0) : "Pendiente", n(sustrato.acrossCount, 0) <= 0)}${metricBox("Desarrollo del Cilindro", sustrato.cylinderDevelopmentIn > 0 ? `${num(sustrato.cylinderDevelopmentIn, 3)} in` : "Pendiente", n(sustrato.cylinderDevelopmentIn, 0) <= 0)}${metricBox("Merma Total", sustrato.startupWasteMeters > 0 ? `${num(sustrato.startupWasteMeters, 2)} m` : "Pendiente", (sustrato.issues || []).some((issue) => String(issue).toLowerCase().includes("merma")))}${metricBox("Longitud Total", sustrato.totalLengthMeters > 0 ? `${num(sustrato.totalLengthMeters, 2)} m` : "Pendiente", (sustrato.issues || []).length > 0)}${metricBox("Área Total Consumida", sustrato.totalAreaM2 > 0 ? `${num(sustrato.totalAreaM2, 2)} m²` : "Pendiente", n(sustrato.webWidthIn, 0) <= 0 || (sustrato.issues || []).length > 0)}${metric("Costo por Metro", money(sustrato.unitCost))}${metric("Subtotal", money(sustrato.subtotal))}</div>${issueList("Problemas detectados en la fórmula", sustrato.issues || [])}${formula("Costo del Sustrato", sustrato.formulaCost, sustrato.explanation, {
       exampleLines: [
-        `Cantidad Lineal Sustrato: ( ${formulaValue(sustrato.qty || 0, 0)} x ${formulaValue(sustrato.cylinderDevelopmentIn || 0, 2)} ) / ( 12 x ${formulaValue(sustrato.acrossCount || 0, 0)} ) = ${formulaValue(sustrato.linealFeet || 0, 2)}`,
-        `Longitud Total: ${formulaValue(sustrato.linealFeet || 0, 2)} + ${formulaValue(sustrato.startupWasteFeet || 0, 2)} = ${formulaValue(sustrato.totalLengthFeet || 0, 2)}`,
-        `Costo de Sustrato: ( ${formulaValue(sustrato.linealFeet || 0, 2)} + ${formulaValue(sustrato.startupWasteFeet || 0, 2)} ) x ${formulaValue(sustrato.unitCost || 0, 4)} = ${formulaValue(sustrato.rawSubtotal ?? sustrato.subtotal ?? 0, 2)}`,
+        `Cantidad Lineal Sustrato: ( ${formulaValue(sustrato.qty || 0, 0)} x ${formulaValue(sustrato.cylinderDevelopmentIn || 0, 2)} ) / ( 12 x ${formulaValue(sustrato.acrossCount || 0, 0)} ) x 0.0254 = ${formulaValue(sustrato.linealMeters || 0, 2)}`,
+        `Longitud Total: ${formulaValue(sustrato.linealMeters || 0, 2)} + ${formulaValue(sustrato.startupWasteMeters || 0, 2)} = ${formulaValue(sustrato.totalLengthMeters || 0, 2)}`,
+        `Costo de Sustrato: ( ${formulaValue(sustrato.linealMeters || 0, 2)} + ${formulaValue(sustrato.startupWasteMeters || 0, 2)} ) x ${formulaValue(sustrato.unitCost || 0, 4)} = ${formulaValue(sustrato.rawSubtotal ?? sustrato.subtotal ?? 0, 2)}`,
         ...minimumCostExampleLines(sustrato, "Sustrato")
       ],
       answer: `R/ El total a cobrar del consumo de sustrato es ${money(sustrato.subtotal || 0)}`
     })}`),
     diseno: () => card("diseno", nextTitle("Diseño"), "", design.subtotal, `<div class="editable-grid design-cost-grid"><label><span>Artes</span>${displayInput("design", "artCount", state.form.design.artCount, { integer: true, step: "1" })}</label><label><span>Tiempo <span class="field-unit">h</span></span>${displayInput("design", "timePerArt", state.form.design.timePerArt, { suffix: "h", maximumFractionDigits: 2 })}</label><label><span>Cambios</span>${displayInput("design", "changeFactor", state.form.design.changeFactor, { maximumFractionDigits: 2 })}</label><label><span>Costo/h <span class="field-unit">$/h</span></span>${displayInput("design", "hourCost", state.form.design.hourCost, { prefix: "$", maximumFractionDigits: 2 })}</label><label><span>Tiempo Total</span>${readonlyDisplay(`${num(design.time, 2)} h`)}</label><label><span>Subtotal</span>${readonlyDisplay(money(design.subtotal))}</label></div>${formula("Cálculo de Diseño", design.formulaText, design.explanation, {
       exampleLines: [
-        `Tiempo total: (${formulaValue(state.form.header.quantityTypes || state.form.design.artCount || 0, 0)} x ${formulaValue(state.form.design.timePerArt || 0, 2)}) + (${formulaValue(totalChangesCount(state.form.header.quantityTypes, state.form.header.quantityChanges), 0)} x ${formulaValue(state.form.design.timePerArt || 0, 2)} x ${formulaValue(state.form.design.changeFactor || 0, 2)}) = ${formulaValue(design.time || 0, 2)} h`,
+        `Tiempo total: (${formulaValue(state.form.header.quantityTypes || state.form.design.artCount || 0, 0)} x ${formulaValue(state.form.design.timePerArt || 0, 2)}) + (${formulaValue(changesByTypesCount(state.form.header.quantityTypes), 0)} x ${formulaValue(state.form.design.timePerArt || 0, 2)} x ${formulaValue(state.form.design.changeFactor || 0, 2)}) = ${formulaValue(design.time || 0, 2)} h`,
         `Costo Diseño: ${formulaValue(design.time || 0, 2)} x ${formulaValue(state.form.design.hourCost || 0, 2)} = ${formulaValue(design.rawSubtotal ?? design.subtotal ?? 0, 2)}`,
         ...minimumCostExampleLines(design, "Diseño")
       ],
@@ -8985,7 +15001,7 @@ function renderProcesses() {
       ],
       answer: `R/ El total a cobrar por preprensa es ${money(prepress.subtotal || 0)}`
     })}${prepress.minimumApplied ? issueList("Nota", [`Se está utilizando el costo mínimo de preprensa (${money(prepress.minimumCost)}) porque el calculado (${money(prepress.rawSubtotal)}) es menor.`]) : ""}`),
-    planchas: () => {
+    sellos: () => {
       const plateMode = normalizePlateMode(state.form.plates?.plateMode);
       const selector = renderPlateModeSelector();
       const body = `${selector}${plateMode === "external"
@@ -8995,17 +15011,9 @@ function renderProcesses() {
         : (plateMode === "inventory"
           ? renderPlateInventoryPanel(plates)
           : renderPlatePendingPanel()))}`;
-      return card("planchas", `${nextTitle("Planchas")}${digitalProcessNote ? ` <span style="color:#c62828;font-size:12px;font-weight:400;">${esc(digitalProcessNote)}</span>` : ""}`, "", plateMode === "inventory" ? null : plates.subtotal, body);
+      return card("sellos", `${nextTitle("Sellos")}${digitalProcessNote ? ` <span style="color:#c62828;font-size:12px;font-weight:400;">${esc(digitalProcessNote)}</span>` : ""}`, "", plateMode === "inventory" ? null : plates.subtotal, body);
     },
-    empaque: () => card("empaque", nextTitle("Empaque"), "", packaging.subtotal, `<div class="editable-grid"><label><span>Rollos</span>${readonlyDisplay(`${num(state.form.packaging.rollCount || 0, 2)} rollos`)}</label><label><span>Rend./h</span>${displayInput("packaging", "yieldPerHour", state.form.packaging.yieldPerHour, { suffix: "rollos/h", maximumFractionDigits: 2, step: "0.01" })}</label><label><span>Operarios</span>${displayInput("packaging", "operators", state.form.packaging.operators, { integer: true, maximumFractionDigits: 0, step: "1" })}</label><label><span>Costo Op.</span>${displayInput("packaging", "hourCost", state.form.packaging.hourCost, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}</label><label><span>Costo Ext.</span>${displayInput("packaging", "externalCost", state.form.packaging.externalCost, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}</label><label class="span-2"><span>Comentarios</span><input data-scope="packaging" data-field="comments" type="text" value="${esc(state.form.packaging.comments)}"></label><label class="span-2 file-icon-field"><span>Adjunto <span class="field-unit-clip" aria-hidden="true">&#128206;</span></span><input data-scope="packaging" data-field="attachmentName" data-kind="file" type="file"></label></div><div class="readonly-grid compact-top">${metric("Tiempo", `${num(packaging.hours, 2)} h`)}${metric("Subtotal", money(packaging.subtotal))}</div>${formula("Cálculo de Empaque", packaging.formulaText, packaging.explanation, {
-      exampleLines: [
-        `Cantidad de Rollos: ${formulaValue(currentQuantity(state.form), 0)} / ${formulaValue(state.form.header.labelsPerRoll || 0, 0)} = ${formulaValue(packaging.rolls || 0, 4)}`,
-        `Tiempo Empaque: ${formulaValue(packaging.rolls || 0, 2)} / ${formulaValue(state.form.packaging.yieldPerHour || 0, 2)} = ${formulaValue(packaging.hours || 0, 2)} h`,
-        `Costo Empaque: (${formulaValue(packaging.hours || 0, 2)} x ${formulaValue(state.form.packaging.operators || 0, 0)} x ${formulaValue(state.form.packaging.hourCost || 0, 2)}) + ${formulaValue(state.form.packaging.externalCost || 0, 2)} = ${formulaValue(packaging.rawSubtotal ?? packaging.subtotal ?? 0, 2)}`,
-        ...minimumCostExampleLines(packaging, "Empaque")
-      ],
-      answer: `R/ El total a cobrar por empaque es ${money(packaging.subtotal || 0)}`
-    })}`),
+    empaque: () => { const p = state.form.packaging; const laborSub = r((n(p.yieldPerHour, 0) > 0 ? r(n(p.rollCount, 0) / n(p.yieldPerHour, 0)) : 0) * n(p.operators, 0) * n(p.hourCost, 0) + n(p.externalCost, 0)); const corePrice = n(state.form.header?.coreType?.precio, 0); return card("empaque", nextTitle("Empaque"), "", packaging.subtotal, `<div class="process-zone"><div class="process-zone-head"><h4>Mano de Obra</h4></div><div class="editable-grid"><label><span>Rendimiento por Hora</span>${displayInput("packaging", "yieldPerHour", p.yieldPerHour, { suffix: "rollos/h", maximumFractionDigits: 2, step: "0.01" })}</label><label><span>Costo del Operario</span>${displayInput("packaging", "hourCost", p.hourCost, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}</label><label><span>Cantidad de Operarios</span>${displayInput("packaging", "operators", p.operators, { integer: true, maximumFractionDigits: 0, step: "1" })}</label><label><span>Subtotal Mano de Obra</span>${readonlyDisplay(money(laborSub))}</label></div></div><div class="process-zone"><div class="process-zone-head"><h4>Core</h4></div><div class="editable-grid editable-grid-3"><label><span>Ancho de Core</span>${displayInput("header", "anchoCoreIn", state.form.header.anchoCoreIn, { suffix: "in", maximumFractionDigits: 3, step: "0.001" })}</label><label><span>Tipo de Core</span><select data-scope="header" data-field="coreType">${coreTypeOptionsHtml(JSON.stringify(state.form.header.coreType || {}))}</select></label><label><span>Costo por Core</span>${readonlyDisplay(money(corePrice))}</label><label><span>Etiquetas por Core</span>${displayInput("header", "labelsPerRoll", state.form.header.labelsPerRoll, { integer: true, suffix: "ud/core", step: "1" })}</label><label><span>Cantidad de Cores</span>${readonlyDisplay(num(packaging.coresNecesarios || 0, 0) + " cores")}</label><label><span>Costo de Cores</span>${readonlyDisplay(money(packaging.costoCores || 0))}</label></div>${p.coreWidthAdvertencia ? issueList("Advertencia", [p.coreWidthAdvertencia]) : ""}</div><div class="process-zone"><div class="process-zone-head"><h4>Costo de Caja</h4></div><div class="editable-grid editable-grid-5"><label><span>Rollos por Caja</span>${displayInput("header", "productosPorCaja", state.form.header.productosPorCaja, { integer: true, suffix: "rollos/caja", step: "1" })}</label><label><span>Cantidad de Cajas</span>${readonlyDisplay(num(packaging.cajas || 0, 0) + " cajas")}</label><label><span>Rollo Suelto</span>${readonlyDisplay(packaging.rollosSueltos ? `1 rollo con ${num(packaging.cantidadRolloSuelto || 0, 0)} unidades` : "Ninguno")}</label><label><span>Tipo de Caja</span><select data-scope="packaging" data-field="tipoCaja">${processOptions(state.costsConfig?.acabados?.cajas || [], p.tipoCaja)}</select></label><label><span>Costo por Caja</span>${displayInput("packaging", "costoCaja", p.costoCaja, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}</label><label><span>Subtotal Cajas</span>${readonlyDisplay(money(packaging.costoCajas || 0))}</label><label><span>Kilogramos por Caja</span>${displayInput("packaging", "kgPorCaja", p.kgPorCaja, { suffix: "kg/caja", maximumFractionDigits: 4, step: "0.0001" })}</label></div>${p.cajaAdvertencia ? issueList("Advertencia", [p.cajaAdvertencia]) : ""}</div><div class="process-zone"><div class="process-zone-head"><h4>Bolsas</h4></div><div class="editable-grid editable-grid-3"><label><span>Tipo de Bolsa</span><select data-scope="packaging" data-field="tipoBolsa">${processOptions((state.costsConfig?.acabados?.bolsas || []).map((b) => ({ id: b.id, nombre: bolsaResumen(b) })), p.tipoBolsa)}</select></label><label><span>Cantidad</span>${displayInput("packaging", "cantidadBolsas", p.cantidadBolsas, { integer: true, suffix: "bolsas", step: "1" })}</label><label><span>Subtotal Bolsas</span>${readonlyDisplay(money(packaging.costoBolsas || 0))}</label></div></div><div class="process-zone"><div class="process-zone-head"><h4>Datos de Tarima / Pallet</h4></div><div class="editable-grid"><label><span>Alto</span>${displayInput("packaging", "tarimaAlto", p.tarimaAlto, { suffix: "m", maximumFractionDigits: 2, step: "0.01" })}</label><label><span>Ancho</span>${displayInput("packaging", "tarimaAncho", p.tarimaAncho, { suffix: "m", maximumFractionDigits: 2, step: "0.01" })}</label><label><span>Largo</span>${displayInput("packaging", "tarimaLargo", p.tarimaLargo, { suffix: "m", maximumFractionDigits: 2, step: "0.01" })}</label><label><span>Peso</span>${displayInput("packaging", "tarimaPeso", p.tarimaPeso, { suffix: "kg", maximumFractionDigits: 2, step: "0.01" })}</label></div></div><div class="process-zone"><div class="process-zone-head"><h4>Servicio Externo</h4></div><div class="editable-grid"><label><span>Servicio Externo</span>${displayInput("packaging", "externalCost", p.externalCost, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}</label><label class="span-2"><span>Comentarios</span><input data-scope="packaging" data-field="comments" type="text" value="${esc(p.comments)}"></label><label class="file-icon-field"><span>${renderClipAdjuntoLinea()}</span><input data-scope="packaging" data-field="attachmentName" data-kind="file" type="file"></label></div></div><div class="readonly-grid compact-top">${metric("Tiempo", `${num(packaging.hours, 2)} h`)}${metric("Cores", `${num(packaging.coresNecesarios || 0, 0)} cores`)}${metric("Costo Cores", money(packaging.costoCores || 0))}${metric("Costo Cajas", money(packaging.costoCajas || 0))}${metric("Costo Bolsas", money(packaging.costoBolsas || 0))}${metric("Subtotal", money(packaging.subtotal))}</div>${buildEmpaqueInfoHtml(state.form, packaging)}`); },
     adicionales: () => card("adicionales", nextTitle("Procesos Adicionales"), "", additional.subtotal, `<div class="table-toolbar"><button type="button" class="inline-button" data-action="add-additional">Agregar fila</button></div><div class="additional-table"><div class="additional-head"><span>Descripción</span><span>Costo</span><span>Comentarios</span><span></span></div>${(state.form.additional.length ? state.form.additional : [{ description: "", cost: 0, attachmentName: "", comments: "" }]).map((item, index) => renderAdditionalProcessRow(item, index)).join("")}</div>${formula("Subtotal Adicional", "Subtotal procesos adicionales = suma de costos manuales registrados.", "Este bloque absorbe costos o gestiones que todavía no están estandarizados en inventario.", {
       exampleLines: [
         `Subtotal Adicionales: ${(additional.rows || []).length ? additional.rows.map((row) => formulaValue(row.subtotal || 0, 2)).join(" + ") : "0"} = ${formulaValue(additional.rawSubtotal ?? additional.subtotal ?? 0, 2)}`,
@@ -9150,24 +15158,24 @@ function applyFinishMachineDefaults(scope, machineId) {
     : null;
   const selectedMaterial = findMaterial(finish.materialId) || defaultMaterial;
   const costs = materialUnitCosts(selectedMaterial, state.form.header.rollWidthIn);
-  const machineWaste = firstPositiveNumber(machine?.sustratoSetupMermaCantidad, 0);
+  // Merma de montaje de la máquina (por estación): campo sustrato_montaje_merma_* de la máquina.
+  const machineWaste = firstPositiveNumber(machine?.sustratoMontajeMermaCantidad, 0);
   Object.assign(finish, {
     machineId,
     machineName: machineDisplayName(machine) || finish.machineName,
     setupMinutes: firstPositiveNumber(machine.setupBaseMinutes, capacity?.tiempo_preparacion_general, finish.setupMinutes),
-    setupWasteFeet: n(finish.setupWasteFeet, 0) > 0 ? n(finish.setupWasteFeet, 0) : (machineWaste > 0 ? machineWaste : finish.setupWasteFeet),
+    setupWasteMeters: n(finish.setupWasteMeters, 0) > 0 ? n(finish.setupWasteMeters, 0) : (machineWaste > 0 ? machineWaste : finish.setupWasteMeters),
     speed: firstPositiveNumber(machine.productionSpeed, capacity?.velocidad_produccion, finish.speed),
     costHour: firstPositiveNumber(machine.hourlyMachineCost, capacity?.costo_hora_maquina, finish.costHour),
     costHourMachine: firstPositiveNumber(machine.hourlyMachineCost, capacity?.costo_hora_maquina, finish.costHourMachine),
     costHourOperator: firstPositiveNumber(machine.hourlyOperatorCost, capacity?.costo_hora_operario, finish.costHourOperator),
     materialId: config.usesMaterial && !finish.materialId ? (selectedMaterial?.id || "") : finish.materialId,
-    costPerFoot: costs.costPerFoot,
     costPerMeter: costs.costPerMeter,
     costPerMsi: costs.costMsi,
-    costPerFt2: n(first(selectedMaterial?.costo_x_ft2, selectedMaterial?.costoPorFt2), finish.costPerFt2),
+    costPerM2: r(n(first(selectedMaterial?.costo_x_ft2, selectedMaterial?.costoPorFt2), 0) * 10.7639104167, 6) || finish.costPerM2,
     costPerUnit: n(selectedMaterial?.costo_x_unidad, finish.costPerUnit),
     costPerKg: n(selectedMaterial?.costo_x_kg, finish.costPerKg),
-    layerGft2: n(first(selectedMaterial?.rendimiento_g_ft2, selectedMaterial?.peso_capa_gsm), finish.layerGft2)
+    layerGm2: r(n(first(selectedMaterial?.rendimiento_g_ft2, selectedMaterial?.peso_capa_gsm), 0) * 10.7639104167, 4) || finish.layerGm2
   });
 }
 
@@ -9203,12 +15211,15 @@ function applyPrintMachineDefaults(machineId) {
     machineId,
     machineName: machineDisplayName(machine) || state.form.print.machineName,
     setupMinutes: firstPositiveNumber(machine.setupBaseMinutes, capacity?.tiempo_preparacion_general, state.form.print.setupMinutes),
+    cleaningMinutes: firstPositiveNumber(machine.lavadoPorEstacion, state.form.print.cleaningMinutes),
     mountingMinutes: firstPositiveNumber(mountingMinutes, inlineFinishSetupMinutes("impresion"), state.form.print.mountingMinutes),
     speedMetersMin: printSpeedValue(firstPositiveNumber(machine.productionSpeed, capacity?.velocidad_produccion, 0)) || state.form.print.speedMetersMin,
     costHour: firstPositiveNumber(machine.hourlyMachineCost, capacity?.costo_hora_maquina, state.form.print.costHour),
     operatorHourCost: firstPositiveNumber(machine.hourlyOperatorCost, capacity?.costo_hora_operario, state.form.print.operatorHourCost),
     availableColors: specColors > 0 ? specColors : (machineSupportsInline(machine) ? 8 : 4),
-    maculaSetupFeet: defaultPrintMaculaSetupFeet(machineId)
+    maculaSetupMeters: defaultPrintMaculaSetupMeters(machineId),
+    volteadora: state.form.print.volteadora && Boolean(machine.volteadora),
+    volteadoraSetupMin: n(machine.volteadoraSetupMin, 0)
   });
   if (Array.isArray(state.form.printStages) && state.form.printStages.length) {
     Object.assign(state.form.printStages[0], state.form.print);
@@ -9235,6 +15246,7 @@ function applyPrintStageMachineDefaults(scope, machineId) {
     machineId,
     machineName: machineDisplayName(machine) || state.form.printStages[index].machineName,
     setupMinutes: firstPositiveNumber(machine.setupBaseMinutes, capacity?.tiempo_preparacion_general, state.form.printStages[index].setupMinutes),
+    cleaningMinutes: firstPositiveNumber(machine.lavadoPorEstacion, state.form.printStages[index].cleaningMinutes),
     mountingMinutes: firstPositiveNumber(mountingMinutes, inlineFinishSetupMinutes("impresion"), state.form.printStages[index].mountingMinutes),
     speedMetersMin: isDigital ? digitalSpeedForStations(machine, state.form.printStages[index], stations) : (printSpeedValue(firstPositiveNumber(machine.productionSpeed, capacity?.velocidad_produccion, 0)) || state.form.printStages[index].speedMetersMin),
     costHour: firstPositiveNumber(machine.hourlyMachineCost, capacity?.costo_hora_maquina, state.form.printStages[index].costHour),
@@ -9254,7 +15266,9 @@ function applyPrintStageMachineDefaults(scope, machineId) {
     digitalPremierSetupMin: digitalSettings.premierSetupMin,
     digitalPremierOfflineCostPerMeter: digitalSettings.premierOfflineCostPerMeter,
     digitalPremierMaintenanceCost: digitalSettings.premierMaintenanceCost,
-    maculaSetupFeet: defaultPrintMaculaSetupFeet(machineId)
+    maculaSetupMeters: defaultPrintMaculaSetupMeters(machineId),
+    volteadora: Boolean(state.form.printStages[index].volteadora) && Boolean(machine.volteadora),
+    volteadoraSetupMin: n(machine.volteadoraSetupMin, 0)
   });
   syncInlineFinishesForMachine(index);
   if (index === 0) {
@@ -9270,29 +15284,520 @@ function commitDetailsCommercialValue(key, value) {
   renderProcesses();
 }
 
-function openDetailsCommercialEditor(button) {
-  const key = button?.dataset?.detailsEdit;
-  if (!key || !Object.prototype.hasOwnProperty.call(state.form.commercial, key)) return;
-  const rowNode = button.closest(".details-cost-row");
-  const targetCell = rowNode?.querySelector(".details-cost-value.is-edit-target");
-  if (!targetCell) return;
-  const input = document.createElement("input");
-  input.type = "number";
-  input.min = "0";
-  input.step = "0.01";
-  if (key === "discountPct") input.max = "100";
-  input.className = "details-adjust-input";
-  input.value = state.form.commercial[key] ?? 0;
-  targetCell.innerHTML = "";
-  targetCell.appendChild(input);
-  input.focus();
-  input.select();
-  const commit = () => commitDetailsCommercialValue(key, input.value);
-  input.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") commit();
-    if (event.key === "Escape") renderProcesses();
+// El porcentaje se edita en el mismo texto: no se cambia por una caja, así nada se mueve.
+function abrirEditorPorcentaje(texto) {
+  const clave = texto?.dataset?.porcentajeClave;
+  if (!clave || texto.isContentEditable) return;
+  const cantidadId = texto.dataset.cantidadId || "";
+  const esPrimera = texto.dataset.primera === "1";
+  const textoOriginal = texto.textContent;
+  let terminado = false;
+  texto.setAttribute("contenteditable", "true");
+  texto.setAttribute("spellcheck", "false");
+  texto.focus();
+  const seleccion = window.getSelection();
+  const rango = document.createRange();
+  rango.selectNodeContents(texto);
+  seleccion.removeAllRanges();
+  seleccion.addRange(rango);
+  let esperaVistaPrevia = null;
+  const actualizarVistaPrevia = () => {
+    window.clearTimeout(esperaVistaPrevia);
+    esperaVistaPrevia = window.setTimeout(() => {
+      if (terminado) return;
+      const escrito = texto.textContent;
+      mostrarVistaPreviaPorcentaje(texto, escrito === textoOriginal ? null : leerNumeroEscrito(escrito));
+    }, 120);
+  };
+  const terminar = () => {
+    terminado = true;
+    window.clearTimeout(esperaVistaPrevia);
+    cerrarVistaPreviaPorcentaje();
+    texto.removeEventListener("input", actualizarVistaPrevia);
+    texto.removeAttribute("contenteditable");
+    texto.removeEventListener("keydown", alTeclear);
+    texto.removeEventListener("beforeinput", alEscribir);
+    texto.removeEventListener("paste", alPegar);
+    texto.removeEventListener("drop", alSoltar);
+    texto.removeEventListener("blur", guardar);
+  };
+  const cancelar = () => {
+    if (terminado) return;
+    terminar();
+    texto.textContent = textoOriginal;
+  };
+  function guardar() {
+    if (terminado) return;
+    const valor = leerNumeroEscrito(texto.textContent);
+    if (valor === null || texto.textContent === textoOriginal) { cancelar(); return; }
+    terminar();
+    if (clave.startsWith("objetivo")) {
+      if (!resolverPorcentajeObjetivo(cantidadId, esPrimera, clave, valor)) texto.textContent = textoOriginal;
+      return;
+    }
+    guardarPorcentajeCantidad(cantidadId, esPrimera, clave, Math.max(0, clave === "discountPct" ? Math.min(100, valor) : valor));
+  }
+  function alTeclear(event) {
+    if (event.key === "Enter") { event.preventDefault(); guardar(); texto.blur(); }
+    if (event.key === "Escape") { event.preventDefault(); cancelar(); texto.blur(); }
+  }
+  const permitidos = clave.startsWith("objetivo") ? /^[0-9.,-]*$/ : /^[0-9.,]*$/;
+  function alEscribir(event) {
+    if (event.inputType && !event.inputType.startsWith("insert")) return;
+    if (event.inputType === "insertParagraph" || event.inputType === "insertLineBreak") { event.preventDefault(); return; }
+    if (event.data === null || event.data === undefined || permitidos.test(event.data)) return;
+    event.preventDefault();
+    const filtrado = String(event.data).replace(clave.startsWith("objetivo") ? /[^0-9.,-]/g : /[^0-9.,]/g, "");
+    if (filtrado) document.execCommand("insertText", false, filtrado);
+  }
+  function alPegar(event) {
+    event.preventDefault();
+    const pegado = String(event.clipboardData?.getData("text") || "").replace(clave.startsWith("objetivo") ? /[^0-9.,-]/g : /[^0-9.,]/g, "");
+    if (pegado) document.execCommand("insertText", false, pegado);
+  }
+  function alSoltar(event) {
+    event.preventDefault();
+  }
+  texto.addEventListener("keydown", alTeclear);
+  texto.addEventListener("input", actualizarVistaPrevia);
+  mostrarVistaPreviaPorcentaje(texto, null);
+  texto.addEventListener("beforeinput", alEscribir);
+  texto.addEventListener("paste", alPegar);
+  texto.addEventListener("drop", alSoltar);
+  texto.addEventListener("blur", guardar);
+}
+
+function paintCalcAdjuntosIcon() {
+  if (!els.calcAdjuntosToggle) return;
+  const icon = iconPresentation("quoteRequestAttachment", "📎", "#1e516d", 18);
+  els.calcAdjuntosToggle.innerHTML = renderIconMarkup(icon.value, "Adjuntos", "calc-adjuntos-toggle-icon");
+  els.calcAdjuntosToggle.style.setProperty("--icon-color", icon.color);
+  els.calcAdjuntosToggle.style.setProperty("--icon-hover-color", icon.hover);
+  els.calcAdjuntosToggle.style.setProperty("--config-icon-size", `${icon.size}px`);
+}
+
+function openCalcAdjuntosModal() {
+  if (!els.calcAdjuntosModal) return;
+  els.calcAdjuntosModal.hidden = false;
+  renderAdjuntosProducto();
+}
+
+function closeCalcAdjuntosModal() {
+  if (!els.calcAdjuntosModal) return;
+  els.calcAdjuntosModal.hidden = true;
+}
+
+function bindCalcAdjuntosModal() {
+  paintCalcAdjuntosIcon();
+  els.calcAdjuntosToggle?.addEventListener("click", openCalcAdjuntosModal);
+  els.calcAdjuntosModal?.addEventListener("click", (event) => {
+    if (event.target.closest("[data-action='cerrar-calc-adjuntos']")) closeCalcAdjuntosModal();
   });
-  input.addEventListener("blur", commit, { once: true });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && els.calcAdjuntosModal && !els.calcAdjuntosModal.hidden) closeCalcAdjuntosModal();
+  });
+}
+
+// ── Historial de porcentajes ──────────────────────────────────────────────────
+// Guarda en el servidor cada cambio de porcentaje por cantidad (quién, cuándo, antes, después).
+// "Volver a un paso" funciona como el panel de Historia de Photoshop: revierte ese paso y todos
+// los posteriores, pero sin borrar nada: cada reversión queda también registrada.
+const historialPorcentajes = { linea: "", estado: "sin-cargar", entradas: [] };
+
+function lineaDelHistorial() {
+  return String(state.form?.header?.lineCode || "").trim();
+}
+
+async function cargarHistorialPorcentajes(forzar = false) {
+  const linea = lineaDelHistorial();
+  if (!linea) {
+    historialPorcentajes.estado = "sin-linea";
+    renderHistorialPorcentajes();
+    return;
+  }
+  if (!forzar && historialPorcentajes.linea === linea && ["listo", "cargando"].includes(historialPorcentajes.estado)) return;
+  if (historialPorcentajes.linea !== linea) historialPorcentajes.entradas = historialPorcentajes.entradas.filter((entrada) => entrada.codigo_linea === linea);
+  historialPorcentajes.linea = linea;
+  historialPorcentajes.estado = "cargando";
+  renderHistorialPorcentajes();
+  try {
+    const respuesta = await getJson(`/api/calculo/historial-porcentajes?linea=${encodeURIComponent(linea)}`, { headers: sessionHeaders() });
+    if (historialPorcentajes.linea !== linea) return;
+    const pendientes = historialPorcentajes.entradas.filter((entrada) => entrada.pendiente || entrada.sinGuardar);
+    historialPorcentajes.entradas = [...pendientes, ...(Array.isArray(respuesta.data) ? respuesta.data : [])];
+    historialPorcentajes.estado = "listo";
+  } catch (error) {
+    historialPorcentajes.estado = historialPorcentajes.entradas.length ? "listo" : "error";
+  }
+  renderHistorialPorcentajes();
+}
+
+function registrarHistorialPorcentajes(entradas = []) {
+  if (!entradas.length) return;
+  const linea = lineaDelHistorial();
+  const sesion = readUserSession() || {};
+  const usuario = sesion.name || sesion.username || "";
+  const temporales = entradas.map((entrada, indice) => ({
+    id: `tmp-${Date.now()}-${indice}`, pendiente: true, codigo_linea: linea, cantidad_id: entrada.cantidadId, cantidad: entrada.cantidad,
+    es_primera: entrada.esPrimera, campo: entrada.campo, etiqueta: entrada.etiqueta, valor_anterior: entrada.valorAnterior,
+    valor_nuevo: entrada.valorNuevo, anterior_heredado: entrada.anteriorHeredado, origen: entrada.origen || "", tipo: entrada.tipo,
+    revierte_id: entrada.revierteId || null, revertido: false, usuario, creado_en: new Date().toISOString()
+  }));
+  entradas.forEach((entrada) => {
+    if (!entrada.revierteId) return;
+    const original = historialPorcentajes.entradas.find((item) => String(item.id) === String(entrada.revierteId));
+    if (original) original.revertido = true;
+  });
+  historialPorcentajes.entradas = [...temporales.slice().reverse(), ...historialPorcentajes.entradas];
+  renderHistorialPorcentajes();
+  if (!linea) return;
+  postJson("/api/calculo/historial-porcentajes", { linea, cotizacion: String(state.form.header.quoteCode || "").trim(), entradas })
+    .then((respuesta) => {
+      const filas = Array.isArray(respuesta.data) ? respuesta.data : [];
+      temporales.forEach((temporal, indice) => {
+        const posicion = historialPorcentajes.entradas.indexOf(temporal);
+        if (posicion >= 0 && filas[indice]) historialPorcentajes.entradas[posicion] = filas[indice];
+      });
+      renderHistorialPorcentajes();
+    })
+    .catch(() => {
+      temporales.forEach((temporal) => { temporal.pendiente = false; temporal.sinGuardar = true; });
+      renderHistorialPorcentajes();
+      showCenterMessage("El cambio quedó en el cálculo, pero no pudimos anotarlo en el historial. Revisa la conexión.");
+    });
+}
+
+function cambiosRevertibles() {
+  return historialPorcentajes.entradas.filter((entrada) => entrada.tipo === "cambio" && !entrada.revertido && !entrada.pendiente);
+}
+
+function revertirHastaPaso(id) {
+  const lista = cambiosRevertibles();
+  const indice = lista.findIndex((entrada) => String(entrada.id) === String(id));
+  if (indice < 0) return;
+  const cantidades = cantidadesDelDetalle();
+  const primeraId = cantidades[0]?.id;
+  const instantanea = tomarInstantaneaValores();
+  const entradas = [];
+  let omitidos = 0;
+  lista.slice(0, indice + 1).forEach((paso) => {
+    const cantidad = cantidades.find((item) => item.id === paso.cantidad_id);
+    if (!cantidad || !CLAVES_PORCENTAJE_COMERCIAL.includes(paso.campo)) { omitidos += 1; return; }
+    const esPrimera = cantidad.id === primeraId;
+    const actual = porcentajesDeCantidad(cantidad.id, esPrimera)[paso.campo];
+    const destino = n(paso.valor_anterior, 0);
+    fijarPorcentajeCantidad(cantidad.id, esPrimera, paso.campo, destino);
+    entradas.push({
+      cantidadId: cantidad.id, cantidad: cantidad.value, esPrimera, campo: paso.campo, etiqueta: paso.etiqueta || ETIQUETAS_PORCENTAJE_COMERCIAL[paso.campo],
+      valorAnterior: actual, valorNuevo: destino, anteriorHeredado: false, origen: "Se volvió al valor anterior", tipo: "reversion", revierteId: paso.id
+    });
+  });
+  if (entradas.length) {
+    scheduleSave();
+    renderProcesses();
+    registrarHistorialPorcentajes(entradas);
+    resaltarValoresMovidos(instantanea, `Deshacer (${entradas.length} ${entradas.length === 1 ? "paso" : "pasos"})`);
+  }
+  if (omitidos) showCenterMessage("Algunos pasos no se pudieron revertir porque esa cantidad ya no está en el cálculo.");
+}
+
+function inicialesDeUsuario(nombre = "") {
+  const partes = String(nombre || "").trim().split(/\s+/).filter(Boolean);
+  if (!partes.length) return "?";
+  return (partes[0][0] + (partes.length > 1 ? partes[partes.length - 1][0] : "")).toUpperCase();
+}
+
+function fechaHistorial(valor) {
+  const fecha = new Date(valor);
+  if (Number.isNaN(fecha.getTime())) return "";
+  const hoy = new Date();
+  const hora = fecha.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" });
+  if (fecha.toDateString() === hoy.toDateString()) return `Hoy, ${hora}`;
+  return `${fecha.toLocaleDateString("es", { day: "numeric", month: "short", year: fecha.getFullYear() === hoy.getFullYear() ? undefined : "numeric" })}, ${hora}`;
+}
+
+function marcadoPasoHistorial(entrada, revertibles) {
+  const esReversion = entrada.tipo === "reversion";
+  const clases = ["historial-paso", esReversion ? "es-reversion" : "es-cambio"];
+  if (entrada.revertido) clases.push("es-revertido");
+  if (entrada.pendiente) clases.push("es-pendiente");
+  const posicion = revertibles.findIndex((item) => item.id === entrada.id);
+  const puedeVolver = posicion >= 0;
+  const estado = entrada.pendiente ? "Guardando…" : entrada.sinGuardar ? "Sin guardar en el historial" : entrada.revertido ? "Revertido" : "";
+  const cantidad = n(entrada.cantidad, 0) > 0 ? `${num(entrada.cantidad, 0)} u` : "";
+  const volver = puedeVolver
+    ? `<button type="button" class="historial-volver" data-historial-volver="${esc(entrada.id)}">${posicion === 0 ? "Deshacer este paso" : `Volver a antes de este paso · ${posicion + 1} pasos`}</button>`
+    : "";
+  return `<li class="${clases.join(" ")}" data-historial-id="${esc(entrada.id)}" data-historial-posicion="${puedeVolver ? posicion : ""}">`
+    + `<span class="historial-hito" title="${esc(entrada.usuario || "")}">${esReversion ? "↶" : esc(inicialesDeUsuario(entrada.usuario))}</span>`
+    + `<div class="historial-contenido">`
+    + `<div class="historial-titulo"><strong>${esc(entrada.etiqueta || ETIQUETAS_PORCENTAJE_COMERCIAL[entrada.campo] || entrada.campo)}</strong>${cantidad ? `<span class="historial-cantidad">${esc(cantidad)}</span>` : ""}</div>`
+    + `<div class="historial-valores"><span class="historial-antes">${esc(textoPorcentaje(entrada.valor_anterior))}</span><span class="historial-flecha" aria-hidden="true">→</span><span class="historial-despues">${esc(textoPorcentaje(entrada.valor_nuevo))}</span></div>`
+    + `<div class="historial-autor">${esc(entrada.usuario || "Usuario sin nombre")} · ${esc(fechaHistorial(entrada.creado_en))}</div>`
+    + (entrada.origen ? `<div class="historial-origen">${esc(entrada.origen)}</div>` : "")
+    + (estado ? `<span class="historial-estado">${esc(estado)}</span>` : "")
+    + volver
+    + `</div></li>`;
+}
+
+function renderHistorialPorcentajes() {
+  const revertibles = cambiosRevertibles();
+  Object.values(ventanasPanelAbiertas).forEach((abierta) => {
+    const deshacer = abierta.ventana.querySelector("[data-ventana-deshacer]");
+    if (deshacer) {
+      deshacer.disabled = !revertibles.length;
+      deshacer.title = revertibles.length ? `Deshacer: ${revertibles[0].etiqueta || ""} de ${num(revertibles[0].cantidad, 0)} u` : "No hay cambios para deshacer";
+    }
+    const botonLista = abierta.ventana.querySelector("[data-ventana-lista-deshacer]");
+    if (botonLista) botonLista.disabled = !revertibles.length;
+    const menu = abierta.ventana.querySelector(".menu-deshacer");
+    if (menu && !menu.hidden) {
+      if (revertibles.length) menu.innerHTML = marcadoMenuDeshacer(revertibles);
+      else cerrarMenuDeshacer(abierta);
+    }
+    const contador = abierta.ventana.querySelector("[data-historial-contador]");
+    const totalCambios = historialPorcentajes.entradas.filter((entrada) => entrada.tipo === "cambio").length;
+    if (contador) {
+      contador.textContent = totalCambios ? String(totalCambios) : "";
+      contador.hidden = !totalCambios;
+    }
+    const lista = abierta.ventana.querySelector(".panel-historial-lista");
+    if (!lista) return;
+    const estado = historialPorcentajes.estado;
+    if (estado === "sin-linea") {
+      lista.innerHTML = '<p class="historial-mensaje">El historial empieza a guardarse cuando el cálculo tiene su línea asignada.</p>';
+    } else if (!historialPorcentajes.entradas.length && (estado === "cargando" || estado === "sin-cargar")) {
+      lista.innerHTML = '<p class="historial-mensaje">Cargando el historial desde el servidor, un momento por favor…</p>';
+    } else if (!historialPorcentajes.entradas.length && estado === "error") {
+      lista.innerHTML = '<p class="historial-mensaje">No pudimos traer el historial en este momento. Revisa la conexión e intenta de nuevo.</p><button type="button" class="historial-actualizar" data-historial-actualizar>Actualizar</button>';
+    } else if (!historialPorcentajes.entradas.length) {
+      lista.innerHTML = '<p class="historial-mensaje">Aún no hay cambios de porcentajes en este cálculo. Cuando alguien cambie uno, aparece aquí con quién lo hizo, cuándo y qué valor tenía antes.</p>';
+    } else {
+      lista.innerHTML = `<ol class="historial-pasos">${historialPorcentajes.entradas.map((entrada) => marcadoPasoHistorial(entrada, revertibles)).join("")}</ol>`;
+    }
+  });
+}
+
+function marcadoMenuDeshacer(revertibles) {
+  if (!revertibles.length) return '<p class="menu-deshacer-vacio">No hay cambios para deshacer.</p>';
+  return `<div class="menu-deshacer-cabeza">Deshacer hasta…</div><div class="menu-deshacer-lista">${revertibles.slice(0, 25).map((paso, posicion) => {
+    const cantidad = n(paso.cantidad, 0) > 0 ? ` · ${num(paso.cantidad, 0)} u` : "";
+    return `<button type="button" class="menu-deshacer-paso" data-historial-volver="${esc(paso.id)}" data-historial-posicion="${posicion}">`
+      + `<span class="menu-deshacer-titulo">${esc((paso.etiqueta || ETIQUETAS_PORCENTAJE_COMERCIAL[paso.campo] || paso.campo) + cantidad)}</span>`
+      + `<span class="menu-deshacer-valores"><span class="historial-antes">${esc(textoPorcentaje(paso.valor_anterior))}</span> → <span class="historial-despues">${esc(textoPorcentaje(paso.valor_nuevo))}</span></span>`
+      + `<span class="menu-deshacer-autor">${esc(paso.usuario || "")}${paso.usuario ? " · " : ""}${esc(fechaHistorial(paso.creado_en))}</span>`
+      + `</button>`;
+  }).join("")}</div>`;
+}
+
+function cerrarMenuDeshacer(abierta) {
+  const menu = abierta?.ventana.querySelector(".menu-deshacer");
+  if (!menu || menu.hidden) return;
+  menu.hidden = true;
+  abierta.ventana.querySelector("[data-ventana-lista-deshacer]")?.setAttribute("aria-expanded", "false");
+}
+
+function marcarVistaPreviaReversion(lista, posicion) {
+  lista.querySelectorAll(".historial-paso, .menu-deshacer-paso").forEach((paso) => {
+    const propia = paso.dataset.historialPosicion;
+    paso.classList.toggle("se-revertira", posicion !== null && propia !== "" && propia !== undefined && Number(propia) <= posicion);
+  });
+}
+
+// ── Ventanas movibles de Detalles y Análisis de Rentabilidad ──────────────────
+// Misma mecánica que public/dashboard-vendedor-panel.js → dvpOpenFloatWindow, con la clase
+// .calc-window de public/styles.css. El panel de la barra lateral sigue igual; la ventana
+// muestra una copia que se actualiza sola cada vez que el panel cambia.
+const VENTANAS_PANEL = {
+  detalles: { titulo: "Detalles", contenido: "detallesContenido" },
+  rentabilidad: { titulo: "Análisis de Rentabilidad de la Cotización", contenido: "rentabilidadContenido" }
+};
+const ventanasPanelAbiertas = {};
+let ventanaPanelArrastre = null;
+let ventanaPanelCapa = 9900;
+
+function pintarBotonesVentanaPanel() {
+  const icono = iconPresentation("calcVentanaPanel", "⤢", "#5b7896", 18);
+  document.querySelectorAll("[data-ventana-panel]").forEach((boton) => {
+    boton.innerHTML = renderIconMarkup(icono.value, "Abrir en una ventana", "ventana-panel-icon");
+    boton.style.setProperty("--ventana-panel-icon-color", icono.color);
+    boton.style.setProperty("--ventana-panel-icon-hover", icono.hover);
+    boton.style.setProperty("--ventana-panel-icon-size", `${icono.size}px`);
+  });
+}
+
+function esTablaDetalles(nodo) {
+  return Boolean(nodo && (els.detailsCostTable?.contains(nodo) || ventanasPanelAbiertas.detalles?.cuerpo.contains(nodo)));
+}
+
+function traerVentanaPanelAlFrente(ventana) {
+  ventanaPanelCapa += 1;
+  ventana.style.zIndex = String(ventanaPanelCapa);
+}
+
+function copiarPanelAVentana(tipo) {
+  const abierta = ventanasPanelAbiertas[tipo];
+  if (!abierta) return;
+  if (abierta.cuerpo.querySelector(".texto-porcentaje[contenteditable]")) return;
+  abierta.cuerpo.innerHTML = abierta.contenido.innerHTML;
+  abierta.cuerpo.querySelectorAll("[id]").forEach((nodo) => nodo.removeAttribute("id"));
+  abierta.cuerpo.querySelectorAll(".texto-porcentaje[contenteditable]").forEach((nodo) => nodo.removeAttribute("contenteditable"));
+  const columnas = abierta.cuerpo.querySelectorAll(".details-cost-head .details-quantity-cell").length;
+  abierta.cuerpo.style.minWidth = columnas ? `${300 + (columnas * 150)}px` : "";
+}
+
+function cerrarVentanaPanel(tipo) {
+  const abierta = ventanasPanelAbiertas[tipo];
+  if (!abierta) return;
+  abierta.observador.disconnect();
+  abierta.ventana.remove();
+  delete ventanasPanelAbiertas[tipo];
+}
+
+function subtituloVentanaPanel() {
+  const cotizacion = String(state.form?.header?.quoteCode || "").trim();
+  const linea = lineaDelHistorial();
+  const cantidad = cantidadesDelDetalle().length;
+  return [cotizacion && `Cotización ${cotizacion}`, linea && `Cálculo ${linea}`, cantidad && `${cantidad} ${cantidad === 1 ? "cantidad" : "cantidades"}`].filter(Boolean).join(" · ");
+}
+
+function botonAccionVentana(clave, respaldo, texto, atributos) {
+  const icono = iconPresentation(clave, respaldo, "#ffffff", 16);
+  return `<button type="button" class="ventana-accion" ${atributos} style="--ventana-accion-icon-size:${icono.size}px;">${renderIconMarkup(icono.value, "", "ventana-accion-icon")}<span>${texto}</span></button>`;
+}
+
+function alternarHistorialVentana(abierta, mostrar) {
+  const panel = abierta.ventana.querySelector(".panel-historial");
+  const boton = abierta.ventana.querySelector("[data-ventana-historial]");
+  const visible = mostrar ?? panel.hidden;
+  panel.hidden = !visible;
+  boton.setAttribute("aria-expanded", visible ? "true" : "false");
+  boton.classList.toggle("is-active", visible);
+  if (visible) cargarHistorialPorcentajes();
+}
+
+function abrirVentanaPanel(tipo) {
+  const config = VENTANAS_PANEL[tipo];
+  if (!config) return;
+  if (ventanasPanelAbiertas[tipo]) {
+    traerVentanaPanelAlFrente(ventanasPanelAbiertas[tipo].ventana);
+    return;
+  }
+  const contenido = document.getElementById(config.contenido);
+  if (!contenido) return;
+  const ventana = document.createElement("section");
+  ventana.className = `calc-window calc-panel-window es-${tipo}`;
+  ventana.setAttribute("role", "dialog");
+  ventana.setAttribute("aria-label", config.titulo);
+  ventana.innerHTML = `<header class="calc-window-head" data-ventana-arrastre>`
+    + `<div class="ventana-titulos"><span class="calc-window-title">${esc(config.titulo)}</span><span class="ventana-subtitulo">${esc(subtituloVentanaPanel())}</span></div>`
+    + `<div class="ventana-acciones">`
+    + `<div class="grupo-deshacer">`
+    + botonAccionVentana("calcDeshacerPorcentaje", "↶", "Deshacer", "data-ventana-deshacer disabled")
+    + `<button type="button" class="ventana-accion ventana-accion-lista" data-ventana-lista-deshacer aria-haspopup="true" aria-expanded="false" aria-label="Ver los pasos que se pueden deshacer" title="Ver los pasos que se pueden deshacer" disabled><span class="flecha-lista" aria-hidden="true"></span></button>`
+    + `<div class="menu-deshacer" hidden></div></div>`
+    + botonAccionVentana("calcHistorialPorcentajes", "☰", `Historial<span class="ventana-contador" data-historial-contador hidden></span>`, 'data-ventana-historial aria-expanded="false"')
+    + `<button type="button" class="calc-window-close" data-ventana-cerrar aria-label="Cerrar">&times;</button>`
+    + `</div></header>`
+    + `<div class="calc-window-body">`
+    + `<div class="panel-ventana-principal"><div class="panel-ventana-cuerpo"></div></div>`
+    + `<aside class="panel-historial" hidden aria-label="Historial de cambios de porcentajes">`
+    + `<div class="panel-historial-cabeza"><strong>Historial de Cambios</strong><span>Toca un paso para volver a como estaba antes de él. Nada se borra: la vuelta atrás también queda anotada.</span></div>`
+    + `<div class="panel-historial-lista"></div>`
+    + `</aside></div>`;
+  const desplazamiento = Object.keys(ventanasPanelAbiertas).length * 28;
+  if (desplazamiento) ventana.style.transform = `translate(calc(-50% + ${desplazamiento}px), calc(-50% + ${desplazamiento}px))`;
+  document.body.appendChild(ventana);
+  traerVentanaPanelAlFrente(ventana);
+  const cuerpo = ventana.querySelector(".panel-ventana-cuerpo");
+  const observador = new MutationObserver(() => copiarPanelAVentana(tipo));
+  const abierta = { ventana, cuerpo, contenido, observador };
+  ventanasPanelAbiertas[tipo] = abierta;
+  copiarPanelAVentana(tipo);
+  observador.observe(contenido, { childList: true, subtree: true, characterData: true });
+  renderHistorialPorcentajes();
+  cargarHistorialPorcentajes();
+  ventana.addEventListener("mousedown", () => traerVentanaPanelAlFrente(ventana));
+  ventana.querySelector("[data-ventana-cerrar]").addEventListener("click", () => cerrarVentanaPanel(tipo));
+  ventana.querySelector("[data-ventana-historial]").addEventListener("click", () => alternarHistorialVentana(abierta));
+  ventana.querySelector("[data-ventana-deshacer]").addEventListener("click", () => {
+    const ultimo = cambiosRevertibles()[0];
+    if (ultimo) revertirHastaPaso(ultimo.id);
+  });
+  const menuDeshacer = ventana.querySelector(".menu-deshacer");
+  const botonListaDeshacer = ventana.querySelector("[data-ventana-lista-deshacer]");
+  botonListaDeshacer.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (!menuDeshacer.hidden) { cerrarMenuDeshacer(abierta); return; }
+    menuDeshacer.innerHTML = marcadoMenuDeshacer(cambiosRevertibles());
+    menuDeshacer.hidden = false;
+    botonListaDeshacer.setAttribute("aria-expanded", "true");
+  });
+  menuDeshacer.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const paso = event.target.closest("[data-historial-volver]");
+    if (!paso) return;
+    cerrarMenuDeshacer(abierta);
+    revertirHastaPaso(paso.dataset.historialVolver);
+  });
+  menuDeshacer.addEventListener("mouseover", (event) => {
+    const paso = event.target.closest(".menu-deshacer-paso");
+    marcarVistaPreviaReversion(menuDeshacer, paso ? Number(paso.dataset.historialPosicion) : null);
+  });
+  menuDeshacer.addEventListener("mouseleave", () => marcarVistaPreviaReversion(menuDeshacer, null));
+  ventana.addEventListener("click", () => cerrarMenuDeshacer(abierta));
+  ventana.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") cerrarMenuDeshacer(abierta);
+  });
+  const lista = ventana.querySelector(".panel-historial-lista");
+  lista.addEventListener("click", (event) => {
+    const volver = event.target.closest("[data-historial-volver]");
+    if (volver) {
+      revertirHastaPaso(volver.dataset.historialVolver);
+      return;
+    }
+    if (event.target.closest("[data-historial-actualizar]")) cargarHistorialPorcentajes(true);
+  });
+  lista.addEventListener("mouseover", (event) => {
+    const paso = event.target.closest(".historial-paso");
+    const posicion = paso?.dataset.historialPosicion;
+    marcarVistaPreviaReversion(lista, posicion === "" || posicion === undefined ? null : Number(posicion));
+  });
+  lista.addEventListener("mouseleave", () => marcarVistaPreviaReversion(lista, null));
+  ventana.querySelector("[data-ventana-arrastre]").addEventListener("mousedown", (event) => {
+    if (event.button !== 0 || event.target.closest("button, a")) return;
+    const rect = ventana.getBoundingClientRect();
+    ventana.style.left = `${rect.left}px`;
+    ventana.style.top = `${rect.top}px`;
+    ventana.style.transform = "none";
+    ventanaPanelArrastre = { ventana, dx: event.clientX - rect.left, dy: event.clientY - rect.top };
+    ventana.classList.add("is-dragging");
+    event.preventDefault();
+  });
+}
+
+function bindVentanasPanel() {
+  pintarBotonesVentanaPanel();
+  document.querySelectorAll("[data-ventana-panel]").forEach((boton) => {
+    boton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      abrirVentanaPanel(boton.dataset.ventanaPanel);
+    });
+  });
+  document.addEventListener("mousemove", (event) => {
+    if (!ventanaPanelArrastre) return;
+    const { ventana, dx, dy } = ventanaPanelArrastre;
+    const maxX = Math.max(8, window.innerWidth - ventana.offsetWidth - 8);
+    const maxY = Math.max(8, window.innerHeight - ventana.offsetHeight - 8);
+    ventana.style.left = `${Math.min(Math.max(8, event.clientX - dx), maxX)}px`;
+    ventana.style.top = `${Math.min(Math.max(8, event.clientY - dy), maxY)}px`;
+  });
+  document.addEventListener("mouseup", () => {
+    if (!ventanaPanelArrastre) return;
+    ventanaPanelArrastre.ventana.classList.remove("is-dragging");
+    ventanaPanelArrastre = null;
+  });
 }
 
 function bindDetailsDemo() {
@@ -9303,11 +15808,16 @@ function bindDetailsDemo() {
       showCenterMessage("No fue posible validar la proforma en este momento.");
     }).finally(done);
   });
-  els.detailsCostTable?.addEventListener("click", (event) => {
-    const trigger = event.target.closest("[data-details-edit]");
-    if (!trigger) return;
-    event.preventDefault();
-    openDetailsCommercialEditor(trigger);
+  document.addEventListener("click", (event) => {
+    const recalcular = event.target.closest?.(".details-cost-table .boton-recalcular");
+    if (recalcular) {
+      event.preventDefault();
+      event.stopPropagation();
+      restaurarPorcentajesReferencia(recalcular.dataset.cantidadId || "", recalcular.dataset.primera === "1", String(recalcular.dataset.recalcular || "").split(","));
+      return;
+    }
+    const texto = event.target.closest?.(".details-cost-table .texto-porcentaje");
+    if (texto) abrirEditorPorcentaje(texto);
   });
   const handleTrackingClick = (event) => {
     const toggle = event.target.closest("[data-tracking-toggle]");
@@ -9359,7 +15869,7 @@ function bindDetailsDemo() {
     const createProduct = event.target.closest("[data-tracking-create-product]");
     if (createProduct) {
       const done = setTrackingButtonLoading(createProduct, "Creando...");
-      createProductFromCurrentLine().catch((error) => {
+      openCalcProductPicker().catch((error) => {
         showCenterMessage(error.message || "No fue posible crear el producto.");
       }).finally(done);
       return;
@@ -9400,6 +15910,19 @@ function bindDetailsDemo() {
 }
 
 function bindHeader() {
+  if (els.referenciaSearchIcon) {
+    const referenciaSearchIcon = iconPresentation("quantityAdd", "+", "#738196", 18);
+    if (els.referenciaSearchBtn) {
+      els.referenciaSearchBtn.style.setProperty("--quantity-add-icon-color", referenciaSearchIcon.color);
+      els.referenciaSearchBtn.style.setProperty("--quantity-add-icon-hover", referenciaSearchIcon.hover);
+      els.referenciaSearchBtn.style.setProperty("--quantity-add-icon-size", `${referenciaSearchIcon.size}px`);
+    }
+    applyIconToContainer(els.referenciaSearchIcon, referenciaSearchIcon.value, "Buscar referencia del cliente", "quantity-add-icon");
+  }
+  els.referenciaSearchBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    openReferenciaSearchModal();
+  });
   els.frontBackElementsBody?.addEventListener("click", async (event) => {
     const tab = event.target.closest("[data-front-back-element-tab]");
     if (tab) {
@@ -9420,42 +15943,26 @@ function bindHeader() {
       if (route && !openRouteInShell(route, `Cálculo ${lineCode}`)) window.location.href = route;
     }
   });
-  els.applicationEnvironment?.addEventListener("focus", showApplicationEnvironmentPanel);
-  els.applicationEnvironment?.addEventListener("input", showApplicationEnvironmentPanel);
-  els.surfaceType?.addEventListener("focus", showSurfaceTypePanel);
-  els.surfaceType?.addEventListener("input", showSurfaceTypePanel);
-  els.applicationEnvironmentPanel?.addEventListener("click", (event) => {
-    const option = event.target.closest("[data-calc-inline-value]");
-    if (!option) return;
-    els.applicationEnvironment.value = option.dataset.calcInlineValue || "";
-    hideCalcInlinePanels();
-    els.applicationEnvironment.dispatchEvent(new Event("input", { bubbles: true }));
-    els.applicationEnvironment.dispatchEvent(new Event("change", { bubbles: true }));
-  });
-  els.surfaceTypePanel?.addEventListener("click", (event) => {
-    const option = event.target.closest("[data-calc-inline-value]");
-    if (!option) return;
-    els.surfaceType.value = option.dataset.calcInlineValue || "";
-    hideCalcInlinePanels();
-    els.surfaceType.dispatchEvent(new Event("input", { bubbles: true }));
-    els.surfaceType.dispatchEvent(new Event("change", { bubbles: true }));
-  });
-  [["customerCode", els.customerCode, "text"], ["customerName", els.customerName, "text"], ["productType", els.productType, "text"], ["jobName", els.jobName, "text"], ["salespersonName", els.salespersonName, "text"], ["workType", els.workType, "text"], ["labelWidthIn", els.labelWidthIn, "number"], ["labelHeightIn", els.labelHeightIn, "number"], ["rollWidthIn", els.rollWidthIn, "number"], ["coreDiameter", els.coreDiameter, "text"], ["labelsPerRoll", els.labelsPerRoll, "number"], ["applicationType", els.applicationType, "text"], ["applicationEnvironment", els.applicationEnvironment, "text"], ["surfaceType", els.surfaceType, "text"], ["outputType", els.outputType, "text"], ["quantityTypes", els.quantityTypes, "number"], ["quantityChanges", els.quantityChanges, "number"], ["pantoneCount", els.pantoneCount, "number"]].forEach(([key, element, type]) => {
+  // Aplicación y Tipo de Superficie usan el desplegable animado del sistema
+  // (desplegable.js). El panel de sugerencias propio quedó retirado para que el
+  // formato sea el mismo que en el resto de la aplicación.
+  [["customerCode", els.customerCode, "text"], ["customerName", els.customerName, "text"], ["codigoCliente", els.codigoCliente, "text"], ["productType", els.productType, "text"], ["jobName", els.jobName, "text"], ["salespersonName", els.salespersonName, "text"], ["workType", els.workType, "text"], ["labelWidthIn", els.labelWidthIn, "number"], ["labelHeightIn", els.labelHeightIn, "number"], ["rollWidthIn", els.rollWidthIn, "number"], ["applicationType", els.applicationType, "text"], ["applicationEnvironment", els.applicationEnvironment, "text"], ["surfaceType", els.surfaceType, "text"], ["outputType", els.outputType, "text"], ["referencia", els.referencia, "text"], ["referenciaComentario", els.referenciaComentario, "text"]].forEach(([key, element, type]) => {
     const updateState = () => {
       state.form.header[key] = type === "number" ? n(element.value, 0) : element.value;
       syncDerivedHeaderAndPackaging(state.form);
-      if (key === "quantityTypes") {
-        const target = Math.max(1, n(state.form.header.quantityTypes, 1));
-        if (target !== (state.form.types || []).length) {
-          state.form.types = buildTypesList(target, currentQuantity(state.form), state.form.types);
-        }
+      if (key === "jobName" && state.form.types?.[0] && !state.form.types[0].nombreMotivoManual) {
+        state.form.types[0].nombre_motivo = String(state.form.header.jobName || "").trim();
       }
-      if (key === "quantityTypes" || key === "quantityChanges") syncTypesChangesFields();
+      if (key === "jobName" && state.form.types?.[0]?.versions?.[0] && !state.form.types[0].versions[0].nombreManual) {
+        state.form.types[0].versions[0].name = String(state.form.header.jobName || "").trim();
+      }
       if (key === "customerCode") syncCustomerCodeWidth();
       if (key === "outputType") outputPreview();
       if (key === "customerName" && els.customerNameDisplay) els.customerNameDisplay.textContent = state.form.header.customerName || "";
       if (key === "salespersonName" && els.salespersonDisplay) els.salespersonDisplay.textContent = state.form.header.salespersonName || "";
-      if (key === "labelWidthIn" || key === "labelHeightIn" || key === "rollWidthIn" || key === "coreDiameter" || key === "labelsPerRoll") syncHeaderUnitMasks();
+      if (key === "labelWidthIn" || key === "labelHeightIn" || key === "rollWidthIn") syncHeaderUnitMasks();
+      if (key === "referencia" && els.referenciaChangesField) els.referenciaChangesField.hidden = !String(state.form.header.referencia || "").trim();
+      if (key === "referenciaComentario") autoGrowReferenciaComentario();
       renderTypesChanges();
       renderTechnicalCollapsedSummary();
       refreshCalculationValidation();
@@ -9468,8 +15975,25 @@ function bindHeader() {
     element.addEventListener("input", updateState);
     element.addEventListener("change", rerender);
   });
-  [["useCmyk", els.useCmyk], ["useWhiteInk", els.useWhiteInk], ["doubleWhitePass", els.doubleWhitePass], ["noPrint", els.noPrint]].forEach(([key, element]) => {
-    element.addEventListener("change", () => { state.form.header[key] = element.checked; regeneratePrintStageInkStations(state.form); renderProcesses(); scheduleSave(); });
+  els.noPrint?.addEventListener("change", () => {
+    state.form.header.noPrint = els.noPrint.checked;
+    regeneratePrintStageInkStations(state.form);
+    renderProcesses();
+    scheduleSave();
+  });
+  [["referenciaCambioMedidas", els.referenciaCambioMedidas, "medidas"], ["referenciaCambioArte", els.referenciaCambioArte, "arte"], ["referenciaCambioTextos", els.referenciaCambioTextos, "textos"], ["referenciaCambioOtros", els.referenciaCambioOtros, "otros"]].forEach(([, element, field]) => {
+    element?.addEventListener("change", () => {
+      if (!state.form.header.referenciaCambios) state.form.header.referenciaCambios = { medidas: false, arte: false, textos: false, otros: false };
+      state.form.header.referenciaCambios[field] = element.checked;
+      scheduleSave();
+    });
+  });
+  [["insumoArteDigital", els.insumoArteDigital, "arteDigital"], ["insumoMuestrasFisicas", els.insumoMuestrasFisicas, "muestrasFisicas"], ["insumoEnvase", els.insumoEnvase, "envase"]].forEach(([, element, field]) => {
+    element?.addEventListener("change", () => {
+      if (!state.form.header.insumos) state.form.header.insumos = { arteDigital: false, muestrasFisicas: false, envase: false };
+      state.form.header.insumos[field] = element.checked;
+      scheduleSave();
+    });
   });
   els.sapPreviewSendButton?.addEventListener("click", async (event) => {
     event.stopPropagation();
@@ -9493,19 +16017,22 @@ function bindHeader() {
     });
   });
   [["overheadPct", els.overheadPct], ["marginPct", els.marginPct], ["taxPct", els.taxPct], ["discountPct", els.discountPct]].forEach(([key, element]) => {
-    element.addEventListener("input", () => { state.form.commercial[key] = n(element.value, 0); scheduleSave(); });
-    element.addEventListener("change", () => { state.form.commercial[key] = n(element.value, 0); renderProcesses(); scheduleSave(); });
+    element.addEventListener("input", () => { congelarCantidadesQueHeredan(key); state.form.commercial[key] = n(element.value, 0); scheduleSave(); });
+    element.addEventListener("change", () => { congelarCantidadesQueHeredan(key); state.form.commercial[key] = n(element.value, 0); renderProcesses(); scheduleSave(); });
   });
 }
 
 function bindTypesDetail() {
-  if (!els.typesDetailList) return;
   const applyField = (element) => {
     const index = Number(element.dataset.typeIndex);
     const field = element.dataset.typeField;
     const type = state.form.types[index];
     if (!type) return;
     if (field === "name") type.name = String(element.value || "").trim();
+    else if (field === "nombre_motivo") {
+      type.nombre_motivo = String(element.value || "").trim();
+      type.nombreMotivoManual = true;
+    }
     else if (field === "quantity") {
       const qIndex = Number(element.dataset.quantityIndex);
       type.quantities = normalizeQuantities(type.quantities);
@@ -9516,14 +16043,28 @@ function bindTypesDetail() {
     }
     else if (field === "colors") {
       const requested = Math.max(0, n(element.value, 0));
-      const max = maxColorsPerType(state.form);
+      const max = 4;
       if (requested > max) {
-        const pantoneCount = Math.max(0, n(state.form.header?.pantoneCount, 0));
-        showCenterMessage(`La cantidad de colores por motivo no puede superar ${max} (CMYK activo${pantoneCount > 0 ? ` + ${pantoneCount} pantones` : ""}).`);
+        showCenterMessage(`La cantidad de tintas por arte no puede superar ${max}.`);
         type.colors = max;
         element.value = max;
       } else {
         type.colors = requested;
+      }
+      if (type.colors >= max && !state.form.header.useCmyk) {
+        state.form.header.useCmyk = true;
+        if (els.useCmyk) els.useCmyk.checked = true;
+        syncMotivoOneFromHeader(state.form);
+        regeneratePrintStageInkStations(state.form);
+      }
+    }
+    else if (field === "blancas") type.blancas = Math.max(0, n(element.value, 0));
+    else if (field === "pantones") {
+      const value = Math.max(0, n(element.value, 0));
+      type.pantones = value;
+      if (index === 0) {
+        state.form.header.pantoneCount = value;
+        if (els.pantoneCount) els.pantoneCount.value = value;
       }
     }
     else if (field === "plates") type.plates = Math.max(0, n(element.value, 0));
@@ -9535,15 +16076,27 @@ function bindTypesDetail() {
     else if (field === "changeWasteCost") type.changeWasteCost = Math.max(0, n(element.value, 0));
     else if (field === "changeAdditionalPrepCost") type.changeAdditionalPrepCost = Math.max(0, n(element.value, 0));
     else if (field === "inkStations") {
-      const inkIndex = Number(element.dataset.inkIndex);
-      const inkField = element.dataset.inkField;
-      type.inkStations = Array.isArray(type.inkStations) ? type.inkStations : [];
-      const station = type.inkStations[inkIndex];
-      if (!station || !inkField) return;
-      station[inkField] = inkField === "inkLabel" ? String(element.value || "").trim() : Math.max(0, n(element.value, 0));
+      applyMotivoStationField(type, element);
+    }
+    else if (field === "version") {
+      const versionIndex = Number(element.dataset.versionIndex);
+      const versionField = element.dataset.versionField;
+      ensureVersionsList(type);
+      const version = type.versions[versionIndex];
+      if (!version || !versionField) return;
+      if (versionField === "name" || versionField === "description") {
+        version[versionField] = String(element.value || "").trim();
+        if (versionField === "name") version.nombreManual = true;
+      }
+      else if (versionField === "quantity") version.quantity = Math.max(0, n(element.value, 0));
+      else if (versionField === "additionalPlates" && versionIndex !== 0) version.additionalPlates = Math.max(0, Math.round(n(element.value, 0)));
+      ensureVersionsList(type);
+      type.inkStationPlates = motivoPlatesFromCounts(type);
+      type.versionAdditionalPlates = motivoVersionAdditionalPlates(type);
+      type.plates = type.inkStationPlates + type.versionAdditionalPlates + n(type.estampadoPlates, 0);
     }
   };
-  els.typesDetailList.addEventListener("input", (event) => {
+  els.processSections.addEventListener("input", (event) => {
     const element = event.target.closest("[data-type-index][data-type-field]");
     if (!element) return;
     applyField(element);
@@ -9551,18 +16104,77 @@ function bindTypesDetail() {
     renderTypesQuantitiesWarning();
     scheduleSave();
   });
-  els.typesDetailList.addEventListener("change", (event) => {
+  els.processSections.addEventListener("change", (event) => {
     const element = event.target.closest("[data-type-index][data-type-field]");
     if (!element) return;
     applyField(element);
     syncDerivedHeaderAndPackaging(state.form);
-    renderTypesChanges();
+    renderProcesses();
     refreshCalculationValidation();
     scheduleSave();
   });
-  els.typesDetailList.addEventListener("click", (event) => {
+  els.processSections.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-action]");
     if (!button) return;
+    if (button.dataset.action === "open-maquina-modal") {
+      openMaquinaModal();
+      return;
+    }
+    if (button.dataset.action === "add-motivo") {
+      addMotivo();
+      return;
+    }
+    if (button.dataset.action === "remove-motivo") {
+      removeMotivo(Number(button.dataset.typeIndex));
+      return;
+    }
+    if (button.dataset.action === "toggle-motivo-view") {
+      const motivoIndex = Number(button.dataset.typeIndex);
+      state.motivosViewMode[motivoIndex] = motivoViewModeNext(state.motivosViewMode[motivoIndex] || "count");
+      renderProcesses();
+      return;
+    }
+    if (button.dataset.action === "remove-station") {
+      const row = button.closest(".station-row");
+      const motivoIndex = row ? Number(row.dataset.typeIndex) : NaN;
+      const type = Number.isInteger(motivoIndex) ? state.form.types?.[motivoIndex] : null;
+      if (!type) return;
+      const stations = ensureMotivoStationsList(type);
+      const sIndex = Number(button.dataset.stationIndex);
+      if (!stations[sIndex]) return;
+      const tipoBorrado = stations[sIndex].tipo || "";
+      stations[sIndex] = blankMotivoStation(stations[sIndex].id);
+      syncInlineAcabadoDesdeEstacion(type, sIndex, tipoBorrado, "");
+      normalizeBarnizPosition(type);
+      type.inkStationPlates = motivoPlatesFromCounts(type);
+      type.versionAdditionalPlates = motivoVersionAdditionalPlates(type);
+      type.plates = type.inkStationPlates + type.versionAdditionalPlates + n(type.estampadoPlates, 0);
+      syncDerivedHeaderAndPackaging(state.form);
+      renderProcesses();
+      refreshCalculationValidation();
+      scheduleSave();
+      return;
+    }
+    if (button.dataset.action === "toggle-motivo-product-picker") {
+      const motivoIndex = Number(button.dataset.typeIndex);
+      state.motivoProductPickerOpen[motivoIndex] = !state.motivoProductPickerOpen[motivoIndex];
+      renderProcesses();
+      return;
+    }
+    if (button.dataset.action === "convertir-motivo-producto") {
+      const motivoIndex = Number(button.dataset.typeIndex);
+      const versionIndex = Number.isInteger(Number(button.dataset.versionIndex)) ? Number(button.dataset.versionIndex) || 0 : 0;
+      button.disabled = true;
+      const originalLabel = button.textContent;
+      button.textContent = "Creando...";
+      convertMotivoToProduct(motivoIndex, versionIndex).catch((error) => {
+        showCenterMessage(error.message || "No fue posible convertir el arte en producto.");
+      }).finally(() => {
+        button.disabled = false;
+        button.textContent = originalLabel;
+      });
+      return;
+    }
     const index = Number(button.dataset.typeIndex);
     const type = state.form.types?.[index];
     if (!type) return;
@@ -9574,7 +16186,7 @@ function bindTypesDetail() {
       type.quantities.splice(insertAt, 0, { id: `type-${index}-qty-${Date.now()}`, value: 0 });
       syncTypeQuantityFromSlots(type);
       syncDerivedHeaderAndPackaging(state.form);
-      renderTypesChanges();
+      renderProcesses();
       refreshCalculationValidation();
       scheduleSave();
       return;
@@ -9587,44 +16199,116 @@ function bindTypesDetail() {
       type.quantities.splice(Math.max(0, Math.min(removeAt, type.quantities.length - 1)), 1);
       syncTypeQuantityFromSlots(type);
       syncDerivedHeaderAndPackaging(state.form);
-      renderTypesChanges();
+      renderProcesses();
       refreshCalculationValidation();
       scheduleSave();
       return;
     }
-    if (button.dataset.action === "add-type-ink") {
-      if (index === 0) return;
-      type.inkStations = Array.isArray(type.inkStations) ? type.inkStations : [];
-      if (type.inkStations.length >= 9) return;
-      const inkDefaults = conventionalInkDefaults();
-      type.inkStations.push({
-        id: `type-${index}-ink-${Date.now()}`,
-        inkLabel: `Tinta ${type.inkStations.length + 1}`,
-        inkType: "pantone",
-        coveragePct: 25,
-        aniloxBcm: inkDefaults.bcmGenerico,
-        transferFactor: 0.3,
-        inkDensity: inkDefaults.densidadUv,
-        inkMaterialId: "",
-        inkCostPerLb: inkDefaults.costoLbPantone,
-        active: true
-      });
-      renderTypesChanges();
-      refreshCalculationValidation();
-      scheduleSave();
+    if (button.dataset.action === "add-version") {
+      addVersion(index);
       return;
     }
-    if (button.dataset.action === "remove-type-ink") {
-      if (index === 0) return;
-      type.inkStations = Array.isArray(type.inkStations) ? type.inkStations : [];
-      const inkIndex = Number(button.dataset.inkIndex);
-      if (!Number.isInteger(inkIndex) || !type.inkStations[inkIndex]) return;
-      type.inkStations.splice(inkIndex, 1);
-      renderTypesChanges();
-      refreshCalculationValidation();
-      scheduleSave();
+    if (button.dataset.action === "remove-version") {
+      removeVersion(index, Number(button.dataset.versionIndex));
+      return;
     }
   });
+
+  // Reordenar estaciones (Fase 17): mismo patrón nativo de drag & drop que initLineDragDrop usa
+  // para las líneas de cotización (dragstart/dragover/drop con clases is-dragging/drag-over-*),
+  // reutilizando el ícono lineReorder. El Barniz nunca acepta soltar nada después de sí mismo.
+  // El motivo se identifica por data-type-index en la propia .station-row (antes se usaba un único
+  // state.motivoStationsIndex porque solo un motivo podía tener el modal de Tintas abierto a la
+  // vez; ahora varios motivos pueden estar expandidos en línea al mismo tiempo).
+  let stationDragState = null;
+  els.processSections.addEventListener("dragstart", (event) => {
+    const handle = event.target.closest(".motivo-station-drag[draggable='true']");
+    if (!handle) return;
+    const row = handle.closest(".station-row");
+    if (!row) return;
+    stationDragState = { fromIndex: Number(handle.dataset.dragIndex), motivoIndex: Number(row.dataset.typeIndex) };
+    row.classList.add("is-dragging");
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(stationDragState.fromIndex));
+  });
+  els.processSections.addEventListener("dragend", () => {
+    els.processSections.querySelectorAll(".station-row").forEach((el) => el.classList.remove("is-dragging", "drag-over-top", "drag-over-bottom"));
+    stationDragState = null;
+  });
+  els.processSections.addEventListener("dragover", (event) => {
+    const target = event.target.closest(".station-row[data-station-index]");
+    if (!target || !stationDragState || target.classList.contains("station-row-barniz")) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    els.processSections.querySelectorAll(".station-row").forEach((el) => el.classList.remove("drag-over-top", "drag-over-bottom"));
+    const rect = target.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    target.classList.add(event.clientY < midY ? "drag-over-top" : "drag-over-bottom");
+  });
+  els.processSections.addEventListener("dragleave", (event) => {
+    event.target.closest(".station-row")?.classList.remove("drag-over-top", "drag-over-bottom");
+  });
+  els.processSections.addEventListener("drop", (event) => {
+    const target = event.target.closest(".station-row[data-station-index]");
+    if (!target || !stationDragState) return;
+    event.preventDefault();
+    const toIndex = Number(target.dataset.stationIndex);
+    const before = target.classList.contains("drag-over-top");
+    const type = state.form.types?.[stationDragState.motivoIndex];
+    if (type) {
+      reorderMotivoStation(type, stationDragState.fromIndex, toIndex, before);
+      resyncInlineAcabadoPositions(type);
+      renderProcesses();
+      scheduleSave();
+    }
+    stationDragState = null;
+  });
+}
+
+// Mueve una estación de posición sin tocar sus datos. El barniz ya no ancla nada: cualquier
+// estación (incluido el propio barniz) se puede llevar a cualquier posición.
+function reorderMotivoStation(type, fromIndex, toIndex, before) {
+  const stations = type.inkStations;
+  if (!Array.isArray(stations) || fromIndex === toIndex) return;
+  const insertAt = before ? toIndex : toIndex + 1;
+  const [moved] = stations.splice(fromIndex, 1);
+  const adjustedInsertAt = insertAt > fromIndex ? insertAt - 1 : insertAt;
+  stations.splice(adjustedInsertAt, 0, moved);
+}
+
+function addMotivo() {
+  const target = Math.max(1, n(state.form.header.quantityTypes, 1)) + 1;
+  state.form.header.quantityTypes = target;
+  state.form.header.quantityChanges = changesByTypesCount(target);
+  state.form.header.changesByTypes = changesByTypesCount(target);
+  state.form.header.totalChanges = changesByTypesCount(target);
+  state.form.types = buildTypesList(target, currentQuantity(state.form), state.form.types);
+  if (els.quantityTypes) els.quantityTypes.value = target;
+  syncTypesChangesFields();
+  renderTypesChanges();
+  renderProcesses();
+  refreshCalculationValidation();
+  scheduleSave();
+  if (els.typesDetailList) els.typesDetailList.innerHTML = typesInfoTableHtml(calcTypes());
+}
+
+function removeMotivo(index) {
+  if (!Number.isInteger(index) || index <= 0) return;
+  const types = Array.isArray(state.form.types) ? state.form.types : [];
+  if (index >= types.length || types.length <= 1) return;
+  types.splice(index, 1);
+  const target = Math.max(1, types.length);
+  state.form.header.quantityTypes = target;
+  state.form.header.quantityChanges = changesByTypesCount(target);
+  state.form.header.changesByTypes = changesByTypesCount(target);
+  state.form.header.totalChanges = changesByTypesCount(target);
+  if (els.quantityTypes) els.quantityTypes.value = target;
+  syncTypesChangesFields();
+  renderTypesChanges();
+  renderProcesses();
+  refreshCalculationValidation();
+  scheduleSave();
+  if (els.typesDetailList) els.typesDetailList.innerHTML = typesInfoTableHtml(calcTypes());
 }
 
 function bindFavoriteDocument() {
@@ -9665,6 +16349,20 @@ function bindTimelineLauncher() {
 }
 
 function bindQuantityRepeater() {
+  els.quantityRepeater.addEventListener("focus", (event) => {
+    const input = event.target.closest("input[data-quantity-index]");
+    if (!input || isFrontBackElementContext()) return;
+    const index = Number(input.dataset.quantityIndex);
+    const raw = state.form.header.quantities[index]?.value;
+    input.value = raw ? String(Math.trunc(raw)) : "";
+  }, true);
+  els.quantityRepeater.addEventListener("blur", (event) => {
+    const input = event.target.closest("input[data-quantity-index]");
+    if (!input || isFrontBackElementContext()) return;
+    const index = Number(input.dataset.quantityIndex);
+    const value = state.form.header.quantities[index]?.value;
+    input.value = value ? formatInteger(value) : "";
+  }, true);
   els.quantityRepeater.addEventListener("input", (event) => {
     const input = event.target.closest("input[data-quantity-index]");
     if (!input) return;
@@ -9674,7 +16372,6 @@ function bindQuantityRepeater() {
     }
     const index = Number(input.dataset.quantityIndex);
     state.form.header.quantities[index].value = Math.max(0, n(input.value, 0));
-    input.value = state.form.header.quantities[index].value ? formatInteger(state.form.header.quantities[index].value) : "";
     syncDerivedHeaderAndPackaging(state.form);
     refreshCalculationValidation();
     scheduleSave();
@@ -9781,11 +16478,40 @@ function bindProcesses() {
       return;
     }
     let value = target.dataset.kind === "file" ? (target.files?.[0]?.name || "") : target.type === "checkbox" ? target.checked : target.type === "number" ? n(target.value, 0) : target.value;
+    if (target.type === "number" && target.dataset.integer === "true") value = Math.floor(value);
     if (target.tagName === "SELECT" && field === "isQr") value = String(target.value).toLowerCase() === "true";
     if ((scope === "print" || scope.startsWith("printStages.")) && field === "speedMetersMin") {
       value = printSpeedValue(value);
     }
     setNested(scope, field, value);
+    if (scope.startsWith("plates.rowsAuto.") && ["detalle", "cantidad", "inPorSello", "costoPorIn2", "subtotal"].includes(field)) {
+      const row = getNestedTarget(scope);
+      if (row) {
+        row[`${field}Manual`] = field === "detalle" ? String(value || "").trim().length > 0 : true;
+        if (field !== "subtotal") row.subtotalManual = false;
+      }
+    }
+    if (scope === "packaging" && field === "tipoCaja") {
+      const tipoCajaItem = (state.costsConfig?.acabados?.cajas || []).find((c) => String(c.id) === String(value));
+      if (tipoCajaItem) setNested(scope, "costoCaja", n(tipoCajaItem.costoPorCaja, 0));
+      syncDerivedHeaderAndPackaging(state.form);
+      syncHeaderUnitMasks();
+    }
+    if (scope === "header" && (field === "productosPorCaja" || field === "labelsPerRoll" || field === "rollWidthIn" || field === "anchoCoreIn")) {
+      if (field === "productosPorCaja") state.form.header.productosPorCajaManual = n(value, 0) > 0;
+      if (els[field]) els[field].value = value;
+      syncDerivedHeaderAndPackaging(state.form);
+      syncHeaderUnitMasks();
+    }
+    if (scope === "header" && field === "coreType") {
+      try {
+        const parsed = JSON.parse(value);
+        state.form.header.coreType = parsed;
+        state.form.header.coreDiameter = parsed.diametro || state.form.header.coreDiameter;
+      } catch (e) { /* ignore parse errors */ }
+      syncDerivedHeaderAndPackaging(state.form);
+      syncHeaderUnitMasks();
+    }
     if ((scope === "print" || /^printStages\.\d+$/.test(scope)) && field === "machineId") {
         const machine = findMachine(value);
         if (machine) setNested(scope, "machineName", machineDisplayName(machine));
@@ -9798,12 +16524,20 @@ function bindProcesses() {
       if (selectedDie && !dieMatchesShape(selectedDie, state.form.troquel.dieShape)) state.form.troquel.dieCode = "";
     }
     if (scope.startsWith("printStages.")) syncPrimaryPrintStage();
-    if (scope.startsWith("printStages.") && scope.includes(".inlineFinishes.") && field === "active" && value) {
+    if (scope.startsWith("printStages.") && scope.includes(".inlineFinishes.") && field === "active") {
       const parts = scope.split(".");
       const stageIndex = Number(parts[1]);
       const inlineKey = parts[3];
-      applyInlineFinishSetupDefaults(stageIndex, inlineKey);
+      if (value) applyInlineFinishSetupDefaults(stageIndex, inlineKey);
+      const inlineStage = state.form.printStages?.[stageIndex];
+      if (inlineStage) {
+        const pct = tirajePctDeTablaParaEtapa(inlineStage);
+        if (pct > 0) inlineStage.maculaTirajePct = pct;
+      }
       syncPrimaryPrintStage();
+    }
+    if (scope === "printStages.0.inlineFinishes.barniz" && field === "active") {
+      applyAllMotivosAutoInkStations(state.form);
     }
     if (scope.startsWith("printStages.") && scope.includes(".inlineFinishes.numerado") && field === "numberingType") {
       const parts = scope.split(".");
@@ -9820,6 +16554,7 @@ function bindProcesses() {
     }
     if (scope === "substrate" && field === "materialId") {
       const material = findMaterial(value);
+      reportarSustratoSapSinDatos(material);
       const costs = materialUnitCosts(material, state.form.header.rollWidthIn);
       state.form.substrate.costPerFoot = costs.costPerFoot;
       state.form.substrate.costPerMeter = costs.costPerMeter;
@@ -9841,9 +16576,9 @@ function bindProcesses() {
       const stationIndex = parts.length >= 4 && parts[2] === "inkStations" ? Number(parts[3]) : -1;
       const material = findMaterial(value);
       if (stationIndex >= 0 && state.form.printStages[stageIndex]?.inkStations?.[stationIndex]) {
-        state.form.printStages[stageIndex].inkStations[stationIndex].inkCostPerLb = materialCostPerPound(material);
+        state.form.printStages[stageIndex].inkStations[stationIndex].inkCostPerKg = materialCostPerKg(material);
       } else {
-        state.form.printStages[stageIndex].inkCostPerLb = materialCostPerPound(material);
+        state.form.printStages[stageIndex].inkCostPerKg = materialCostPerKg(material);
         state.form.printStages[stageIndex].inkMaterialDesc = material ? (material.descripcion || material.nombre || '') : '';
       }
       syncPrimaryPrintStage();
@@ -9851,7 +16586,7 @@ function bindProcesses() {
     if (scope.startsWith("printStages.") && field === "whiteInkMaterialId") {
       const stageIndex = Number(scope.split(".")[1]);
       const material = findMaterial(value);
-      state.form.printStages[stageIndex].whiteInkCostPerLb = materialCostPerPound(material);
+      state.form.printStages[stageIndex].whiteInkCostPerKg = materialCostPerKg(material);
       state.form.printStages[stageIndex].whiteInkMaterialDesc = material ? (material.descripcion || material.nombre || '') : '';
       syncPrimaryPrintStage();
     }
@@ -9860,55 +16595,70 @@ function bindProcesses() {
         const material = findMaterial(value);
         const costs = materialUnitCosts(material, state.form.header.rollWidthIn);
         Object.assign(state.form.finishes[index], {
-          costPerFoot: costs.costPerFoot,
           costPerMeter: costs.costPerMeter,
           costPerMsi: costs.costMsi,
-          costPerFt2: n(first(material?.costo_x_ft2, material?.costoPorFt2), 0),
+          costPerM2: r(n(first(material?.costo_x_ft2, material?.costoPorFt2), 0) * 10.7639104167, 6),
           costPerUnit: n(material?.costo_x_unidad, 0),
           costPerKg: n(material?.costo_x_kg, 0),
-          layerGft2: n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0)
+          layerGm2: r(n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0) * 10.7639104167, 4)
         });
       }
     if (scope.startsWith("printStages.") && scope.includes(".inlineFinishes.") && field === "materialId") {
       const parts = scope.split(".");
       const stageIndex = Number(parts[1]);
       const inlineKey = parts[3];
-      const material = findMaterial(value);
-      if (inlineKey === "barniz") {
-        const barnizItem = (state.costsConfig?.acabados?.barniz || []).find((b) => String(b.id || b.nombre) === String(value));
-        const barnizCostPerKg = n(first(barnizItem?.costoPorKilo, material?.costo_x_kg, material?.costPerKgUsd), 0);
-        Object.assign(state.form.printStages[stageIndex].inlineFinishes[inlineKey], {
-          costPerLb: materialCostPerPound(material),
-          costPerKg: barnizCostPerKg,
-          layerGft2: n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0),
-          varnishBcm: firstPositiveNumber(n(barnizItem?.bcmAnilox, 0), state.form.printStages[stageIndex].inlineFinishes[inlineKey].varnishBcm),
-          coveragePct: firstPositiveNumber(n(barnizItem?.porcentajeCobertura, 0), state.form.printStages[stageIndex].inlineFinishes[inlineKey].coveragePct),
-          factorTransferencia: firstPositiveNumber(n(barnizItem?.factorTransferencia, 0), state.form.printStages[stageIndex].inlineFinishes[inlineKey].factorTransferencia, 0.35),
-          densidad: firstPositiveNumber(n(barnizItem?.densidad, 0), state.form.printStages[stageIndex].inlineFinishes[inlineKey].densidad, 1.05)
-        });
+      applyInlineFinishMaterialDefaults(stageIndex, inlineKey, value);
+      syncPrimaryPrintStage();
+    }
+    if (shouldRender && scope.startsWith("printStages.") && scope.includes(".inlineFinishes.") && field === "estacionNumero") {
+      const parts = scope.split(".");
+      const inlineKey = parts[3];
+      if (inlineKey === "barniz2" || inlineKey === "barniz3") {
+        aplicarBarnizExtraEstacion(Number(parts[1]), inlineKey, value);
       } else {
-        const costs = materialUnitCosts(material, state.form.header.rollWidthIn);
-        Object.assign(state.form.printStages[stageIndex].inlineFinishes[inlineKey], {
-          costPerFoot: costs.costPerFoot,
-          costPerMeter: costs.costPerMeter,
-          costPerMsi: costs.costMsi,
-          costPerFt2: n(first(material?.costo_x_ft2, material?.costoPorFt2), 0),
-          costPerUnit: n(material?.costo_x_unidad, 0),
-          costPerKg: n(material?.costo_x_kg, 0),
-          layerGft2: n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0),
-          supplyWidthIn: inlineKey === "estampado" ? firstPositiveNumber(state.form.printStages[stageIndex].inlineFinishes[inlineKey].supplyWidthIn, materialSupplyWidthIn(material, state.form.header.rollWidthIn), 0) : state.form.printStages[stageIndex].inlineFinishes[inlineKey].supplyWidthIn
-        });
+        aplicarAcabadoEstacionNumero(Number(parts[1]), inlineKey, value);
       }
       syncPrimaryPrintStage();
+      refreshCalculationValidation();
     }
     if (scope === "troquel" && field === "dieCode") {
       if (String(value || "").trim()) state.form.troquel.dieMode = "inventory";
       applyDieDefaults(value);
     }
-    if (scope === "print" && field === "machineId") applyPrintMachineDefaults(value);
-    if (scope.startsWith("printStages.") && field === "machineId") applyPrintStageMachineDefaults(scope, value);
-    if (scope.startsWith("plates.") && field === "processId") applyPlateMachineDefaults(scope, value);
-    if (scope.startsWith("finishes.") && field === "machineId") applyFinishMachineDefaults(scope, value);
+    if (scope === "print" && field === "machineId") {
+      if (!value) {
+        Object.assign(state.form.print, { machineId: "", machineName: "", setupMinutes: 0, cleaningMinutes: 0, mountingMinutes: 0, speedMetersMin: 0, costHour: 0, operatorHourCost: 0 });
+        if (Array.isArray(state.form.printStages) && state.form.printStages.length) Object.assign(state.form.printStages[0], state.form.print);
+      } else {
+        applyPrintMachineDefaults(value);
+      }
+      prefetchMotivoStationsCatalogs();
+    }
+    if (scope.startsWith("printStages.") && field === "machineId") {
+      const idx = Number(scope.split(".")[1]);
+      if (!value) {
+        if (state.form.printStages?.[idx]) Object.assign(state.form.printStages[idx], { machineId: "", machineName: "", setupMinutes: 0, cleaningMinutes: 0, mountingMinutes: 0, speedMetersMin: 0, costHour: 0, operatorHourCost: 0 });
+      } else {
+        applyPrintStageMachineDefaults(scope, value);
+      }
+      prefetchMotivoStationsCatalogs();
+    }
+    if (scope.startsWith("plates.") && field === "processId") {
+      if (!value && state.form.plates) {
+        const key = scope.split(".")[1];
+        if (state.form.plates[key]) Object.assign(state.form.plates[key], { processId: "", machineName: "", speed: 0, fixedMinutes: 0, costHourMachine: 0, costHourOperator: 0 });
+      } else {
+        applyPlateMachineDefaults(scope, value);
+      }
+    }
+    if (scope.startsWith("finishes.") && field === "machineId") {
+      const idx = Number(scope.split(".")[1]);
+      if (!value) {
+        if (state.form.finishes?.[idx]) Object.assign(state.form.finishes[idx], { machineId: "", machineName: "", setupMinutes: 0, speed: 0, costHour: 0, costHourMachine: 0, costHourOperator: 0 });
+      } else {
+        applyFinishMachineDefaults(scope, value);
+      }
+    }
     if (!scope.startsWith("plates.") && field === "processId") applyProcessDefaults(scope, value);
     if (shouldRender) renderProcesses();
       else refreshCalculationValidation();
@@ -9924,8 +16674,38 @@ function bindProcesses() {
       toggleCalcShapePanel();
       return;
     }
+    const aniloxPick = event.target.closest("[data-anilox-pick]");
+    if (aniloxPick) {
+      event.preventDefault();
+      const sIdx = Number(aniloxPick.dataset.stationIndex);
+      if (window.CalcMaquinaModal && typeof CalcMaquinaModal.selectorAnilox === "function") {
+        CalcMaquinaModal.selectorAnilox({
+          anchorEl: aniloxPick,
+          quoteCode: state.form.header.quoteCode || "",
+          lineCode: state.form.header.lineCode || "",
+          numeroEstacion: sIdx + 1,
+          onElegir: (a) => { if (a && n(a.bcm, 0) > 0) aplicarAniloxBcmATodosLosMotivos(sIdx, n(a.bcm, 0)); }
+        });
+      }
+      return;
+    }
     const button = event.target.closest("button[data-action]");
     if (!button) return;
+    if (button.dataset.action === "add-barniz" || button.dataset.action === "remove-barniz") {
+      event.preventDefault();
+      const key = button.dataset.barnizKey;
+      const stage = state.form.printStages?.[0];
+      if (stage?.inlineFinishes?.[key]) {
+        const activar = button.dataset.action === "add-barniz";
+        stage.inlineFinishes[key].active = activar;
+        if (!activar) { stage.inlineFinishes[key].estacionNumero = ""; stage.inlineFinishes[key].stationIndex = null; }
+        syncPrimaryPrintStage();
+        renderProcesses();
+        refreshCalculationValidation();
+        scheduleSave();
+      }
+      return;
+    }
     if (button.dataset.action === "remove-process") {
       event.preventDefault();
       event.stopPropagation();
@@ -9992,20 +16772,23 @@ function bindProcesses() {
       scheduleSave();
       return;
     }
-    if (button.dataset.action === "set-die-mode") {
-      state.form.troquel.dieMode = normalizeDieMode(button.dataset.dieMode);
-      state.form.troquel.external = normalizeDieExternalRows(state.form.troquel.external);
-      renderProcesses();
-      scheduleSave();
-      return;
-    }
     if (button.dataset.action === "open-troquel-catalog") {
       event.preventDefault();
       openDieCatalogModal();
       return;
     }
+    if (button.dataset.action === "open-troquel-calculadora-directo") {
+      event.preventDefault();
+      openTroquelCalculadoraDirecto();
+      return;
+    }
+    if (button.dataset.action === "preview-troquel-image") {
+      event.preventDefault();
+      openTroquelImagePreview(button.dataset.imageUrl, button.dataset.imageAlt);
+      return;
+    }
     if (button.dataset.action === "close-troquel-catalog") {
-      closeDieCatalogModal();
+      solicitarCierreCalculadoraTroquel();
       return;
     }
     if (button.dataset.action === "select-troquel-from-catalog") {
@@ -10022,15 +16805,6 @@ function bindProcesses() {
       }
       return;
     }
-    if (button.dataset.action === "clear-die-external-attachment") {
-      const index = Number(button.dataset.index);
-      if (Number.isInteger(index) && state.form.troquel?.external?.[index]) {
-        state.form.troquel.external[index].attachmentName = "";
-        renderProcesses();
-        scheduleSave();
-      }
-      return;
-    }
     if (button.dataset.action === "add-plate-external") {
       state.form.plates.external = normalizePlateExternalRows(state.form.plates.external);
       state.form.plates.external.push({ description: "", cost: 0, attachmentName: "", comments: "" });
@@ -10039,15 +16813,6 @@ function bindProcesses() {
       state.form.plates.external = normalizePlateExternalRows(state.form.plates.external);
       state.form.plates.external.splice(Number(button.dataset.index), 1);
       state.form.plates.external = normalizePlateExternalRows(state.form.plates.external);
-    }
-    if (button.dataset.action === "add-die-external") {
-      state.form.troquel.external = normalizeDieExternalRows(state.form.troquel.external);
-      state.form.troquel.external.push({ description: "", cost: 0, attachmentName: "", comments: "" });
-    }
-    if (button.dataset.action === "remove-die-external") {
-      state.form.troquel.external = normalizeDieExternalRows(state.form.troquel.external);
-      state.form.troquel.external.splice(Number(button.dataset.index), 1);
-      state.form.troquel.external = normalizeDieExternalRows(state.form.troquel.external);
     }
     if (button.dataset.action === "add-additional") state.form.additional.push({ description: "", cost: 0, attachmentName: "", comments: "" });
     if (button.dataset.action === "remove-additional") state.form.additional.splice(Number(button.dataset.index), 1);
@@ -10285,7 +17050,7 @@ async function init() {
   try {
     const quoteId = params.get("quoteId") || "";
     const lineId = params.get("lineId") || "";
-    const [config, catalogs, context, costsConfig, sapConfig, sapSalespersonConfigs, sapProductionCostCenter, trackingUsers] = await Promise.all([
+    const [config, catalogs, context, costsConfig, sapConfig, sapSalespersonConfigs, sapProductionCostCenter, trackingUsers, productTypesData, pantonesBiblioteca] = await Promise.all([
       withTimeout(getJson("/api/config/shell"), 1500, {}),
       withTimeout(getJson("/api/catalogs"), 2500, emptyCatalogs()),
       quoteId || lineId ? getJson(`/api/flexo/calculo?${new URLSearchParams({ quoteId, lineId }).toString()}`) : Promise.resolve(null),
@@ -10293,9 +17058,16 @@ async function init() {
       getJson("/api/sap/config").catch(() => null),
       getJson("/api/sap/salesperson-profit-centers").catch(() => ({ items: [] })),
       getJson("/api/sap/production-cost-center").catch(() => null),
-      getJson("/api/admin-users", { headers: sessionHeaders() }).catch(() => [])
+      getJson("/api/admin-users", { headers: sessionHeaders() }).catch(() => []),
+      withTimeout(getJson("/api/productos/tipos"), 2500, null).catch(() => null),
+      withTimeout(getJson("/api/tintas/pantones/biblioteca"), 2500, []).catch(() => [])
     ]);
     state.config = config;
+    aplicarFormatoNumeroPais(state.config?.general?.formatoNumeroPais);
+    productTypesList = (productTypesData?.tipos || [])
+      .filter((t) => String(t.department_name || "").trim().toLowerCase() === "flexografía" && t.active !== false)
+      .map((t) => String(t.name || "").trim())
+      .filter(Boolean);
     refreshStaticFieldInfoIcons();
     state.context = context;
     state.costsConfig = costsConfig;
@@ -10309,9 +17081,18 @@ async function init() {
       machines: catalogs.machines || [],
       machineCategories: catalogs.machineCategories || {},
       processes: buildLocalProcessCatalog(catalogs.processes || []),
-      outputTypes: catalogs.outputTypes || []
+      outputTypes: catalogs.outputTypes || [],
+      pantones: Array.isArray(pantonesBiblioteca) ? pantonesBiblioteca : []
     };
     state.form = buildForm();
+    // buildForm() reconstruye los motivos directamente desde el uiState guardado (o los crea
+    // vacíos) sin pasar por buildTypesList/applyAutoInkStationsToType — sin esto, un motivo recién
+    // cargado (incluido el primero) no reflejaba CMYK/Barniz del encabezado hasta que el
+    // usuario tocaba esos checkboxes manualmente. Aplica el mismo reflejo que el resto del modal.
+    // Se espera el catálogo de tintas antes, para que el CMYK automático ya traiga costo real de
+    // inventario en vez de caer al genérico.
+    await ensureTintasStationCatalogs();
+    applyAllMotivosAutoInkStations(state.form);
     await loadLineNotifications();
     els.pageTitle.textContent = "Cálculo de Flexografía";
     renderHeader();
@@ -10335,7 +17116,11 @@ async function init() {
     }
     bindHeader();
     bindDetailsDemo();
+    bindCalcAdjuntosModal();
+    bindVentanasPanel();
+    ensureInfoPopover();
     bindTypesDetail();
+    prefetchMotivoStationsCatalogs();
     bindFavoriteDocument();
     bindTimelineLauncher();
     bindQuantityRepeater();
@@ -10345,6 +17130,7 @@ async function init() {
     bindBdfgProcessTray();
     const jumpProcess = String(params.get("jumpProcess") || "").trim();
     if (jumpProcess) setTimeout(() => jumpToProcessIssue(jumpProcess), 350);
+    applyCalcBloqueo();
     window.addEventListener("resize", () => {
       renderQuantities();
       updateProcessLauncherMenuPlacement();
@@ -10372,6 +17158,10 @@ document.addEventListener("pointerdown", (event) => {
   if (event.target.closest?.("#applicationEnvironment, #applicationEnvironmentPanel, #surfaceType, #surfaceTypePanel")) return;
   hideCalcInlinePanels();
 }, true);
+
+// El desplegable animado del sistema se cierra al desplazar la página o al abrir
+// uno de los paneles propios del cálculo, para que no queden dos abiertos a la vez.
+window.ERPSelDesplegable?.cerrarTodos?.();
 
 document.addEventListener("click", (event) => {
   const closeMessage = event.target.closest?.("[data-close-calc-message]");
@@ -10405,7 +17195,7 @@ document.addEventListener("click", (event) => {
   if (routeLink) {
     event.preventDefault();
     event.stopPropagation();
-    openAppRoute(routeLink.dataset.route, routeLink.dataset.label || routeLink.textContent || "Documento");
+    openAppRoute(routeLink.dataset.route, routeLink.dataset.label || routeLink.textContent || "Documento", { flotante: routeLink.dataset.flotante === "1" });
     return;
   }
   const trigger = event.target.closest?.(".info-popover-trigger");
@@ -10423,7 +17213,7 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("click", (event) => {
   const toggle = event.target.closest?.("[data-details-toggle]");
-  if (!toggle || !els.detailsCostTable?.contains(toggle)) return;
+  if (!toggle || !esTablaDetalles(toggle)) return;
   event.preventDefault();
   event.stopPropagation();
   const key = toggle.dataset.detailsToggle;
@@ -10433,26 +17223,26 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("pointerover", (event) => {
   const trigger = event.target.closest?.(".details-cost-value.has-tooltip");
-  if (!trigger || !els.detailsCostTable?.contains(trigger)) return;
+  if (!trigger || !esTablaDetalles(trigger)) return;
   showInfoPopover(trigger);
 });
 
 document.addEventListener("pointerout", (event) => {
   const trigger = event.target.closest?.(".details-cost-value.has-tooltip");
-  if (!trigger || !els.detailsCostTable?.contains(trigger)) return;
+  if (!trigger || !esTablaDetalles(trigger)) return;
   if (event.relatedTarget && trigger.contains(event.relatedTarget)) return;
   if (state.infoPopover.trigger === trigger) closeInfoPopover();
 });
 
 document.addEventListener("focusin", (event) => {
   const trigger = event.target.closest?.(".details-cost-value.has-tooltip");
-  if (!trigger || !els.detailsCostTable?.contains(trigger)) return;
+  if (!trigger || !esTablaDetalles(trigger)) return;
   showInfoPopover(trigger);
 });
 
 document.addEventListener("focusout", (event) => {
   const trigger = event.target.closest?.(".details-cost-value.has-tooltip");
-  if (!trigger || !els.detailsCostTable?.contains(trigger)) return;
+  if (!trigger || !esTablaDetalles(trigger)) return;
   if (event.relatedTarget && trigger.contains(event.relatedTarget)) return;
   if (state.infoPopover.trigger === trigger) closeInfoPopover();
 });
@@ -10463,412 +17253,6 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-// ---------------------------------------------------------------------------
-// Cold Foil Montaje
-// ---------------------------------------------------------------------------
-const CF_IN2_TO_M2 = 0.00064516;
-const CF_IN_TO_M = 0.0254;
-const CF_GRADIENTS = {
-  oro:   ['#F6DFA0','#C7963A','#8B5E10'],
-  plata: ['#F4F4F4','#BEC3C8','#84898E'],
-  rosa:  ['#F3CCCF','#DD9AA1','#AD616A'],
-  holo:  ['#C8F3E4','#CDCAF6','#F7CDEA','#FCEBB2']
-};
-let cf_foilStyle = 'oro';
-
-function normalizeColdfoilData(src) {
-  if (!src || typeof src !== 'object') src = {};
-  return {
-    elementoAnchoIn: n(src.elementoAnchoIn, 2),
-    elementoLargoIn: n(src.elementoLargoIn, 3),
-    columnas: Math.max(1, Math.round(n(src.columnas, 3))),
-    filas: Math.max(1, Math.round(n(src.filas, 1))),
-    sepHorizontalIn: n(src.sepHorizontalIn, 0.125),
-    sepVerticalIn: n(src.sepVerticalIn, 0.125),
-    margenLateralIn: n(src.margenLateralIn, 0.25),
-    margenLongitudinalIn: n(src.margenLongitudinalIn, 0.25),
-    costoPlanchaIn2: n(src.costoPlanchaIn2, 0.20),
-    coberturaAdhesivoPct: n(src.coberturaAdhesivoPct, 60),
-    cantidadTotal: Math.max(1, Math.round(n(src.cantidadTotal, 50000))),
-    gramajeGm2: n(src.gramajeGm2, 2.0),
-    mermaAdhesivoPct: n(src.mermaAdhesivoPct, 10),
-    precioAdhesivoKg: n(src.precioAdhesivoKg, 18),
-    metrosLineales: n(src.metrosLineales, 500),
-    costoFoilM2: n(src.costoFoilM2, 5),
-    anchoBobinaIn: n(src.anchoBobinaIn, 13),
-    colorFoil: src.colorFoil || 'oro'
-  };
-}
-
-function renderColdfoilIcon() {
-  return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
-}
-
-function renderColdfoilSummary(data) {
-  if (!data || !data.elementoAnchoIn) return "";
-  const totalPlancha = data.costoPlanchaTotal || 0;
-  const totalFoil = data.costoFoilTotal || 0;
-  const totalAdhesivo = data.costoAdhesivoTotal || 0;
-  const total = totalPlancha + totalFoil + totalAdhesivo;
-  return `<div class="coldfoil-summary-box">
-    <div class="coldfoil-summary-title">Cold Foil</div>
-    <div class="coldfoil-summary-grid">
-      <span>Plancha</span><span>${formatMoney(totalPlancha)}</span>
-      <span>Foil</span><span>${formatMoney(totalFoil)}</span>
-      <span>Adhesivo</span><span>${formatMoney(totalAdhesivo)}</span>
-      <span class="coldfoil-summary-total">Total</span><span class="coldfoil-summary-total">${formatMoney(total)}</span>
-    </div>
-  </div>`;
-}
-
-function cf_divisorPairs(n) {
-  const pairs = [];
-  for (let r = 1; r * r <= n; r++) {
-    if (n % r === 0) pairs.push([r, n / r]);
-  }
-  const all = [];
-  pairs.forEach(([r, c]) => {
-    all.push([r, c]);
-    if (r !== c) all.push([c, r]);
-  });
-  return all;
-}
-
-function cf_computeLayout(rows, cols, anchoEl, largoEl, sepH, sepV, margLat, margLong, costoPlanchaIn2, metros, costoFoilM2) {
-  const anchoConjunto = cols * anchoEl + (cols - 1) * sepH;
-  const largoConjunto = rows * largoEl + (rows - 1) * sepV;
-  const anchoUtil = anchoConjunto + 2 * margLat;
-  const largoUtil = largoConjunto + 2 * margLong;
-  const areaPlancha = anchoUtil * largoUtil;
-  const costoPlancha = areaPlancha * costoPlanchaIn2;
-  const anchoBandaFoil = anchoConjunto;
-  const costoFoil = (anchoBandaFoil * CF_IN_TO_M) * metros * costoFoilM2;
-  return { rows, cols, anchoConjunto, largoConjunto, anchoUtil, largoUtil, areaPlancha, costoPlancha, anchoBandaFoil, costoFoil, sum: costoPlancha + costoFoil };
-}
-
-function cf_svgDim(x1, y1, x2, y2, label, color, labelAbove) {
-  if (labelAbove === undefined) labelAbove = true;
-  const vertical = Math.abs(x1 - x2) < 0.5;
-  const ext = 8;
-  let s = '';
-  if (!vertical) {
-    s += `<line x1="${x1}" y1="${y1 - ext}" x2="${x1}" y2="${y1 + ext}" stroke="${color}" stroke-width="1"/>`;
-    s += `<line x1="${x2}" y1="${y2 - ext}" x2="${x2}" y2="${y2 + ext}" stroke="${color}" stroke-width="1"/>`;
-    s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="1" marker-start="url(#cf-arrow-${color.replace('#', '')})" marker-end="url(#cf-arrow-${color.replace('#', '')})"/>`;
-    const mx = (x1 + x2) / 2;
-    s += `<rect x="${mx - 34}" y="${labelAbove ? y1 - 19 : y1 + 5}" width="68" height="14" fill="transparent" class="cf-dim-bg"/>`;
-    s += `<text x="${mx}" y="${labelAbove ? y1 - 9 : y1 + 15}" text-anchor="middle" font-family="monospace" font-size="10.5" fill="${color}">${label}</text>`;
-  } else {
-    s += `<line x1="${x1 - ext}" y1="${y1}" x2="${x1 + ext}" y2="${y1}" stroke="${color}" stroke-width="1"/>`;
-    s += `<line x1="${x2 - ext}" y1="${y2}" x2="${x2 + ext}" y2="${y2}" stroke="${color}" stroke-width="1"/>`;
-    s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="1" marker-start="url(#cf-arrow-${color.replace('#', '')})" marker-end="url(#cf-arrow-${color.replace('#', '')})"/>`;
-    const my = (y1 + y2) / 2;
-    s += `<g transform="translate(${labelAbove ? x1 - 14 : x1 + 14},${my}) rotate(-90)"><rect x="-34" y="-7" width="68" height="14" fill="transparent" class="cf-dim-bg"/><text x="0" y="3" text-anchor="middle" font-family="monospace" font-size="10.5" fill="${color}">${label}</text></g>`;
-  }
-  return s;
-}
-
-function cf_cf(n, d) { if (d === undefined) d = 2; return n.toLocaleString('es-CR', { minimumFractionDigits: d, maximumFractionDigits: d }); }
-function cf_money(n) { return '$' + cf_cf(n, 2); }
-
-function renderColdfoilSwatches() {
-  const wrap = document.getElementById('cf_swatches');
-  if (!wrap) return;
-  wrap.innerHTML = '';
-  Object.keys(CF_GRADIENTS).forEach((key) => {
-    const c = CF_GRADIENTS[key];
-    const el = document.createElement('div');
-    el.className = 'coldfoil-swatch' + (key === cf_foilStyle ? ' active' : '');
-    el.style.background = `linear-gradient(135deg, ${c[0]}, ${c[c.length - 1]})`;
-    el.title = key;
-    el.onclick = () => { cf_foilStyle = key; document.querySelectorAll('.coldfoil-swatch').forEach((sw) => sw.classList.remove('active')); el.classList.add('active'); renderColdfoilContent(); };
-    wrap.appendChild(el);
-  });
-}
-
-function renderColdfoilContent() {
-  const anchoEl = n(document.getElementById('cf_anchoEl')?.value, 2);
-  const largoEl = n(document.getElementById('cf_largoEl')?.value, 3);
-  const cols = Math.max(1, Math.round(n(document.getElementById('cf_cols')?.value, 3)));
-  const rows = Math.max(1, Math.round(n(document.getElementById('cf_rows')?.value, 1)));
-  const sepH = n(document.getElementById('cf_sepH')?.value, 0.125);
-  const sepV = n(document.getElementById('cf_sepV')?.value, 0.125);
-  const margLat = n(document.getElementById('cf_margLat')?.value, 0.25);
-  const margLong = n(document.getElementById('cf_margLong')?.value, 0.25);
-  const costoPlanchaIn2 = n(document.getElementById('cf_costoPlancha')?.value, 0.20);
-  const cobertura = n(document.getElementById('cf_cobertura')?.value, 60);
-  const cantidadTotal = Math.max(1, Math.round(n(document.getElementById('cf_cantidadTotal')?.value, 50000)));
-  const gramaje = n(document.getElementById('cf_gramaje')?.value, 2.0);
-  const merma = n(document.getElementById('cf_merma')?.value, 10);
-  const precioKg = n(document.getElementById('cf_precioKg')?.value, 18);
-  const metros = n(document.getElementById('cf_metros')?.value, 500);
-  const costoFoilM2 = n(document.getElementById('cf_costoFoil')?.value, 5);
-  const anchoBobina = n(document.getElementById('cf_anchoBobina')?.value, 13);
-
-  const L = cf_computeLayout(rows, cols, anchoEl, largoEl, sepH, sepV, margLat, margLong, costoPlanchaIn2, metros, costoFoilM2);
-
-  const areaElemIn2 = anchoEl * largoEl * (cobertura / 100);
-  const areaTotalIn2 = areaElemIn2 * cantidadTotal;
-  const areaTotalM2 = areaTotalIn2 * CF_IN2_TO_M2;
-  const consumoTeoricoG = areaTotalM2 * gramaje;
-  const consumoKg = (consumoTeoricoG * (1 + merma / 100)) / 1000;
-  const costoAdhesivo = consumoKg * precioKg;
-  const total = L.costoPlancha + L.costoFoil + costoAdhesivo;
-
-  const gridTag = document.getElementById('cf_gridTag');
-  if (gridTag) gridTag.textContent = rows + ' fila(s) \u00d7 ' + cols + ' columna(s) \u2014 ' + (rows * cols) + ' elementos/plancha';
-
-  // SVG
-  const W = 860, H = 480;
-  const padTop = 70, padBottom = 60, padL = 70, padR = 40;
-  const availW = W - padL - padR, availH = H - padTop - padBottom;
-  const scale = Math.min(availW / L.anchoUtil, availH / L.largoUtil, 90);
-  const plateW = L.anchoUtil * scale, plateH = L.largoUtil * scale;
-  const originX = padL + (availW - plateW) / 2;
-  const originY = padTop + (availH - plateH) / 2;
-  const conjW = L.anchoConjunto * scale, conjH = L.largoConjunto * scale;
-  const conjX = originX + margLat * scale;
-  const conjY = originY + margLong * scale;
-
-  const grad = CF_GRADIENTS[cf_foilStyle] || CF_GRADIENTS.oro;
-  const stops = grad.map((c, i) => `<stop offset="${(i / (grad.length - 1)) * 100}%" stop-color="${c}"/>`).join('');
-  let elems = '';
-  const cellW = anchoEl * scale, cellH = largoEl * scale;
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const ex = conjX + c * (cellW + sepH * scale);
-      const ey = conjY + r * (cellH + sepV * scale);
-      elems += `<rect x="${ex}" y="${ey}" width="${cellW}" height="${cellH}" rx="1.5" fill="url(#cf-foilGrad)" stroke="#5A4310" stroke-width="0.75"/>`;
-      elems += `<polygon points="${ex},${ey} ${ex + cellW * 0.55},${ey} ${ex},${ey + cellH * 0.55}" fill="#ffffff" opacity="0.28"/>`;
-      if (cobertura < 100) {
-        const inset = Math.min(cellW, cellH) * (1 - Math.sqrt(cobertura / 100)) / 2;
-        elems += `<rect x="${ex + inset}" y="${ey + inset}" width="${Math.max(cellW - 2 * inset, 2)}" height="${Math.max(cellH - 2 * inset, 2)}" fill="none" stroke="#5A4310" stroke-width="0.75" stroke-dasharray="2,2" opacity="0.85"/>`;
-      }
-    }
-  }
-
-  const exceeds = L.anchoBandaFoil > anchoBobina && anchoBobina > 0;
-  const bobinaWarn = document.getElementById('cf_bobinaWarn');
-  if (bobinaWarn) bobinaWarn.hidden = !exceeds;
-
-  let bobinaLine = '';
-  if (anchoBobina > 0) {
-    const bx = originX;
-    const bobinaColor = exceeds ? '#B94E2C' : '#3F6B4A';
-    bobinaLine = `<line x1="${bx}" y1="${originY - 46}" x2="${bx + anchoBobina * scale}" y2="${originY - 46}" stroke="${bobinaColor}" stroke-width="1.5" stroke-dasharray="4,3"/><text x="${bx + (anchoBobina * scale) / 2}" y="${originY - 52}" text-anchor="middle" font-family="monospace" font-size="10" fill="${bobinaColor}">ancho de bobina: ${cf_cf(anchoBobina, 2)}"</text>`;
-  }
-
-  const svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="cf-foilGrad" x1="0" y1="0" x2="1" y2="1">${stops}</linearGradient>
-      <marker id="cf-arrow-2B4C6F" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 Z" fill="#2B4C6F"/></marker>
-      <marker id="cf-arrow-B94E2C" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 Z" fill="#B94E2C"/></marker>
-      <pattern id="cf-hatch" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="0" y2="6" stroke="#2B4C6F" stroke-width="1" opacity="0.25"/></pattern>
-    </defs>
-    <rect x="0" y="0" width="${W}" height="${H}" fill="transparent" class="cf-svg-bg"/>
-    ${bobinaLine}
-    <rect x="${originX}" y="${originY}" width="${plateW}" height="${plateH}" fill="url(#cf-hatch)" stroke="#20242C" stroke-width="1.5"/>
-    <rect x="${conjX}" y="${conjY}" width="${conjW}" height="${conjH}" fill="#F6F4EC" stroke="#2B4C6F" stroke-width="1" stroke-dasharray="3,2"/>
-    ${elems}
-    ${cf_svgDim(originX, originY + plateH + 34, originX + plateW, originY + plateH + 34, 'plancha: ' + cf_cf(L.anchoUtil, 2) + '"', '#20242C', false)}
-    ${cf_svgDim(originX - 34, originY, originX - 34, originY + plateH, cf_cf(L.largoUtil, 2) + '"', '#20242C', true)}
-    ${cf_svgDim(conjX, originY - 16, conjX + conjW, originY - 16, 'banda foil: ' + cf_cf(L.anchoBandaFoil, 2) + '"', '#B94E2C', true)}
-    <text x="${originX}" y="${originY + plateH + 50}" font-family="monospace" font-size="9.5" fill="var(--cf-dim-color, #5B5A50)">margen lateral ${cf_cf(margLat, 2)}" · margen longitudinal ${cf_cf(margLong, 2)}" · separaci\u00f3n ${cf_cf(sepH, 2)}"\u00d7${cf_cf(sepV, 2)}"</text>
-  </svg>`;
-
-  const svgWrap = document.getElementById('cf_svgWrap');
-  if (svgWrap) svgWrap.innerHTML = svg;
-
-  // Ledger
-  const ledger = document.getElementById('cf_ledger');
-  if (ledger) {
-    ledger.innerHTML = '<div class="coldfoil-stat"><div class="coldfoil-stat-k">Plancha</div><div class="coldfoil-stat-v">' + cf_money(L.costoPlancha) + '</div><div class="coldfoil-stat-d">' + cf_cf(L.areaPlancha, 2) + ' in\u00b2 \u00b7 ' + cf_cf(L.anchoUtil, 2) + '"\u00d7' + cf_cf(L.largoUtil, 2) + '"</div></div><div class="coldfoil-stat"><div class="coldfoil-stat-k">Foil</div><div class="coldfoil-stat-v">' + cf_money(L.costoFoil) + '</div><div class="coldfoil-stat-d">banda ' + cf_cf(L.anchoBandaFoil, 2) + '" \u00b7 ' + cf_cf(metros, 0) + ' m producci\u00f3n</div></div><div class="coldfoil-stat"><div class="coldfoil-stat-k">Adhesivo</div><div class="coldfoil-stat-v">' + cf_money(costoAdhesivo) + '</div><div class="coldfoil-stat-d">' + cf_cf(consumoKg, 3) + ' kg con merma \u00b7 ' + cf_cf(cantidadTotal, 0) + ' piezas</div></div><div class="coldfoil-stat coldfoil-stat-total"><div class="coldfoil-stat-k">Total del trabajo</div><div class="coldfoil-stat-v">' + cf_money(total) + '</div><div class="coldfoil-stat-d">plancha + foil + adhesivo</div></div>';
-  }
-
-  // Table
-  const nEls = rows * cols;
-  const candidates = cf_divisorPairs(nEls).map(([r, c]) => cf_computeLayout(r, c, anchoEl, largoEl, sepH, sepV, margLat, margLong, costoPlanchaIn2, metros, costoFoilM2));
-  candidates.sort((a, b) => a.sum - b.sum);
-  const bestSum = candidates.length ? candidates[0].sum : null;
-  const shown = candidates.slice(0, 10);
-  const tableBody = document.getElementById('cf_tableBody');
-  if (tableBody) {
-    tableBody.innerHTML = shown.map(function(c) {
-      return '<tr' + (c.sum === bestSum ? ' class="coldfoil-best"' : '') + '><td>' + c.rows + ' \u00d7 ' + c.cols + '</td><td>' + cf_cf(c.anchoUtil, 2) + '"</td><td>' + cf_cf(c.largoUtil, 2) + '"</td><td>' + cf_cf(c.areaPlancha, 2) + ' in\u00b2</td><td>' + cf_cf(c.anchoBandaFoil, 2) + '"</td><td>' + cf_money(c.costoPlancha) + '</td><td>' + cf_money(c.costoFoil) + '</td><td>' + cf_money(c.sum) + '</td></tr>';
-    }).join('');
-  }
-}
-
-function openColdfoilModal(stageIndex) {
-  const modal = document.getElementById('coldfoilModal');
-  if (!modal) return;
-  state.coldfoilStageIndex = stageIndex;
-
-  const inline = state.form.printStages[stageIndex]?.inlineFinishes?.estampado;
-  const cf = normalizeColdfoilData(inline?.coldfoil || {});
-
-  const costsState = state.costsConfig?.acabados?.coldfoil || {};
-
-  const fields = {
-    elementoAnchoIn: cf.elementoAnchoIn || n(costsState.elementoAnchoDefaultIn, 2),
-    elementoLargoIn: cf.elementoLargoIn || n(costsState.elementoLargoDefaultIn, 3),
-    columnas: cf.columnas || n(costsState.columnasDefault, 3),
-    filas: cf.filas || n(costsState.filasDefault, 1),
-    sepHorizontalIn: cf.sepHorizontalIn || n(costsState.separacionHDefaultIn, 0.125),
-    sepVerticalIn: cf.sepVerticalIn || n(costsState.separacionVDefaultIn, 0.125),
-    margenLateralIn: cf.margenLateralIn || n(costsState.margenLateralDefaultIn, 0.25),
-    margenLongitudinalIn: cf.margenLongitudinalIn || n(costsState.margenLongitudinalDefaultIn, 0.25),
-    costoPlanchaIn2: cf.costoPlanchaIn2 || n(state.costsConfig?.convencional?.costoPlanchaIn2, 0.20),
-    coberturaAdhesivoPct: cf.coberturaAdhesivoPct || n(costsState.coberturaDefaultPct, 60),
-    cantidadTotal: cf.cantidadTotal || 50000,
-    gramajeGm2: cf.gramajeGm2 || n(costsState.gramajeGm2, 2.0),
-    mermaAdhesivoPct: cf.mermaAdhesivoPct || n(costsState.mermaAdhesivoPct, 10),
-    precioAdhesivoKg: cf.precioAdhesivoKg || n(costsState.precioAdhesivoKg, 18),
-    metrosLineales: cf.metrosLineales || 500,
-    costoFoilM2: cf.costoFoilM2 || n(costsState.costoFoilM2, 5),
-    anchoBobinaIn: cf.anchoBobinaIn || n(costsState.anchoBobinaDefaultIn, 13),
-    colorFoil: cf.colorFoil || 'oro'
-  };
-
-  cf_foilStyle = fields.colorFoil;
-
-  document.getElementById('cf_anchoEl').value = fields.elementoAnchoIn;
-  document.getElementById('cf_largoEl').value = fields.elementoLargoIn;
-  document.getElementById('cf_cols').value = fields.columnas;
-  document.getElementById('cf_rows').value = fields.filas;
-  document.getElementById('cf_sepH').value = fields.sepHorizontalIn;
-  document.getElementById('cf_sepV').value = fields.sepVerticalIn;
-  document.getElementById('cf_margLat').value = fields.margenLateralIn;
-  document.getElementById('cf_margLong').value = fields.margenLongitudinalIn;
-  document.getElementById('cf_costoPlancha').value = fields.costoPlanchaIn2;
-  document.getElementById('cf_cobertura').value = fields.coberturaAdhesivoPct;
-  document.getElementById('cf_cantidadTotal').value = fields.cantidadTotal;
-  document.getElementById('cf_gramaje').value = fields.gramajeGm2;
-  document.getElementById('cf_merma').value = fields.mermaAdhesivoPct;
-  document.getElementById('cf_precioKg').value = fields.precioAdhesivoKg;
-  document.getElementById('cf_metros').value = fields.metrosLineales;
-  document.getElementById('cf_costoFoil').value = fields.costoFoilM2;
-  document.getElementById('cf_anchoBobina').value = fields.anchoBobinaIn;
-
-  renderColdfoilSwatches();
-  renderColdfoilContent();
-  modal.hidden = false;
-  document.body.classList.add('coldfoil-modal-open');
-}
-
-function closeColdfoilModal() {
-  const modal = document.getElementById('coldfoilModal');
-  if (modal) modal.hidden = true;
-  document.body.classList.remove('coldfoil-modal-open');
-  state.coldfoilStageIndex = -1;
-}
-
-function applyColdfoilData() {
-  const stageIndex = state.coldfoilStageIndex;
-  if (stageIndex < 0) return;
-  const inline = state.form.printStages[stageIndex]?.inlineFinishes?.estampado;
-  if (!inline) return;
-
-  const data = {
-    elementoAnchoIn: n(document.getElementById('cf_anchoEl')?.value, 2),
-    elementoLargoIn: n(document.getElementById('cf_largoEl')?.value, 3),
-    columnas: Math.max(1, Math.round(n(document.getElementById('cf_cols')?.value, 3))),
-    filas: Math.max(1, Math.round(n(document.getElementById('cf_rows')?.value, 1))),
-    sepHorizontalIn: n(document.getElementById('cf_sepH')?.value, 0.125),
-    sepVerticalIn: n(document.getElementById('cf_sepV')?.value, 0.125),
-    margenLateralIn: n(document.getElementById('cf_margLat')?.value, 0.25),
-    margenLongitudinalIn: n(document.getElementById('cf_margLong')?.value, 0.25),
-    costoPlanchaIn2: n(document.getElementById('cf_costoPlancha')?.value, 0.20),
-    coberturaAdhesivoPct: n(document.getElementById('cf_cobertura')?.value, 60),
-    cantidadTotal: Math.max(1, Math.round(n(document.getElementById('cf_cantidadTotal')?.value, 50000))),
-    gramajeGm2: n(document.getElementById('cf_gramaje')?.value, 2.0),
-    mermaAdhesivoPct: n(document.getElementById('cf_merma')?.value, 10),
-    precioAdhesivoKg: n(document.getElementById('cf_precioKg')?.value, 18),
-    metrosLineales: n(document.getElementById('cf_metros')?.value, 500),
-    costoFoilM2: n(document.getElementById('cf_costoFoil')?.value, 5),
-    anchoBobinaIn: n(document.getElementById('cf_anchoBobina')?.value, 13),
-    colorFoil: cf_foilStyle
-  };
-
-  const cols = data.columnas;
-  const rows = data.filas;
-  const anchoEl = data.elementoAnchoIn;
-  const largoEl = data.elementoLargoIn;
-  const sepH = data.sepHorizontalIn;
-  const sepV = data.sepVerticalIn;
-  const margLat = data.margenLateralIn;
-  const margLong = data.margenLongitudinalIn;
-  const costoPlanchaIn2 = data.costoPlanchaIn2;
-  const cobertura = data.coberturaAdhesivoPct;
-  const cantidadTotal = data.cantidadTotal;
-  const gramaje = data.gramajeGm2;
-  const merma = data.mermaAdhesivoPct;
-  const precioKg = data.precioAdhesivoKg;
-  const metros = data.metrosLineales;
-  const costoFoilM2 = data.costoFoilM2;
-
-  const L = cf_computeLayout(rows, cols, anchoEl, largoEl, sepH, sepV, margLat, margLong, costoPlanchaIn2, metros, costoFoilM2);
-  const areaElemIn2 = anchoEl * largoEl * (cobertura / 100);
-  const areaTotalIn2 = areaElemIn2 * cantidadTotal;
-  const areaTotalM2 = areaTotalIn2 * CF_IN2_TO_M2;
-  const consumoTeoricoG = areaTotalM2 * gramaje;
-  const consumoKg = (consumoTeoricoG * (1 + merma / 100)) / 1000;
-  const costoAdhesivo = consumoKg * precioKg;
-
-  data.costoPlanchaTotal = L.costoPlancha;
-  data.costoFoilTotal = L.costoFoil;
-  data.costoAdhesivoTotal = costoAdhesivo;
-  data.costoTotal = L.costoPlancha + L.costoFoil + costoAdhesivo;
-
-  inline.coldfoil = data;
-  inline.supplyWidthIn = L.anchoBandaFoil;
-
-  const calcBase = n(inline.calcBase, 0);
-  if (calcBase > 0) {
-    const supplyWidthFt = L.anchoBandaFoil / 12;
-    inline.costPerFoot = (data.costoFoilTotal / calcBase) || 0;
-  }
-
-  closeColdfoilModal();
-  scheduleRender();
-}
-
-// Coldfoil event wiring
-document.addEventListener('click', function (e) {
-  const openBtn = e.target.closest('[data-coldfoil-open]');
-  if (openBtn) {
-    e.preventDefault();
-    const idx = parseInt(openBtn.dataset.stageIndex, 10);
-    if (!isNaN(idx)) openColdfoilModal(idx);
-    return;
-  }
-
-  const closeTrigger = e.target.closest('[data-coldfoil-close]');
-  if (closeTrigger) {
-    closeColdfoilModal();
-    return;
-  }
-
-  const applyBtn = e.target.closest('#cf_applyBtn');
-  if (applyBtn) {
-    applyColdfoilData();
-    return;
-  }
-});
-
-document.addEventListener('input', function (e) {
-  const input = e.target.closest('[data-cf-field]');
-  if (input) {
-    renderColdfoilContent();
-  }
-});
-
-document.addEventListener('keydown', function (e) {
-  if (e.key === 'Escape') {
-    const modal = document.getElementById('coldfoilModal');
-    if (modal && !modal.hidden) closeColdfoilModal();
-  }
-});
 
 window.addEventListener("resize", () => {
   if (state.infoPopover.trigger) positionInfoPopover();
@@ -10881,5 +17265,33 @@ window.addEventListener("scroll", () => {
   positionCalcInlinePanel(els.applicationEnvironmentPanel, els.applicationEnvironment);
   positionCalcInlinePanel(els.surfaceTypePanel, els.surfaceType);
 }, true);
+
+const disableCalcAutofill = () => {
+  const applyEl = (el) => {
+    if (!el || !el.setAttribute) return;
+    el.setAttribute("autocomplete", "off");
+    el.setAttribute("autocorrect", "off");
+    el.setAttribute("spellcheck", "false");
+    if (el.tagName === "INPUT" && (el.type === "text" || el.type === "search" || !el.type)) {
+      el.setAttribute("autocomplete", "new-password");
+    }
+  };
+  const apply = (root) => root.querySelectorAll("input, select, textarea").forEach(applyEl);
+  apply(document);
+  new MutationObserver((records) => {
+    for (const record of records) {
+      for (const node of record.addedNodes) {
+        if (node.nodeType !== 1) continue;
+        if (node.matches?.("input, select, textarea")) applyEl(node);
+        apply(node);
+      }
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+  document.addEventListener("focusin", (event) => {
+    const target = event.target;
+    if (target?.matches?.("input, select, textarea")) applyEl(target);
+  }, true);
+};
+disableCalcAutofill();
 
 init();

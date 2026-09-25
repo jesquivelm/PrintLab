@@ -222,6 +222,11 @@ async function createInventoryExit(config, body = {}) {
     return { ...payload, source: 'sap', provider: 'di-api' };
 }
 
+async function createReservation(config, body = {}) {
+    const payload = await requestJson(config, '/inventory/reserve', { method: 'POST', body });
+    return { ...payload, source: 'sap', provider: 'di-api' };
+}
+
 async function createInventoryEntry(config, body = {}) {
     const payload = await requestJson(config, '/inventory/entry', { method: 'POST', body });
     return { ...payload, source: 'sap', provider: 'di-api' };
@@ -229,6 +234,16 @@ async function createInventoryEntry(config, body = {}) {
 
 async function createBusinessPartner(config, body = {}) {
     const payload = await requestJson(config, '/business-partners', { method: 'POST', body });
+    return { ...payload, source: 'sap', provider: 'di-api' };
+}
+
+async function createItem(config, body = {}) {
+    const payload = await requestJson(config, '/items', { method: 'POST', body });
+    return { ...payload, source: 'sap', provider: 'di-api' };
+}
+
+async function createProductionOrder(config, body = {}) {
+    const payload = await requestJson(config, '/production-orders', { method: 'POST', body });
     return { ...payload, source: 'sap', provider: 'di-api' };
 }
 
@@ -261,6 +276,9 @@ module.exports = {
     createInvoice,
     createInventoryExit,
     createInventoryEntry,
+    createReservation,
     createBusinessPartner,
+    createItem,
+    createProductionOrder,
     fetchSyncRecords
 };

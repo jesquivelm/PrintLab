@@ -29,7 +29,7 @@ function categoryKey(value, name = "") {
   if (normalized.includes("sustrato") || normalizedName.includes("sustrato")) return "sustrato";
   if (normalized.includes("diseno") || normalizedName.includes("diseno")) return "diseno";
   if (normalized.includes("preprensa") || normalizedName.includes("preprensa")) return "preprensa";
-  if (normalized.includes("plancha") || normalizedName.includes("plancha")) return "planchas";
+  if (normalized.includes("sello") || normalizedName.includes("sello")) return "sellos";
   if (normalized.includes("impresion") || normalizedName.includes("impresion")) return "impresion";
   if (
     normalized.includes("acabado") ||
@@ -58,7 +58,7 @@ function categoryLabel(value, name = "") {
     sustrato: "Sustrato",
     diseno: "Diseno",
     preprensa: "Preprensa",
-    planchas: "Planchas",
+    sellos: "Sellos",
     impresion: "Impresion",
     acabados: "Acabados",
     empaque: "Empaque",

@@ -4,17 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
     <title>Costos</title>
-    <link rel="stylesheet" href="/styles.css?v=costos-20260424d">
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <link rel="stylesheet" href="/costos.css?v=20260923-subtabs-convencional">
 </head>
 <body>
     <main class="workspace workspace-quote quote-browser-main costs-shell">
         <section class="quote-card quote-card-clean quote-browser-card costs-card">
             <div class="costs-tabs" role="tablist" aria-label="Tabs de costos">
                 <button type="button" class="costs-tab is-active" data-tab="general" aria-selected="true">General</button>
+                <button type="button" class="costs-tab" data-tab="tipos-producto" aria-selected="false">Tipos de Producto</button>
                 <button type="button" class="costs-tab" data-tab="convencional" aria-selected="false">Convencional</button>
-                <button type="button" class="costs-tab" data-tab="digital" aria-selected="false">Digital</button>
+                <button type="button" class="costs-tab" data-tab="digital" aria-selected="false" hidden>Digital</button>
                 <button type="button" class="costs-tab" data-tab="acabados" aria-selected="false">Acabados</button>
+                <button type="button" class="costs-tab" data-tab="turnos" aria-selected="false" hidden>Turnos</button>
+                <button type="button" class="costs-tab" data-tab="tipo-cambio" aria-selected="false">Tipo de Cambio</button>
+                <button type="button" class="costs-tab" data-tab="inventarios-sap" aria-selected="false">Inventarios SAP</button>
             </div>
 
             <section class="costs-panel is-active" data-panel="general">
@@ -28,69 +34,53 @@
                                 <div class="costs-defaults-shell costs-defaults-shell-plain">
                                     <div class="costs-defaults-layout">
                                         <div class="costs-defaults-fields">
-                                            <label><span>Ancho de Core</span><span class="display-input-wrap"><input id="costosDefaultRollWidth" class="display-input" type="number" step="any" min="0"><span id="costosDefaultRollWidthDisplay" class="display-input-mask"></span></span></label>
-                                            <label><span>Di&aacute;metro de Core</span><span class="display-input-wrap"><input id="costosDefaultCoreDiameter" class="display-input" type="number" step="any" min="0"><span id="costosDefaultCoreDiameterDisplay" class="display-input-mask"></span></span></label>
-                                            <label><span>Cantidad de Tipos</span><input id="costosDefaultQuantityTypes" type="number" step="1" min="1"></label>
-                                            <label class="costs-default-check-field"><span>CMYK por Defecto</span><span class="costs-process-default-check"><input id="costosDefaultCmykEnabled" type="checkbox"></span></label>
+                                            <div class="costs-defaults-fields-col">
+                                                <label><span>Ancho de Core</span><span class="display-input-wrap"><input id="costosDefaultRollWidth" class="display-input" type="number" step="any" min="0"><span id="costosDefaultRollWidthDisplay" class="display-input-mask"></span></span></label>
+                                                <label><span>Cantidad de Artes</span><span class="display-input-wrap"><input id="costosDefaultCantidadMotivos" class="display-input" type="number" step="1" min="1"><span id="costosDefaultCantidadMotivosDisplay" class="display-input-mask"></span></span></label>
+                                                <label><span>Etiquetas por Rollo</span><span class="display-input-wrap"><input id="costosDefaultLabelsPerRoll" class="display-input" type="number" step="1" min="0"><span id="costosDefaultLabelsPerRollDisplay" class="display-input-mask"></span></span></label>
+                                                <label title="Adicional por cambio de bobina. Por ahora es solo un valor estándar; la forma de aplicarlo al cálculo se definirá más adelante."><span>Adicional por Cambio de Bobina</span><span class="display-input-wrap"><input id="costosAdicionalCambioBobinaPct" class="display-input" type="number" step="any" min="0"><span id="costosAdicionalCambioBobinaPctDisplay" class="display-input-mask"></span></span></label>
+                                            </div>
+                                            <div class="costs-defaults-fields-col">
+                                                <div class="costs-default-check-field"><span>CMYK por Defecto</span><span class="costs-process-default-check"><label><input id="costosDefaultCmykEnabled" type="checkbox"></label></span></div>
+                                                <label><span title="Formato de presentaci&oacute;n de n&uacute;meros: separador de miles y decimales seg&uacute;n el pa&iacute;s seleccionado. Ej: 1,234.56 (EE.UU.) o 1.234,56 (Costa Rica).">Formato de N&uacute;mero</span><select id="costosFormatoNumeroPais"></select></label>
+                                            </div>
+                                            <section class="costs-core-options-field costs-core-options-field-plain costs-core-options-field-span" aria-label="Cores">
+                                                <div class="costs-core-options-head">
+                                                    <span>Cores</span>
+                                                </div>
+                                                <div class="copy-popover-table-wrap costs-table-wrap costs-core-options-table-wrap costs-core-options-table-wrap-plain">
+                                                    <table class="copy-popover-table costs-table costs-core-options-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th class="costs-core-options-desc-head"><span>Descripci&oacute;n</span></th>
+                                                                <th class="costs-core-options-title-head"><span>Di&aacute;metro</span></th>
+                                                                <th class="costs-core-options-thick-head"><span>Espesor (mm)</span></th>
+                                                                <th class="costs-core-options-price-head"><span>Precio ($)</span></th>
+                                                                <th class="costs-core-options-actions-head"><button type="button" id="costosAddCoreDiameterOption" class="icon-only-btn" aria-label="Agregar opci&oacute;n"></button></th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="costosCoreDiameterOptionsTableBody"></tbody>
+                                                    </table>
+                                                </div>
+                                            </section>
                                         </div>
-                                        <div class="costs-standard-modules">
-                                            <div class="costs-standard-module">
-                                                <div class="costs-module-head">
-                                                    <span class="flexo-section-pill">Diseño</span>
-                                                </div>
-                                                <div class="costs-module-fields">
-                                                    <label><span>Artes</span><input id="costosDefaultDisenoArts" type="number" step="any" min="0"></label>
-                                                    <label><span>Costo / Hora</span><span class="display-input-wrap"><input id="costosDefaultDisenoHourCost" class="display-input" type="number" step="any" min="0"><span id="costosDefaultDisenoHourCostDisplay" class="display-input-mask"></span></span></label>
-                                                </div>
-                                            </div>
-                                            <div class="costs-standard-module">
-                                                <div class="costs-module-head">
-                                                    <span class="flexo-section-pill">Preprensa</span>
-                                                </div>
-                                                <div class="costs-module-fields">
-                                                    <label><span>Artes</span><input id="costosDefaultPrepressArts" type="number" step="any" min="0"></label>
-                                                    <label><span>Min. / Cambio</span><span class="display-input-wrap"><input id="costosDefaultPrepressMinPerChange" class="display-input" type="number" step="any" min="0"><span id="costosDefaultPrepressMinPerChangeDisplay" class="display-input-mask"></span></span></label>
-                                                    <label><span>Costo / Hora</span><span class="display-input-wrap"><input id="costosDefaultPrepressHourCost" class="display-input" type="number" step="any" min="0"><span id="costosDefaultPrepressHourCostDisplay" class="display-input-mask"></span></span></label>
-                                                </div>
-                                            </div>
-                                            <div class="costs-standard-module">
-                                                <div class="costs-module-head">
-                                                    <span class="flexo-section-pill">Rebobinado</span>
-                                                </div>
-                                                <div class="costs-module-fields">
-                                                    <label><span>Tiempo Montaje</span><span class="display-input-wrap"><input id="costosDefaultRebobinadoTiempoMontaje" class="display-input" type="number" step="any" min="0"><span id="costosDefaultRebobinadoTiempoMontajeDisplay" class="display-input-mask"></span></span></label>
-                                                    <label><span>Merma Montaje</span><span class="display-input-wrap"><input id="costosDefaultRebobinadoWasteFeet" class="display-input" type="number" step="any" min="0"><span id="costosDefaultRebobinadoWasteFeetDisplay" class="display-input-mask"></span></span></label>
-                                                    <label><span>Merma Operaci&oacute;n</span><span class="display-input-wrap"><input id="costosDefaultRebobinadoWastePct" class="display-input" type="number" step="any" min="0"><span id="costosDefaultRebobinadoWastePctDisplay" class="display-input-mask"></span></span></label>
-                                                </div>
-                                            </div>
-                                            <div class="costs-standard-module">
-                                                <div class="costs-module-head">
-                                                    <span class="flexo-section-pill">Empaque</span>
-                                                </div>
-                                                <div class="costs-module-fields">
-                                                    <label><span>Cantidad x Minuto</span><span class="display-input-wrap"><input id="costosDefaultEmpaqueCantidadXMinuto" class="display-input" type="number" step="any" min="0"><span id="costosDefaultEmpaqueCantidadXMinutoDisplay" class="display-input-mask"></span></span></label>
-                                                    <label><span>Minuto Hombre</span><span class="display-input-wrap"><input id="costosDefaultEmpaqueMinutoHombre" class="display-input" type="number" step="any" min="0"><span id="costosDefaultEmpaqueMinutoHombreDisplay" class="display-input-mask"></span></span></label>
-                                                    <label><span>Tiempo Movilizaci&oacute;n</span><span class="display-input-wrap"><input id="costosDefaultEmpaqueTiempoMovilizacion" class="display-input" type="number" step="any" min="0"><span id="costosDefaultEmpaqueTiempoMovilizacionDisplay" class="display-input-mask"></span></span></label>
-                                                    <label><span>Tiempo Confecci&oacute;n</span><span class="display-input-wrap"><input id="costosDefaultEmpaqueTiempoConfeccion" class="display-input" type="number" step="any" min="0"><span id="costosDefaultEmpaqueTiempoConfeccionDisplay" class="display-input-mask"></span></span></label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <section class="costs-core-options-field costs-core-options-field-plain" aria-label="Opciones de Di&aacute;metro de Core">
-                                            <div class="costs-core-options-head">
-                                                <span>Opciones de Di&aacute;metro de Core</span>
-                                            </div>
-                                            <div class="copy-popover-table-wrap costs-table-wrap costs-core-options-table-wrap costs-core-options-table-wrap-plain">
-                                                <table class="copy-popover-table costs-table costs-core-options-table">
-                                                    <thead>
-                                                        <tr>
-                                                            <th class="costs-core-options-title-head"><span>Opci&oacute;n</span></th>
-                                                            <th class="costs-core-options-actions-head"><button type="button" id="costosAddCoreDiameterOption" class="costs-mini-action" aria-label="Agregar opción">+</button></th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody id="costosCoreDiameterOptionsTableBody"></tbody>
-                                                </table>
-                                            </div>
-                                        </section>
+                                    </div>
+                                </div>
+                            </article>
+                            <article class="costs-section-card costs-section-card-plain costs-defaults-card-plain">
+                                <div class="costs-section-head">
+                                    <h2 class="costs-section-title">Costos Adicionales</h2>
+                                </div>
+                                <div class="costs-defaults-shell costs-defaults-shell-plain">
+                                    <div class="costs-defaults-fields">
+                                        <label><span>Utilidad Bruta por Defecto</span><span class="display-input-wrap"><input id="costosDefaultMarginPct" class="display-input" type="number" step="any" min="0"><span id="costosDefaultMarginPctDisplay" class="display-input-mask"></span></span></label>
+                                        <label><span>Overhead por Defecto</span><span class="display-input-wrap"><input id="costosDefaultOverheadPct" class="display-input" type="number" step="any" min="0"><span id="costosDefaultOverheadPctDisplay" class="display-input-mask"></span></span></label>
+                                        <label><span>Utilidad Bruta Saludable (Semáforo)</span><span class="display-input-wrap"><input id="costosMargenSaludablePct" class="display-input" type="number" step="any" min="0"><span id="costosMargenSaludablePctDisplay" class="display-input-mask"></span></span></label>
+                                        <label><span>Utilidad Bruta Mínima (Semáforo)</span><span class="display-input-wrap"><input id="costosMargenMinimoPct" class="display-input" type="number" step="any" min="0"><span id="costosMargenMinimoPctDisplay" class="display-input-mask"></span></span></label>
+                                        <label><span>Materia Prima Máxima (Alerta)</span><span class="display-input-wrap"><input id="costosMateriaPrimaMaximaPct" class="display-input" type="number" step="any" min="0"><span id="costosMateriaPrimaMaximaPctDisplay" class="display-input-mask"></span></span></label>
+                                        <label><span>IVA por Defecto</span><span class="display-input-wrap"><input id="costosDefaultTaxPct" class="display-input" type="number" step="any" min="0"><span id="costosDefaultTaxPctDisplay" class="display-input-mask"></span></span></label>
+                                        <label><span>Costo de Caja</span><span class="display-input-wrap"><input id="costosDefaultBoxCost" class="display-input" type="number" step="any" min="0"><span id="costosDefaultBoxCostDisplay" class="display-input-mask"></span></span></label>
+                                        <label><span title="Costo por cada pulgada lineal de corte al fabricar un troquel nuevo (no de inventario). Se usa en la Calculadora de Troquel para cobrar el troquel nuevo.">Costo por Pulgada Lineal de Troquel</span><span class="display-input-wrap"><input id="costosDefaultCostoPulgadaLinealTroquel" class="display-input" type="number" step="any" min="0"><span id="costosDefaultCostoPulgadaLinealTroquelDisplay" class="display-input-mask"></span></span></label>
                                     </div>
                                 </div>
                             </article>
@@ -108,6 +98,7 @@
                                             <col class="costs-process-col-check">
                                             <col class="costs-process-col-check-wide">
                                             <col class="costs-process-col-check">
+                                            <col class="costs-process-col-check">
                                             <col class="costs-process-col-cost">
                                             <col class="costs-process-col-cost">
                                             <col class="costs-process-col-cost">
@@ -121,9 +112,10 @@
                                                 <th>Gantt</th>
                                                 <th>No Eliminar</th>
                                                 <th>Repetir</th>
+                                                <th>Bot&oacute;n Flotante</th>
                                                 <th>Costo M&iacute;nimo</th>
-                                                <th>Buffer</th>
-                                                <th>Capacidad</th>
+                                                <th><span title="Tiempo extra en minutos que se suma al proceso, independiente del cálculo.">Tiempo Adicional</span></th>
+                                                <th><span title="Tiempo disponible del proceso durante el día en minutos. El Gantt usa este valor para la programación. Ej: 480 min = 8 horas.">Capacidad (min)</span></th>
                                             </tr>
                                         </thead>
                                         <tbody id="costosProcessDefaultsList"></tbody>
@@ -143,10 +135,151 @@
                 </div>
             </section>
 
+            <section class="costs-panel" data-panel="tipos-producto">
+                <div class="costs-panel-frame">
+                    <article class="costs-section-card">
+                        <div class="costs-section-head">
+                            <h2 class="costs-section-title">Departamentos</h2>
+                            <button id="productDepartmentAddButton" type="button" class="icon-only-btn" aria-label="Agregar departamento"></button>
+                        </div>
+                        <div class="costs-acabados-table-wrap">
+                            <table class="costs-acabados-table">
+                                <colgroup>
+                                    <col style="width:64px;">
+                                    <col style="width:110px;">
+                                    <col>
+                                    <col style="width:90px;">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>C&oacute;digo</th>
+                                        <th>Nombre</th>
+                                        <th style="text-align:center;">Activo</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="productDepartmentsTableBody"></tbody>
+                            </table>
+                        </div>
+                    </article>
+                    <article class="costs-section-card">
+                        <div class="costs-section-head">
+                            <h2 class="costs-section-title">Tipos de Producto</h2>
+                            <button id="productTypeAddButton" type="button" class="icon-only-btn" aria-label="Agregar tipo de producto"></button>
+                        </div>
+                        <div class="costs-acabados-table-wrap">
+                            <table class="costs-acabados-table">
+                                <colgroup>
+                                    <col style="width:64px;">
+                                    <col style="width:110px;">
+                                    <col>
+                                    <col style="width:90px;">
+                                    <col style="width:72px;">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>C&oacute;digo</th>
+                                        <th>Nombre</th>
+                                        <th style="text-align:center;">Activo</th>
+                                        <th>Acci&oacute;n</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="productTypesTableBody"></tbody>
+                            </table>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
             <section class="costs-panel" data-panel="convencional">
                 <div class="costs-panel-frame">
-                    <div class="costs-conventional-layout">
-                        <div class="costs-conventional-left">
+                    <div class="costs-subtabs" role="tablist" aria-label="Secciones de Convencional">
+                        <button type="button" class="costs-subtab is-active" data-subtab="impresion" aria-selected="true">Impresi&oacute;n</button>
+                        <button type="button" class="costs-subtab" data-subtab="tintas" aria-selected="false">Tintas y Dep&oacute;sito</button>
+                        <button type="button" class="costs-subtab" data-subtab="merma" aria-selected="false">Merma</button>
+                    </div>
+                    <div class="costs-subpanel is-active" data-subpanel="impresion">
+                        <div class="costs-conventional-layout">
+                            <div class="costs-conventional-left">
+                                <article class="costs-section-card">
+                                    <div class="costs-section-head">
+                                        <h2>Velocidades de Impresi&oacute;n</h2>
+                                        <button id="costosVelocidadesAddButton" type="button" class="icon-only-btn" aria-label="Agregar fila de velocidad"></button>
+                                    </div>
+                                    <div class="costs-acabados-table-toolbar">
+                                        <p>Tabla de referencia: sugiere la velocidad seg&uacute;n las condiciones del trabajo. La sugerencia se puede ajustar al cotizar sin cambiar la tabla.</p>
+                                    </div>
+                                    <div class="copy-popover-table-wrap costs-table-wrap">
+                                        <table class="copy-popover-table costs-table">
+                                            <colgroup>
+                                                <col>
+                                                <col style="width:32%;">
+                                                <col>
+                                                <col style="width:48px;">
+                                            </colgroup>
+                                            <thead>
+                                                <tr>
+                                                    <th>Condici&oacute;n</th>
+                                                    <th>Velocidad (m/min)</th>
+                                                    <th>Comentario</th>
+                                                    <th></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="costosVelocidadesTableBody"></tbody>
+                                        </table>
+                                    </div>
+                                </article>
+                            </div>
+                            <div class="costs-conventional-right">
+                                <article class="costs-section-card">
+                                    <div class="costs-section-head">
+                                        <h2>Costo de Sello</h2>
+                                    </div>
+                                    <div class="costs-sello-cost-field">
+                                        <label>
+                                            <span>Costo por Pulgada Cuadrada de Sello</span>
+                                            <span class="display-input-wrap">
+                                                <input id="costosCostoSelloIn2" class="display-input" type="number" step="0.0001" min="0">
+                                                <span id="costosCostoSelloIn2Display" class="display-input-mask"></span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                </article>
+                                <article class="costs-section-card">
+                                    <div class="costs-section-head">
+                                        <h2>Tiempo Estándar por Cambio</h2>
+                                    </div>
+                                    <div class="costs-sello-cost-field">
+                                        <label>
+                                            <span>Tiempo Estándar por Cambio</span>
+                                            <span class="display-input-wrap">
+                                                <input id="costosTiempoEstandarCambioMin" class="display-input" type="number" step="0.01" min="0">
+                                                <span id="costosTiempoEstandarCambioMinDisplay" class="display-input-mask"></span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                </article>
+                                <article class="costs-section-card">
+                                    <div class="costs-section-head">
+                                        <h2>Tiempo Estándar por Cambio de Versión</h2>
+                                    </div>
+                                    <div class="costs-sello-cost-field">
+                                        <label>
+                                            <span>Tiempo Estándar por Cambio de Versión</span>
+                                            <span class="display-input-wrap">
+                                                <input id="costosTiempoEstandarCambioVersionMin" class="display-input" type="number" step="0.01" min="0">
+                                                <span id="costosTiempoEstandarCambioVersionMinDisplay" class="display-input-mask"></span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                </article>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="costs-subpanel" data-subpanel="tintas">
+                        <div class="costs-conventional-layout">
+                            <div class="costs-conventional-left">
                             <article class="costs-section-card">
                                 <div class="costs-section-head">
                                     <h2>Tintas y Dep&oacute;sito</h2>
@@ -155,17 +288,19 @@
                                     <label><span>BCM Gen&eacute;rico</span><span class="costs-input-overlay has-suffix"><input id="costosBcmGenerico" type="number" step="0.01"><em class="suffix">BCM</em></span></label>
                                     <label><span>Cobertura Tinta</span><span class="costs-input-overlay has-suffix"><input id="costosCoberturaTinta" type="number" step="0.01"><em class="suffix">%</em></span></label>
                                     <label><span>Cobertura Dise&ntilde;o</span><span class="costs-input-overlay has-suffix"><input id="costosCoberturaDiseno" type="number" step="0.01"><em class="suffix">%</em></span></label>
-                                    <div class="costs-conv-reference-note">
-                                        <strong>Referencia</strong>
-                                        <p>Consumo tinta = &Aacute;rea impresa x Cobertura x BCM anilox x Factor transferencia x Densidad tinta x Tintas requeridas.</p>
-                                        <p>Estos valores alimentan la cotizaci&oacute;n convencional, el barniz inline y la reposici&oacute;n autom&aacute;tica.</p>
-                                    </div>
                                     <label><span>Densidad UV</span><span class="costs-input-overlay"><input id="costosDensidadUv" type="number" step="0.01"></span></label>
-                                    <label><span>Costo de libra de CMYK</span><span class="costs-input-overlay has-prefix has-suffix"><em class="prefix">$</em><input id="costosCostoLbCmyk" type="number" step="0.01"><em class="suffix">lb</em></span></label>
-                                    <label><span>Costo de libra de Blanco</span><span class="costs-input-overlay has-prefix has-suffix"><em class="prefix">$</em><input id="costosCostoLbBlanco" type="number" step="0.01"><em class="suffix">lb</em></span></label>
-                                    <label><span>Costo de libra de Pantone</span><span class="costs-input-overlay has-prefix has-suffix"><em class="prefix">$</em><input id="costosCostoLbPantone" type="number" step="0.01"><em class="suffix">lb</em></span></label>
+                                    <label><span>Factor Transferencia</span><span class="display-input-wrap"><input id="costosFactorTransferencia" class="display-input" type="number" step="0.01"><span id="costosFactorTransferenciaDisplay" class="display-input-mask"></span></span></label>
+                                    <label><span>Costo Kg CMYK</span><span class="costs-input-overlay has-prefix"><em class="prefix">$</em><input id="costosCostoKgCmyk" type="number" step="0.01"></span></label>
+                                    <label><span>Costo Kg Adicionales</span><span class="costs-input-overlay has-prefix"><em class="prefix">$</em><input id="costosCostoKgBlanco" type="number" step="0.01"></span></label>
+                                    <label><span>Costo Kg Directo</span><span class="costs-input-overlay has-prefix"><em class="prefix">$</em><input id="costosCostoKgPantone" type="number" step="0.01"></span></label>
                                 </div>
-                                <div class="costs-table-title">Perfil de aplicaci&oacute;n de tinta</div>
+                                <div class="costs-conv-reference-note">
+                                    <strong>Referencia</strong>
+                                    <p>Consumo tinta = &Aacute;rea impresa x Cobertura x BCM anilox x Factor transferencia x Densidad tinta x Tintas requeridas.</p>
+                                    <p>Estos valores alimentan la cotizaci&oacute;n convencional, el barniz inline y la reposici&oacute;n autom&aacute;tica.</p>
+                                </div>
+                                
+                                <div class="costs-table-title"><h2>Perfil de Aplicaci&oacute;n de Tinta</h2></div>
                                 <div class="copy-popover-table-wrap costs-table-wrap">
                                     <table class="copy-popover-table costs-table">
                                         <colgroup>
@@ -188,16 +323,37 @@
                             </article>
                             <article class="costs-section-card">
                                 <div class="costs-section-head">
-                                    <h2>Merma Montaje</h2>
+                                    <h2>Subprocesos Acabados Impresi&oacute;n</h2>
+                                </div>
+                                <div class="copy-popover-table-wrap costs-table-wrap">
+                                    <table class="copy-popover-table costs-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Proceso</th>
+                                                <th>Minutos de Montaje</th>
+                                                <th>Merma Ajuste (m)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="inlineFinishSetupTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </article>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="costs-subpanel" data-subpanel="merma">
+                        <div class="costs-conventional-layout">
+                            <div class="costs-conventional-left">
+                            <article class="costs-section-card">
+                                <div class="costs-section-head">
+                                    <h2>Merma en Metros por Estaci&oacute;n de Montaje</h2>
                                 </div>
                                 <div class="copy-popover-table-wrap costs-table-wrap">
                                     <table class="copy-popover-table costs-table">
                                         <thead>
                                             <tr>
                                                 <th>Detalle</th>
-                                                <th>Por Estaci&oacute;n</th>
-                                                <th>Cantidad Tintas</th>
-                                                <th>Total Pies</th>
+                                                <th>Metros por Estaci&oacute;n</th>
                                                 <th></th>
                                             </tr>
                                         </thead>
@@ -207,10 +363,15 @@
                             </article>
                             <article class="costs-section-card">
                                 <div class="costs-section-head">
-                                    <h2>Merma Tiraje</h2>
+                                    <h2>Merma en Porcentaje de Tiraje</h2>
                                 </div>
                                 <div class="copy-popover-table-wrap costs-table-wrap">
                                     <table class="copy-popover-table costs-table">
+                                        <colgroup>
+                                            <col style="width:58%;">
+                                            <col style="width:24%;">
+                                            <col style="width:18%;">
+                                        </colgroup>
                                         <thead>
                                             <tr>
                                                 <th>Detalle</th>
@@ -231,7 +392,7 @@
                                         <thead>
                                             <tr>
                                                 <th>Proceso</th>
-                                                <th>Merma Ajuste (ft)</th>
+                                                <th>Merma Ajuste (m)</th>
                                                 <th>Merma Operaci&oacute;n (%)</th>
                                             </tr>
                                         </thead>
@@ -239,60 +400,13 @@
                                     </table>
                                 </div>
                             </article>
-                        </div>
-                        <div class="costs-conventional-right">
-                            <article class="costs-section-card">
-                                <div class="costs-section-head">
-                                    <h2>Subprocesos Acabados Impresi&oacute;n</h2>
-                                </div>
-                                <div class="copy-popover-table-wrap costs-table-wrap">
-                                    <table class="copy-popover-table costs-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Proceso</th>
-                                                <th>Minutos de Montaje</th>
-                                                <th>Merma Ajuste</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="inlineFinishSetupTableBody"></tbody>
-                                    </table>
-                                </div>
-                            </article>
-                            <article class="costs-section-card">
-                                <div class="costs-section-head">
-                                    <h2>Costo de Plancha</h2>
-                                </div>
-                                <div class="costs-plancha-cost-field">
-                                    <label>
-                                        <span>Costo por Pulgada Cuadrada de Plancha</span>
-                                        <span class="costs-input-overlay has-prefix has-suffix">
-                                            <em class="prefix">$</em>
-                                            <input id="costosCostoPlanchaIn2" type="number" step="0.0001">
-                                            <em class="suffix">in&sup2;</em>
-                                        </span>
-                                    </label>
-                                </div>
-                            </article>
-                            <article class="costs-section-card">
-                                <div class="costs-section-head">
-                                    <h2>Tiempo Estándar por Cambio</h2>
-                                </div>
-                                <div class="costs-plancha-cost-field">
-                                    <label>
-                                        <span>Tiempo Estándar por Cambio</span>
-                                        <span class="costs-input-overlay has-suffix">
-                                            <input id="costosTiempoEstandarCambioMin" type="number" step="0.01">
-                                            <em class="suffix">min</em>
-                                        </span>
-                                    </label>
-                                </div>
-                            </article>
+                            </div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <section class="costs-panel" data-panel="digital">
+            <section class="costs-panel" data-panel="digital" hidden>
                 <div class="costs-panel-frame">
                 <article class="costs-section-card">
                     <div class="costs-section-head">
@@ -398,23 +512,104 @@
                 <div class="costs-panel-frame costs-acabados-frame">
                     <section class="costs-section-card costs-acabados-card">
                         <div class="costs-section-head">
+                            <h2>Est&aacute;ndar</h2>
+                        </div>
+                        <div class="costs-standard-modules">
+                            <div class="costs-standard-module">
+                                <div class="costs-module-head">
+                                    <span class="flexo-section-pill">Diseño</span>
+                                </div>
+                                <div class="costs-module-fields">
+                                    <label><span>Artes</span><input id="costosDefaultDisenoArts" type="number" step="any" min="0"></label>
+                                    <label><span>Costo / Hora</span><span class="display-input-wrap"><input id="costosDefaultDisenoHourCost" class="display-input" type="number" step="any" min="0"><span id="costosDefaultDisenoHourCostDisplay" class="display-input-mask"></span></span></label>
+                                </div>
+                            </div>
+                            <div class="costs-standard-module">
+                                <div class="costs-module-head">
+                                    <span class="flexo-section-pill">Preprensa</span>
+                                </div>
+                                <div class="costs-module-fields">
+                                    <label><span>Artes</span><input id="costosDefaultPrepressArts" type="number" step="any" min="0"></label>
+                                    <label><span>Min. / Cambio</span><span class="display-input-wrap"><input id="costosDefaultPrepressMinPerChange" class="display-input" type="number" step="any" min="0"><span id="costosDefaultPrepressMinPerChangeDisplay" class="display-input-mask"></span></span></label>
+                                    <label><span>Costo / Hora</span><span class="display-input-wrap"><input id="costosDefaultPrepressHourCost" class="display-input" type="number" step="any" min="0"><span id="costosDefaultPrepressHourCostDisplay" class="display-input-mask"></span></span></label>
+                                </div>
+                            </div>
+                            <div class="costs-standard-module">
+                                <div class="costs-module-head">
+                                    <span class="flexo-section-pill">Rebobinado</span>
+                                </div>
+                                <div class="costs-module-fields">
+                                    <label><span>Tiempo Montaje</span><span class="display-input-wrap"><input id="costosDefaultRebobinadoTiempoMontaje" class="display-input" type="number" step="any" min="0"><span id="costosDefaultRebobinadoTiempoMontajeDisplay" class="display-input-mask"></span></span></label>
+                                    <label><span>Merma Montaje</span><span class="display-input-wrap"><input id="costosDefaultRebobinadoWasteFeet" class="display-input" type="number" step="any" min="0"><span id="costosDefaultRebobinadoWasteFeetDisplay" class="display-input-mask"></span></span></label>
+                                    <label><span>Merma Operaci&oacute;n</span><span class="display-input-wrap"><input id="costosDefaultRebobinadoWastePct" class="display-input" type="number" step="any" min="0"><span id="costosDefaultRebobinadoWastePctDisplay" class="display-input-mask"></span></span></label>
+                                </div>
+                            </div>
+                            <div class="costs-standard-module">
+                                <div class="costs-module-head">
+                                    <span class="flexo-section-pill">Empaque</span>
+                                </div>
+                                <div class="costs-module-fields">
+                                    <label><span>Cantidad x Hora</span><span class="display-input-wrap"><input id="costosDefaultEmpaqueCantidadXMinuto" class="display-input" type="number" step="any" min="0"><span id="costosDefaultEmpaqueCantidadXMinutoDisplay" class="display-input-mask"></span></span></label>
+                                    <label><span>Hora Hombre</span><span class="display-input-wrap"><input id="costosDefaultEmpaqueMinutoHombre" class="display-input" type="number" step="any" min="0"><span id="costosDefaultEmpaqueMinutoHombreDisplay" class="display-input-mask"></span></span></label>
+                                    <label><span title="Tiempo dedicado a mover el producto o los materiales dentro del proceso. Por ejemplo, trasladar cajas vac&iacute;as al &aacute;rea de empaque, mover el producto terminado desde la m&aacute;quina hasta la mesa de empaque, llevar las cajas ya cerradas al &aacute;rea de almacenamiento o acomodarlas en tarimas. No ser&iacute;a el tiempo de empacar directamente, sino el tiempo log&iacute;stico o de desplazamiento.">Tiempo Movilizaci&oacute;n</span><span class="display-input-wrap"><input id="costosDefaultEmpaqueTiempoMovilizacion" class="display-input" type="number" step="any" min="0"><span id="costosDefaultEmpaqueTiempoMovilizacionDisplay" class="display-input-mask"></span></span></label>
+                                    <label><span title="Es el tiempo necesario para preparar o armar el empaque. Por ejemplo, abrir y formar una caja, colocar separadores, preparar bolsas, hacer un paquete, acomodar el producto y dejar la unidad de empaque lista. Dependiendo de c&oacute;mo trabaje la empresa, podr&iacute;a incluir tambi&eacute;n cerrar, sellar o etiquetar.">Tiempo Confecci&oacute;n</span><span class="display-input-wrap"><input id="costosDefaultEmpaqueTiempoConfeccion" class="display-input" type="number" step="any" min="0"><span id="costosDefaultEmpaqueTiempoConfeccionDisplay" class="display-input-mask"></span></span></label>
+                                </div>
+                            </div>
+                            <div class="costs-standard-module">
+                                <div class="costs-module-head">
+                                    <span class="flexo-section-pill">Crecimiento de Rollo</span>
+                                </div>
+                                <div class="costs-module-fields">
+                                    <label><span title="Cuánto aumenta el diámetro del rollo por cada la cantidad de referencia de productos indicada al lado.">Crecimiento</span><span class="display-input-wrap"><input id="costosDefaultRolloCrecimientoCm" class="display-input" type="number" step="any" min="0"><span id="costosDefaultRolloCrecimientoCmDisplay" class="display-input-mask"></span></span></label>
+                                    <label><span>Cada Cantidad de</span><span class="display-input-wrap"><input id="costosDefaultRolloCrecimientoCantidad" class="display-input" type="number" step="1" min="1"><span id="costosDefaultRolloCrecimientoCantidadDisplay" class="display-input-mask"></span></span></label>
+                                    <label><span title="Margen que se resta al largo, ancho y alto internos de la caja antes de calcular cuántos rollos caben, para no calcular al tallado.">Margen de Caja</span><span class="display-input-wrap"><input id="costosDefaultMargenCajaCm" class="display-input" type="number" step="any" min="0"><span id="costosDefaultMargenCajaCmDisplay" class="display-input-mask"></span></span></label>
+                                </div>
+                            </div>
+                            <div class="costs-standard-module">
+                                <div class="costs-module-head">
+                                    <span class="flexo-section-pill">Sellos</span>
+                                </div>
+                                <div class="costs-module-fields">
+                                    <label><span title="Margen que el proveedor externo suma a cada lado del desarrollo de troquel y del ancho de material al dimensionar cada sello.">Exceso Sellos</span><span class="display-input-wrap"><input id="costosExcesoSellosIn" class="display-input" type="number" step="0.01" min="0"><span id="costosExcesoSellosInDisplay" class="display-input-mask"></span></span></label>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="costs-section-card costs-acabados-card">
+                        <div class="costs-section-head">
                             <h2>Barniz</h2>
                         </div>
                         <div class="costs-acabados-table-toolbar">
-                            <p>Lista de barnices disponibles. F&oacute;rmula: Consumo (kg) = &Aacute;rea (in&sup2;) x Cobertura x BCM x Factor Transferencia x Densidad x 10&supmin;6</p>
+                            <p>Lista de barnices disponibles. Fórmula: Consumo (kg) = Área (in²) × Cobertura × BCM × Factor Transferencia × Densidad × 10<sup>−6</sup></p>
                             <button id="costosAcabadosBarnizAddButton" type="button" class="icon-only-btn" aria-label="Agregar barniz"></button>
                         </div>
                         <div class="costs-acabados-table-wrap">
                             <table class="costs-acabados-table">
+                                <colgroup>
+                                    <col style="width:22%">
+                                    <col style="width:8%">
+                                    <col style="width:8%">
+                                    <col style="width:9%">
+                                    <col style="width:9%">
+                                    <col style="width:9%">
+                                    <col style="width:9%">
+                                    <col style="width:8%">
+                                    <col style="width:9%">
+                                    <col style="width:48px">
+                                </colgroup>
                                 <thead>
                                     <tr>
-                                        <th style="width:250px;">Nombre del Material</th>
-                                        <th style="width:100px;">BCM Anilox</th>
-                                        <th style="width:120px;">Cobertura %</th>
-                                        <th style="width:120px;">Factor Transferencia</th>
-                                        <th style="width:100px;">Densidad (kg/L)</th>
-                                        <th style="width:120px;">Costo por Kilo</th>
-                                        <th style="width:72px;"></th>
+                                        <th>Nombre del Material</th>
+                                        <th>BCM Anilox</th>
+                                        <th>Cobertura %</th>
+                                        <th>Factor Transferencia</th>
+                                        <th>Densidad (kg/L)</th>
+                                        <th>Costo por Kilo</th>
+                                        <th>Viscosidad (seg)</th>
+                                        <th>Potencia UV (%)</th>
+                                        <th>Temp. UV (&deg;C)</th>
+                                        <th></th>
                                     </tr>
                                 </thead>
                                 <tbody id="costosAcabadosBarnizTableBody"></tbody>
@@ -434,10 +629,10 @@
                             <table class="costs-acabados-table">
                                 <thead>
                                     <tr>
-                                        <th style="width:400px;">Nombre del Laminado</th>
-                                        <th style="width:140px;">Costo por Pie Lineal</th>
-                                        <th style="width:140px;">Tiempo de Montaje</th>
-                                        <th style="width:72px;"></th>
+                                        <th>Nombre del Laminado</th>
+                                        <th>Costo por Metro Lineal</th>
+                                        <th>Tiempo de Montaje</th>
+                                        <th></th>
                                     </tr>
                                 </thead>
                                 <tbody id="costosAcabadosLaminadoTableBody"></tbody>
@@ -457,58 +652,349 @@
                             <table class="costs-acabados-table">
                                 <thead>
                                     <tr>
-                                        <th style="width:400px;">Tipo de Foil</th>
-                                        <th style="width:120px;">Ancho de Foil</th>
-                                        <th style="width:140px;">Costo por Pie Lineal</th>
-                                        <th style="width:140px;">Tiempo de Montaje</th>
-                                        <th style="width:72px;"></th>
+                                        <th>Tipo de Foil</th>
+                                        <th>Costo por Metro Lineal</th>
+                                        <th>Tiempo de Montaje</th>
+                                        <th></th>
                                     </tr>
                                 </thead>
                                 <tbody id="costosAcabadosEstampadoTableBody"></tbody>
                             </table>
                         </div>
-                        <div class="costs-coldfoil-section">
-                            <div class="costs-section-head" style="margin-top:20px;">
-                                <h2>Cold Foil - Par&aacute;metros por Defecto</h2>
+                    </section>
+
+                    <section class="costs-section-card costs-acabados-card">
+                        <div class="costs-section-head">
+                            <h2>Tipo de Cajas</h2>
+                        </div>
+                        <div class="costs-acabados-table-toolbar">
+                            <p>Tipos de caja disponibles para empaque, con su costo por caja. Las medidas internas son opcionales y se usan para calcular cuántos rollos caben por caja.</p>
+                            <button id="costosAcabadosCajasAddButton" type="button" class="icon-only-btn" aria-label="Agregar tipo de caja"></button>
+                        </div>
+                        <div class="costs-acabados-table-wrap">
+                            <table class="costs-acabados-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Costo por Caja</th>
+                                        <th>Largo Interno (cm)</th>
+                                        <th>Ancho Interno (cm)</th>
+                                        <th>Alto Interno (cm)</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="costosAcabadosCajasTableBody"></tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section class="costs-section-card costs-acabados-card">
+                        <div class="costs-section-head">
+                            <h2>Tipos de Bolsa</h2>
+                        </div>
+                        <div class="costs-acabados-table-toolbar">
+                            <p>Bolsas pl&aacute;sticas disponibles para empaque, con sus caracter&iacute;sticas y su costo por unidad.</p>
+                            <button id="costosAcabadosBolsasAddButton" type="button" class="icon-only-btn" aria-label="Agregar tipo de bolsa"></button>
+                        </div>
+                        <div class="costs-acabados-table-wrap costs-acabados-table-wrap-scroll">
+                            <table class="costs-acabados-table costs-acabados-table-bolsas">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Material</th>
+                                        <th>Ancho (cm)</th>
+                                        <th>Largo (cm)</th>
+                                        <th>Capacidad (cm&sup3;)</th>
+                                        <th>Manijas</th>
+                                        <th>Color</th>
+                                        <th>Proveedor</th>
+                                        <th>Fecha de Compra</th>
+                                        <th>Fecha de Vencimiento</th>
+                                        <th>Costo por Unidad</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="costosAcabadosBolsasTableBody"></tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section class="costs-section-card costs-acabados-card">
+                        <div class="costs-section-head">
+                            <h2>Estampado: Adhesivo por Defecto</h2>
+                        </div>
+                        <div class="costs-standard-module">
+                            <div class="costs-module-head">
+                                <span class="flexo-section-pill">Adhesivo</span>
                             </div>
-                            <div class="costs-coldfoil-grid">
-                                <div class="costs-coldfoil-group">
-                                    <div class="costs-coldfoil-group-title">Elemento y Grid</div>
-                                    <label><span>Ancho de Elemento <em>(in)</em></span><span class="costs-input-overlay has-suffix"><input id="costosColdfoilElementoAncho" type="number" step="0.05" min="0.05"><em class="suffix">in</em></span></label>
-                                    <label><span>Largo de Elemento <em>(in)</em></span><span class="costs-input-overlay has-suffix"><input id="costosColdfoilElementoLargo" type="number" step="0.05" min="0.05"><em class="suffix">in</em></span></label>
-                                    <label><span>Columnas (ancho de banda)</span><input id="costosColdfoilColumnas" type="number" step="1" min="1"></label>
-                                    <label><span>Filas (avance de m&aacute;quina)</span><input id="costosColdfoilFilas" type="number" step="1" min="1"></label>
-                                    <label><span>Separaci&oacute;n Horizontal <em>(in)</em></span><span class="costs-input-overlay has-suffix"><input id="costosColdfoilSepH" type="number" step="0.01" min="0"><em class="suffix">in</em></span></label>
-                                    <label><span>Separaci&oacute;n Vertical <em>(in)</em></span><span class="costs-input-overlay has-suffix"><input id="costosColdfoilSepV" type="number" step="0.01" min="0"><em class="suffix">in</em></span></label>
-                                </div>
-                                <div class="costs-coldfoil-group">
-                                    <div class="costs-coldfoil-group-title">Plancha y M&aacute;rgenes</div>
-                                    <label><span>Margen Lateral <em>(in)</em></span><span class="costs-input-overlay has-suffix"><input id="costosColdfoilMargenLat" type="number" step="0.01" min="0"><em class="suffix">in</em></span></label>
-                                    <label><span>Margen Longitudinal <em>(in)</em></span><span class="costs-input-overlay has-suffix"><input id="costosColdfoilMargenLong" type="number" step="0.01" min="0"><em class="suffix">in</em></span></label>
-                                </div>
-                                <div class="costs-coldfoil-group">
-                                    <div class="costs-coldfoil-group-title">Adhesivo</div>
-                                    <label><span>Cobertura por Defecto <em>(%)</em></span><span class="costs-input-overlay has-suffix"><input id="costosColdfoilCobertura" type="number" step="1" min="1" max="100"><em class="suffix">%</em></span></label>
-                                    <label><span>Gramaje de Aplicaci&oacute;n <em>(g/m&sup2;)</em></span><span class="costs-input-overlay"><input id="costosColdfoilGramaje" type="number" step="0.1" min="0"></span></label>
-                                    <label><span>Merma de Adhesivo <em>(%)</em></span><span class="costs-input-overlay has-suffix"><input id="costosColdfoilMerma" type="number" step="1" min="0"><em class="suffix">%</em></span></label>
-                                    <label><span>Precio Adhesivo</span><span class="costs-input-overlay has-prefix has-suffix"><em class="prefix">$</em><input id="costosColdfoilPrecioKg" type="number" step="0.5" min="0"><em class="suffix">/kg</em></span></label>
-                                </div>
-                                <div class="costs-coldfoil-group">
-                                    <div class="costs-coldfoil-group-title">Foil</div>
-                                    <label><span>Costo de Foil</span><span class="costs-input-overlay has-prefix has-suffix"><em class="prefix">$</em><input id="costosColdfoilCostoFoilM2" type="number" step="0.1" min="0"><em class="suffix">/m&sup2;</em></span></label>
-                                    <label><span>Ancho de Bobina <em>(in)</em></span><span class="costs-input-overlay has-suffix"><input id="costosColdfoilAnchoBobina" type="number" step="0.1" min="0"><em class="suffix">in</em></span></label>
-                                </div>
+                            <div class="costs-module-fields">
+                                <label><span>Cobertura por Defecto</span><span class="display-input-wrap"><input id="costosColdfoilCobertura" class="display-input" type="number" step="1" min="1" max="100"><span id="costosColdfoilCoberturaDisplay" class="display-input-mask"></span></span></label>
+                                <label><span>Gramaje de Aplicaci&oacute;n</span><span class="display-input-wrap"><input id="costosColdfoilGramaje" class="display-input" type="number" step="0.1" min="0"><span id="costosColdfoilGramajeDisplay" class="display-input-mask"></span></span></label>
+                                <label><span>Merma de Adhesivo</span><span class="display-input-wrap"><input id="costosColdfoilMerma" class="display-input" type="number" step="1" min="0"><span id="costosColdfoilMermaDisplay" class="display-input-mask"></span></span></label>
+                                <label><span>Precio Adhesivo</span><span class="display-input-wrap"><input id="costosColdfoilPrecioKg" class="display-input" type="number" step="0.5" min="0"><span id="costosColdfoilPrecioKgDisplay" class="display-input-mask"></span></span></label>
                             </div>
                         </div>
                     </section>
                 </div>
             </section>
 
+            <section class="costs-panel" data-panel="turnos">
+                <div class="costs-panel-frame">
+                    <div class="costs-general-layout">
+                        <div class="costs-general-left">
+                            <article class="costs-section-card">
+                                <div class="costs-section-head">
+                                    <h2 class="costs-section-title">Turnos y Horarios</h2>
+                                    <button type="button" id="costosAddTurnoButton" class="icon-only-btn" aria-label="Agregar turno"></button>
+                                </div>
+                                <p style="margin:0 0 4px;color:var(--app-text-muted,#6c7d8a);font-size:12px;">Configure los turnos de trabajo. La duraci&oacute;n se calcula autom&aacute;ticamente.</p>
+                                <div class="copy-popover-table-wrap costs-table-wrap costs-turnos-table-wrap" aria-label="Turnos de trabajo">
+                                    <table class="copy-popover-table costs-table costs-process-table">
+                                        <colgroup>
+                                            <col class="costs-turno-col-nombre">
+                                            <col class="costs-turno-col-hora">
+                                            <col class="costs-turno-col-hora">
+                                            <col class="costs-turno-col-duracion">
+                                            <col class="costs-turno-col-activo">
+                                            <col class="costs-turno-col-acciones">
+                                        </colgroup>
+                                        <thead>
+                                            <tr>
+                                                <th>Nombre del Turno</th>
+                                                <th>Hora Inicio</th>
+                                                <th>Hora Fin</th>
+                                                <th>Duraci&oacute;n (min)</th>
+                                                <th>Activo</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="costosTurnosTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="costs-panel" data-panel="tipo-cambio">
+                <div class="costs-panel-frame">
+                    <article class="costs-section-card">
+                        <div class="quote-output-types-head">
+                            <div>
+                                <h2>Tipo de cambio</h2>
+                                <p class="section-caption">Resumen diario, calculadora, historial y control de actualizaciones para proformas.</p>
+                            </div>
+                            <div class="exchange-rate-actions">
+                                <button type="button" id="exchangeRateRefreshButton" class="action-btn action-btn-primary">Consultar Tasas Ahora</button>
+                                <button type="button" id="exchangeRateReloadButton" class="action-btn">Refrescar Pantalla</button>
+                            </div>
+                        </div>
+
+                        <div class="exchange-rate-subtabs">
+                            <button type="button" class="exchange-rate-subtab active" data-exchange-rate-tab="tasas">Tasas del día</button>
+                            <button type="button" class="exchange-rate-subtab" data-exchange-rate-tab="calculadora">Calculadora</button>
+                            <button type="button" class="exchange-rate-subtab" data-exchange-rate-tab="historial">Historial</button>
+                            <button type="button" class="exchange-rate-subtab" data-exchange-rate-tab="actualizacion">Actualización</button>
+                        </div>
+
+                        <div id="exchange-rate-panel-tasas" class="exchange-rate-panel">
+                            <div class="exchange-rate-toolbar">
+                                <div class="exchange-rate-status-row">
+                                    <div id="exchangeRateStatusPill" class="exchange-rate-status-pill">Cargando tasas...</div>
+                                    <p id="exchangeRateStatusMeta" class="exchange-rate-status-meta">Esperando respuesta del servidor.</p>
+                                </div>
+                            </div>
+                            <div id="exchangeRateSummaryGrid" class="exchange-rate-summary-grid">
+                                <div class="exchange-rate-summary-card"><span>Base</span><strong>USD</strong></div>
+                                <div class="exchange-rate-summary-card"><span>Fecha</span><strong></strong></div>
+                            </div>
+                            <div id="exchangeRateCards" class="exchange-rate-grid">
+                                <div class="exchange-rate-empty">Cargando las tasas desde el servidor, un momento por favor…</div>
+                            </div>
+                        </div>
+
+                        <div id="exchange-rate-panel-calculadora" class="exchange-rate-panel" hidden>
+                            <div class="exchange-rate-calc-grid">
+                                <label>
+                                    <span>Monto</span>
+                                    <input id="exchangeRateCalcAmount" type="number" min="0" step="any" value="1000">
+                                </label>
+                                <label>
+                                    <span>De</span>
+                                    <select id="exchangeRateCalcFrom"></select>
+                                </label>
+                                <label>
+                                    <span>A</span>
+                                    <select id="exchangeRateCalcTo"></select>
+                                </label>
+                            </div>
+                            <div id="exchangeRateCalcResult" class="exchange-rate-calc-result" style="margin-top:14px;">Selecciona las monedas para ver la conversión.</div>
+                        </div>
+
+                        <div id="exchange-rate-panel-historial" class="exchange-rate-panel" hidden>
+                            <div id="exchangeRateHistorySummary" class="exchange-rate-status-meta" style="margin-bottom:12px;">Cargando historial...</div>
+                            <div class="exchange-rate-table-wrap">
+                                <table class="exchange-rate-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha de tasa</th>
+                                            <th>Base</th>
+                                            <th>Momento</th>
+                                            <th>Resumen</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="exchangeRateHistoryBody">
+                                        <tr><td colspan="4">Cargando historial...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div id="exchange-rate-panel-actualizacion" class="exchange-rate-panel" hidden>
+                            <div class="exchange-rate-config-grid">
+                                <label>
+                                    <span>Moneda base</span>
+                                    <select id="exchangeRateBaseCurrency"></select>
+                                </label>
+                                <label>
+                                    <span>Moneda por defecto en proforma</span>
+                                    <select id="exchangeRateDefaultCurrency"></select>
+                                </label>
+                                <label>
+                                    <span>Actualización automática</span>
+                                    <select id="exchangeRateAutoUpdate">
+                                        <option value="true">Sí</option>
+                                        <option value="false">No</option>
+                                    </select>
+                                </label>
+                                <label>
+                                    <span>Hora</span>
+                                    <input id="exchangeRateUpdateTime" type="time" value="00:00">
+                                </label>
+                                <div class="exchange-rate-config-span">
+                                    <span style="display:block; margin-bottom:6px; font-size:12px; font-weight:600; color:#28465c;">Días de actualización</span>
+                                    <div id="exchangeRateDays" class="exchange-rate-chip-grid"></div>
+                                </div>
+                                <div class="exchange-rate-config-span">
+                                    <span style="display:block; margin-bottom:6px; font-size:12px; font-weight:600; color:#28465c;">Monedas habilitadas para proforma</span>
+                                    <div id="exchangeRateCurrencies" class="exchange-rate-chip-grid"></div>
+                                </div>
+                            </div>
+                            <div class="exchange-rate-actions" style="margin-top:14px;">
+                                <button type="button" id="exchangeRateSaveConfigButton" class="action-btn action-btn-primary">Guardar configuración</button>
+                                <p id="exchangeRateConfigStatus" class="quote-output-types-status">Listo para editar.</p>
+                            </div>
+                            <div id="exchangeRateLogSummary" class="exchange-rate-status-meta" style="margin:16px 0 12px;">Cargando bitácora...</div>
+                            <div class="exchange-rate-table-wrap">
+                                <table class="exchange-rate-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Inicio</th>
+                                            <th>Tipo</th>
+                                            <th>Estado</th>
+                                            <th>Monedas</th>
+                                            <th>Resultado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="exchangeRateLogBody">
+                                        <tr><td colspan="5">Cargando bitácora...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </article>
+                </div>
+            </section>
+
+            <section class="costs-panel" data-panel="inventarios-sap">
+                <div class="costs-panel-frame">
+                    <article class="costs-section-card inventarios-sap-card">
+                        <div class="inventarios-sap-head">
+                            <div class="inventarios-sap-head-text">
+                                <h2 class="costs-section-title">Inventarios SAP</h2>
+                                <p class="inventarios-sap-caption">Existencias seg&uacute;n el &uacute;ltimo espejo importado de SAP. Cada tabla se consulta por separado para no saturar la conexi&oacute;n.</p>
+                            </div>
+                            <div class="inventarios-sap-head-actions">
+                                <label class="inventarios-sap-solo-stock">
+                                    <span class="costs-process-default-check">
+                                        <input id="inventariosSapSoloStock" type="checkbox" checked>
+                                    </span>
+                                    <span>Solo con existencia</span>
+                                </label>
+                                <button type="button" id="inventariosSapReloadButton" class="action-btn">Recargar</button>
+                            </div>
+                        </div>
+
+                        <div id="inventariosSapAviso" class="inventarios-sap-aviso" hidden></div>
+
+                        <div class="inventarios-sap-toolbar">
+                            <div id="inventariosSapTabs" class="inventarios-sap-tabs" role="tablist" aria-label="Categorías de inventario"></div>
+                        </div>
+
+                        <div class="inventarios-sap-toolbar inventarios-sap-toolbar-secundaria">
+                            <input id="inventariosSapSearch" class="inventarios-sap-search" type="search" placeholder="Buscar art&iacute;culo por c&oacute;digo o nombre..." autocomplete="off">
+                            <div id="inventariosSapEstado" class="inventarios-sap-estado" aria-live="polite"></div>
+                        </div>
+
+                        <div id="inventariosSapContenido" class="inventarios-sap-contenido">
+                            <div class="inventarios-sap-empty">Abriendo inventarios...</div>
+                        </div>
+                    </article>
+
+                    <div id="inventariosSapConsultaPopover" class="inventarios-sap-consulta-popover" hidden>
+                        <div class="inventarios-sap-consulta-frame">
+                            <div class="inventarios-sap-consulta-head">
+                                <h3 id="inventariosSapConsultaTitulo" class="inventarios-sap-consulta-titulo">Consulta Oficial</h3>
+                                <button type="button" id="inventariosSapConsultaClose" class="inventarios-sap-consulta-close" aria-label="Cerrar">&times;</button>
+                            </div>
+                            <p class="inventarios-sap-consulta-caption">Esta es la consulta oficial, tal como la entreg&oacute; el cliente. Tambi&eacute;n est&aacute; guardada en Configuraci&oacute;n &rarr; Integraci&oacute;n SAP &rarr; Consultas Oficiales.</p>
+                            <pre id="inventariosSapConsultaSql" class="inventarios-sap-consulta-sql"></pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div id="costosDisponibilidadModal" class="costs-modal-overlay" hidden>
+                <div class="costs-modal">
+                    <div class="costs-modal-head">
+                        <h3 class="costs-modal-title">Disponibilidad del Proceso</h3>
+                        <button type="button" id="costosCloseDisponibilidadModal" class="costs-modal-close" aria-label="Cerrar">&times;</button>
+                    </div>
+                    <div class="costs-modal-body">
+                        <div class="costs-disp-proceso-label" id="costosDispProcesoLabel"></div>
+
+                        <div class="costs-disp-section">
+                            <div class="costs-disp-section-head">
+                                <h4>Configuraci&oacute;n Est&aacute;ndar</h4>
+                                <span class="costs-disp-capacidad" id="costosDispCapacidadEstandar">0 min/d&iacute;a</span>
+                            </div>
+                            <p class="costs-disp-hint">Seleccione los turnos que estar&aacute;n disponibles de forma regular para este proceso.</p>
+                            <div id="costosDispTurnosEstandar" class="costs-disp-turnos-list"></div>
+                        </div>
+
+                        <div class="costs-disp-section">
+                            <div class="costs-disp-section-head">
+                                <h4>Excepci&oacute;n Temporal</h4>
+                                <button type="button" id="costosAddExcepcionButton" class="costs-disp-add-btn">+ Agregar Excepci&oacute;n</button>
+                            </div>
+                            <div id="costosDispExcepciones" class="costs-disp-excepciones-list"></div>
+                        </div>
+                    </div>
+                    <div class="costs-modal-foot">
+                        <button type="button" id="costosCancelDisponibilidad" class="costs-btn-secondary">Cancelar</button>
+                        <button type="button" id="costosSaveDisponibilidad" class="costs-btn-primary">Guardar</button>
+                    </div>
+                </div>
+            </div>
+
             <p id="costosSaveStatus" class="costs-save-status" aria-live="polite" hidden></p>
         </section>
     </main>
 
-    <script src="/access-control.js?v=costos-20260423a"></script>
-    <script src="/costos.js?v=costos-20260423a"></script>
+    <script src="/access-control.js?v=20260923-mensajes-carga"></script>
+    <script src="/formato-numero.js"></script>
+    <script src="/costos.js?v=20260923-subtabs-convencional"></script>
 </body>
 </html>

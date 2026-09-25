@@ -6,10 +6,13 @@ const troquelesSearchInput = document.getElementById('troquelesSearchInput');
 const troquelesTableBody = document.getElementById('troquelesTableBody');
 const troquelesTableHeader = document.getElementById('troquelesTableHeader');
 const troquelNewButton = document.getElementById('troquelNewButton');
+const troquelDesdeCalculoButton = document.getElementById('troquelDesdeCalculoButton');
+let calculoTroquelSeleccionadoParaVincular = null;
 const troquelCreatePopover = document.getElementById('troquelCreatePopover');
 const troquelCreateSaveBtn = document.getElementById('troquelCreateSaveBtn');
 const troquelCreateStatus = document.getElementById('troquelCreateStatus');
 const modalTroquelFormato = document.getElementById('modalTroquelFormato');
+const modalTroquelSustrato = document.getElementById('modalTroquelSustrato');
 const troquelDetailPopover = document.getElementById('troquelDetailPopover');
 const troquelDetailForm = document.getElementById('troquelDetailForm');
 const troquelDetailSaveBtn = document.getElementById('troquelDetailSaveBtn');
@@ -18,6 +21,59 @@ let editingTroquelCode = '';
 
 let browserConfig = null;
 let troquelSortState = { key: null, dir: null };
+
+const TROQUEL_DISPLAY_SUFFIXES = {
+    desarrollo_in: 'in',
+    elongacion_pct: '%',
+    ancho_etiqueta_in: 'in',
+    largo_etiqueta_in: 'in',
+    ancho_material_in: 'in',
+    cantidad_filas: '',
+    dientes: '',
+    repeticiones: '',
+    area_etiqueta_in: 'in²',
+    area_etiqueta_excesos_in: 'in²',
+    area_troquel_in2: 'in²',
+    vida_util_golpes_total: 'golpes',
+    vida_util_golpes_usados: 'golpes',
+    vida_util_golpes_restantes: 'golpes'
+};
+
+function formatTroquelDisplayValue(name, rawValue) {
+    const trimmed = String(rawValue ?? '').trim();
+    const suffix = TROQUEL_DISPLAY_SUFFIXES[name] || '';
+    if (!trimmed) return '';
+    const numeric = Number(trimmed.replace(',', '.'));
+    const formatted = Number.isFinite(numeric)
+        ? new Intl.NumberFormat('es-CR', { maximumFractionDigits: 4 }).format(numeric)
+        : trimmed;
+    return suffix ? `${formatted} ${suffix}` : formatted;
+}
+
+function syncTroquelDisplayMasks(scope) {
+    if (!scope) return;
+    scope.querySelectorAll('.display-input-wrap').forEach((wrap) => {
+        const input = wrap.querySelector('.display-input');
+        const mask = wrap.querySelector('.display-input-mask');
+        if (!input || !mask || !input.name) return;
+        mask.textContent = formatTroquelDisplayValue(input.name, input.value);
+    });
+}
+
+function computeTroquelCalculatedDescription(item) {
+    const clasificacion = String(item?.clasificacion || '').trim();
+    const forma = String(item?.formato || '').trim();
+    const parts = [clasificacion, forma].filter(Boolean);
+    let text = parts.join(' ');
+    const w = Number(String(item?.ancho_etiqueta_in ?? '').replace(',', '.'));
+    const l = Number(String(item?.largo_etiqueta_in ?? '').replace(',', '.'));
+    if (Number.isFinite(w) && w > 0 && Number.isFinite(l) && l > 0) {
+        const fmt = new Intl.NumberFormat('es-CR', { maximumFractionDigits: 3 });
+        const dims = `(${fmt.format(w)}" x ${fmt.format(l)}")`;
+        text = text ? `${text} ${dims}` : dims;
+    }
+    return text;
+}
 
 function escapeHtml(value) {
     return String(value || '')
@@ -184,6 +240,215 @@ async function loadConfig() {
     }
 }
 
+const TROQUEL_CIRCULAR_PITCH_IN = 0.125;
+const TROQUEL_SHAPES_WITH_RADIUS = { Cuadrado: true, Rectangular: true, 'Butt Cut': true };
+let troquelSustratoOptions = [];
+let troquelCreateDesignAdapter = null;
+let troquelDetailDesignAdapter = null;
+
+function fmtTroquel(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return '';
+    return numeric.toFixed(3).replace(/\.?0+$/, '');
+}
+
+function numVal(el) {
+    if (!el) return 0;
+    const parsed = parseFloat(String(el.value || '').replace(',', '.'));
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+async function loadTroquelSustratoOptions() {
+    try {
+        const response = await fetch('/api/inventario/materiales?limit=500');
+        const payload = await response.json();
+        const items = payload.items || [];
+        troquelSustratoOptions = items.filter((item) => {
+            const clave = String(item.familia_proceso || item.clasificacion || '').toLowerCase();
+            return clave === 'sustrato' && Number(item.ancho_mm) > 0;
+        });
+    } catch (error) {
+        console.error('No fue posible cargar los sustratos de referencia:', error);
+        troquelSustratoOptions = [];
+    }
+    const html = '<option value="">Seleccione sustrato...</option>' +
+        troquelSustratoOptions.map((item) => `<option value="${escapeHtml(item.ancho_mm)}">${escapeHtml(item.nombre || item.codigo || 'Sustrato')} · ${fmtTroquel(item.ancho_mm)} mm</option>`).join('');
+    ['modalTroquelSustrato', 'detailTroquelSustrato'].forEach((id) => {
+        const select = document.getElementById(id);
+        if (select) select.innerHTML = html;
+    });
+}
+
+function buildTroquelDesignAdapter(kind) {
+    if (kind === 'create') {
+        return {
+            formatoSelect: () => document.getElementById('modalTroquelFormato'),
+            w: () => document.getElementById('modalTroquelAnchoEtq'),
+            h: () => document.getElementById('modalTroquelLargoEtq'),
+            radio: () => document.getElementById('modalTroquelRadio'),
+            filas: () => document.getElementById('modalTroquelFilas'),
+            repeticiones: () => document.getElementById('modalTroquelRepeticiones'),
+            gap: () => document.getElementById('modalTroquelGap'),
+            dientes: () => document.getElementById('modalTroquelDientes'),
+            desarrollo: () => document.getElementById('modalTroquelDesarrollo'),
+            dimensiones: () => document.getElementById('modalTroquelDimensiones'),
+            anchoMaterial: () => document.getElementById('modalTroquelAnchoMat'),
+            sustratoSelect: () => document.getElementById('modalTroquelSustrato'),
+            svg: () => document.getElementById('modalTroquelSvg'),
+            mountBtn: () => document.getElementById('modalTroquelAutoMount'),
+            mountNote: () => document.getElementById('modalTroquelMountNote'),
+            afterSet: () => {}
+        };
+    }
+    return {
+        formatoSelect: () => troquelDetailForm?.elements.namedItem('formato'),
+        w: () => troquelDetailForm?.elements.namedItem('ancho_etiqueta_in'),
+        h: () => troquelDetailForm?.elements.namedItem('largo_etiqueta_in'),
+        radio: () => document.getElementById('detailTroquelRadio'),
+        filas: () => troquelDetailForm?.elements.namedItem('cantidad_filas'),
+        repeticiones: () => troquelDetailForm?.elements.namedItem('repeticiones'),
+        gap: () => troquelDetailForm?.elements.namedItem('gap_in'),
+        dientes: () => troquelDetailForm?.elements.namedItem('dientes'),
+        desarrollo: () => troquelDetailForm?.elements.namedItem('desarrollo_in'),
+        dimensiones: () => troquelDetailForm?.elements.namedItem('dimensiones_troquel_in'),
+        anchoMaterial: () => troquelDetailForm?.elements.namedItem('ancho_material_in'),
+        sustratoSelect: () => document.getElementById('detailTroquelSustrato'),
+        svg: () => document.getElementById('detailTroquelSvg'),
+        mountBtn: () => document.getElementById('detailTroquelAutoMount'),
+        mountNote: () => document.getElementById('detailTroquelMountNote'),
+        afterSet: () => syncTroquelDisplayMasks(troquelDetailForm)
+    };
+}
+
+function drawTroquelDesignSvg(svg, geo) {
+    if (!svg) return;
+    const { shapeVal, w, h, gap, nx, ny, radio, anchoTotal, largoTotal } = geo;
+    if (!(w > 0) || !(h > 0) || !(anchoTotal > 0) || !(largoTotal > 0)) { svg.innerHTML = ''; return; }
+    const svgW = 600, svgH = 380, maxW = 420, maxH = 230;
+    const scale = Math.min(maxW / Math.max(anchoTotal, 0.001), maxH / Math.max(largoTotal, 0.001));
+    const ox = (svgW - anchoTotal * scale) / 2, oy = 60 + (maxH - largoTotal * scale) / 2;
+    const px = (v) => ox + v * scale, py = (v) => oy + v * scale;
+    let s = '';
+    for (let j = 0; j < ny; j++) {
+        for (let i = 0; i < nx; i++) {
+            const x = i * (w + gap), y = j * (h + gap);
+            const X = px(x), Y = py(y), W = w * scale, H = h * scale;
+            if (shapeVal === 'Circular') {
+                s += `<circle cx="${X + W / 2}" cy="${Y + H / 2}" r="${Math.min(W, H) / 2}" class="troquel-design-shape"/>`;
+            } else if (shapeVal === 'Ovalado') {
+                s += `<ellipse cx="${X + W / 2}" cy="${Y + H / 2}" rx="${W / 2}" ry="${H / 2}" class="troquel-design-shape"/>`;
+            } else {
+                s += `<rect x="${X}" y="${Y}" width="${W}" height="${H}" rx="${(radio || 0) * scale}" class="troquel-design-shape"/>`;
+            }
+        }
+    }
+    const dimY = py(largoTotal) + 22;
+    s += `<line x1="${px(0)}" y1="${dimY}" x2="${px(anchoTotal)}" y2="${dimY}" class="troquel-design-dim"/>`;
+    s += `<text x="${(px(0) + px(anchoTotal)) / 2}" y="${dimY + 14}" text-anchor="middle">Ancho Total ${fmtTroquel(anchoTotal)} in</text>`;
+    const dimX = px(anchoTotal) + 40;
+    s += `<line x1="${dimX}" y1="${py(0)}" x2="${dimX}" y2="${py(largoTotal)}" class="troquel-design-dim"/>`;
+    s += `<text x="${dimX + 6}" y="${(py(0) + py(largoTotal)) / 2}" text-anchor="start">Largo Total ${fmtTroquel(largoTotal)} in</text>`;
+    if (nx > 1) {
+        const gy = py(0) - 10;
+        s += `<line x1="${px(w)}" y1="${gy}" x2="${px(w + gap)}" y2="${gy}" class="troquel-design-gap"/>`;
+        s += `<text x="${px(w + gap / 2)}" y="${gy - 6}" text-anchor="middle" class="troquel-design-gap-text">Gap ${fmtTroquel(gap)} in</text>`;
+    }
+    svg.innerHTML = s;
+}
+
+function troquelDesignRecompute(adapter) {
+    if (!adapter) return;
+    const formatoEl = adapter.formatoSelect();
+    const shapeVal = formatoEl ? formatoEl.value : '';
+    const radioEl = adapter.radio();
+    const radiusApplies = !!TROQUEL_SHAPES_WITH_RADIUS[shapeVal];
+    if (radioEl) {
+        const wrap = radioEl.closest('.field');
+        if (wrap) wrap.classList.toggle('hidden', !radiusApplies);
+    }
+
+    const w = numVal(adapter.w());
+    const h = numVal(adapter.h());
+    const gap = Math.max(0, numVal(adapter.gap()));
+    const nx = Math.max(1, Math.round(numVal(adapter.filas()) || 1));
+    const ny = Math.max(1, Math.round(numVal(adapter.repeticiones()) || 1));
+    const dientes = numVal(adapter.dientes());
+    const radio = radiusApplies ? Math.min(numVal(radioEl), (Math.min(w, h) / 2) || 0) : 0;
+
+    const desarrolloEl = adapter.desarrollo();
+    const dientesEl = adapter.dientes();
+    if (desarrolloEl && dientes > 0) {
+        desarrolloEl.value = fmtTroquel(dientes * TROQUEL_CIRCULAR_PITCH_IN);
+    } else if (desarrolloEl && numVal(desarrolloEl) > 0) {
+        const calcDientes = Math.round(numVal(desarrolloEl) / TROQUEL_CIRCULAR_PITCH_IN);
+        if (dientesEl && calcDientes > 0) {
+            dientesEl.value = String(calcDientes);
+        }
+    } else if (h > 0 && ny > 0) {
+        const calcDesarrollo = ny * h + Math.max(0, ny - 1) * gap;
+        const calcDientes = Math.round(calcDesarrollo / TROQUEL_CIRCULAR_PITCH_IN);
+        if (desarrolloEl) desarrolloEl.value = fmtTroquel(calcDesarrollo);
+        if (dientesEl && calcDientes > 0) dientesEl.value = String(calcDientes);
+    }
+
+    const anchoTotal = nx * w + Math.max(0, nx - 1) * gap;
+    const largoTotal = ny * h + Math.max(0, ny - 1) * gap;
+    const dimensionesEl = adapter.dimensiones();
+    if (dimensionesEl && w > 0 && h > 0) {
+        dimensionesEl.value = `${fmtTroquel(anchoTotal)} x ${fmtTroquel(largoTotal)}`;
+    }
+
+    adapter.afterSet();
+    drawTroquelDesignSvg(adapter.svg(), { shapeVal, w, h, gap, nx, ny, radio, anchoTotal, largoTotal });
+}
+
+function troquelDesignAutoMount(adapter) {
+    if (!adapter) return;
+    const noteEl = adapter.mountNote();
+    const h = numVal(adapter.h());
+    const dientes = numVal(adapter.dientes());
+    const desarrollo = dientes * TROQUEL_CIRCULAR_PITCH_IN;
+    const gap = Math.max(0, numVal(adapter.gap()));
+    if (!(h > 0) || !(desarrollo > 0)) {
+        if (noteEl) noteEl.textContent = 'Complete Largo Etiqueta y Dientes antes de calcular el montaje.';
+        return;
+    }
+    const best = Math.max(1, Math.floor((desarrollo + gap) / (h + gap)));
+    const repeticionesEl = adapter.repeticiones();
+    const gapEl = adapter.gap();
+    if (best > 1) {
+        const exactGap = Math.max(0, (desarrollo - best * h) / (best - 1));
+        if (repeticionesEl) repeticionesEl.value = String(best);
+        if (gapEl) gapEl.value = fmtTroquel(exactGap);
+        if (noteEl) noteEl.textContent = `Montaje sugerido: ${best} Repeticiones · Gap requerido: ${fmtTroquel(exactGap)} in.`;
+    } else {
+        if (repeticionesEl) repeticionesEl.value = '1';
+        if (noteEl) noteEl.textContent = `Con el desarrollo actual (${fmtTroquel(desarrollo)} in) solo cabe 1 repetición de ${fmtTroquel(h)} in.`;
+    }
+    troquelDesignRecompute(adapter);
+}
+
+function wireTroquelDesignTool(kind) {
+    const adapter = buildTroquelDesignAdapter(kind);
+    [adapter.formatoSelect(), adapter.w(), adapter.h(), adapter.radio(), adapter.filas(), adapter.repeticiones(), adapter.gap(), adapter.dientes()].forEach((el) => {
+        if (!el) return;
+        el.addEventListener('input', () => troquelDesignRecompute(adapter));
+        el.addEventListener('change', () => troquelDesignRecompute(adapter));
+    });
+    adapter.mountBtn()?.addEventListener('click', () => troquelDesignAutoMount(adapter));
+    const sustratoSelect = adapter.sustratoSelect();
+    sustratoSelect?.addEventListener('change', () => {
+        const widthMm = parseFloat(sustratoSelect.value);
+        if (!Number.isFinite(widthMm) || widthMm <= 0) return;
+        const anchoMaterialEl = adapter.anchoMaterial();
+        if (anchoMaterialEl) {
+            anchoMaterialEl.value = fmtTroquel(widthMm / 25.4);
+            adapter.afterSet();
+        }
+    });
+    return adapter;
+}
+
 function getShapeOptions() {
     const general = browserConfig?.general || {};
     return [
@@ -215,6 +480,7 @@ if (isShellEmbedded()) {
 
 function openTroquelCreateModal() {
     if (!troquelCreatePopover) return;
+    calculoTroquelSeleccionadoParaVincular = null;
     document.getElementById('modalTroquelCodigo').value = '';
     document.getElementById('modalTroquelDescripcion').value = '';
     document.getElementById('modalTroquelDescCotizacion').value = '';
@@ -235,12 +501,16 @@ function openTroquelCreateModal() {
     document.getElementById('modalTroquelTension').value = '';
     document.getElementById('modalTroquelElongado').value = '';
     document.getElementById('modalTroquelProveedor').value = '';
+    document.getElementById('modalTroquelGap').value = '';
+    document.getElementById('modalTroquelRadio').value = '';
+    if (modalTroquelSustrato) modalTroquelSustrato.value = '';
     if (troquelCreateStatus) {
         troquelCreateStatus.hidden = true;
         troquelCreateStatus.textContent = '';
     }
     troquelCreatePopover.hidden = false;
     document.body.classList.add('popover-open');
+    troquelDesignRecompute(troquelCreateDesignAdapter);
     setTimeout(() => {
         const firstInput = document.getElementById('modalTroquelCodigo');
         if (firstInput) firstInput.focus();
@@ -252,6 +522,76 @@ function closeTroquelCreateModal() {
     troquelCreatePopover.hidden = true;
     document.body.classList.remove('popover-open');
 }
+
+function usarCalculoTroquelParaNuevo(calculo) {
+    openTroquelCreateModal();
+    calculoTroquelSeleccionadoParaVincular = calculo.codigo_calculo;
+    document.getElementById('modalTroquelDescripcion').value = calculo.tipo_producto || '';
+    if (modalTroquelFormato) modalTroquelFormato.value = calculo.forma || '';
+    document.getElementById('modalTroquelAnchoEtq').value = calculo.ancho_producto_in ?? '';
+    document.getElementById('modalTroquelLargoEtq').value = calculo.alto_producto_in ?? '';
+    document.getElementById('modalTroquelAnchoMat').value = calculo.ancho_material_in ?? '';
+    document.getElementById('modalTroquelDesarrollo').value = calculo.desarrollo_in ?? '';
+    document.getElementById('modalTroquelFilas').value = calculo.numero_cavidades ?? '1';
+    document.getElementById('modalTroquelRepeticiones').value = calculo.numero_repeticiones ?? '1';
+    troquelDesignRecompute(troquelCreateDesignAdapter);
+    if (troquelCreateStatus) {
+        troquelCreateStatus.hidden = false;
+        troquelCreateStatus.className = 'socios-create-status';
+        troquelCreateStatus.textContent = 'Datos precargados desde el cálculo ' + calculo.codigo_calculo + '. Complete el código y guarde para crear el troquel físico.';
+    }
+}
+
+async function abrirSelectorCalculoTroquel() {
+    let pendientes = [];
+    try {
+        const response = await fetch('/api/calculo-troquel/pendientes');
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'No fue posible obtener los cálculos pendientes.');
+        pendientes = payload.pendientes || [];
+    } catch (error) {
+        alert(error.message);
+        return;
+    }
+    if (!pendientes.length) {
+        alert('No hay cálculos de troquel pendientes de fabricación.');
+        return;
+    }
+    document.querySelector('.calculo-troquel-selector-dialog')?.remove();
+    document.body.classList.add('popover-open');
+    const overlay = document.createElement('div');
+    overlay.className = 'quote-order-quantity-dialog calculo-troquel-selector-dialog';
+    const items = pendientes.map((c) => (
+        '<div class="ct-compatible-item"><div class="ct-compatible-info"><strong>' + escapeHtml(c.codigo_calculo) + '</strong>' +
+        '<span>' + escapeHtml(c.quote_code || '') + ' / ' + escapeHtml(c.line_code || '') + '</span>' +
+        '<span>Ancho: ' + escapeHtml(String(c.ancho_producto_in ?? '-')) + ' in · Alto: ' + escapeHtml(String(c.alto_producto_in ?? '-')) + ' in</span>' +
+        '<span>Estado: ' + escapeHtml(c.estado || '') + '</span></div>' +
+        '<button type="button" class="action-btn action-btn-primary" data-codigo-calculo="' + escapeHtml(c.codigo_calculo) + '">Usar</button></div>'
+    )).join('');
+    overlay.innerHTML = '<div class="quote-order-quantity-panel" role="dialog" aria-modal="true" aria-label="Cálculos de Troquel Pendientes">' +
+        '<div class="quote-order-quantity-title">Cálculos de Troquel Pendientes de Fabricación</div>' +
+        '<div style="display:grid;gap:10px;max-height:50vh;overflow-y:auto;">' + items + '</div>' +
+        '<div class="quote-order-quantity-actions"><button type="button" class="action-btn" data-action="cerrar-selector">Cerrar</button></div></div>';
+    document.body.appendChild(overlay);
+    const cerrar = () => {
+        overlay.remove();
+        document.body.classList.remove('popover-open');
+    };
+    overlay.addEventListener('click', (event) => {
+        if (event.target === overlay || event.target.closest("[data-action='cerrar-selector']")) {
+            cerrar();
+            return;
+        }
+        const usarBtn = event.target.closest('[data-codigo-calculo]');
+        if (usarBtn) {
+            const calculo = pendientes.find((c) => c.codigo_calculo === usarBtn.dataset.codigoCalculo);
+            cerrar();
+            if (calculo) usarCalculoTroquelParaNuevo(calculo);
+        }
+    });
+}
+
+troquelDesdeCalculoButton?.addEventListener('click', abrirSelectorCalculoTroquel);
 
 function populateDetailFormatoSelect() {
     const select = troquelDetailForm?.elements.namedItem('formato');
@@ -291,9 +631,32 @@ function getDetailFormData() {
     return data;
 }
 
+function setActiveTroquelDetailTab(tabKey) {
+    document.querySelectorAll('.troquel-detail-tab').forEach((button) => {
+        button.classList.toggle('is-active', button.dataset.troquelTab === tabKey);
+    });
+    document.querySelectorAll('.troquel-detail-tab-panel').forEach((panel) => {
+        panel.hidden = panel.dataset.troquelTab !== tabKey;
+    });
+}
+
+document.querySelector('.troquel-detail-tabs')?.addEventListener('click', (event) => {
+    const button = event.target.closest('.troquel-detail-tab');
+    if (!button) return;
+    setActiveTroquelDetailTab(button.dataset.troquelTab || 'general');
+});
+
+troquelDetailForm?.addEventListener('input', (event) => {
+    if (!event.target.classList.contains('display-input')) return;
+    const wrap = event.target.closest('.display-input-wrap');
+    const mask = wrap?.querySelector('.display-input-mask');
+    if (mask) mask.textContent = formatTroquelDisplayValue(event.target.name, event.target.value);
+});
+
 async function openTroquelDetailModal(code) {
     if (!troquelDetailPopover || !troquelDetailForm) return;
     editingTroquelCode = code || '';
+    setActiveTroquelDetailTab('general');
 
     if (!code) {
         const empty = { activo: true, cantidad_filas: 1, repeticiones: 1 };
@@ -306,6 +669,11 @@ async function openTroquelDetailModal(code) {
         troquelDetailForm.querySelector('input[name="codigo"]')?.focus();
         document.getElementById('troquelImageUrl').value = '';
         updateTroquelImageBtn('');
+        syncTroquelDisplayMasks(troquelDetailForm);
+        document.getElementById('detailTroquelRadio').value = '';
+        document.getElementById('detailTroquelSustrato').value = '';
+        document.getElementById('detailTroquelMountNote').textContent = '—';
+        troquelDesignRecompute(troquelDetailDesignAdapter);
         return;
     }
 
@@ -318,7 +686,8 @@ async function openTroquelDetailModal(code) {
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error || 'No se pudo cargar el troquel.');
 
-        troquelDetailTitle.textContent = (payload.codigo || code) + ' \u2014 ' + (payload.descripcion || '');
+        const calculatedDesc = computeTroquelCalculatedDescription(payload);
+        troquelDetailTitle.textContent = (payload.codigo || code) + ' \u2014 ' + (payload.descripcion || calculatedDesc);
         const checkboxKeys = { activo: true, uso_convencional: true, uso_digital: true };
         Object.keys(payload).forEach(function (k) {
             if (k === 'formato') {
@@ -330,6 +699,13 @@ async function openTroquelDetailModal(code) {
             setDetailValue(k, payload[k], !!checkboxKeys[k]);
         });
         updateTroquelImageBtn(payload.image_url);
+        syncTroquelDisplayMasks(troquelDetailForm);
+        const descripcionInput = troquelDetailForm.elements.namedItem('descripcion');
+        if (descripcionInput) descripcionInput.title = payload.descripcion ? '' : calculatedDesc;
+        document.getElementById('detailTroquelRadio').value = '';
+        document.getElementById('detailTroquelSustrato').value = '';
+        document.getElementById('detailTroquelMountNote').textContent = '—';
+        troquelDesignRecompute(troquelDetailDesignAdapter);
     } catch (err) {
         troquelDetailTitle.textContent = 'Error';
         closeTroquelDetailModal();
@@ -393,7 +769,8 @@ function buildTroquelPayload() {
         dimensiones_troquel_in: val('modalTroquelDimensiones'),
         tension: val('modalTroquelTension'),
         elongado: val('modalTroquelElongado'),
-        proveedor_troquel: val('modalTroquelProveedor')
+        proveedor_troquel: val('modalTroquelProveedor'),
+        gap_in: val('modalTroquelGap')
     };
 }
 
@@ -420,6 +797,18 @@ async function saveTroquelFromModal() {
         if (!response.ok) {
             throw new Error(result.error || 'No fue posible guardar el troquel.');
         }
+        if (calculoTroquelSeleccionadoParaVincular) {
+            try {
+                await fetch('/api/calculo-troquel/' + encodeURIComponent(calculoTroquelSeleccionadoParaVincular) + '/vincular-troquel-fisico', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ codigo_troquel: payload.codigo })
+                });
+            } catch (error) {
+                console.error('No fue posible vincular el cálculo de troquel:', error);
+            }
+            calculoTroquelSeleccionadoParaVincular = null;
+        }
         troquelCreateStatus.textContent = 'Troquel guardado correctamente.';
         troquelCreateStatus.className = 'socios-create-status is-success';
         troquelCreateStatus.hidden = false;
@@ -437,10 +826,20 @@ async function loadTroqueles(search = '') {
     const params = new URLSearchParams({ limit: '500' });
     if (search) params.set('q', search);
 
-    const response = await fetch(`${TROQUELES_ENDPOINT}?${params.toString()}`);
-    const payload = await response.json();
+    if (!troquelesTableBody.querySelector('tr[data-codigo]')) {
+        troquelesTableBody.innerHTML = '<tr><td colspan="12">Cargando los troqueles desde el servidor, un momento por favor…</td></tr>';
+    }
+    const mensajeSinRespuesta = 'No pudimos traer los troqueles en este momento. Revisa la conexión e intenta de nuevo.';
+    let response;
+    let payload;
+    try {
+        response = await fetch(`${TROQUELES_ENDPOINT}?${params.toString()}`);
+        payload = await response.json();
+    } catch (error) {
+        throw new Error(mensajeSinRespuesta);
+    }
     if (!response.ok) {
-        throw new Error(payload.error || 'No se pudieron cargar los troqueles.');
+        throw new Error(payload.error || mensajeSinRespuesta);
     }
 
     const items = payload.items || [];
@@ -451,7 +850,7 @@ async function loadTroqueles(search = '') {
         return `
         <tr data-codigo="${escapeHtml(item.codigo)}">
             <td>${escapeHtml(item.codigo)}</td>
-            <td>${escapeHtml(item.descripcion)}</td>
+            <td>${escapeHtml(item.descripcion || computeTroquelCalculatedDescription(item))}</td>
             <td>${escapeHtml(formatCellValue(item.ancho_etiqueta_in))}</td>
             <td>${escapeHtml(formatCellValue(item.largo_etiqueta_in))}</td>
             <td>${escapeHtml(formatCellValue(item.desarrollo_in))}</td>
@@ -541,31 +940,26 @@ document.addEventListener('keydown', (event) => {
 let _troquelIconValue = '';
 
 async function loadTroquelIcon() {
-    if (_troquelIconValue) return _troquelIconValue;
-    try {
-        const res = await fetch('/api/config/general');
-        if (!res.ok) return '';
-        const config = await res.json();
-        _troquelIconValue = config.icons?.touchImage || '';
-        return _troquelIconValue;
-    } catch { return ''; }
+    _troquelIconValue = browserConfig?.icons?.touchImage || '';
+    return _troquelIconValue;
 }
 
 function updateTroquelImageBtn(dataUrl) {
     const btn = document.getElementById('troquelImageBtn');
     if (!btn) return;
-    if (dataUrl && dataUrl.startsWith('data:image')) {
-        btn.innerHTML = `<img src="${escapeHtml(dataUrl)}" alt="">`;
+    const general = browserConfig?.general || {};
+    const color = firstFilled(general.iconColorTouchImage, general.iconColor, '#80909d');
+    const size = Number(firstFilled(general.iconSizeTouchImage, 32)) || 32;
+    btn.style.setProperty('--icon-color', color);
+    btn.style.setProperty('--config-icon-size', `${size}px`);
+    if (isImageValue(dataUrl) || isSvgValue(dataUrl)) {
+        btn.innerHTML = iconMarkup(dataUrl, 'Imagen del troquel', 'troquel-image-upload-media');
         btn.classList.add('has-image');
     } else {
         btn.classList.remove('has-image');
-        if (_troquelIconValue && _troquelIconValue.startsWith('data:image')) {
-            btn.innerHTML = `<img src="${escapeHtml(_troquelIconValue)}" alt="">`;
-        } else if (_troquelIconValue) {
-            btn.innerHTML = `<span class="icon-glyph">${escapeHtml(_troquelIconValue)}</span>`;
-        } else {
-            btn.innerHTML = '<span class="icon-glyph">\uD83D\uDDBC</span>';
-        }
+        const placeholder = _troquelIconValue || '\uD83D\uDDBC';
+        btn.innerHTML = iconMarkup(placeholder, 'Cargar imagen del troquel', 'troquel-image-upload-icon') +
+            '<span class="troquel-image-upload-hint">Sin imagen</span>';
     }
 }
 
@@ -593,6 +987,9 @@ async function init() {
         await loadTroquelIcon();
         populateFormatoSelects();
         populateDetailFormatoSelect();
+        await loadTroquelSustratoOptions();
+        troquelCreateDesignAdapter = wireTroquelDesignTool('create');
+        troquelDetailDesignAdapter = wireTroquelDesignTool('detail');
         await loadTroqueles();
     } catch (error) {
         troquelesTableBody.innerHTML = `<tr><td colspan="12">${escapeHtml(error.message)}</td></tr>`;

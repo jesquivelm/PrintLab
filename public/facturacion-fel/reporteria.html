@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <title>Reportería FEL - PrintLab</title>
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <link rel="stylesheet" href="/facturacion-fel/styles.css?v=20260905-sellos">
+</head>
+<body>
+    <main class="workspace workspace-quote quote-browser-main factfel-shell">
+        <section class="quote-card quote-card-clean quote-browser-card factfel-card">
+            <div class="factfel-toolbar">
+                <h2>Reportería de Facturación FEL</h2>
+                <div class="factfel-toolbar-actions">
+                    <label style="display:flex; flex-direction:column; font-size:11px; color:var(--app-text-muted);">Desde
+                        <input id="filtroDesde" type="date" class="factfel-select">
+                    </label>
+                    <label style="display:flex; flex-direction:column; font-size:11px; color:var(--app-text-muted);">Hasta
+                        <input id="filtroHasta" type="date" class="factfel-select">
+                    </label>
+                    <button class="factfel-btn" onclick="cargar()">Filtrar</button>
+                </div>
+            </div>
+
+            <div class="factfel-summary-row">
+                <div class="factfel-summary-tile"><span>Facturas Emitidas</span><strong id="resCantidad">0</strong></div>
+                <div class="factfel-summary-tile"><span>Total Facturado</span><strong id="resTotal">Q 0.00</strong></div>
+                <div class="factfel-summary-tile"><span>IVA Total</span><strong id="resIva">Q 0.00</strong></div>
+            </div>
+
+            <div style="padding: 12px 18px 0;"><strong style="font-size:13px; color:var(--app-text);">Facturación por cliente</strong></div>
+            <div class="factfel-table-wrap" style="max-height:280px;">
+                <table class="factfel-table">
+                    <thead><tr><th>Cliente</th><th>Facturas</th><th>Total</th></tr></thead>
+                    <tbody id="tablaCliente"><tr><td colspan="3" class="factfel-loading">Cargando...</td></tr></tbody>
+                </table>
+            </div>
+
+            <div style="padding: 12px 18px 0;"><strong style="font-size:13px; color:var(--app-text);">Facturación por día</strong></div>
+            <div class="factfel-table-wrap" style="max-height:280px; margin-bottom:18px;">
+                <table class="factfel-table">
+                    <thead><tr><th>Fecha</th><th>Facturas</th><th>Total</th></tr></thead>
+                    <tbody id="tablaDia"><tr><td colspan="3" class="factfel-loading">Cargando...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const API = '/api/facturacion-fel';
+        function escapeHtml(text) {
+            const d = document.createElement('div');
+            d.textContent = text == null ? '' : text;
+            return d.innerHTML;
+        }
+        function money(value) { return 'Q ' + (Number(value) || 0).toFixed(2); }
+
+        async function cargar() {
+            const desde = document.getElementById('filtroDesde').value;
+            const hasta = document.getElementById('filtroHasta').value;
+            const params = new URLSearchParams();
+            if (desde) params.set('desde', desde);
+            if (hasta) params.set('hasta', hasta);
+            try {
+                const r = await fetch(`${API}/reporteria?${params.toString()}`);
+                const data = await r.json();
+                const resumen = data.resumen || {};
+                document.getElementById('resCantidad').textContent = resumen.cantidad_facturas || 0;
+                document.getElementById('resTotal').textContent = money(resumen.total_facturado);
+                document.getElementById('resIva').textContent = money(resumen.total_iva);
+
+                const porCliente = data.por_cliente || [];
+                document.getElementById('tablaCliente').innerHTML = porCliente.length
+                    ? porCliente.map(c => `<tr><td>${escapeHtml(c.cliente_nombre || 'Sin cliente')}</td><td>${c.cantidad_facturas}</td><td>${money(c.total_facturado)}</td></tr>`).join('')
+                    : '<tr><td colspan="3" class="factfel-empty">Sin datos.</td></tr>';
+
+                const porDia = data.por_dia || [];
+                document.getElementById('tablaDia').innerHTML = porDia.length
+                    ? porDia.map(d => `<tr><td>${new Date(d.fecha).toLocaleDateString('es-GT')}</td><td>${d.cantidad_facturas}</td><td>${money(d.total_facturado)}</td></tr>`).join('')
+                    : '<tr><td colspan="3" class="factfel-empty">Sin datos.</td></tr>';
+            } catch (e) {
+                document.getElementById('tablaCliente').innerHTML = '<tr><td colspan="3" class="factfel-empty">Error al cargar.</td></tr>';
+                document.getElementById('tablaDia').innerHTML = '';
+            }
+        }
+
+        cargar();
+    </script>
+</body>
+</html>

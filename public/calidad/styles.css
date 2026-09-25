@@ -1,0 +1,58 @@
+.calidad-dashboard-grid { display:grid; grid-template-columns:repeat(4,minmax(180px,220px)); justify-content:center; gap:18px; padding:32px 24px; max-width:1200px; margin:0 auto; }
+.calidad-dashboard-card { display:grid; justify-items:center; align-content:center; gap:12px; aspect-ratio:1/1; padding:18px; border:1px solid var(--app-border); border-radius:24px; background:var(--app-surface); text-align:center; box-shadow:var(--app-shadow-sm); transition:transform 0.18s ease,box-shadow 0.18s ease,border-color 0.18s ease; cursor:pointer; }
+.calidad-dashboard-card:hover, .calidad-dashboard-card:focus-visible { transform:translateY(-2px); box-shadow:var(--app-shadow-md); }
+.calidad-dashboard-card-icon { display:inline-flex; align-items:center; justify-content:center; width:54px; height:54px; flex:0 0 54px; color:var(--icon-base-color,var(--app-primary)); border-radius:14px; transition:color 0.18s ease,transform 0.18s ease; }
+.calidad-dashboard-card:hover .calidad-dashboard-card-icon, .calidad-dashboard-card:focus-visible .calidad-dashboard-card-icon { color:var(--icon-hover-color,var(--app-primary-strong)); transform:translateY(-1px); }
+.calidad-dashboard-card-icon .icon-glyph { color:currentColor; font-size:var(--config-icon-size,38px); }
+.calidad-dashboard-card-icon .icon-svg-mask, .calidad-dashboard-card-icon .icon-image { width:var(--config-icon-size,38px); height:var(--config-icon-size,38px); display:block; max-width:100%; max-height:100%; object-fit:contain; }
+.calidad-dashboard-card-title { font-size:13px; font-weight:500; color:var(--app-text-muted); }
+.calidad-dashboard-card:hover .calidad-dashboard-card-title { color:var(--app-text); }
+
+.calidad-status-chip { font-size:11px; font-weight:700; border-radius:4px; padding:1px 6px; white-space:nowrap; }
+.calidad-status-chip[data-estado="ABIERTA"] { background:#fde7e7; color:#ba3535; }
+.calidad-status-chip[data-estado="EN_INVESTIGACION"] { background:#fff3d8; color:#9b6a00; }
+.calidad-status-chip[data-estado="ACCION_CORRECTIVA_DEFINIDA"] { background:#e2f5ea; color:#1c7b49; }
+.calidad-status-chip[data-estado="CERRADA"] { background:#e4f2ff; color:#1e5e93; }
+html[data-theme="dark"] .calidad-status-chip[data-estado="ABIERTA"] { background:#3a1f1f; color:#f87171; }
+html[data-theme="dark"] .calidad-status-chip[data-estado="EN_INVESTIGACION"] { background:#3a2f12; color:#facc15; }
+html[data-theme="dark"] .calidad-status-chip[data-estado="ACCION_CORRECTIVA_DEFINIDA"] { background:#123321; color:#86efac; }
+html[data-theme="dark"] .calidad-status-chip[data-estado="CERRADA"] { background:#122a3a; color:#7dd3fc; }
+
+.calidad-status-chip[data-estado="nueva"], .calidad-status-chip[data-estado="pendiente_revision"] { background:#fde7e7; color:#ba3535; }
+.calidad-status-chip[data-estado="en_revision"] { background:#fff3d8; color:#9b6a00; }
+.calidad-status-chip[data-estado="cerrada"] { background:#e4f2ff; color:#1e5e93; }
+.calidad-status-chip[data-estado="convertida_nc"] { background:#e2f5ea; color:#1c7b49; }
+html[data-theme="dark"] .calidad-status-chip[data-estado="nueva"], html[data-theme="dark"] .calidad-status-chip[data-estado="pendiente_revision"] { background:#3a1f1f; color:#f87171; }
+html[data-theme="dark"] .calidad-status-chip[data-estado="en_revision"] { background:#3a2f12; color:#facc15; }
+html[data-theme="dark"] .calidad-status-chip[data-estado="cerrada"] { background:#122a3a; color:#7dd3fc; }
+html[data-theme="dark"] .calidad-status-chip[data-estado="convertida_nc"] { background:#123321; color:#86efac; }
+
+.calidad-priority-chip { font-size:11px; font-weight:700; border-radius:4px; padding:1px 6px; white-space:nowrap; }
+.calidad-priority-chip[data-prioridad="baja"] { background:#e4f2ff; color:#1e5e93; }
+.calidad-priority-chip[data-prioridad="media"] { background:#fff3d8; color:#9b6a00; }
+.calidad-priority-chip[data-prioridad="alta"] { background:#fde7e7; color:#ba3535; }
+.calidad-priority-chip[data-prioridad="critica"] { background:#f3d8ff; color:#7b1c9b; }
+html[data-theme="dark"] .calidad-priority-chip[data-prioridad="baja"] { background:#122a3a; color:#7dd3fc; }
+html[data-theme="dark"] .calidad-priority-chip[data-prioridad="media"] { background:#3a2f12; color:#facc15; }
+html[data-theme="dark"] .calidad-priority-chip[data-prioridad="alta"] { background:#3a1f1f; color:#f87171; }
+html[data-theme="dark"] .calidad-priority-chip[data-prioridad="critica"] { background:#331233; color:#e9a6ff; }
+
+.costs-process-default-check { display:inline-flex; align-items:center; justify-content:center; }
+.costs-process-default-check input {
+    width:16px; height:16px; margin:0; padding:0; border:1px solid #b7c8d7; border-radius:4px; background:#ffffff;
+    appearance:none; -webkit-appearance:none; display:inline-flex; align-items:center; justify-content:center;
+    cursor:pointer; position:relative; box-shadow:inset 0 1px 0 rgba(255,255,255,0.95);
+    transition:border-color 0.18s ease,background-color 0.18s ease,box-shadow 0.18s ease;
+}
+.costs-process-default-check input::after {
+    content:""; width:7px; height:3.5px; border-left:2px solid #ffffff; border-bottom:2px solid #ffffff;
+    transform:translateY(-1px) rotate(-45deg) scale(0); transform-origin:center; transition:transform 0.16s ease;
+}
+.costs-process-default-check input:checked {
+    background:linear-gradient(180deg,#38bdf8,#0ea5e9); border-color:#38bdf8; box-shadow:0 0 0 4px rgba(56,189,248,0.14);
+}
+.costs-process-default-check input:checked::after { transform:translateY(-1px) rotate(-45deg) scale(1); }
+html[data-theme="dark"] .costs-process-default-check input:not(:checked) { background:#111c30; border-color:var(--app-border); }
+html[data-theme="dark"] .costs-process-default-check input:checked {
+    background:linear-gradient(180deg,#38bdf8,#0ea5e9); border-color:#38bdf8; box-shadow:0 0 0 4px rgba(56,189,248,0.16);
+}

@@ -110,6 +110,9 @@ Ejemplos de uso:
 - `plateCost`: `{ prefix: "$" }` → `$120.00`
 - `setupMinutes`: `{ suffix: "min" }` → `45.00 min`
 - `costoLbCmyk`: `{ prefix: "$", suffix: "lb" }` → `$3.50 lb`
+- `labelWidthIn` (Cálculo de Flexografía, "Información de Producto" → "Ancho"): `has-suffix` → `0 in` (`calculo-flexografia/index.html:97-103`)
+
+Este es el único patrón para "campo con unidad" y "campo con moneda": ambos casos (número+unidad, monto+símbolo, o los dos combinados) usan `display-input-wrap` con `has-prefix`/`has-suffix` según corresponda. No crear un patrón distinto para cada caso.
 
 ```css
 /* Light mode */
@@ -181,6 +184,76 @@ Uso en HTML (generado por JS):
   <span class="display-input-mask">$0.045</span>
 </div>
 ```
+
+### Checkbox de Selección (impression-check-card)
+
+Patrón reutilizable para checkboxes de selección (ej. CMYK, Tinta Blanca, columnas Activo/Crear/Gantt de tablas de procesos). Checkbox custom (`appearance: none`), no el control nativo del navegador.
+
+Regla clave: el color del estado **marcado** es un azul fijo que **no cambia entre modo claro y oscuro** — solo el fondo del estado *sin marcar* se adapta al tema. Esto evita que el check "cambie" de apariencia al alternar el tema.
+
+```css
+/* Light mode */
+.impression-check-card input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1px solid #b7c8d7;
+  background: #ffffff;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.impression-check-card input[type="checkbox"]::after {
+  content: "";
+  width: 8px;
+  height: 4px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: translateY(-1px) rotate(-45deg) scale(0);
+}
+
+.impression-check-card input[type="checkbox"]:checked {
+  background: linear-gradient(180deg, #38bdf8, #0ea5e9);
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.14);
+}
+
+.impression-check-card input[type="checkbox"]:checked::after {
+  transform: translateY(-1px) rotate(-45deg) scale(1);
+}
+
+/* Dark mode: el estado marcado usa el MISMO azul (#38bdf8/#0ea5e9) — solo cambia el fondo sin marcar */
+html[data-theme="dark"] .impression-check-card input:checked {
+  background: linear-gradient(180deg, #38bdf8, #0ea5e9) !important;
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.16) !important;
+}
+
+html[data-theme="dark"] .impression-check-card input:not(:checked) {
+  background: #111c30;
+  border-color: var(--line);
+}
+```
+
+### Label de Campo Plano
+
+Formato de label sin clase especial, usado por ejemplo en "Motivos" (Cálculo de Flexografía). Hereda la regla genérica `label span`: sin mayúsculas, sin negrita, color muted.
+
+```css
+label span,
+.card-head p, .formula-block p, .output-copy span, .process-card summary span,
+.summary-row span, .quantity-caption, .technical-panel-head p {
+  color: var(--muted); /* #667085 claro / #94a3b8 oscuro */
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+```
+
+No lleva `font-weight`, `text-transform` ni `letter-spacing` explícitos — usa el tamaño y peso normal heredados del body. Contrasta con patrones ad-hoc de otras pantallas que ponen los labels en negrita/mayúsculas/tamaño reducido; al estandarizar, usar este patrón (peso normal, sin mayúsculas, color `--app-text-muted`) en vez de inventar una variante nueva.
 
 ### Tabs Unificados (config-tabs)
 

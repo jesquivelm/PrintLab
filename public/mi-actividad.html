@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
+    <title>Tu Actividad</title>
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <style>
+        .mact-workspace {
+            min-height: calc(100vh - 44px);
+            padding: 22px;
+        }
+        .mact-card {
+            padding: 0;
+        }
+        .mact-inner {
+            padding: 0 22px 22px;
+        }
+        /* Sin margen arriba dentro de Tu Actividad: así el borde de esta tarjeta
+           queda a la misma altura que los botones del menú angosto de la izquierda. */
+        .mact-card .dvp-panel {
+            margin-top: 0;
+        }
+        .mact-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        @media (max-width: 1080px) {
+            .mact-grid-3 { grid-template-columns: 1fr; }
+        }
+        .mact-status {
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--app-text-muted);
+        }
+        body.shell-embedded .topbar {
+            display: none;
+        }
+        body.shell-embedded .mact-workspace {
+            min-height: 100vh;
+        }
+        .mact-layout {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            max-width: 1500px;
+            margin: 0 auto;
+        }
+        .mact-layout .mact-card {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .mact-sidebar {
+            flex: 0 0 108px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: sticky;
+            top: 12px;
+            margin-left: -70px;
+        }
+        /* Mismo formato que .dashboard-card del dashboard principal (borde, radio,
+           fondo, sombra al pasar el mouse) — solo que adaptado a un ícono más chico,
+           no al tamaño de ícono de 54px del dashboard grande. */
+        .mact-sidebar-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 6px;
+            border: 1px solid var(--app-border);
+            border-radius: 16px;
+            background: var(--app-surface);
+            cursor: pointer;
+            color: #7b8894;
+            font-size: 14px;
+            font-weight: 500;
+            text-align: center;
+            text-decoration: none;
+            line-height: 1.2;
+            transition: color .15s ease, transform .15s ease, box-shadow .15s ease;
+        }
+        .mact-sidebar-btn:hover,
+        .mact-sidebar-btn:focus-visible {
+            color: #2b3c49;
+            transform: translateY(-2px);
+            box-shadow: var(--app-shadow-md);
+        }
+        .mact-sidebar-btn .mact-sidebar-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            color: var(--icon-color, #7a8794);
+            transition: color .18s ease, transform .18s ease;
+        }
+        .mact-sidebar-btn:hover .mact-sidebar-icon,
+        .mact-sidebar-btn:focus-visible .mact-sidebar-icon {
+            color: var(--icon-hover-color, #17abdf);
+            transform: translateY(-1px);
+        }
+        .mact-sidebar-btn .mact-sidebar-icon .table-icon-media {
+            width: var(--config-icon-size, 28px);
+            height: var(--config-icon-size, 28px);
+        }
+        @media (max-width: 900px) {
+            .mact-layout { flex-direction: column; }
+            .mact-sidebar {
+                flex-direction: row;
+                flex-wrap: wrap;
+                width: 100%;
+                position: static;
+            }
+            .mact-sidebar-btn { flex: 0 0 auto; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <header class="topbar topbar-quote">
+            <div class="brand brand-quote">
+                <div class="brand-logo-wrap">
+                    <img id="mactCompanyLogo" class="company-logo" alt="Logo empresa">
+                    <div id="mactBrandFallback" class="brand-mark">PrintLab</div>
+                </div>
+                <h1>Tu Actividad</h1>
+            </div>
+        </header>
+
+        <main class="workspace workspace-quote mact-workspace">
+          <div class="mact-layout">
+            <nav class="mact-sidebar" id="mactSidebar" aria-label="Accesos rápidos" hidden></nav>
+            <section class="quote-card quote-card-clean mact-card">
+                <div id="mactStatus" class="mact-status">Cargando tu actividad…</div>
+                <div id="mactInner" class="mact-inner" hidden>
+                    <section id="dvpPanel" class="dvp-panel open">
+                        <div class="dvp-strip" id="dvpStrip">
+                            <div class="dvp-strip-label"><span class="dvp-dot"></span>Tu actividad</div>
+                            <div class="dvp-strip-chips" id="dvpChips"></div>
+                            <button type="button" class="dvp-expand-btn" id="dvpExpandBtn" aria-label="Expandir">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M6 9l6 6 6-6"/></svg>
+                            </button>
+                        </div>
+                        <div class="dvp-body" id="dvpBody">
+                            <div class="dvp-inner">
+                                <div class="dvp-kpi-row" id="dvpKpiRow"></div>
+                                <div class="dvp-chart-card">
+                                    <div class="dvp-chart-head">
+                                        <div>
+                                            <div class="dvp-chart-title">Ventas por mes</div>
+                                            <div class="dvp-chart-legend" id="dvpChartLegend"></div>
+                                        </div>
+                                        <div class="dvp-seg" id="dvpRangeSeg">
+                                            <button type="button" data-range="month" class="active">Mensual</button>
+                                            <button type="button" data-range="year">Anual</button>
+                                        </div>
+                                    </div>
+                                    <div class="dvp-chart-svg-wrap" id="dvpChartWrap"></div>
+                                </div>
+                                <div class="dvp-grid-2">
+                                    <div class="dvp-list-card">
+                                        <div class="dvp-list-head"><span class="t">&Oacute;rdenes en proceso</span><span class="c" id="dvpOrdersCount"></span></div>
+                                        <div id="dvpOrdersList"></div>
+                                    </div>
+                                    <div class="dvp-list-card">
+                                        <div class="dvp-list-head"><span class="t">Facturas recientes</span><span class="c" id="dvpFacturasCount"></span></div>
+                                        <div id="dvpFacturasList"></div>
+                                    </div>
+                                </div>
+                                <div class="dvp-list-card" style="margin-top:16px">
+                                    <div class="dvp-list-head"><span class="t">Cotizaciones pendientes de cotizar</span><span class="c" id="dvpCotizadorCount"></span></div>
+                                    <div id="dvpCotizadorList"></div>
+                                </div>
+                                <div class="dvp-list-card" style="margin-top:16px">
+                                    <div class="dvp-list-head"><span class="t">Top clientes (12 meses)</span><span class="c" id="dvpTopCount"></span></div>
+                                    <div id="dvpTopList"></div>
+                                </div>
+                                <div class="dvp-list-card" style="margin-top:16px">
+                                    <div class="dvp-list-head"><span class="t">Leads (prospectos)</span><span class="c" id="dvpLeadsCount"></span></div>
+                                    <div class="dvp-leads-strip" id="dvpLeadsStrip"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </section>
+          </div>
+        </main>
+    </div>
+
+    <script src="/access-control.js?v=20260923-mensajes-carga"></script>
+    <script src="/mi-actividad.js?v=20260921-sidebar-6"></script>
+    <script src="/dashboard-vendedor-panel.js?v=20260921-modal-flotante-2"></script>
+    <script src="/topbar-tools.js?v=20260924-transiciones"></script>
+</body>
+</html>

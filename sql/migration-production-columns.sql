@@ -98,6 +98,7 @@ ALTER TABLE flexo_calculations ADD COLUMN IF NOT EXISTS empaque_comentario TEXT;
 ALTER TABLE flexo_calculations ADD COLUMN IF NOT EXISTS empaque_adjunto TEXT;
 ALTER TABLE flexo_calculations ADD COLUMN IF NOT EXISTS empaque_horas NUMERIC(12,4);
 ALTER TABLE flexo_calculations ADD COLUMN IF NOT EXISTS empaque_costo_total NUMERIC(14,6);
+ALTER TABLE flexo_calculations ADD COLUMN IF NOT EXISTS empaque_kg_por_caja NUMERIC(14,4);
 
 -- MERMAS (resumen)
 ALTER TABLE flexo_calculations ADD COLUMN IF NOT EXISTS merma_total_pies NUMERIC(14,4);

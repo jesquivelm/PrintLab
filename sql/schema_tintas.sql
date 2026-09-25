@@ -24,7 +24,7 @@ DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tipo_producto'
 END IF; END $$;
 
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'unidad_medida') THEN
-  CREATE TYPE tintas.unidad_medida AS ENUM ('KG','G','LB','OZ','L','ML','GAL');
+  CREATE TYPE tintas.unidad_medida AS ENUM ('KG','G','OZ','L','ML','GAL');
 END IF; END $$;
 
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'estado_producto') THEN

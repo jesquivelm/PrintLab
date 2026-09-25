@@ -66,6 +66,29 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+const ORDER_PLANNING_STATUS_LABELS = {
+    PENDIENTE_VENTAS: 'Pendiente de Liberación',
+    PENDIENTE_PLANIFICACION: 'Pendiente en Planificación',
+    EN_GANTT: 'Lanzada a Gantt',
+    DEVUELTA_VENTAS: 'Devuelta a Ventas'
+};
+
+function orderStatusInfo(item = {}) {
+    const det = (item.detencion && item.detencion.estado) || item.estado_detencion || '';
+    if (det === 'DETENIDA') return { label: 'Detenida', state: 'stopped' };
+    if (det === 'ANULADA') return { label: 'Anulada', state: 'void' };
+    const steps = Array.isArray(item.steps) ? item.steps : [];
+    if (!steps.length) {
+        const planningStatus = item.planning?.planningStatus || '';
+        return { label: ORDER_PLANNING_STATUS_LABELS[planningStatus] || 'Pendiente', state: 'pending' };
+    }
+    const current = steps.find((step) => String(step.routeStatus || '').toUpperCase() !== 'COMPLETADO');
+    if (!current) return { label: 'Completado', state: 'done' };
+    const routeStatus = String(current.routeStatus || '').toUpperCase();
+    const state = routeStatus === 'PARO' ? 'late' : (['RUN', 'SETUP'].includes(routeStatus) ? 'active' : 'pending');
+    return { label: current.processName || '', state };
+}
+
 function formatDate(value) {
     if (!value) return '';
     const date = new Date(value);
@@ -127,6 +150,16 @@ function getOpenIconConfig() {
     };
 }
 
+function getDeleteIconConfig() {
+    const general = browserConfig?.general || {};
+    return {
+        value: browserConfig?.icons?.lineDelete || browserConfig?.icons?.loginRepositoryDelete || browserConfig?.icons?.adminUserDelete || '🗑',
+        color: firstFilled(general.iconColorLineDelete, '#a74343'),
+        hover: firstFilled(general.iconColorHoverLineDelete, '#d03535'),
+        size: Number(firstFilled(general.iconSizeLineDelete, 18)) || 18
+    };
+}
+
 function openRouteInShell(route, label) {
     if (window === window.parent || new URLSearchParams(window.location.search).get('shell') !== '1') {
         return false;
@@ -155,17 +188,32 @@ async function loadConfig() {
 async function loadOrders(search = '') {
     const params = new URLSearchParams({ limit: '200' });
     if (search) params.set('q', search);
-    const response = await fetch(`/api/ordenes-produccion?${params.toString()}`);
-    const payload = await response.json();
+    if (!ordersTableBody.querySelector('a[data-route]')) {
+        ordersTableBody.innerHTML = '<tr><td colspan="8">Cargando las órdenes desde el servidor, un momento por favor…</td></tr>';
+    }
+    const mensajeSinRespuesta = 'No pudimos traer las órdenes en este momento. Revisa la conexión e intenta de nuevo.';
+    let response;
+    let payload;
+    try {
+        response = await fetch(`/api/ordenes-produccion?${params.toString()}`);
+        payload = await response.json();
+    } catch (error) {
+        throw new Error(mensajeSinRespuesta);
+    }
     if (!response.ok) {
-        throw new Error(payload.error || 'No se pudieron cargar las ordenes.');
+        throw new Error(payload.error || mensajeSinRespuesta);
     }
     const items = payload.items || [];
     const openIcon = getOpenIconConfig();
+    const deleteIcon = getDeleteIconConfig();
+    const canDelete = hasAdminToolsAccess();
     const displayItems = sortOrdersList(items);
     updateOrdersSortIndicators();
     ordersTableBody.innerHTML = displayItems.length ? displayItems.map((item) => {
         const route = `/orden-produccion/${encodeURIComponent(item.order_code)}`;
+        const statusInfo = orderStatusInfo(item);
+        const openBtn = `<a class="browser-open-link" href="${route}" data-route="${route}" data-label="Orden ${escapeHtml(item.order_code)}" aria-label="Abrir orden ${escapeHtml(item.order_code)}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, 'Abrir orden', 'table-icon-media')}</a>`;
+        const deleteBtn = canDelete ? `<button type="button" class="browser-open-link browser-open-link-danger" data-delete-order="${escapeHtml(item.order_code)}" aria-label="Eliminar orden" title="Eliminar orden" style="--icon-color:${escapeHtml(deleteIcon.color)};--icon-hover-color:${escapeHtml(deleteIcon.hover)};--config-icon-size:${escapeHtml(String(deleteIcon.size))}px;">${iconMarkup(deleteIcon.value, 'Eliminar orden', 'table-icon-media')}</button>` : '';
         return `
         <tr>
             <td>${escapeHtml(item.order_code)}</td>
@@ -174,15 +222,16 @@ async function loadOrders(search = '') {
             <td>${escapeHtml(item.customer_name)}</td>
             <td>${escapeHtml(item.job_name)}</td>
             <td title="${escapeHtml(item.created_at || '')}">${escapeHtml(formatDate(item.created_at))}</td>
-            <td><a class="browser-open-link" href="${route}" data-route="${route}" data-label="Orden ${escapeHtml(item.order_code)}" aria-label="Abrir orden ${escapeHtml(item.order_code)}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, 'Abrir orden', 'table-icon-media')}</a></td>
+            <td><span class="order-status-chip" data-state="${escapeHtml(statusInfo.state)}">${escapeHtml(statusInfo.label)}</span></td>
+            <td class="order-actions-cell"><div class="order-actions-row">${openBtn}${deleteBtn}</div></td>
         </tr>
     `;
-    }).join('') : '<tr><td colspan="7">No hay ordenes registradas.</td></tr>';
+    }).join('') : '<tr><td colspan="8">No hay ordenes registradas.</td></tr>';
 }
 
 ordersSearchInput?.addEventListener('input', () => {
     loadOrders(ordersSearchInput.value).catch((error) => {
-        ordersTableBody.innerHTML = `<tr><td colspan="7">${escapeHtml(error.message)}</td></tr>`;
+        ordersTableBody.innerHTML = `<tr><td colspan="8">${escapeHtml(error.message)}</td></tr>`;
     });
 });
 
@@ -197,11 +246,29 @@ ordersTableBody?.closest('table')?.querySelector('thead')?.addEventListener('cli
         ordersSortState.dir = 'asc';
     }
     loadOrders(ordersSearchInput.value).catch((error) => {
-        ordersTableBody.innerHTML = `<tr><td colspan="7">${escapeHtml(error.message)}</td></tr>`;
+        ordersTableBody.innerHTML = `<tr><td colspan="8">${escapeHtml(error.message)}</td></tr>`;
     });
 });
 
 ordersTableBody?.addEventListener('click', (event) => {
+    const deleteButton = event.target.closest('[data-delete-order]');
+    if (deleteButton) {
+        const code = deleteButton.dataset.deleteOrder;
+        if (!code) return;
+        const confirmed = window.confirm(`Se eliminará la orden ${code}. Esta acción no se puede deshacer. ¿Deseas continuar?`);
+        if (!confirmed) return;
+        fetch(`/api/ordenes-produccion/${encodeURIComponent(code)}`, { method: 'DELETE' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                loadOrders(ordersSearchInput?.value || '');
+            })
+            .catch(error => {
+                console.error(error);
+                window.alert(error.message || 'No fue posible eliminar la orden.');
+            });
+        return;
+    }
     const link = event.target.closest('a[data-route]');
     if (!link) return;
     if (openRouteInShell(link.dataset.route, link.dataset.label)) {
@@ -214,7 +281,7 @@ async function init() {
         await loadConfig();
         await loadOrders();
     } catch (error) {
-        ordersTableBody.innerHTML = `<tr><td colspan="7">${escapeHtml(error.message)}</td></tr>`;
+        ordersTableBody.innerHTML = `<tr><td colspan="8">${escapeHtml(error.message)}</td></tr>`;
     }
 }
 

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Incidencias de Calidad - PrintLab</title>
+<link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+<link rel="stylesheet" href="/calidad/styles.css?v=20260905-sellos">
+<script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
+<style>
+body { margin:0; background:transparent; }
+.calidad-incidencias-filters { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+.calidad-incidencias-filters select {
+    border:1px solid var(--order-panel-border,#d4e1ea); border-radius:10px; background:var(--order-panel-soft,#fff); color:var(--ink,#203746);
+    font-size:13px; min-height:34px; padding:0 10px; font-family:inherit;
+}
+</style>
+</head>
+<body>
+<main class="workspace workspace-quote quote-browser-main">
+    <section class="quote-card quote-card-clean quote-browser-card">
+        <div class="quote-browser-search-row">
+            <div class="quote-browser-actions-left">
+                <button id="incNuevaIncidencia" type="button" class="action-btn quote-browser-action-btn">+ Nueva Incidencia de Calidad</button>
+            </div>
+            <div class="quote-browser-search-wrap">
+                <input id="incBusqueda" class="copy-popover-search quote-browser-search" type="search" placeholder="Buscar por código, cliente o descripción...">
+            </div>
+        </div>
+        <div class="calidad-incidencias-filters">
+            <select id="incFiltroEstado">
+                <option value="">Todos los estados</option>
+                <option value="pendiente_revision">Pendiente de Revisión</option>
+                <option value="en_revision">En Revisión</option>
+                <option value="cerrada">Cerrada</option>
+                <option value="convertida_nc">Convertida en No Conformidad</option>
+            </select>
+            <select id="incFiltroOrigen"><option value="">Todos los orígenes</option></select>
+            <select id="incFiltroPrioridad">
+                <option value="">Todas las prioridades</option>
+                <option value="baja">Baja</option>
+                <option value="media">Media</option>
+                <option value="alta">Alta</option>
+                <option value="critica">Crítica</option>
+            </select>
+        </div>
+        <div class="scroll-bottom-indicator-host">
+            <div class="copy-popover-table-wrap quote-browser-table-wrap">
+                <table class="copy-popover-table quote-browser-table">
+                    <thead>
+                        <tr><th>Código</th><th>Origen</th><th>Cliente</th><th>Descripción</th><th>Prioridad</th><th>Fecha</th><th>Estado</th></tr>
+                    </thead>
+                    <tbody id="incBandejaBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</main>
+<script>
+function incEscapar(text) {
+    const d = document.createElement('div');
+    d.textContent = text == null ? '' : String(text);
+    return d.innerHTML;
+}
+function incEscaparAtributo(text) {
+    return incEscapar(text).replace(/"/g, '&quot;');
+}
+function incFecha(value) {
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('es-CR');
+}
+const ETIQUETA_ESTADO_INCIDENCIA = {
+    nueva: 'Nueva',
+    pendiente_revision: 'Pendiente de Revisión',
+    en_revision: 'En Revisión',
+    cerrada: 'Cerrada',
+    convertida_nc: 'Convertida en No Conformidad'
+};
+const ETIQUETA_PRIORIDAD = { baja: 'Baja', media: 'Media', alta: 'Alta', critica: 'Crítica' };
+
+async function incCargarOrigenes() {
+    const respuesta = await fetch('/api/calidad/incidencias/origenes');
+    const origenes = await respuesta.json();
+    const select = document.getElementById('incFiltroOrigen');
+    (origenes || []).forEach(function(o) {
+        const opt = document.createElement('option');
+        opt.value = o.codigo;
+        opt.textContent = o.nombre;
+        select.appendChild(opt);
+    });
+}
+
+async function incCargarBandeja() {
+    const params = new URLSearchParams();
+    const q = document.getElementById('incBusqueda').value.trim();
+    const estado = document.getElementById('incFiltroEstado').value;
+    const origen = document.getElementById('incFiltroOrigen').value;
+    const prioridad = document.getElementById('incFiltroPrioridad').value;
+    if (q) params.set('q', q);
+    if (estado) params.set('estado', estado);
+    if (origen) params.set('origen', origen);
+    if (prioridad) params.set('prioridad', prioridad);
+    const respuesta = await fetch('/api/calidad/incidencias?' + params.toString());
+    const incidencias = await respuesta.json();
+    const cuerpo = document.getElementById('incBandejaBody');
+    cuerpo.innerHTML = (incidencias || []).map(function(i) {
+        const estado = i.estado || '';
+        const prioridadValor = i.prioridad || '';
+        return '<tr class="quote-master-row" data-codigo="' + incEscaparAtributo(i.codigo) + '">' +
+            '<td><button type="button" class="quote-master-code" data-codigo="' + incEscaparAtributo(i.codigo) + '">' + incEscapar(i.codigo) + '</button></td>' +
+            '<td>' + incEscapar(i.origen || '—') + '</td>' +
+            '<td>' + incEscapar(i.cliente_nombre || '—') + '</td>' +
+            '<td>' + incEscapar((i.descripcion || '').slice(0, 80)) + '</td>' +
+            '<td><span class="calidad-priority-chip" data-prioridad="' + incEscaparAtributo(prioridadValor) + '">' + incEscapar(ETIQUETA_PRIORIDAD[prioridadValor] || prioridadValor) + '</span></td>' +
+            '<td>' + incFecha(i.fecha_creacion) + '</td>' +
+            '<td><span class="calidad-status-chip" data-estado="' + incEscaparAtributo(estado) + '">' + incEscapar(ETIQUETA_ESTADO_INCIDENCIA[estado] || estado) + '</span></td>' +
+        '</tr>';
+    }).join('') || '<tr><td colspan="7">Sin incidencias de calidad registradas.</td></tr>';
+    cuerpo.querySelectorAll('tr[data-codigo]').forEach(function(fila) {
+        fila.addEventListener('click', function(event) {
+            const codigo = event.currentTarget.dataset.codigo;
+            if (codigo) window.location.href = '/calidad/incidencia/' + encodeURIComponent(codigo);
+        });
+    });
+}
+document.getElementById('incBusqueda').addEventListener('input', function() {
+    clearTimeout(window.__incBusquedaTimer);
+    window.__incBusquedaTimer = setTimeout(incCargarBandeja, 300);
+});
+document.getElementById('incFiltroEstado').addEventListener('change', incCargarBandeja);
+document.getElementById('incFiltroOrigen').addEventListener('change', incCargarBandeja);
+document.getElementById('incFiltroPrioridad').addEventListener('change', incCargarBandeja);
+document.getElementById('incNuevaIncidencia').addEventListener('click', function() {
+    window.location.href = '/calidad/incidencia/nueva';
+});
+incCargarOrigenes();
+incCargarBandeja();
+</script>
+</body>
+</html>

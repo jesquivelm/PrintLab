@@ -1,0 +1,63 @@
+/* KPIs Flexo Semanal — solo lo específico de esta pantalla.
+   El grueso del formato vive en reporteria.css (report-*). */
+
+.kf-badge {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 9px;
+    border-radius: 999px;
+}
+.kf-ok { background: #e7f5ec; color: #1a7f47; }
+.kf-bad { background: #fdece9; color: #b23b2c; }
+.kf-na { background: #eef1f4; color: #7a8794; }
+
+/* Sin dato: nada de rayitas grandes; texto tenue y chico */
+.kf-nodata { font-size: 12px; font-weight: 600; color: #9aa8b6; }
+.report-kpi strong .kf-nodata { font-size: 13px; }
+
+/* Chip del estado de la semana (Abierta / Cerrada) — con peso visual */
+.kf-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 12px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-transform: none;
+    white-space: nowrap;
+}
+.kf-chip::before {
+    content: "";
+    width: 7px; height: 7px; border-radius: 50%;
+    background: currentColor;
+}
+.kf-chip-open { background: #fef3e2; color: #b26a00; border: 1px solid #f4d9ae; }
+.kf-chip-ok   { background: #e7f5ec; color: #1a7f47; border: 1px solid #bfe6cd; }
+.kf-chip-warn { background: #fdf0e6; color: #b1541f; border: 1px solid #f2cdb2; }
+
+/* Término con explicación al pasar el mouse */
+.kf-term {
+    border-bottom: 1px dotted #9aa8b6;
+    cursor: help;
+}
+
+/* Fila Total de las tablas de Pareto */
+.report-table tr.kf-total td {
+    font-weight: 700;
+    border-top: 2px solid #cbd5e1;
+    background: #f4f7f9;
+}
+
+html[data-theme="dark"] .kf-ok { background: rgba(26, 138, 76, 0.18); color: #63d69b; }
+html[data-theme="dark"] .kf-bad { background: rgba(192, 57, 43, 0.18); color: #f0958a; }
+html[data-theme="dark"] .kf-na { background: rgba(138, 151, 163, 0.18); color: #9aa8bb; }
+html[data-theme="dark"] .kf-nodata { color: #7f8ea0; }
+html[data-theme="dark"] .kf-term { border-bottom-color: #5c6b7a; }
+html[data-theme="dark"] .report-table tr.kf-total td { background: #14202f; border-top-color: #2b3a4f; }
+html[data-theme="dark"] .kf-chip-open { background: rgba(178, 106, 0, 0.16); color: #e0a552; border-color: rgba(224, 165, 82, 0.35); }
+html[data-theme="dark"] .kf-chip-ok   { background: rgba(26, 138, 76, 0.18); color: #63d69b; border-color: rgba(99, 214, 155, 0.32); }
+html[data-theme="dark"] .kf-chip-warn { background: rgba(177, 84, 31, 0.18); color: #e79a6d; border-color: rgba(231, 154, 109, 0.32); }

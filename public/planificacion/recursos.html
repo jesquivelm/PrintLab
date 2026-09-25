@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><script src="/theme.js"></script><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="UTF-8"><script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Recursos y Competencias</title>
 <style>
 :root{--font-sans:"Segoe UI",system-ui,sans-serif;--color-text-primary:#1f2b3d;--color-text-secondary:#66758b;--color-background-primary:#f4f7fb;--color-background-secondary:#fff;--color-background-tertiary:#edf2f7;--color-border-secondary:#d8e4ef;--color-border-tertiary:#e4ebf3}
@@ -10,10 +11,18 @@ html[data-theme="dark"]{--color-text-primary:#e5eefb;--color-text-secondary:#9fb
 .theme-toggle{width:32px;height:30px;border:1px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-secondary);color:var(--color-text-primary);cursor:pointer}.theme-toggle-icon-sun::before{content:"☀"}.theme-toggle-icon-moon::before{content:"☾"}.theme-toggle-icon-moon{display:none}html[data-theme="dark"] .theme-toggle-icon-sun{display:none}html[data-theme="dark"] .theme-toggle-icon-moon{display:inline}
 </style></head>
 <body>
-<header class="bar"><div><h1>Recursos y Competencias</h1><div class="sub">Máquinas, personas, equipos y procesos bajo una sola lógica de capacidad</div></div><div class="actions"><span data-theme-toggle-slot></span><a class="btn" href="/planificacion/configuracion">Calendarios</a><a class="btn" href="/planificacion/capacidad">Capacidad</a></div></header>
+<header class="bar"><div><h1>Recursos y Competencias</h1><div class="sub">Máquinas, personas, equipos y procesos bajo una sola lógica de capacidad</div></div><div class="actions"><span data-theme-toggle-slot></span><a class="btn" href="/planificacion/configuracion" onclick="return navShellAware(event,'/planificacion/configuracion','Calendarios')">Calendarios</a><a class="btn" href="/planificacion/capacidad" onclick="return navShellAware(event,'/planificacion/capacidad','Capacidad')">Capacidad</a></div></header>
 <main class="page"><div class="toolbar"><input id="search" placeholder="Buscar recurso" oninput="render()"><button class="btn primary" onclick="openEditor()">Nuevo Recurso</button></div><div id="grid" class="grid"></div></main>
 <div id="dialog" class="dialog"><div class="modal"><div class="head"><div class="name" id="modal-title">Nuevo Recurso</div><button class="btn" onclick="closeEditor()">Cerrar</button></div><input id="id" type="hidden"><div class="fields"><div class="field"><label>Nombre</label><input id="resource-name"></div><div class="field"><label>Tipo</label><select id="resource-type"><option value="machine">Máquina</option><option value="operator">Persona</option><option value="team">Equipo</option><option value="process">Proceso</option></select></div><div class="field"><label>Proceso Principal</label><select id="process"></select></div><div class="field"><label>Calendario</label><select id="calendar"><option value="">Calendario por defecto</option></select></div><div class="field"><label>Unidades de Capacidad</label><input id="capacity" type="number" min=".1" step=".1" value="1"></div><div class="field"><label>Eficiencia</label><input id="efficiency" type="number" min=".1" max="1.5" step=".05" value="1"></div></div><div class="muted" style="margin-top:12px">Competencias Compartidas</div><div id="skills" class="skills"></div><div class="actions" style="justify-content:flex-end"><button class="btn" onclick="closeEditor()">Cancelar</button><button id="save" class="btn primary" onclick="save()">Guardar Recurso</button></div></div></div>
 <script>
+function navShellAware(e,route,label){
+  if(window.parent&&window.parent!==window&&window.location.search.includes('shell=1')){
+    e.preventDefault();
+    window.parent.postMessage({type:'erp-open-tab',route:route+(route.includes('?')?'&':'?')+'shell=1',label:label},window.location.origin);
+    return false;
+  }
+  return true;
+}
 const API='/api/planificacion';let resources=[],processes=[],calendars=[];const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function load(){const [r,p,c]=await Promise.all(['recursos','procesos','calendarios'].map(x=>fetch(`${API}/${x}`).then(y=>y.json())));resources=r.data||[];processes=p.data||[];calendars=c.data||[];$('process').innerHTML=processes.map(x=>`<option value="${esc(x.process_key)}">${esc(x.nombre)}</option>`).join('');$('calendar').innerHTML='<option value="">Calendario por defecto</option>'+calendars.map(x=>`<option value="${x.id}">${esc(x.calendar_name)}</option>`).join('');$('skills').innerHTML=processes.map(x=>`<label class="skill-check"><input type="checkbox" value="${esc(x.process_key)}">${esc(x.nombre)}</label>`).join('');render()}
 function render(){const q=$('search').value.toLowerCase();const rows=resources.filter(x=>`${x.resource_name} ${x.process_key}`.toLowerCase().includes(q));$('grid').innerHTML=rows.map(x=>`<article class="card"><div class="head"><div><div class="name">${esc(x.resource_name)}</div><div class="type">${esc(x.resource_type)} · ${esc(x.process_key)}</div></div><button class="btn" onclick="openEditor('${x.id}')">Editar</button></div><div class="muted">Calendario: ${esc(x.calendar_name||'Por defecto')} · ${x.capacity_units} unidad(es) · ${Math.round(Number(x.efficiency_factor||1)*100)}%</div><div>${(x.skills||[]).map(s=>`<span class="skill">${esc(s.processKey)}</span>`).join('')||'<span class="muted">Sin competencias adicionales</span>'}</div></article>`).join('')||'<div class="muted">No hay recursos.</div>'}

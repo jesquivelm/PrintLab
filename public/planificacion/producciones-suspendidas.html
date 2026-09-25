@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="/theme.js"></script>
+<title>Producciones Suspendidas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3f7fb;--surface:#fff;--surface2:#f7fbff;--border:#d8e4ef;--border2:#c5d4e4;
+  --text:#1f2b3d;--text2:#66758b;--text3:#9fb0c8;
+  --green:#1D9E75;--green-bg:#edf7f3;--green-border:#b3dece;
+  --amber:#b7791f;--amber-bg:#fdf6e8;--amber-border:#eed9a8;
+  --red:#c0392b;--red-bg:#fbeceb;--red-border:#eec4bf;
+  --blue:#1D6FB8;--blue-bg:#e8f2fc;
+  --radius:10px;--shadow:0 2px 10px rgba(20,30,50,.06);
+}
+html[data-theme="dark"]{
+  --bg:#0d1117;--surface:#161b22;--surface2:#1c2128;--border:#30363d;--border2:#444c56;
+  --text:#e6edf3;--text2:#9099ab;--text3:#6e7681;
+  --green:#3fb950;--green-bg:#0a1f0e;--green-border:#238636;
+  --amber:#d29922;--amber-bg:#1f1800;--amber-border:#9e6a03;
+  --red:#f85149;--red-bg:#1f0c0c;--red-border:#b62324;
+  --blue:#58a6ff;--blue-bg:#0d2137;
+  --shadow:0 2px 14px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',system-ui,sans-serif;font-size:13px;color:var(--text);background:var(--bg)}
+*{scrollbar-width:thin;scrollbar-color:rgba(11,129,184,.42) transparent}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(11,129,184,.38);border-radius:999px}
+
+.hdr{display:flex;align-items:center;gap:14px;padding:14px 22px;background:var(--surface);border-bottom:1px solid var(--border);box-shadow:var(--shadow)}
+.hdr h1{font-size:16px;font-weight:600}
+.hdr .sub{font-size:11.5px;color:var(--text3);font-family:'DM Mono',monospace}
+.wrap{padding:20px 22px}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+.card-t{font-size:13px;font-weight:600;margin-bottom:12px}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;color:var(--text3);font-size:10.5px;text-transform:uppercase;letter-spacing:.02em;padding:6px 8px;border-bottom:1px solid var(--border)}
+td{padding:9px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:none}
+tr.revisada{opacity:.55}
+.pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600}
+.pill.urgente{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.pill.revisada{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.pill.detenida{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.dias{font-family:'DM Mono',monospace}
+.orderlink{color:var(--blue);font-family:'DM Mono',monospace;font-weight:600;text-decoration:none}
+.orderlink:hover{text-decoration:underline}
+.empty-state{padding:30px;text-align:center;color:var(--text3)}
+.motivo{font-size:12px;color:var(--text2);max-width:280px}
+.quien{font-size:11px;color:var(--text3)}
+.btn{font-family:'DM Sans',sans-serif;font-size:11.5px;padding:6px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--blue);color:var(--text)}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>⛔ Producciones Suspendidas</h1>
+  <span class="sub" id="hdrSub">cargando…</span>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <div class="card-t">Procesos suspendidos por la planta — esperando definición de Planificación</div>
+    <div id="tablaWrap"><div class="empty-state">Cargando…</div></div>
+  </div>
+</div>
+
+<script>
+function sessionHeader(){
+  var raw; try{raw=localStorage.getItem('erp-user-session');}catch(_){}
+  if(!raw)return{};
+  var s; try{s=JSON.parse(raw);}catch(_){return{};}
+  return{'x-erp-session':JSON.stringify({id:s.id||s.userId||s.sessionId||'',userId:s.userId||s.id||'',username:s.username||s.user||'',user:s.user||s.username||''})};
+}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+let items=[];
+let suspendidasCargadas=false;
+
+async function cargar(){
+  try{
+    const res=await fetch('/api/planificacion/producciones-suspendidas',{headers:sessionHeader()});
+    const p=await res.json();
+    if(!res.ok||!p.ok)throw new Error(p.error||'No se pudo cargar.');
+    items=p.data;
+    suspendidasCargadas=true;
+    const sinRevisar=items.filter(it=>!it.revisadaEn).length;
+    document.getElementById('hdrSub').textContent=items.length+' suspendida(s)'+(sinRevisar?' — '+sinRevisar+' sin revisar':'');
+    renderTabla();
+  }catch(e){
+    if(suspendidasCargadas)return;
+    document.getElementById('hdrSub').textContent='La conexión está lenta, lo volvemos a intentar solo.';
+    document.getElementById('tablaWrap').innerHTML='<div class="empty-state">Seguimos esperando al servidor. La conexión está lenta y la lista todavía no llega.</div>';
+  }
+}
+
+function renderTabla(){
+  if(!items.length){document.getElementById('tablaWrap').innerHTML='<div class="empty-state">✓ No hay producciones suspendidas ahora mismo.</div>';return;}
+  document.getElementById('tablaWrap').innerHTML=`<table>
+    <thead><tr><th>Orden</th><th>Proceso</th><th>Cliente / Producto</th><th>Motivo</th><th>Suspendida</th><th>Estado</th><th></th></tr></thead>
+    <tbody>${items.map(it=>{
+      const desde=it.suspendidaEn?new Date(it.suspendidaEn):null;
+      const horas=desde?Math.floor((Date.now()-desde.getTime())/3600000):0;
+      let estadoPill='<span class="pill urgente">Sin revisar</span>';
+      if(it.ordenDetenida)estadoPill='<span class="pill detenida">Orden detenida</span>';
+      else if(it.revisadaEn)estadoPill='<span class="pill revisada">Revisada</span>';
+      return `<tr${it.revisadaEn&&!it.ordenDetenida?' class="revisada"':''}>
+        <td><span class="orderlink">${esc(it.orderCode)}</span></td>
+        <td>${esc(it.processName)}</td>
+        <td>${esc(it.cliente||'—')}<br><span class="quien">${esc(it.producto||'')}</span></td>
+        <td class="motivo">${esc(it.motivo||'—')}</td>
+        <td><span class="dias">${desde?desde.toLocaleString('es-CR'):'—'}</span><br><span class="quien">${horas<1?'hace menos de 1 h':'hace '+horas+' h'} · ${esc(it.suspendidaPor||'—')}</span></td>
+        <td>${estadoPill}</td>
+        <td>${it.revisadaEn?'':`<button class="btn" onclick="marcarRevisada('${it.routeId}',this)">✓ Marcar revisada</button>`}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+async function marcarRevisada(routeId,btn){
+  btn.disabled=true;btn.textContent='Guardando…';
+  try{
+    const res=await fetch('/api/planificacion/producciones-suspendidas/'+encodeURIComponent(routeId)+'/revisar',{method:'POST',headers:sessionHeader()});
+    const p=await res.json().catch(()=>({}));
+    if(!res.ok||!p.ok)throw new Error(p.error||'No se pudo marcar como revisada.');
+    await cargar();
+  }catch(e){alert(e.message);btn.disabled=false;btn.textContent='✓ Marcar revisada';}
+}
+
+cargar();
+setInterval(cargar,30000);
+</script>
+</body>
+</html>

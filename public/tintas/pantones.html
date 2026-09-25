@@ -4,18 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
     <title>Biblioteca Pantone - PrintLab</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <link rel="stylesheet" href="/tintas/styles.css?v=20260919-colorimetria">
+    <script src="/tintas/color-utils.js?v=20260919-colorimetria"></script>
 </head>
 <body>
     <main class="workspace workspace-quote quote-browser-main tintas-shell">
         <section class="quote-card quote-card-clean quote-browser-card tintas-card">
             <div class="tintas-toolbar">
-                <div class="tintas-toolbar-actions">
+                <h2>Biblioteca Pantone</h2>
+            </div>
+            <div class="tintas-toolbar" style="margin-right: 80px;">
+                <div class="tintas-toolbar-actions tintas-toolbar-actions-right">
+                    <span class="tintas-toolbar-search-inline">
+                        <input id="searchText" class="tintas-search-input" type="search" placeholder="Buscar por código o nombre...">
+                    </span>
                     <button class="tintas-btn" onclick="cargar()">Buscar</button>
-                </div>
-                <div class="tintas-toolbar-search">
-                    <input id="searchText" class="tintas-search-input" type="search" placeholder="Buscar por código o nombre...">
+                    <button class="tintas-btn" onclick="abrirPantoneModal()">+ Nuevo Pantone</button>
                 </div>
             </div>
             <div class="tintas-table-wrap">
@@ -27,40 +34,228 @@
                             <th>Color</th>
                             <th>Descripción</th>
                             <th>Frecuencia</th>
+                            <th>Trazabilidad</th>
                         </tr>
                     </thead>
                     <tbody id="tablaBody">
-                        <tr><td colspan="5" class="tintas-loading">Cargando...</td></tr>
+                        <tr><td colspan="6" class="tintas-loading">Cargando...</td></tr>
                     </tbody>
                 </table>
             </div>
         </section>
     </main>
+
+    <!-- Modal: Nuevo Pantone -->
+    <div class="material-modal" id="pantoneModal">
+        <div class="material-modal-backdrop" onclick="cerrarPantoneModal()"></div>
+        <div class="material-modal-panel tinta-formula-modal-panel">
+            <div class="material-modal-header">
+                <h2>Nuevo Pantone de biblioteca</h2>
+                <button class="material-modal-close" onclick="cerrarPantoneModal()" aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="material-modal-body">
+                <form class="inventory-form inventory-form-formula" id="pantoneForm" onsubmit="return false;">
+                    <label><span>Código Pantone *</span><input id="pCodigo" type="text" placeholder="186 C"></label>
+                    <label><span>Nombre</span><input id="pNombre" type="text" placeholder="Ej. Rojo Corporativo"></label>
+                    <label><span>Color (HEX)</span><input id="pColorHex" type="text" placeholder="#C8102E" oninput="onPantoneColor()"></label>
+                    <label><span>Vista previa</span><div id="pSwatch" style="height:34px;border-radius:10px;border:1px solid #d9e2e9;"></div></label>
+                    <label><span>RGB R</span><input id="pRgbR" type="number" min="0" max="255" oninput="onPantoneColor('rgb')"></label>
+                    <label><span>RGB G</span><input id="pRgbG" type="number" min="0" max="255" oninput="onPantoneColor('rgb')"></label>
+                    <label><span>RGB B</span><input id="pRgbB" type="number" min="0" max="255" oninput="onPantoneColor('rgb')"></label>
+                    <label><span>CMYK C (%)</span><input id="pCmykC" type="number" min="0" max="100" oninput="onPantoneColor('cmyk')"></label>
+                    <label><span>CMYK M (%)</span><input id="pCmykM" type="number" min="0" max="100" oninput="onPantoneColor('cmyk')"></label>
+                    <label><span>CMYK Y (%)</span><input id="pCmykY" type="number" min="0" max="100" oninput="onPantoneColor('cmyk')"></label>
+                    <label><span>CMYK K (%)</span><input id="pCmykK" type="number" min="0" max="100" oninput="onPantoneColor('cmyk')"></label>
+                    <label><span>L* (calculado)</span><input id="pLabL" type="number" step="0.01" readonly></label>
+                    <label><span>a* (calculado)</span><input id="pLabA" type="number" step="0.01" readonly></label>
+                    <label><span>b* (calculado)</span><input id="pLabB" type="number" step="0.01" readonly></label>
+                    <label><span>C* (calculado)</span><input id="pCroma" type="number" step="0.01" readonly></label>
+                    <label><span>h° (calculado)</span><input id="pMatiz" type="number" step="0.01" readonly></label>
+                    <label><span>Fuente</span>
+                        <select id="pFuente">
+                            <option value="">Sin especificar</option>
+                            <option>Biblioteca Pantone</option>
+                            <option>Medición espectrofotométrica</option>
+                            <option>Datos del fabricante</option>
+                            <option>Conversión RGB</option>
+                            <option>Conversión CMYK</option>
+                            <option>Ingreso manual</option>
+                            <option>Otro</option>
+                        </select>
+                    </label>
+                    <label><span>Iluminante</span>
+                        <select id="pIluminante">
+                            <option value="">Sin especificar</option>
+                            <option>D50</option><option>D65</option><option>A</option><option>F2</option><option>F11</option><option>Otro</option>
+                        </select>
+                    </label>
+                    <label><span>Observador</span>
+                        <select id="pObservador">
+                            <option value="">Sin especificar</option>
+                            <option>2°</option><option>10°</option>
+                        </select>
+                    </label>
+                    <label class="inventory-span-2"><span>Descripción</span><textarea id="pDescripcion"></textarea></label>
+                    <p style="grid-column:1/-1;font-size:11px;color:var(--app-text-muted);margin:-4px 0 0;">
+                        Al escribir HEX, RGB o CMYK el sistema calcula automáticamente los demás valores (RGB, CMYK, LAB, C*, h°). Los datos espectrales y la curva (400–700 nm) quedan preparados en la base de datos para la medición con el espectrofotómetro.
+                    </p>
+                </form>
+            </div>
+            <div class="material-modal-footer">
+                <button type="button" class="material-footer-btn" onclick="cerrarPantoneModal()">Cancelar</button>
+                <button type="button" class="material-footer-btn" id="pantoneSaveButton" onclick="guardarPantone()">Guardar Pantone</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Trazabilidad -->
+    <div class="material-modal" id="trazModal">
+        <div class="material-modal-backdrop" onclick="cerrarTrazModal()"></div>
+        <div class="material-modal-panel tinta-formula-modal-panel">
+            <div class="material-modal-header">
+                <h2 id="trazModalTitulo">Trazabilidad</h2>
+                <button class="material-modal-close" onclick="cerrarTrazModal()" aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="material-modal-body" id="trazModalBody">Cargando...</div>
+        </div>
+    </div>
+
     <script>
+    var API = '/api/tintas';
+    var pantonesCache = [];
+
     async function cargar() {
         var tb = document.getElementById('tablaBody');
         var texto = document.getElementById('searchText').value.trim();
         var params = texto ? '?texto=' + encodeURIComponent(texto) : '';
-        tb.innerHTML = '<tr><td colspan="5" class="tintas-loading">Cargando...</td></tr>';
+        tb.innerHTML = '<tr><td colspan="6" class="tintas-loading">Cargando...</td></tr>';
         try {
-            var r = await fetch('/api/tintas/pantones/biblioteca' + params);
+            var r = await fetch(API + '/pantones/biblioteca' + params);
             if (!r.ok) throw new Error(await r.text());
             var data = await r.json();
+            pantonesCache = data;
             if (!data.length) {
-                tb.innerHTML = '<tr><td colspan="5" class="tintas-loading">Sin resultados.</td></tr>';
+                tb.innerHTML = '<tr><td colspan="6" class="tintas-loading">Sin resultados.</td></tr>';
                 return;
             }
             tb.innerHTML = data.map(function(p) {
                 var h = p.color_hex ? '<span class="tintas-color-swatch" style="background:' + hm(p.color_hex) + '"></span>' : '';
-                return '<tr><td><strong>' + hm(p.codigo_pantone) + '</strong></td><td>' + hm(p.nombre) + '</td><td>' + h + hm(p.color_hex || '-') + '</td><td>' + hm(p.descripcion) + '</td><td>' + Number(p.frecuencia_uso || 0) + '</td></tr>';
+                return '<tr><td><strong>' + hm(p.codigo_pantone) + '</strong></td><td>' + hm(p.nombre) + '</td><td>' + h + hm(p.color_hex || '-') + '</td><td>' + hm(p.descripcion) + '</td><td>' + Number(p.frecuencia_uso || 0) + '</td><td><button class="tintas-ver-btn" onclick="abrirTrazModal(\'' + p.id + '\',\'' + hm(p.codigo_pantone) + '\')">Ver uso</button></td></tr>';
             }).join('');
         } catch (e) {
-            tb.innerHTML = '<tr><td colspan="5" class="tintas-loading">Error: ' + hm(e.message) + '</td></tr>';
+            tb.innerHTML = '<tr><td colspan="6" class="tintas-loading">Error: ' + hm(e.message) + '</td></tr>';
         }
     }
     function hm(v) {
         return String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
+
+    function abrirPantoneModal() {
+        document.getElementById('pantoneForm').reset();
+        document.getElementById('pSwatch').style.background = '';
+        document.getElementById('pantoneModal').classList.add('open');
+    }
+
+    // Recalcula RGB/CMYK/LAB/C*/h° cuando el usuario ingresa HEX, RGB o CMYK.
+    function onPantoneColor(fuente) {
+        try {
+            var entrada = {};
+            if (!fuente || fuente === 'hex') entrada.hex = document.getElementById('pColorHex').value.trim();
+            else if (fuente === 'rgb') {
+                var r = document.getElementById('pRgbR').value, g = document.getElementById('pRgbG').value, b = document.getElementById('pRgbB').value;
+                if (r === '' || g === '' || b === '') return;
+                entrada.rgb = { r: Number(r), g: Number(g), b: Number(b) };
+            } else if (fuente === 'cmyk') {
+                var c = document.getElementById('pCmykC').value, m = document.getElementById('pCmykM').value, y = document.getElementById('pCmykY').value, k = document.getElementById('pCmykK').value;
+                if (c === '' || m === '' || y === '' || k === '') return;
+                entrada.cmyk = { c: Number(c), m: Number(m), y: Number(y), k: Number(k) };
+            }
+            var calc = colorCompleto(entrada);
+            if (!calc || !calc.hex) return;
+            document.getElementById('pColorHex').value = calc.hex;
+            document.getElementById('pSwatch').style.background = calc.hex;
+            if (calc.rgb) {
+                document.getElementById('pRgbR').value = calc.rgb.r;
+                document.getElementById('pRgbG').value = calc.rgb.g;
+                document.getElementById('pRgbB').value = calc.rgb.b;
+            }
+            if (calc.cmyk) {
+                document.getElementById('pCmykC').value = calc.cmyk.c;
+                document.getElementById('pCmykM').value = calc.cmyk.m;
+                document.getElementById('pCmykY').value = calc.cmyk.y;
+                document.getElementById('pCmykK').value = calc.cmyk.k;
+            }
+            if (calc.lab) {
+                document.getElementById('pLabL').value = calc.lab.L;
+                document.getElementById('pLabA').value = calc.lab.a;
+                document.getElementById('pLabB').value = calc.lab.b;
+                document.getElementById('pCroma').value = calc.c;
+                document.getElementById('pMatiz').value = calc.h;
+            }
+        } catch (e) { /* entrada incompleta: no interrumpir la escritura del usuario */ }
+    }
+    function cerrarPantoneModal() { document.getElementById('pantoneModal').classList.remove('open'); }
+
+    async function guardarPantone() {
+        var codigo_pantone = document.getElementById('pCodigo').value.trim();
+        if (!codigo_pantone) { alert('El código Pantone es obligatorio.'); return; }
+        var payload = {
+            codigo_pantone: codigo_pantone,
+            nombre: document.getElementById('pNombre').value.trim() || null,
+            color_hex: document.getElementById('pColorHex').value.trim() || null,
+            rgb_r: document.getElementById('pRgbR').value || null,
+            rgb_g: document.getElementById('pRgbG').value || null,
+            rgb_b: document.getElementById('pRgbB').value || null,
+            cmyk_c: document.getElementById('pCmykC').value || null,
+            cmyk_m: document.getElementById('pCmykM').value || null,
+            cmyk_y: document.getElementById('pCmykY').value || null,
+            cmyk_k: document.getElementById('pCmykK').value || null,
+            lab_l: document.getElementById('pLabL').value || null,
+            lab_a: document.getElementById('pLabA').value || null,
+            lab_b: document.getElementById('pLabB').value || null,
+            croma_c: document.getElementById('pCroma').value || null,
+            matiz_h: document.getElementById('pMatiz').value || null,
+            fuente: document.getElementById('pFuente').value || null,
+            iluminante: document.getElementById('pIluminante').value || null,
+            observador: document.getElementById('pObservador').value || null,
+            descripcion: document.getElementById('pDescripcion').value.trim() || null
+        };
+        var btn = document.getElementById('pantoneSaveButton');
+        btn.disabled = true; var txt = btn.textContent; btn.textContent = 'Guardando...';
+        try {
+            var r = await fetch(API + '/pantones/biblioteca', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!r.ok) throw new Error(await r.text());
+            cerrarPantoneModal();
+            await cargar();
+        } catch (e) { alert('Error al guardar el pantón: ' + e.message); }
+        finally { btn.disabled = false; btn.textContent = txt; }
+    }
+
+    async function abrirTrazModal(id, codigo) {
+        document.getElementById('trazModalTitulo').textContent = 'Trazabilidad — Pantone ' + codigo;
+        document.getElementById('trazModalBody').innerHTML = '<div class="tintas-loading">Cargando...</div>';
+        document.getElementById('trazModal').classList.add('open');
+        try {
+            var r = await fetch(API + '/pantones/biblioteca/' + id + '/trazabilidad');
+            if (!r.ok) throw new Error(await r.text());
+            var data = await r.json();
+            var recetasHtml = (data.recetas || []).length
+                ? '<div class="tintas-table-wrap" style="max-height:200px;margin-bottom:14px;"><table class="tintas-comp-table"><thead><tr><th>Código</th><th>Versión</th><th>Estado</th><th>Vigente</th></tr></thead><tbody>' +
+                  data.recetas.map(function (rec) { return '<tr><td>' + hm(rec.codigo_interno) + '</td><td>v' + rec.version + '</td><td><span class="tintas-badge tintas-badge-' + hm(rec.estado) + '">' + hm(rec.estado) + '</span></td><td>' + (rec.es_vigente ? 'Sí' : 'No') + '</td></tr>'; }).join('') +
+                  '</tbody></table></div>'
+                : '<p class="tintas-loading">Este pantón todavía no tiene fórmulas/recetas asociadas. Créala desde "Recetas y Fórmulas" enlazando este código de biblioteca.</p>';
+            var usoHtml = (data.uso || []).length
+                ? '<h4 style="margin:0 0 8px;font-size:13px;">Consumo real en producción</h4><div class="tintas-table-wrap" style="max-height:200px;"><table class="tintas-comp-table"><thead><tr><th>Fecha cierre</th><th>Tinta</th><th>Lote</th><th>Cantidad</th><th>Costo</th></tr></thead><tbody>' +
+                  data.uso.map(function (u) { return '<tr><td>' + (u.fecha_cierre ? String(u.fecha_cierre).slice(0,10) : '-') + '</td><td>' + hm(u.tinta_nombre) + '</td><td>' + hm(u.lote_codigo || '-') + '</td><td>' + Number(u.cantidad_real_consumida || 0).toFixed(3) + '</td><td>$' + Number(u.costo_total || 0).toFixed(2) + '</td></tr>'; }).join('') +
+                  '</tbody></table></div>'
+                : '<p class="tintas-loading">Sin consumo de producción registrado todavía para este pantón.</p>';
+            document.getElementById('trazModalBody').innerHTML = '<h4 style="margin:0 0 8px;font-size:13px;">Fórmulas que usan este pantón</h4>' + recetasHtml + usoHtml;
+        } catch (e) {
+            document.getElementById('trazModalBody').innerHTML = '<p class="tintas-warning">Error: ' + hm(e.message) + '</p>';
+        }
+    }
+    function cerrarTrazModal() { document.getElementById('trazModal').classList.remove('open'); }
+
     cargar();
     </script>
 </body>

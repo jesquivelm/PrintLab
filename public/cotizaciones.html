@@ -4,22 +4,37 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
     <title>Cotizaciones</title>
-<link rel="stylesheet" href="/styles.css?v=20260519-1806">
+<link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+<link rel="stylesheet" href="/adjuntos-producto.css?v=20260921-tarjetas">
 <style>
-.quote-request-popover-panel{top:clamp(8px,2vh,24px);width:min(1480px,calc(100vw - 16px));height:min(800px,calc(100vh - 40px));max-height:calc(100vh - 40px);display:flex;overflow:hidden}
+.quote-request-popover-panel{top:clamp(8px,2vh,24px);width:min(1480px,calc(100vw - 16px));height:min(860px,calc(100vh - 40px));max-height:calc(100vh - 40px);display:flex;overflow:hidden}
 .quote-request-popover-panel .copy-popover-body{width:100%;height:100%;min-height:0}
 .copy-popover-header.socios-create-header{display:flex;align-items:center;justify-content:space-between;gap:16px}
 .copy-popover-header.socios-create-header>div{display:flex;align-items:center;min-height:46px}
 .copy-popover-header.socios-create-header h2{margin:0;line-height:1.1}
 .calc-popover-close{display:inline-flex;align-items:center;justify-content:center;font-size:34px;width:46px;height:46px;border:0;background:transparent;cursor:pointer;line-height:1;color:#17354a}
 .quote-request-form{display:grid;grid-template-rows:minmax(0,1fr) auto auto;gap:14px;min-width:0;min-height:0;flex:1}
-.quote-request-scroll{display:grid;gap:14px;min-height:0;overflow:auto;padding-right:4px}
+.quote-request-scroll{display:grid;gap:14px;min-height:0;overflow:auto;padding-right:4px;scrollbar-width:thin;scrollbar-color:rgba(11,129,184,.42) transparent}
+.quote-request-scroll::-webkit-scrollbar,.quote-request-textarea::-webkit-scrollbar,.quote-request-color-list::-webkit-scrollbar,#requestAttachmentsPreview::-webkit-scrollbar,.quote-request-quantity-repeater::-webkit-scrollbar{width:8px;height:8px}
+.quote-request-scroll::-webkit-scrollbar-track,.quote-request-textarea::-webkit-scrollbar-track,.quote-request-color-list::-webkit-scrollbar-track,#requestAttachmentsPreview::-webkit-scrollbar-track,.quote-request-quantity-repeater::-webkit-scrollbar-track{background:transparent}
+.quote-request-scroll::-webkit-scrollbar-thumb,.quote-request-textarea::-webkit-scrollbar-thumb,.quote-request-color-list::-webkit-scrollbar-thumb,#requestAttachmentsPreview::-webkit-scrollbar-thumb,.quote-request-quantity-repeater::-webkit-scrollbar-thumb{background:rgba(11,129,184,.38);border-radius:999px}
+.quote-request-textarea,.quote-request-color-list,#requestAttachmentsPreview,.quote-request-quantity-repeater{scrollbar-width:thin;scrollbar-color:rgba(11,129,184,.42) transparent}
 .quote-request-columns,.quote-request-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .quote-request-step-one-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
 .quote-request-quantity-field{grid-column:1/-1}
 .quote-request-grid{gap:12px}
 .quote-request-grid-full{grid-column:1/-1}
+.quote-request-manual-contact{grid-column:1/-1;display:grid;gap:10px;padding:12px;border:1px dashed #c9d8e4;border-radius:14px;background:linear-gradient(180deg,#fbfdfe 0%,#f5fafc 100%)}
+.quote-request-manual-contact[hidden]{display:none}
+.quote-request-manual-contact-hint{font-size:12px;color:#5f7487}
+.quote-request-manual-contact-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.quote-request-manual-contact-save{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:#28465c;cursor:pointer}
+.quote-request-manual-contact-save input{width:16px;height:16px;accent-color:#0f8db5;margin:0;flex:0 0 auto}
+html[data-theme="dark"] .quote-request-manual-contact{border-color:var(--app-border,#24364b);background:var(--app-surface-soft,#17243a)}
+html[data-theme="dark"] .quote-request-manual-contact-hint{color:var(--app-text-muted,#9aa7b4)}
+html[data-theme="dark"] .quote-request-manual-contact-save{color:var(--app-text,#e5eef8)}
 .quote-request-inline-wrap[data-inline-suggestions="surface"],
 .quote-request-inline-wrap[data-inline-suggestions="surface-type"]{grid-column:auto}
 .quote-request-section{border:1px solid #d8e2ea;border-radius:18px;padding:16px;background:#fff;box-shadow:0 8px 22px rgba(13,35,52,.06)}
@@ -51,6 +66,8 @@
   .quote-request-quantity-repeater .qty-add-chip .icon-image,.quote-request-quantity-repeater .qty-add-chip .icon-svg-mask{width:var(--quantity-add-icon-size,18px);height:var(--quantity-add-icon-size,18px)}
 #requestProductType.quote-request-select{appearance:none;-webkit-appearance:none;padding-right:36px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23778996' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;background-size:14px 14px}
 html[data-theme="dark"] #requestProductType.quote-request-select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2392a4b4' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
+select.quote-request-select{appearance:none;-webkit-appearance:none;padding-right:36px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23778996' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;background-size:14px 14px}
+html[data-theme="dark"] select.quote-request-select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2392a4b4' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
 .quote-request-native-select{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 .quote-request-product-type-wrap{position:relative}
 .quote-request-product-type-trigger{display:flex;align-items:center;justify-content:space-between;text-align:left;cursor:pointer}
@@ -61,20 +78,20 @@ html[data-theme="dark"] .quote-request-product-type-trigger::after{background-im
 .quote-request-textarea{min-height:88px;resize:vertical}
 .quote-request-search-wrap,.quote-request-inline-wrap{position:relative}
 .quote-request-inline-panel{position:absolute;inset:calc(100% + 6px) 0 auto;z-index:16;max-height:min(46vh,420px);border:1px solid #d8e2ea;border-radius:14px;background:#fff;box-shadow:0 16px 40px rgba(15,38,56,.14);overflow:auto;overscroll-behavior:contain}
-#quoteCustomerLookupPanel.quote-request-inline-panel{position:fixed;inset:auto;top:var(--quote-customer-lookup-top,0);left:var(--quote-customer-lookup-left,0);width:var(--quote-customer-lookup-width,520px);max-height:var(--quote-customer-lookup-max-height,min(52vh,460px));z-index:700;scrollbar-width:thin;scrollbar-color:rgba(92,115,132,.58) transparent}
-#newCalcCustomerLookupPanel.quote-request-inline-panel{position:fixed;inset:auto;top:var(--quote-new-calc-customer-top,0);left:var(--quote-new-calc-customer-left,0);width:var(--quote-new-calc-customer-width,420px);max-height:var(--quote-new-calc-customer-max-height,min(52vh,460px));z-index:700;scrollbar-width:thin;scrollbar-color:rgba(92,115,132,.58) transparent}
-#requestProductTypePanel.quote-request-inline-panel{position:fixed;inset:auto;top:var(--quote-product-type-top,0);left:var(--quote-product-type-left,0);width:var(--quote-product-type-width,220px);max-height:var(--quote-product-type-max-height,min(52vh,460px));z-index:700;scrollbar-width:thin;scrollbar-color:rgba(92,115,132,.58) transparent}
-#requestFixedSizePanel.quote-request-inline-panel{position:fixed;inset:auto;top:var(--quote-fixed-size-top,0);left:var(--quote-fixed-size-left,0);width:var(--quote-fixed-size-width,320px);max-height:var(--quote-fixed-size-max-height,min(52vh,420px));z-index:700;scrollbar-width:thin;scrollbar-color:rgba(92,115,132,.58) transparent}
-#materialSuggestions.quote-request-inline-panel{position:fixed;inset:auto;top:var(--quote-material-panel-top,0);left:var(--quote-material-panel-left,0);width:var(--quote-material-panel-width,320px);max-height:var(--quote-material-panel-max-height,min(52vh,420px));z-index:700;scrollbar-width:thin;scrollbar-color:rgba(92,115,132,.58) transparent}
+#quoteCustomerLookupPanel.quote-request-inline-panel{position:fixed;inset:auto;top:var(--quote-customer-lookup-top,0);left:var(--quote-customer-lookup-left,0);width:var(--quote-customer-lookup-width,520px);max-height:var(--quote-customer-lookup-max-height,min(52vh,460px));z-index:700;scrollbar-width:thin;scrollbar-color:rgba(11,129,184,.42) transparent}
+#newCalcCustomerLookupPanel.quote-request-inline-panel{position:fixed;inset:auto;top:var(--quote-new-calc-customer-top,0);left:var(--quote-new-calc-customer-left,0);width:var(--quote-new-calc-customer-width,420px);max-height:var(--quote-new-calc-customer-max-height,min(52vh,460px));z-index:700;scrollbar-width:thin;scrollbar-color:rgba(11,129,184,.42) transparent}
+#requestProductTypePanel.quote-request-inline-panel{position:fixed;inset:auto;top:var(--quote-product-type-top,0);left:var(--quote-product-type-left,0);width:var(--quote-product-type-width,220px);max-height:var(--quote-product-type-max-height,min(52vh,460px));z-index:700;scrollbar-width:thin;scrollbar-color:rgba(11,129,184,.42) transparent}
+#requestFixedSizePanel.quote-request-inline-panel{position:fixed;inset:auto;top:var(--quote-fixed-size-top,0);left:var(--quote-fixed-size-left,0);width:var(--quote-fixed-size-width,320px);max-height:var(--quote-fixed-size-max-height,min(52vh,420px));z-index:700;scrollbar-width:thin;scrollbar-color:rgba(11,129,184,.42) transparent}
+#materialSuggestions.quote-request-inline-panel{position:fixed;inset:auto;top:var(--quote-material-panel-top,0);left:var(--quote-material-panel-left,0);width:var(--quote-material-panel-width,320px);max-height:var(--quote-material-panel-max-height,min(52vh,420px));z-index:700;scrollbar-width:thin;scrollbar-color:rgba(11,129,184,.42) transparent}
 #surfaceSuggestions.quote-request-inline-panel,
-#surfaceTypeSuggestions.quote-request-inline-panel{position:fixed;inset:auto;top:var(--quote-surface-panel-top,0);left:var(--quote-surface-panel-left,0);width:var(--quote-surface-panel-width,320px);max-height:var(--quote-surface-panel-max-height,min(52vh,420px));z-index:700;scrollbar-width:thin;scrollbar-color:rgba(92,115,132,.58) transparent}
-#quoteCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar{width:8px}
-#newCalcCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar{width:8px}
-#requestProductTypePanel.quote-request-inline-panel::-webkit-scrollbar{width:8px}
-#requestFixedSizePanel.quote-request-inline-panel::-webkit-scrollbar{width:8px}
-#materialSuggestions.quote-request-inline-panel::-webkit-scrollbar{width:8px}
+#surfaceTypeSuggestions.quote-request-inline-panel{position:fixed;inset:auto;top:var(--quote-surface-panel-top,0);left:var(--quote-surface-panel-left,0);width:var(--quote-surface-panel-width,320px);max-height:var(--quote-surface-panel-max-height,min(52vh,420px));z-index:700;scrollbar-width:thin;scrollbar-color:rgba(11,129,184,.42) transparent}
+#quoteCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar{width:8px;height:8px}
+#newCalcCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar{width:8px;height:8px}
+#requestProductTypePanel.quote-request-inline-panel::-webkit-scrollbar{width:8px;height:8px}
+#requestFixedSizePanel.quote-request-inline-panel::-webkit-scrollbar{width:8px;height:8px}
+#materialSuggestions.quote-request-inline-panel::-webkit-scrollbar{width:8px;height:8px}
 #surfaceSuggestions.quote-request-inline-panel::-webkit-scrollbar,
-#surfaceTypeSuggestions.quote-request-inline-panel::-webkit-scrollbar{width:8px}
+#surfaceTypeSuggestions.quote-request-inline-panel::-webkit-scrollbar{width:8px;height:8px}
 #quoteCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar-track{background:transparent}
 #newCalcCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar-track{background:transparent}
 #requestProductTypePanel.quote-request-inline-panel::-webkit-scrollbar-track{background:transparent}
@@ -82,20 +99,13 @@ html[data-theme="dark"] .quote-request-product-type-trigger::after{background-im
 #materialSuggestions.quote-request-inline-panel::-webkit-scrollbar-track{background:transparent}
 #surfaceSuggestions.quote-request-inline-panel::-webkit-scrollbar-track,
 #surfaceTypeSuggestions.quote-request-inline-panel::-webkit-scrollbar-track{background:transparent}
-#quoteCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar-thumb{background:rgba(92,115,132,.42);border-radius:999px}
-#newCalcCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar-thumb{background:rgba(92,115,132,.42);border-radius:999px}
-#requestProductTypePanel.quote-request-inline-panel::-webkit-scrollbar-thumb{background:rgba(92,115,132,.42);border-radius:999px}
-#requestFixedSizePanel.quote-request-inline-panel::-webkit-scrollbar-thumb{background:rgba(92,115,132,.42);border-radius:999px}
-#materialSuggestions.quote-request-inline-panel::-webkit-scrollbar-thumb{background:rgba(92,115,132,.42);border-radius:999px}
+#quoteCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar-thumb{background:rgba(11,129,184,.38);border-radius:999px}
+#newCalcCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar-thumb{background:rgba(11,129,184,.38);border-radius:999px}
+#requestProductTypePanel.quote-request-inline-panel::-webkit-scrollbar-thumb{background:rgba(11,129,184,.38);border-radius:999px}
+#requestFixedSizePanel.quote-request-inline-panel::-webkit-scrollbar-thumb{background:rgba(11,129,184,.38);border-radius:999px}
+#materialSuggestions.quote-request-inline-panel::-webkit-scrollbar-thumb{background:rgba(11,129,184,.38);border-radius:999px}
 #surfaceSuggestions.quote-request-inline-panel::-webkit-scrollbar-thumb,
-#surfaceTypeSuggestions.quote-request-inline-panel::-webkit-scrollbar-thumb{background:rgba(92,115,132,.42);border-radius:999px}
-#quoteCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar-thumb:hover{background:rgba(92,115,132,.6)}
-#newCalcCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar-thumb:hover{background:rgba(92,115,132,.6)}
-#requestProductTypePanel.quote-request-inline-panel::-webkit-scrollbar-thumb:hover{background:rgba(92,115,132,.6)}
-#requestFixedSizePanel.quote-request-inline-panel::-webkit-scrollbar-thumb:hover{background:rgba(92,115,132,.6)}
-#materialSuggestions.quote-request-inline-panel::-webkit-scrollbar-thumb:hover{background:rgba(92,115,132,.6)}
-#surfaceSuggestions.quote-request-inline-panel::-webkit-scrollbar-thumb:hover,
-#surfaceTypeSuggestions.quote-request-inline-panel::-webkit-scrollbar-thumb:hover{background:rgba(92,115,132,.6)}
+#surfaceTypeSuggestions.quote-request-inline-panel::-webkit-scrollbar-thumb{background:rgba(11,129,184,.38);border-radius:999px}
 .quote-request-lookup-item{width:100%;border:0;border-bottom:1px solid #e7eef3;background:#fff;padding:11px 12px;display:flex;justify-content:space-between;gap:12px;text-align:left;cursor:pointer}
 .quote-request-lookup-item:last-child{border-bottom:0}
 .quote-request-lookup-item:hover{background:#eff7fb}
@@ -105,34 +115,41 @@ html[data-theme="dark"] .quote-request-product-type-trigger::after{background-im
 .quote-request-wizard-actions .quote-browser-action-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:999px}
 .quote-request-special-size{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .quote-request-special-size[hidden]{display:none}
-.quote-request-unit-wrap{position:relative;display:block}
-.quote-request-unit-wrap .quote-request-input{padding-right:12px;text-align:right;font-variant-numeric:tabular-nums}
-.quote-request-unit-mask{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding:10px 12px;border:1px solid transparent;border-radius:12px;color:#17354a;font:inherit;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.quote-request-unit-wrap{position:relative;display:block;border:1px solid #dde7ee;border-radius:10px;background:#fbfdfe;overflow:hidden}
+.quote-request-unit-wrap .quote-request-input{padding-right:12px;text-align:right;font-variant-numeric:tabular-nums;border:none;background:transparent}
+.quote-request-unit-mask{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding:10px 12px;border:1px solid transparent;border-radius:12px;background:#fbfdfe;color:#17354a;font:inherit;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
 .quote-request-unit-wrap.has-value .quote-request-input:not(:focus){color:transparent;caret-color:#17354a}
 .quote-request-unit-wrap.has-value .quote-request-input:focus + .quote-request-unit-mask,.quote-request-unit-wrap:not(.has-value) .quote-request-unit-mask{opacity:0}
 .quote-status-chip{font-size:11px;font-weight:700;border-radius:4px;padding:1px 6px;white-space:nowrap;background:#eef6fb;color:#0b75a4}
 .quote-status-chip[data-state="unsent"]{background:#f1f5f9;color:#64748b}
 .quote-status-chip[data-state="pending"]{background:#fff7d6;color:#9a6700}
 .quote-status-chip[data-state="quoted"]{background:#e6f7ed;color:#168048}
+.quote-status-chip[data-state="warn"]{background:#fff4e5;color:#b45309}
+.quote-status-chip-link{color:inherit;font-weight:800;text-decoration:underline;cursor:pointer}
+.quote-master-line.is-line-flash{animation:quoteLineFlash 1.6s ease}
+@keyframes quoteLineFlash{0%,100%{background:transparent}18%{background:rgba(180,83,9,.16)}}
 .quote-calc-popover-panel{width:min(560px,calc(100vw - 40px));max-height:calc(100vh - 48px);display:grid;gap:14px;padding:20px 22px}
 .quote-calc-form{display:grid;gap:14px}
 .quote-calc-actions{display:flex;justify-content:flex-end;gap:10px}
+.quote-calc-actions .action-btn{border-radius:999px}
 .quote-browser-main .quote-browser-actions-left{margin-left:0;order:1;justify-self:start}
 .quote-browser-main .quote-browser-search-wrap{margin-left:auto;order:2}
+.quote-browser-main .quote-quickfilter-row{order:3}
 .quote-browser-main .quote-browser-search-row{justify-content:space-between}
-.quote-request-step-two-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,.78fr);gap:14px;align-items:start}
+.quote-request-step-two-layout{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
 .quote-request-step-two-right{display:grid;gap:12px;min-width:0}
-.quote-request-shape-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;min-width:0}
+.quote-request-shape-grid{display:grid;grid-template-columns:1fr;gap:10px;min-width:0}
+.quote-request-step-two-bottom{margin-top:12px}
+.quote-request-side-by-side{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .quote-request-shape-dropdown{position:relative}
 .quote-request-shape-trigger{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:64px;text-align:left;cursor:pointer}
 .quote-request-shape-trigger-copy{display:flex;align-items:center;gap:10px;min-width:0}
 .quote-request-shape-trigger-label{font-size:13px;font-weight:600;color:#17354a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .quote-request-shape-trigger::after{content:"";width:9px;height:9px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg) translateY(-2px);opacity:.72;flex-shrink:0}
-.quote-request-shape-panel{position:fixed;inset:auto;top:var(--quote-shape-panel-top,0);left:var(--quote-shape-panel-left,0);width:var(--quote-shape-panel-width,320px);max-height:var(--quote-shape-panel-max-height,min(52vh,420px));z-index:700;padding:8px;display:grid;gap:6px;overflow:auto;scrollbar-width:thin;scrollbar-color:rgba(92,115,132,.58) transparent}
-.quote-request-shape-panel::-webkit-scrollbar{width:8px}
+.quote-request-shape-panel{position:fixed;inset:auto;top:var(--quote-shape-panel-top,0);left:var(--quote-shape-panel-left,0);width:var(--quote-shape-panel-width,320px);max-height:var(--quote-shape-panel-max-height,min(52vh,420px));z-index:700;padding:8px;display:grid;gap:6px;overflow:auto;scrollbar-width:thin;scrollbar-color:rgba(11,129,184,.42) transparent}
+.quote-request-shape-panel::-webkit-scrollbar{width:8px;height:8px}
 .quote-request-shape-panel::-webkit-scrollbar-track{background:transparent}
-.quote-request-shape-panel::-webkit-scrollbar-thumb{background:rgba(92,115,132,.42);border-radius:999px}
-.quote-request-shape-panel::-webkit-scrollbar-thumb:hover{background:rgba(92,115,132,.6)}
+.quote-request-shape-panel::-webkit-scrollbar-thumb{background:rgba(11,129,184,.38);border-radius:999px}
 .quote-request-shape-option{display:grid;grid-template-columns:52px minmax(0,1fr);align-items:center;gap:10px;padding:8px 10px;border:1px solid #d8e2ea;border-radius:12px;background:#fff;cursor:pointer;transition:border-color .16s ease,background-color .16s ease,box-shadow .16s ease}
 .quote-request-shape-option:hover{border-color:#0f8db5;background:#eff7fb}
 .quote-request-shape-option.is-selected{border-color:#29a6db;background:linear-gradient(180deg,#eef8fe 0%,#f5fbff 100%);box-shadow:0 0 0 3px rgba(41,166,219,.14)}
@@ -147,11 +164,13 @@ html[data-theme="dark"] .quote-request-shape-option{border-color:var(--app-borde
 html[data-theme="dark"] .quote-request-shape-option:hover{border-color:#38bdf8;background:color-mix(in srgb,var(--app-primary-soft,#0f3654) 44%,var(--app-surface,#111c31))}
 html[data-theme="dark"] .quote-request-shape-option.is-selected{border-color:#38bdf8;background:color-mix(in srgb,var(--app-primary-soft,#0f3654) 58%,var(--app-surface,#111c31));box-shadow:0 0 0 3px rgba(56,189,248,.16)}
 html[data-theme="dark"] .quote-request-shape-panel{border-color:var(--app-border,#24364b);background:var(--app-surface,#111c31)}
-html[data-theme="dark"] .quote-request-unit-mask{color:var(--app-text,#e5eef8)}
+html[data-theme="dark"] .quote-request-unit-mask{background:var(--app-surface-soft,#111c30);color:var(--app-text,#e5eef8)}
 html[data-theme="dark"] .quote-request-unit-wrap.has-value .quote-request-input:not(:focus){caret-color:var(--app-text,#e5eef8)}
+html[data-theme="dark"] .quote-request-unit-wrap{border-color:var(--app-border,#26364a);background:var(--app-surface-soft,#111c30)}
 html[data-theme="dark"] .quote-status-chip[data-state="unsent"]{background:#1d2938;color:#94a3b8}
 html[data-theme="dark"] .quote-status-chip[data-state="pending"]{background:#3a2f12;color:#facc15}
 html[data-theme="dark"] .quote-status-chip[data-state="quoted"]{background:#123321;color:#86efac}
+html[data-theme="dark"] .quote-status-chip[data-state="warn"]{background:#3a2a12;color:#fbbf24}
 .quote-request-fixed-size-trigger{display:flex;align-items:center;justify-content:space-between;text-align:left;cursor:pointer}
 .quote-request-fixed-size-trigger [data-fixed-size-text]{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:inherit;font:inherit}
 .quote-request-fixed-size-trigger::after{content:"";width:14px;height:14px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23778996' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") center/14px 14px no-repeat;flex:0 0 auto}
@@ -369,7 +388,7 @@ html[data-theme="dark"] .front-back-current,html[data-theme="dark"] .front-back-
 .sap-config-status-note{font-size:12px;color:#4d677b}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(239,68,68,.5)}70%{box-shadow:0 0 0 9px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
 @media (max-width:1180px){.sap-config-shell{grid-template-columns:1fr}.sap-config-main{grid-template-rows:auto auto auto}.sap-config-grid-compact{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:980px){.quote-request-columns,.quote-request-grid,.quote-request-finishes-grid,.quote-request-shape-grid,.sap-config-grid,.sap-config-grid-compact,.sap-config-counts{grid-template-columns:1fr}.quote-request-step-one-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.quote-request-create-floating{top:auto !important;left:auto !important;bottom:22px !important;right:22px !important}}
+@media (max-width:980px){.quote-request-columns,.quote-request-grid,.quote-request-finishes-grid,.quote-request-shape-grid,.quote-request-side-by-side,.sap-config-grid,.sap-config-grid-compact,.sap-config-counts{grid-template-columns:1fr}.quote-request-step-one-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.quote-request-create-floating{top:auto !important;left:auto !important;bottom:22px !important;right:22px !important}}
 @media (max-width:1500px) and (max-height:820px){.quote-request-finishes-grid{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.quote-request-finishes-column{gap:10px}.quote-request-subblock[data-finish-key]{gap:0;padding:0;overflow:hidden}.quote-request-subblock[data-finish-key]>h4{display:none}.quote-request-finish-compact-head{width:100%;min-height:48px;border:0;background:transparent;color:#17354a;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:0 14px;text-align:left;font:inherit;font-weight:700;cursor:pointer}.quote-request-subblock[data-finish-key]>:not(h4):not(.quote-request-finish-compact-head){display:none}.quote-request-subblock[data-finish-key].is-compact-open{padding-bottom:12px}.quote-request-subblock[data-finish-key].is-compact-open>:not(h4):not(.quote-request-finish-compact-head){display:grid;margin:0 12px 0}.quote-request-subblock[data-finish-key].is-compact-open>.quote-request-tabset{display:flex !important}.quote-request-subblock[data-finish-key].is-compact-open>.quote-request-finish-popover-wrap{display:grid}.quote-request-subblock[data-finish-key="diecut"]{order:1}.quote-request-subblock[data-finish-key="numbering"]{order:2}}
 @media (max-width:720px){.quote-request-step-two-layout{grid-template-columns:1fr}}
 @media (max-width:760px){.quote-request-step-one-grid{grid-template-columns:1fr}.quote-request-quantity-field{grid-column:auto}.quote-request-quantity-repeater .quantity-row{overflow:auto}}
@@ -381,6 +400,180 @@ html[data-theme="dark"] .front-back-current,html[data-theme="dark"] .front-back-
 .sap-config-log-list {
     scrollbar-gutter: stable;
 }
+
+/* Modal de catálogo de troqueles (reutilizado de calculo-flexografia/styles.css) */
+.troquel-catalog-overlay{position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px}
+.troquel-catalog-modal{background:var(--card,#fff);border-radius:12px;width:100%;max-width:500px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 12px 48px rgba(0,0,0,.18)}
+.troquel-catalog-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line,#c8d6e5)}
+.troquel-catalog-head h3{margin:0;font-size:16px;font-weight:700}
+.troquel-catalog-close{background:none;border:none;font-size:24px;cursor:pointer;color:var(--label-dim,#98a2b3);padding:4px 8px;border-radius:6px;line-height:1}
+.troquel-catalog-close:hover{background:var(--surface,#f0f4f8);color:var(--text,#1a2634)}
+.troquel-catalog-shapes{display:flex;flex-wrap:wrap;gap:6px;padding:12px 20px 0}
+.troquel-catalog-shape-chip{border:1px solid var(--line,#c8d6e5);background:var(--surface,#f0f4f8);color:var(--label,#4a5a6b);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;transition:border-color .15s ease,color .15s ease,background .15s ease}
+.troquel-catalog-shape-chip:hover{border-color:var(--app-primary,#17abdf)}
+.troquel-catalog-shape-chip.is-active{background:var(--app-primary,#17abdf);border-color:var(--app-primary,#17abdf);color:#fff}
+.troquel-catalog-search{padding:12px 20px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.troquel-catalog-search-input-wrap{position:relative;flex:1;min-width:180px}
+.troquel-catalog-search-input-wrap input{width:100%;padding:10px 14px 10px 38px;border:1px solid var(--line,#c8d6e5);border-radius:8px;font-size:14px;font-family:inherit;background:var(--surface,#f0f4f8);color:var(--text,#1a2634);box-sizing:border-box}
+.troquel-catalog-search-input-wrap input:focus{outline:none;border-color:var(--app-primary,#17abdf);box-shadow:0 0 0 3px rgba(23,171,223,.15)}
+.troquel-catalog-search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--label-dim,#98a2b3);pointer-events:none}
+.troquel-catalog-similar-btn,.troquel-catalog-clear-btn{border:1px solid var(--line,#c8d6e5);background:var(--surface,#f0f4f8);color:var(--label,#4a5a6b);border-radius:8px;padding:9px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.troquel-catalog-similar-btn:hover{border-color:var(--app-primary,#17abdf);color:var(--app-primary,#17abdf)}
+.troquel-catalog-clear-btn{color:#b3261e;border-color:rgba(179,38,30,.35)}
+.troquel-catalog-clear-btn:hover{background:rgba(179,38,30,.08)}
+.troquel-catalog-body{overflow-y:auto;padding:8px 20px 20px;flex:1}
+.troquel-catalog-list{display:flex;flex-direction:column;gap:8px}
+.troquel-catalog-empty{text-align:center;padding:40px 20px;color:var(--label-dim,#98a2b3);font-style:italic}
+.troquel-catalog-item{display:flex;gap:14px;padding:12px;border:1px solid var(--line,#c8d6e5);border-radius:8px;background:var(--card,#fff);align-items:center;transition:border-color .15s;cursor:pointer}
+.troquel-catalog-item:hover{border-color:var(--app-primary,#17abdf)}
+.troquel-catalog-img{flex:0 0 72px;width:72px;height:72px;padding:0;border-radius:6px;overflow:hidden;border:1px solid var(--line,#c8d6e5);background:var(--surface,#f0f4f8)}
+.troquel-catalog-img img{width:100%;height:100%;object-fit:contain;display:block}
+.troquel-catalog-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.troquel-catalog-code{font-weight:700;font-size:14px;color:var(--app-primary,#17abdf)}
+.troquel-catalog-desc{font-size:14px;color:var(--text,#1a2634);line-height:1.4}
+.troquel-catalog-metrics{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--label,#4a5a6b);margin-top:4px}
+.troquel-catalog-metrics span{white-space:nowrap}
+.troquel-catalog-action{flex:0 0 44px;display:flex;align-items:center;justify-content:center}
+.troquel-catalog-select-btn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border:none;border-radius:6px;background:transparent;color:var(--troquel-select-icon-color,#738196);cursor:pointer;transition:color .15s ease,transform .1s ease}
+.troquel-catalog-select-btn:hover{color:var(--troquel-select-icon-hover,#0b81b8);transform:scale(1.08)}
+.troquel-catalog-select-icon{width:var(--troquel-select-icon-size,20px);height:var(--troquel-select-icon-size,20px);display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;line-height:1}
+.icon-glyph.troquel-catalog-select-icon{font-size:var(--troquel-select-icon-size,20px);line-height:1}
+.icon-image.troquel-catalog-select-icon,.icon-svg-mask.troquel-catalog-select-icon{width:var(--troquel-select-icon-size,20px);height:var(--troquel-select-icon-size,20px)}
+html[data-theme="dark"] .troquel-catalog-modal,html[data-theme="dark"] .troquel-catalog-item{background:var(--app-surface-raised,#162033);border-color:var(--app-border,#26364a)}
+html[data-theme="dark"] .troquel-catalog-head{border-color:var(--app-border,#26364a)}
+html[data-theme="dark"] .troquel-catalog-search input,html[data-theme="dark"] .troquel-catalog-img{background:var(--app-surface-soft,#111c30);border-color:var(--app-border,#26364a);color:var(--app-text,#e2e8f0)}
+html[data-theme="dark"] .troquel-catalog-desc{color:var(--app-text,#e2e8f0)}
+html[data-theme="dark"] .troquel-catalog-metrics{color:var(--app-text-soft,#a8b7c7)}
+html[data-theme="dark"] .troquel-catalog-close,html[data-theme="dark"] .troquel-catalog-search-icon,html[data-theme="dark"] .troquel-catalog-empty{color:var(--app-text-muted,#7c8ba0)}
+html[data-theme="dark"] .troquel-catalog-shape-chip,html[data-theme="dark"] .troquel-catalog-similar-btn,html[data-theme="dark"] .troquel-catalog-clear-btn{background:var(--app-surface-soft,#111c30);border-color:var(--app-border,#26364a);color:var(--app-text-soft,#a8b7c7)}
+/* Campo de búsqueda de Troquel en el paso 2 del wizard de Nueva Solicitud */
+.quote-request-troquel-field{display:flex;align-items:center;gap:8px;min-width:0}
+.quote-request-mt-row>.quote-request-field,.quote-request-mt-row>.quote-request-mt-cell,.quote-request-side-by-side>.quote-request-inline-wrap,.quote-request-output-row>.quote-request-field,.quote-request-salida-cell>.quote-request-field{min-width:0}
+.quote-request-troquel-trigger{flex:1;text-align:left;display:flex;align-items:baseline;gap:6px;min-width:0;font:inherit;white-space:nowrap;overflow:hidden}
+.quote-request-troquel-add-btn{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;cursor:pointer;color:var(--icon-color,#1e516d)}
+.quote-request-troquel-add-btn:hover{color:var(--icon-hover-color,var(--icon-color,#0b81b8))}
+.quote-request-troquel-trigger .quote-request-troquel-trigger-code{font:inherit;font-size:inherit;font-weight:500;color:#17354a;flex:0 0 auto}
+.quote-request-troquel-trigger .quote-request-troquel-trigger-desc{font:inherit;font-size:inherit;font-weight:400;color:#63717d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.quote-request-troquel-trigger .quote-request-troquel-trigger-metrics{display:none}
+.quote-request-troquel-trigger.is-empty .quote-request-troquel-trigger-code{color:#8a97a2;font-weight:400}
+html[data-theme="dark"] .quote-request-troquel-trigger-code{color:var(--app-text,#e2e8f0)}
+html[data-theme="dark"] .quote-request-troquel-trigger-desc{color:var(--app-text-soft,#a8b7c7)}
+/* Nueva Solicitud · Insumos que Entrega el Cliente */
+.quote-request-insumos{grid-column:1/-1;display:grid;gap:8px}
+.quote-request-insumos-label{font-size:12px;font-weight:700;color:#28465c}
+.quote-request-check-row{display:flex;flex-wrap:wrap;gap:10px 18px}
+.quote-request-check{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#3a5064;cursor:pointer}
+.quote-request-check input{width:16px;height:16px;accent-color:#0f8db5;margin:0;flex:0 0 auto}
+html[data-theme="dark"] .quote-request-insumos-label{color:var(--app-text-soft,#a8b7c7)}
+html[data-theme="dark"] .quote-request-check{color:var(--app-text,#e2e8f0)}
+/* Nueva Solicitud · bloque de Tintas (CMYK / Sin Impresión / Colores Directos) */
+.quote-request-inkgroup{display:grid;gap:10px;padding:12px;border:1px solid #dde7ee;border-radius:14px;background:#fbfdfe}
+.quote-request-inkgroup-title{font-size:13px;font-weight:700;color:#17354a}
+.quote-request-ink-toggles{display:flex;flex-wrap:wrap;gap:8px}
+.quote-request-ink-toggle{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:0 12px;border:1px solid #d9e5ee;border-radius:999px;background:linear-gradient(180deg,#fff 0%,#f3f8fb 100%);color:#5a7083;font-size:13px;font-weight:600;cursor:pointer;transition:border-color .16s ease,box-shadow .16s ease,color .16s ease,background-color .16s ease}
+.quote-request-ink-toggle:hover{border-color:#0f8db5}
+.quote-request-ink-toggle input{position:absolute;opacity:0;pointer-events:none}
+.quote-request-ink-toggle .quote-request-ink-dot{width:14px;height:14px;border-radius:5px;border:1px solid #c3d2de;background:#fff;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center}
+.quote-request-ink-toggle.is-on{border-color:#5bc3ef;background:linear-gradient(180deg,#39afe4 0%,#1890d4 100%);color:#fff;box-shadow:0 6px 16px rgba(24,144,212,.22)}
+.quote-request-ink-toggle.is-on .quote-request-ink-dot{background:#fff;border-color:#fff}
+.quote-request-ink-toggle.is-on .quote-request-ink-dot::after{content:"";width:8px;height:8px;border-radius:3px;background:#1890d4}
+.quote-request-inkgroup.is-noprint .quote-request-ink-toggle:not(.quote-request-ink-toggle-noprint),
+.quote-request-inkgroup.is-noprint .quote-request-color-field{opacity:.42;pointer-events:none}
+.quote-request-color-field{position:relative;display:grid;gap:8px}
+.quote-request-color-input-row{position:relative;display:flex;align-items:center;gap:8px}
+.quote-request-color-input-wrap{position:relative;flex:1;min-width:0;display:flex;align-items:center}
+.quote-request-color-input-wrap .quote-request-color-lead{position:absolute;left:12px;width:14px;height:14px;border-radius:50%;border:1px solid #c3d2de;background:conic-gradient(from 90deg,#f0653f,#f5c53f,#3fa96b,#2f7de0,#8a5cd6,#f0653f);flex:0 0 auto;pointer-events:none}
+.quote-request-color-input{width:100%;min-height:42px;border:1px solid #c9d6e2;border-radius:12px;padding:10px 12px 10px 34px;background:#fff;color:#17354a;font:inherit}
+.quote-request-color-input:focus{outline:none;border-color:#23a2cb;box-shadow:0 0 0 3px rgba(35,162,203,.12)}
+.quote-request-color-add{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border:0;background:transparent;box-shadow:none;cursor:pointer;color:var(--icon-color,#0b81b8)}
+.quote-request-color-add:hover{color:var(--icon-hover-color,#0b6a97)}
+.quote-request-color-add[disabled]{opacity:.4;cursor:default}
+.quote-request-color-menu{position:fixed;inset:auto;top:var(--qr-color-menu-top,0);left:var(--qr-color-menu-left,0);width:var(--qr-color-menu-width,320px);max-height:var(--qr-color-menu-max-height,min(44vh,320px));z-index:1300;border:1px solid #d8e2ea;border-radius:14px;background:#fff;box-shadow:0 16px 40px rgba(15,38,56,.16);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(11,129,184,.42) transparent}
+.quote-request-color-menu::-webkit-scrollbar{width:8px;height:8px}
+.quote-request-color-menu::-webkit-scrollbar-track{background:transparent}
+.quote-request-color-menu::-webkit-scrollbar-thumb{background:rgba(11,129,184,.38);border-radius:999px}
+.quote-request-color-option{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border:0;background:transparent;width:100%;text-align:left;font:inherit;color:#17354a}
+.quote-request-color-option:hover,.quote-request-color-option.is-active{background:#eef8fe}
+.quote-request-color-option.is-create{font-weight:600;color:#0b6a97}
+.quote-request-color-swatch{width:16px;height:16px;border-radius:50%;border:1px solid rgba(15,38,56,.18);flex:0 0 auto}
+.quote-request-color-option-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.quote-request-color-option-tag{font-size:11px;font-weight:600;color:#8a97a2;flex:0 0 auto}
+.quote-request-color-empty{padding:10px 12px;font-size:12px;color:#8a97a2}
+.quote-request-color-list{display:grid;gap:6px}
+.quote-request-color-chip{display:flex;align-items:center;gap:10px;min-height:38px;padding:6px 6px 6px 10px;border:1px solid #d9e5ee;border-radius:12px;background:#fff;color:#17354a}
+.quote-request-color-chip-name{flex:1;min-width:0;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.quote-request-color-chip-tag{font-size:11px;font-weight:600;color:#8a97a2;flex:0 0 auto}
+.quote-request-color-chip-remove{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:0;background:transparent;box-shadow:none;cursor:pointer;color:var(--icon-color,#5f7487);opacity:0;transition:opacity .14s ease}
+.quote-request-color-chip:hover .quote-request-color-chip-remove,.quote-request-color-chip:focus-within .quote-request-color-chip-remove{opacity:1}
+html[data-theme="dark"] .quote-request-inkgroup{border-color:var(--app-border,#26364a);background:var(--app-surface-soft,#111c30)}
+html[data-theme="dark"] .quote-request-inkgroup-title,html[data-theme="dark"] .quote-request-color-option{color:var(--app-text,#e2e8f0)}
+html[data-theme="dark"] .quote-request-ink-toggle{background:var(--app-surface-raised,#162033);border-color:var(--app-border,#26364a);color:var(--app-text-soft,#a8b7c7)}
+html[data-theme="dark"] .quote-request-color-input,html[data-theme="dark"] .quote-request-color-menu,html[data-theme="dark"] .quote-request-color-chip{background:var(--app-surface-raised,#162033);border-color:var(--app-border,#26364a);color:var(--app-text,#e2e8f0)}
+html[data-theme="dark"] .quote-request-color-option:hover,html[data-theme="dark"] .quote-request-color-option.is-active{background:var(--app-surface-soft,#111c30)}
+/* Nueva Solicitud · Referencia + ¿Qué Cambia? */
+.quote-request-referencia-row{display:flex;align-items:center;gap:8px}
+.quote-request-referencia-changes{display:grid;gap:8px;margin-top:8px;padding:10px 12px;border:1px solid #dde7ee;border-radius:12px;background:#fbfdfe}
+.quote-request-referencia-changes .quote-request-textarea{min-height:40px}
+html[data-theme="dark"] .quote-request-referencia-changes{border-color:var(--app-border,#26364a);background:var(--app-surface-soft,#111c30)}
+/* Nueva Solicitud · Modal de búsqueda de Referencia */
+.qr-ref-overlay{position:fixed;inset:0;z-index:1200;background:rgba(10,22,34,.5);display:flex;align-items:center;justify-content:center;padding:20px}
+.qr-ref-modal{background:#fff;border:1px solid #d8e2ea;border-radius:14px;width:100%;max-width:720px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(15,38,56,.24)}
+.qr-ref-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e5edf3}
+.qr-ref-head h3{margin:0;font-size:15px;font-weight:700;color:#17354a}
+.qr-ref-close{border:0;background:transparent;font-size:24px;line-height:1;color:#8a97a2;cursor:pointer;padding:2px 6px}
+.qr-ref-toolbar{display:flex;gap:8px;padding:12px 18px}
+.qr-ref-toolbar input{flex:1;min-height:40px;border:1px solid #c9d6e2;border-radius:10px;padding:8px 12px;font:inherit;color:#17354a;background:#fff}
+.qr-ref-toolbar input:focus{outline:none;border-color:#23a2cb;box-shadow:0 0 0 3px rgba(35,162,203,.12)}
+.qr-ref-tipos{display:flex;gap:6px;padding:0 18px 12px}
+.qr-ref-tipo-btn{border:1px solid #d9e5ee;background:#f3f8fb;color:#5a7083;border-radius:999px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer}
+.qr-ref-tipo-btn.is-active{background:#1890d4;border-color:#1890d4;color:#fff}
+.qr-ref-body{overflow:auto;padding:0 18px 18px;flex:1;display:flex;flex-direction:column;gap:6px;scrollbar-width:thin;scrollbar-color:rgba(11,129,184,.42) transparent}
+.qr-ref-body::-webkit-scrollbar{width:8px;height:8px}
+.qr-ref-body::-webkit-scrollbar-thumb{border-radius:999px;background:rgba(11,129,184,.38)}
+.qr-ref-empty{padding:22px 0;text-align:center;color:#8a97a2;font-size:13px}
+.qr-ref-row{display:grid;grid-template-columns:auto minmax(120px,1.1fr) minmax(0,1.6fr) auto auto;align-items:center;gap:12px;padding:10px 12px;border:1px solid #d9e5ee;border-radius:10px;background:#fff;cursor:pointer}
+.qr-ref-row:hover{border-color:#23a2cb;background:#f2fafd}
+.qr-ref-chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(24,144,212,.14);color:#0b6a97}
+.qr-ref-chip.is-orden{background:rgba(21,128,61,.14);color:#15803d}
+.qr-ref-code{font-weight:700;font-size:13px;color:#0b81b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qr-ref-name{font-size:13px;color:#17354a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qr-ref-date{font-size:11px;color:#8a97a2;white-space:nowrap}
+.qr-ref-art{display:inline-flex;align-items:center;gap:4px;border:0;background:transparent;color:#0b81b8;font-size:12px;font-weight:700;cursor:pointer;padding:4px 6px;border-radius:8px}
+.qr-ref-art:hover{background:rgba(24,144,212,.14)}
+.qr-arte-overlay{position:fixed;inset:0;z-index:1260;background:rgba(10,22,34,.62);display:flex;align-items:center;justify-content:center;padding:24px}
+.qr-arte-modal{background:#fff;border:1px solid #d8e2ea;border-radius:14px;box-shadow:0 28px 72px rgba(15,38,56,.3);width:min(720px,92vw);height:min(620px,86vh);min-width:320px;min-height:300px;max-width:96vw;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;resize:both}
+.qr-arte-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid #e5edf3}
+.qr-arte-head h3{margin:0;font-size:15px;font-weight:700;color:#17354a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qr-arte-body{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;padding:14px 18px}
+.qr-arte-empty{flex:1;display:flex;align-items:center;justify-content:center;color:#8a97a2;font-size:13px}
+.qr-arte-stage{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;background:#f6fafc;border:1px solid #e5edf3;border-radius:10px;overflow:hidden}
+.qr-arte-stage img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.qr-arte-nav{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:34px;border:0;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;font-size:22px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.qr-arte-nav.prev{left:10px}.qr-arte-nav.next{right:10px}
+.qr-arte-caption{font-size:12px;color:#5a7083;text-align:center}
+.qr-arte-thumbs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+.qr-arte-thumb{flex:0 0 auto;width:52px;height:52px;padding:0;border:2px solid transparent;border-radius:8px;overflow:hidden;cursor:pointer;background:#f0f4f8}
+.qr-arte-thumb.is-active{border-color:#23a2cb}
+.qr-arte-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.qr-arte-hint{padding:0 18px 12px;font-size:11px;color:#8a97a2;text-align:right}
+html[data-theme="dark"] .qr-ref-modal,html[data-theme="dark"] .qr-arte-modal{background:var(--app-surface-raised,#162033);border-color:var(--app-border,#26364a)}
+html[data-theme="dark"] .qr-ref-head,html[data-theme="dark"] .qr-arte-head{border-color:var(--app-border,#26364a)}
+html[data-theme="dark"] .qr-ref-head h3,html[data-theme="dark"] .qr-arte-head h3,html[data-theme="dark"] .qr-ref-name{color:var(--app-text,#e2e8f0)}
+html[data-theme="dark"] .qr-ref-toolbar input,html[data-theme="dark"] .qr-ref-row,html[data-theme="dark"] .qr-arte-stage{background:var(--app-surface,#111c30);border-color:var(--app-border,#26364a);color:var(--app-text,#e2e8f0)}
+html[data-theme="dark"] .qr-ref-tipo-btn{background:var(--app-surface,#111c30);border-color:var(--app-border,#26364a);color:var(--app-text-soft,#a8b7c7)}
+/* Nueva Solicitud · filas compactas del paso 1 y 2 */
+.qr-step1-col{display:grid;gap:14px;align-content:start;min-width:0}
+.quote-request-acabados-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.quote-request-mt-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:start}
+.quote-request-mt-cell{display:grid;gap:10px;min-width:0}
+@media (max-width:720px){.quote-request-acabados-row,.quote-request-mt-row,.quote-request-output-row{grid-template-columns:1fr}}
+/* Nueva Solicitud · Tipo de Salida con imagen */
+.quote-request-output-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+.quote-request-salida-cell{display:grid;grid-template-columns:minmax(0,1fr) 60px;gap:6px;align-items:end}
+.quote-request-output-frame{width:60px;height:60px;border:1px solid #d9e5ee;border-radius:12px;background:#f6fafc;display:flex;align-items:center;justify-content:center;overflow:hidden;align-self:end}
+.quote-request-output-frame img{width:100%;height:100%;object-fit:contain;display:block}
+.quote-request-output-frame span{font-size:10px;font-weight:600;color:#9aa7b2;text-align:center;padding:0 4px}
+html[data-theme="dark"] .quote-request-output-frame{background:var(--app-surface-soft,#111c30);border-color:var(--app-border,#26364a)}
 </style>
 </head>
 <body>
@@ -393,14 +586,20 @@ html[data-theme="dark"] .front-back-current,html[data-theme="dark"] .front-back-
 <button id="refreshQuotesButton" type="button" class="action-btn quote-browser-action-btn" aria-label="Refrescar cotizaciones">Refrescar</button>
 </div>
 <div class="quote-browser-search-wrap">
-<input id="quotesSearchInput" class="copy-popover-search quote-browser-search" type="search" placeholder="Buscar por cotización, cliente o vendedor">
+<input id="quotesSearchInput" class="copy-popover-search quote-browser-search" type="search" placeholder="Buscar por cotización, cálculo, cliente, vendedor, trabajo, troquel, proceso, producto o sustrato">
+</div>
+<div id="quotesQuickFilterRow" class="quote-quickfilter-row" hidden>
+<button type="button" class="quote-browser-action-btn quote-quickfilter-btn is-active" data-quick-filter="todas">Todas</button>
+<button type="button" class="quote-browser-action-btn quote-quickfilter-btn" data-quick-filter="sin-enviar">Sin Enviar a Cotizar</button>
+<button type="button" class="quote-browser-action-btn quote-quickfilter-btn" data-quick-filter="crear-orden">Pendiente Crear Orden</button>
+<button type="button" class="quote-browser-action-btn quote-quickfilter-btn" data-quick-filter="pendientes">Pendientes de Cotizar</button>
 </div>
 </div>
 <div class="scroll-bottom-indicator-host">
 <div class="copy-popover-table-wrap quote-browser-table-wrap">
 <table class="copy-popover-table quote-browser-table quote-master-tree-table">
-<thead><tr><th></th><th data-sort-key="quote_code">Cotización<span class="sort-indicator"></span></th><th data-sort-key="customer_name">Detalles<span class="sort-indicator"></span></th><th data-sort-key="created_on">Creación<span class="sort-indicator"></span></th><th data-sort-key="due_on">Vencimiento<span class="sort-indicator"></span></th><th data-sort-key="quote_total">Monto<span class="sort-indicator"></span></th><th></th></tr></thead>
-<tbody id="quotesTableBody"></tbody>
+<thead><tr><th></th><th data-sort-key="quote_code">Cotización<span class="sort-indicator"></span></th><th data-sort-key="customer_name">Detalles<span class="sort-indicator"></span></th><th>Orden</th><th>Producto</th><th data-sort-key="created_on">Creación<span class="sort-indicator"></span></th><th data-sort-key="due_on">Vencimiento<span class="sort-indicator"></span></th><th data-sort-key="quote_total">Monto<span class="sort-indicator"></span></th><th></th></tr></thead>
+<tbody id="quotesTableBody"><tr><td colspan="9">Cargando las cotizaciones desde el servidor, un momento por favor…</td></tr></tbody>
 </table>
 </div>
 <div id="quotesScrollBottomIndicator" class="scroll-bottom-indicator" aria-hidden="true"></div>
@@ -423,25 +622,20 @@ html[data-theme="dark"] .front-back-current,html[data-theme="dark"] .front-back-
 <div class="quote-request-section-head"><span class="quote-request-step">1</span><div><h3>Información Principal</h3></div></div>
 <input id="requestProcessType" name="process_type" type="hidden" value="Convencional">
 <div class="quote-request-step-one-grid">
+<div class="qr-step1-col">
 <div class="quote-request-field quote-request-search-wrap">
 <span>Nombre del Cliente</span>
-<input id="nuevoClienteNombre" class="quote-request-input" name="customer_name" type="text" autocomplete="off" required>
+<input id="nuevoClienteNombre" class="quote-request-input" name="customer_name" type="text" autocomplete="off-nuevo-cliente-nombre" required>
 <input id="nuevoClienteCodigo" name="customer_code" type="hidden">
 <div id="quoteCustomerLookupPanel" class="quote-request-inline-panel" hidden><div id="quoteCustomerLookupResults"></div></div>
 </div>
-<label class="quote-request-field">
-<span>Contacto</span>
-<select id="nuevoClienteContacto" class="quote-request-select" name="contact_name" required disabled>
-<option value="">Selecciona un cliente</option>
-</select>
-</label>
 <label class="quote-request-field">
 <span>Nombre del Producto</span>
 <input id="requestJobName" class="quote-request-input" name="job_name" type="text" autocomplete="off" required>
 </label>
 <label class="quote-request-field quote-request-product-type-wrap">
 <span>Tipo de Producto</span>
-<select id="requestProductType" class="quote-request-select quote-request-native-select">
+<select id="requestProductType" class="quote-request-select quote-request-native-select" autocomplete="off">
 <option value="Etiquetas">Etiquetas</option>
 <option value="Manga">Manga</option>
 <option value="Funda">Funda</option>
@@ -459,16 +653,124 @@ html[data-theme="dark"] .front-back-current,html[data-theme="dark"] .front-back-
 <div id="requestQuantityRepeater" class="quote-request-quantity-repeater"></div>
 </div>
 </div>
+<div class="qr-step1-col">
+<label class="quote-request-field">
+<span>Contacto</span>
+<select id="nuevoClienteContacto" class="quote-request-select" name="contact_name" required disabled autocomplete="off">
+<option value="">Selecciona un cliente</option>
+</select>
+</label>
+<div id="requestManualContact" class="quote-request-manual-contact" hidden>
+<span class="quote-request-manual-contact-hint">Este cliente no tiene contactos registrados. Ingresa los datos para continuar.</span>
+<label class="quote-request-field">
+<span>Nombre del Contacto</span>
+<input id="requestManualContactName" class="quote-request-input" type="text" name="contacto_manual_nombre" autocomplete="off-contacto-manual-nombre">
+</label>
+<div class="quote-request-manual-contact-row">
+<label class="quote-request-field">
+<span>Email</span>
+<input id="requestManualContactEmail" class="quote-request-input" type="email" name="contacto_manual_email" autocomplete="off-contacto-manual-email">
+</label>
+<label class="quote-request-field">
+<span>Teléfono</span>
+<input id="requestManualContactPhone" class="quote-request-input" type="tel" name="contacto_manual_telefono" autocomplete="off-contacto-manual-telefono">
+</label>
+</div>
+<label class="quote-request-manual-contact-save">
+<input id="requestManualContactSave" type="checkbox" name="contacto_manual_guardar">
+<span>Guardar este contacto en el socio</span>
+</label>
+</div>
+<label class="quote-request-field">
+<span>C&oacute;digo SKU Cliente</span>
+<input id="requestClientSku" class="quote-request-input" name="client_sku" type="text" autocomplete="off" placeholder="C&oacute;digo que el cliente usa para este SKU">
+</label>
+<div class="quote-request-insumos quote-request-referencia-field">
+<span class="quote-request-insumos-label">Referencia</span>
+<div class="quote-request-referencia-row">
+<input id="requestReferencia" class="quote-request-input" type="text" autocomplete="off" placeholder="SKU o trabajo anterior del cliente">
+<button id="requestReferenciaSearchBtn" type="button" class="quote-request-troquel-add-btn" title="Buscar referencia del cliente" aria-label="Buscar referencia del cliente"></button>
+</div>
+<div id="requestReferenciaChanges" class="quote-request-referencia-changes" hidden>
+<span class="quote-request-insumos-label">¿Qu&eacute; Cambia?</span>
+<div class="quote-request-check-row">
+<label class="quote-request-check"><input id="requestRefCambioMedidas" type="checkbox" name="ref_cambio_medidas"><span>Medidas</span></label>
+<label class="quote-request-check"><input id="requestRefCambioArte" type="checkbox" name="ref_cambio_arte"><span>Arte</span></label>
+<label class="quote-request-check"><input id="requestRefCambioTextos" type="checkbox" name="ref_cambio_textos"><span>Textos</span></label>
+<label class="quote-request-check"><input id="requestRefCambioOtros" type="checkbox" name="ref_cambio_otros"><span>Otros</span></label>
+</div>
+<textarea id="requestReferenciaComentario" class="quote-request-textarea" rows="1" placeholder="Describe qu&eacute; cambia"></textarea>
+</div>
+</div>
+<div class="quote-request-insumos">
+<span class="quote-request-insumos-label">Insumos que Entrega el Cliente</span>
+<div class="quote-request-check-row">
+<label class="quote-request-check"><input id="requestInsumoArteDigital" type="checkbox" name="insumo_arte_digital"><span>Arte Digital</span></label>
+<label class="quote-request-check"><input id="requestInsumoMuestrasFisicas" type="checkbox" name="insumo_muestras_fisicas"><span>Muestras F&iacute;sicas</span></label>
+<label class="quote-request-check"><input id="requestInsumoEnvase" type="checkbox" name="insumo_envase"><span>Envase</span></label>
+</div>
+</div>
+</div>
+</div>
 </section>
 
 <section class="quote-request-section" data-step="2">
-<div class="quote-request-section-head"><span class="quote-request-step">2</span><div><h3>Forma de Troquel y Sustrato</h3></div></div>
+<div class="quote-request-section-head"><span class="quote-request-step">2</span><div><h3>Sustrato y Configuraci&oacute;n</h3></div></div>
 <div class="quote-request-step-two-layout">
-<div id="dieShapePicker" class="quote-request-shape-grid"></div>
+<div class="quote-request-shape-grid">
+<div class="quote-request-inline-wrap" data-inline-suggestions="material">
+<label class="quote-request-field">
+<span>Sustrato</span>
+<input id="requestMaterial" class="quote-request-input" type="text" autocomplete="off" required>
+</label>
+<div id="materialSuggestions" class="quote-request-inline-panel" data-term-source="requestMaterial" hidden></div>
+</div>
+<div class="quote-request-acabados-row">
+<label class="quote-request-field">
+<span>Barniz</span>
+<select id="requestVarnishMaterial" name="varnish" class="quote-request-select" autocomplete="off">
+<option value="">Sin Barniz</option>
+</select>
+</label>
+<label class="quote-request-field">
+<span>Estampado</span>
+<select id="requestStampingMaterial" name="stamping" class="quote-request-select" autocomplete="off">
+<option value="">Ninguno</option>
+</select>
+</label>
+<label class="quote-request-field">
+<span>Laminado</span>
+<select id="requestLaminadoMaterial" name="laminado" class="quote-request-select" autocomplete="off">
+<option value="">Sin Laminado</option>
+</select>
+</label>
+</div>
+<div id="requestInkGroup" class="quote-request-inkgroup">
+<span class="quote-request-inkgroup-title">Tintas</span>
+<div class="quote-request-ink-toggles">
+<label class="quote-request-ink-toggle is-on" data-ink-toggle="cmyk"><input id="requestUseCmyk" type="checkbox" name="use_cmyk" checked><span class="quote-request-ink-dot"></span><span>CMYK</span></label>
+<label class="quote-request-ink-toggle quote-request-ink-toggle-noprint" data-ink-toggle="noprint"><input id="requestNoPrint" type="checkbox" name="no_print"><span class="quote-request-ink-dot"></span><span>Sin Impresi&oacute;n</span></label>
+</div>
+<div class="quote-request-color-field">
+<span class="quote-request-insumos-label">Colores Directos</span>
+<div class="quote-request-color-input-row">
+<span class="quote-request-color-input-wrap">
+<span class="quote-request-color-lead" aria-hidden="true"></span>
+<input id="requestDirectColorInput" class="quote-request-color-input" type="text" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" placeholder="Escribe o elige un Pantone o f&oacute;rmula">
+</span>
+<button id="requestDirectColorAdd" type="button" class="quote-request-color-add" title="Agregar color directo" aria-label="Agregar color directo"></button>
+<div id="requestDirectColorMenu" class="quote-request-color-menu" role="listbox" hidden></div>
+</div>
+<div id="requestDirectColorList" class="quote-request-color-list"></div>
+</div>
+</div>
+</div>
 <div class="quote-request-step-two-right">
+<div class="quote-request-mt-row">
+<div class="quote-request-mt-cell">
 <label class="quote-request-field">
 <span>Medidas Fijas (Pulgadas)</span>
-<select id="requestFixedSize" class="quote-request-select quote-request-native-select" required>
+<select id="requestFixedSize" class="quote-request-select quote-request-native-select" required autocomplete="off">
 <option value="" selected disabled hidden>Selecciona una medida</option>
 <option value="custom">Medida especial</option>
 <option value="2x2" data-width="2" data-length="2">2″ x 2″</option>
@@ -495,96 +797,26 @@ html[data-theme="dark"] .front-back-current,html[data-theme="dark"] .front-back-
 <span class="quote-request-unit-wrap"><input id="requestCustomHeight" class="quote-request-input" type="number" min="0" step="0.01" autocomplete="off"><span class="quote-request-unit-mask" aria-hidden="true"></span></span>
 </label>
 </div>
-<div class="quote-request-inline-wrap" data-inline-suggestions="material">
-<label class="quote-request-field">
-<span>Sustrato</span>
-<input id="requestMaterial" class="quote-request-input" type="text" autocomplete="off" required>
-</label>
-<div id="materialSuggestions" class="quote-request-inline-panel" data-term-source="requestMaterial" hidden></div>
-</div>
-</div>
-</div>
-</section>
-
-<section class="quote-request-section" data-step="3">
-<div class="quote-request-section-head"><span class="quote-request-step">3</span><div><h3>Acabados</h3></div></div>
-<div class="quote-request-finishes-grid" style="margin-top:12px;">
-<div class="quote-request-finishes-column">
-<div class="quote-request-subblock" data-finish-key="varnish">
-<h4>Barniz</h4>
-<div class="quote-request-tabset">
-<label class="quote-request-toggle-chip"><input type="radio" name="varnish" value="Sin Barniz" checked><span class="quote-request-tab">Sin Barniz</span></label>
-<label class="quote-request-toggle-chip"><input type="radio" name="varnish" value="Brillante"><span class="quote-request-tab">Brillante</span></label>
-<label class="quote-request-toggle-chip"><input type="radio" name="varnish" value="Mate"><span class="quote-request-tab">Mate</span></label>
-<label class="quote-request-toggle-chip"><input type="radio" name="varnish" value="Soft Touch"><span class="quote-request-tab">Soft Touch</span></label>
-<label class="quote-request-toggle-chip"><input id="varnishSonified" type="checkbox" value="Zonificado"><span class="quote-request-tab">Zonificado</span></label>
-</div>
-</div>
-<div class="quote-request-subblock" data-finish-key="stamping">
-<h4>Estampado</h4>
-<div class="quote-request-tabset">
-<label class="quote-request-toggle-chip"><input type="radio" name="stamping" value="Ninguno" checked><span class="quote-request-tab">Ninguno</span></label>
-<label class="quote-request-toggle-chip"><input type="radio" name="stamping" value="Oro"><span class="quote-request-tab">Oro</span></label>
-<label class="quote-request-toggle-chip"><input type="radio" name="stamping" value="Plata"><span class="quote-request-tab">Plata</span></label>
-<label class="quote-request-toggle-chip"><input type="radio" name="stamping" value="Holográfico"><span class="quote-request-tab">Holográfico</span></label>
 </div>
 <label class="quote-request-field">
-<span>Ancho de estampado (mm)</span>
-<input id="stampingWidth" class="quote-request-input" type="number" min="0" step="0.01" placeholder="Ej. 12" autocomplete="off">
+<span>Troquel</span>
+<div class="quote-request-troquel-field">
+<button id="requestTroquelTrigger" type="button" class="quote-request-input quote-request-troquel-trigger is-empty">
+<span class="quote-request-troquel-trigger-code" data-troquel-code>Buscar troquel…</span>
+<span class="quote-request-troquel-trigger-desc" data-troquel-desc></span>
+<span class="quote-request-troquel-trigger-metrics" data-troquel-metrics></span>
+</button>
+<button id="requestTroquelAddButton" type="button" class="quote-request-troquel-add-btn" title="Buscar troquel" aria-label="Buscar troquel"></button>
+</div>
+<input id="requestTroquelCode" name="die_code" type="hidden">
+<input id="requestTroquelDescription" name="die_description" type="hidden">
+<input id="requestTroquelShape" name="die_shape" type="hidden">
 </label>
 </div>
-<div class="quote-request-subblock" data-finish-key="embossed">
-<h4>Embosado</h4>
-<div class="quote-request-tabset">
-<label class="quote-request-toggle-chip"><input id="finishEmbossed" type="checkbox" value="Embosado"><span class="quote-request-tab">Embosado</span></label>
-</div>
-</div>
-</div>
-<div class="quote-request-finishes-column">
-<div class="quote-request-subblock" data-finish-key="diecut">
-<h4>Troquelado</h4>
-<div class="quote-request-tabset">
-<label class="quote-request-toggle-chip"><input id="finishDieCut" type="checkbox" value="Troquelado"><span class="quote-request-tab">Troquelado</span></label>
-</div>
-</div>
-<div class="quote-request-subblock" data-finish-key="numbering">
-<h4>Numeración</h4>
-<div class="quote-request-tabset">
-<label class="quote-request-toggle-chip"><input type="radio" name="numbering" value="Numeracion Aleatoria"><span class="quote-request-tab">Aleatoria</span></label>
-<label class="quote-request-toggle-chip"><input type="radio" name="numbering" value="Numeracion Consecutiva"><span class="quote-request-tab">Consecutiva</span></label>
-<label class="quote-request-toggle-chip"><input type="radio" name="numbering" value="Código de Barras"><span class="quote-request-tab">Código de Barras</span></label>
-<label class="quote-request-toggle-chip"><input type="radio" name="numbering" value="Código QR"><span class="quote-request-tab">Código QR</span></label>
-</div>
-<div id="numberingRangeFields" class="quote-request-finish-detail-grid" hidden>
-<label class="quote-request-field">
-<span>Desde</span>
-<input id="numberingRangeStart" class="quote-request-input" type="text" placeholder="Ej. 0001" autocomplete="off">
-</label>
-<label class="quote-request-field">
-<span>Hasta</span>
-<input id="numberingRangeEnd" class="quote-request-input" type="text" placeholder="Ej. 2500" autocomplete="off">
-</label>
-</div>
-<label class="quote-request-field">
-<span>Detalle</span>
-<input id="numberingDetail" class="quote-request-input" type="text" placeholder="Ej. QR variable por lote o numeración consecutiva" autocomplete="off">
-</label>
-<div class="quote-request-numbering-attachment">
-<div class="quote-request-numbering-attachment-head"><span></span><span>Adjunto</span><span></span></div>
-<div id="numberingAttachmentRows"></div>
-<input id="numberingAttachmentInput" class="quote-request-finish-file" type="file" accept=".xls,.xlsx,.csv">
-</div>
-</div>
-</div>
-</div>
-</section>
-
-<section class="quote-request-section" data-step="4">
-<div class="quote-request-section-head"><span class="quote-request-step">4</span><div><h3>Aplicación y Comentarios</h3></div></div>
-<div class="quote-request-grid">
+<div class="quote-request-side-by-side">
 <div class="quote-request-inline-wrap" data-inline-suggestions="surface">
 <label class="quote-request-field">
-<span>Aplicación</span>
+<span>Aplicaci&oacute;n</span>
 <input id="requestSurface" class="quote-request-input" type="text" autocomplete="off" required>
 </label>
 <div id="surfaceSuggestions" class="quote-request-inline-panel" data-term-source="requestSurface" hidden></div>
@@ -596,18 +828,27 @@ html[data-theme="dark"] .front-back-current,html[data-theme="dark"] .front-back-
 </label>
 <div id="surfaceTypeSuggestions" class="quote-request-inline-panel" data-term-source="requestSurfaceType" hidden></div>
 </div>
-<div class="quote-request-field">
-<span>Colocación</span>
-<div class="quote-request-tabset">
-<label class="quote-request-toggle-chip"><input type="radio" name="placement" value="Máquina"><span class="quote-request-tab">Máquina</span></label>
-<label class="quote-request-toggle-chip"><input type="radio" name="placement" value="Manual"><span class="quote-request-tab">Manual</span></label>
 </div>
-</div>
-<label class="quote-request-field quote-request-grid-full">
-<span>Comentarios</span>
-<textarea id="requestComments" class="quote-request-textarea"></textarea>
+<div class="quote-request-field quote-request-output-row">
+<label class="quote-request-field" style="gap:6px">
+<span>Tipo de Etiquetado</span>
+<select id="requestLabelingType" class="quote-request-select" name="labeling_type" autocomplete="off">
+<option value="">Seleccionar...</option>
+<option value="Manual">Manual</option>
+<option value="Automatico">Autom&aacute;tico</option>
+</select>
 </label>
-<div class="quote-request-field quote-request-grid-full">
+<div class="quote-request-salida-cell">
+<label class="quote-request-field" style="gap:6px">
+<span>Tipo de Salida</span>
+<select id="requestOutputType" class="quote-request-select" name="output_type" autocomplete="off">
+<option value="" selected disabled hidden>Selecciona un tipo</option>
+</select>
+</label>
+<div id="requestOutputTypeFrame" class="quote-request-output-frame"><span>Sin imagen</span></div>
+</div>
+</div>
+<div class="quote-request-field">
 <span>Adjuntos</span>
 <div class="quote-request-attachments-card">
 <div class="quote-request-attachment-actions">
@@ -623,12 +864,17 @@ html[data-theme="dark"] .front-back-current,html[data-theme="dark"] .front-back-
 <div id="requestAttachmentsPreview" class="quote-request-attachment-list"></div>
 </div>
 </div>
+<label class="quote-request-field">
+<span>Comentarios</span>
+<textarea id="requestComments" class="quote-request-textarea" autocomplete="off"></textarea>
+</label>
+</div>
 </div>
 </section>
 </div>
 <p id="nuevaCotizacionStatus" class="socios-create-status" hidden></p>
 <div class="quote-request-wizard-footer">
-<div id="quoteWizardProgress" class="quote-request-wizard-progress">Paso 1 de 4</div>
+<div id="quoteWizardProgress" class="quote-request-wizard-progress">Paso 1 de 2</div>
 <div class="quote-request-wizard-actions">
 <button id="quoteWizardBackButton" type="button" class="action-btn quote-browser-action-btn" hidden>Atrás</button>
 <button id="quoteWizardNextButton" type="button" class="action-btn quote-browser-action-btn">Siguiente</button>
@@ -650,16 +896,37 @@ html[data-theme="dark"] .front-back-current,html[data-theme="dark"] .front-back-
 <form id="nuevoCalculoForm" class="quote-calc-form" autocomplete="off" novalidate>
 <div class="quote-request-field quote-request-search-wrap">
 <span>Cliente</span>
-<input id="nuevoCalculoClienteNombre" class="quote-request-input" name="customer_name" type="text" autocomplete="off" required>
+<input id="nuevoCalculoClienteNombre" class="quote-request-input" name="customer_name" type="text" autocomplete="off-nuevo-calculo-cliente-nombre" required>
 <input id="nuevoCalculoClienteCodigo" name="customer_code" type="hidden">
 <div id="newCalcCustomerLookupPanel" class="quote-request-inline-panel" hidden><div id="newCalcCustomerLookupResults"></div></div>
 </div>
 <label class="quote-request-field">
 <span>Contacto</span>
-<select id="nuevoCalculoContacto" class="quote-request-select" name="contact_name" required disabled>
+<select id="nuevoCalculoContacto" class="quote-request-select" name="contact_name" required disabled autocomplete="off">
 <option value="">Selecciona un cliente</option>
 </select>
 </label>
+<div id="newCalcManualContact" class="quote-request-manual-contact" hidden>
+<span class="quote-request-manual-contact-hint">Este cliente no tiene contactos registrados. Ingresa los datos para continuar.</span>
+<label class="quote-request-field">
+<span>Nombre del Contacto</span>
+<input id="newCalcManualContactName" class="quote-request-input" type="text" name="contacto_manual_nombre" autocomplete="off-contacto-manual-nombre">
+</label>
+<div class="quote-request-manual-contact-row">
+<label class="quote-request-field">
+<span>Email</span>
+<input id="newCalcManualContactEmail" class="quote-request-input" type="email" name="contacto_manual_email" autocomplete="off-contacto-manual-email">
+</label>
+<label class="quote-request-field">
+<span>Teléfono</span>
+<input id="newCalcManualContactPhone" class="quote-request-input" type="tel" name="contacto_manual_telefono" autocomplete="off-contacto-manual-telefono">
+</label>
+</div>
+<label class="quote-request-manual-contact-save">
+<input id="newCalcManualContactSave" type="checkbox" name="contacto_manual_guardar">
+<span>Guardar este contacto en el socio</span>
+</label>
+</div>
 <div class="new-calc-format-section">
 <span class="new-calc-format-label">Formato del cálculo</span>
 <div class="new-calc-format-options">
@@ -678,11 +945,11 @@ html[data-theme="dark"] .front-back-current,html[data-theme="dark"] .front-back-
 <div id="newCalcFrontBackFields" class="new-calc-front-back-fields" hidden>
 <label class="quote-request-field">
 <span>Nombre Producto Frente</span>
-<input id="nuevoCalculoFrenteNombre" class="quote-request-input" name="frente_name" type="text" placeholder="Ej: Etiqueta Frente">
+<input id="nuevoCalculoFrenteNombre" class="quote-request-input" name="frente_name" type="text" placeholder="Ej: Etiqueta Frente" autocomplete="off">
 </label>
 <label class="quote-request-field">
 <span>Nombre Producto Dorso</span>
-<input id="nuevoCalculoDorsoNombre" class="quote-request-input" name="dorso_name" type="text" placeholder="Ej: Etiqueta Dorso">
+<input id="nuevoCalculoDorsoNombre" class="quote-request-input" name="dorso_name" type="text" placeholder="Ej: Etiqueta Dorso" autocomplete="off">
 </label>
 </div>
 <p id="nuevoCalculoStatus" class="socios-create-status" hidden></p>
@@ -724,7 +991,8 @@ html[data-theme="dark"] .front-back-current,html[data-theme="dark"] .front-back-
 </section>
 </div>
 
-<script src="/access-control.js"></script>
-<script src="/cotizaciones.js?v=20260628-1800"></script>
+<script src="/access-control.js?v=20260923-mensajes-carga"></script>
+<script src="/adjuntos-producto.js?v=20260921-tarjetas"></script>
+<script src="/cotizaciones.js?v=20260923-mensajes-carga"></script>
 </body>
 </html>

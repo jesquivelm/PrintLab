@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="/theme.js"></script>
+<title>Control de Aprobaciones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3f7fb;--surface:#fff;--surface2:#f7fbff;--border:#d8e4ef;--border2:#c5d4e4;
+  --text:#1f2b3d;--text2:#66758b;--text3:#9fb0c8;
+  --green:#1D9E75;--green-bg:#edf7f3;--green-border:#b3dece;
+  --amber:#b7791f;--amber-bg:#fdf6e8;--amber-border:#eed9a8;
+  --red:#c0392b;--red-bg:#fbeceb;--red-border:#eec4bf;
+  --blue:#1D6FB8;--blue-bg:#e8f2fc;
+  --radius:10px;--shadow:0 2px 10px rgba(20,30,50,.06);
+}
+html[data-theme="dark"]{
+  --bg:#0d1117;--surface:#161b22;--surface2:#1c2128;--border:#30363d;--border2:#444c56;
+  --text:#e6edf3;--text2:#9099ab;--text3:#6e7681;
+  --green:#3fb950;--green-bg:#0a1f0e;--green-border:#238636;
+  --amber:#d29922;--amber-bg:#1f1800;--amber-border:#9e6a03;
+  --red:#f85149;--red-bg:#1f0c0c;--red-border:#b62324;
+  --blue:#58a6ff;--blue-bg:#0d2137;
+  --shadow:0 2px 14px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',system-ui,sans-serif;font-size:13px;color:var(--text);background:var(--bg)}
+*{scrollbar-width:thin;scrollbar-color:rgba(11,129,184,.42) transparent}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(11,129,184,.38);border-radius:999px}
+
+.hdr{display:flex;align-items:center;gap:14px;padding:14px 22px;background:var(--surface);border-bottom:1px solid var(--border);box-shadow:var(--shadow)}
+.hdr h1{font-size:16px;font-weight:600}
+.hdr .sub{font-size:11.5px;color:var(--text3);font-family:'DM Mono',monospace}
+.wrap{padding:20px 22px;display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start}
+@media(max-width:900px){.wrap{grid-template-columns:1fr}}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+.card-t{font-size:13px;font-weight:600;margin-bottom:12px}
+
+/* Calendario */
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cal-head button{border:1px solid var(--border);background:var(--surface2);border-radius:6px;color:var(--text2);width:26px;height:26px;cursor:pointer}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;font-size:11px}
+.cal-dow{text-align:center;color:var(--text3);font-weight:600;padding:4px 0}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;background:var(--surface2);color:var(--text2);position:relative}
+.cal-day.empty{background:transparent}
+.cal-day.today{outline:2px solid var(--blue)}
+.cal-day .n{font-size:11px}
+.cal-day .dots{display:flex;gap:2px;margin-top:2px}
+.cal-dot{width:5px;height:5px;border-radius:50%}
+.cal-dot.enviado{background:var(--blue)}
+.cal-dot.recibido{background:var(--green)}
+.cal-dot.cambios_cliente{background:var(--red)}
+.cal-legend{display:flex;gap:12px;margin-top:10px;font-size:11px;color:var(--text2);flex-wrap:wrap}
+.cal-legend span{display:inline-flex;align-items:center;gap:5px}
+
+/* Tabla */
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;color:var(--text3);font-size:10.5px;text-transform:uppercase;letter-spacing:.02em;padding:6px 8px;border-bottom:1px solid var(--border)}
+td{padding:9px 8px;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:none}
+.pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600}
+.pill.pendiente_enviar{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.pill.pendiente_recibir{background:var(--blue-bg);color:var(--blue);border:1px solid var(--border)}
+.pill.recibido{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.dias{font-family:'DM Mono',monospace}
+.dias.warn{color:var(--red);font-weight:700}
+.orderlink{color:var(--blue);font-family:'DM Mono',monospace;font-weight:600;text-decoration:none}
+.orderlink:hover{text-decoration:underline}
+.empty-state{padding:30px;text-align:center;color:var(--text3)}
+.motivo{font-size:11.5px;color:var(--red)}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>📋 Control de Aprobaciones</h1>
+  <span class="sub" id="hdrSub">cargando…</span>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <div class="card-t">Calendario de Envíos/Recepciones</div>
+    <div class="cal-head">
+      <button onclick="calMonthShift(-1)">‹</button>
+      <div id="calMonthLbl" style="font-weight:600;font-size:12.5px"></div>
+      <button onclick="calMonthShift(1)">›</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-legend">
+      <span><span class="cal-dot enviado"></span>Enviado</span>
+      <span><span class="cal-dot recibido"></span>Recibido</span>
+      <span><span class="cal-dot cambios_cliente"></span>Cambios del cliente</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-t">Órdenes en Aprobaciones — ordenadas por días esperando</div>
+    <div id="tablaWrap"><div class="empty-state">Cargando…</div></div>
+  </div>
+</div>
+
+<script>
+function sessionHeader(){
+  var raw; try{raw=localStorage.getItem('erp-user-session');}catch(_){}
+  if(!raw)return{};
+  var s; try{s=JSON.parse(raw);}catch(_){return{};}
+  return{'x-erp-session':JSON.stringify({id:s.id||s.userId||s.sessionId||'',userId:s.userId||s.id||'',username:s.username||s.user||'',user:s.user||s.username||''})};
+}
+const ESTADO_LABEL={pendiente_enviar:'Pendiente de Enviar',pendiente_recibir:'Pendiente de Recibir',recibido:'Recibido'};
+let controlData={items:[],eventos:[]};
+let calMonth=new Date();
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+async function cargar(){
+  try{
+    const res=await fetch('/api/produccion-aprobaciones-control',{headers:sessionHeader()});
+    const p=await res.json();
+    if(!res.ok||!p.ok)throw new Error(p.error||'No se pudo cargar.');
+    controlData=p.data;
+    document.getElementById('hdrSub').textContent=controlData.items.length+' orden(es) en Aprobaciones';
+    renderTabla();
+    renderCalendario();
+  }catch(e){
+    document.getElementById('hdrSub').textContent='Error: '+e.message;
+    document.getElementById('tablaWrap').innerHTML='<div class="empty-state">'+esc(e.message)+'</div>';
+  }
+}
+
+function renderTabla(){
+  const items=controlData.items;
+  if(!items.length){document.getElementById('tablaWrap').innerHTML='<div class="empty-state">✓ No hay órdenes pendientes en Aprobaciones.</div>';return;}
+  document.getElementById('tablaWrap').innerHTML=`<table>
+    <thead><tr><th>Orden</th><th>Cliente</th><th>Vendedor</th><th>Estado</th><th>Desde</th><th>Días</th></tr></thead>
+    <tbody>${items.map(it=>`<tr>
+      <td><span class="orderlink">${esc(it.orderCode)}</span></td>
+      <td>${esc(it.cliente||'—')}</td>
+      <td>${esc(it.vendedor||'—')}</td>
+      <td><span class="pill ${it.estado}">${ESTADO_LABEL[it.estado]||it.estado}</span>${it.ultimoMotivo?`<div class="motivo">⚠ ${esc(it.ultimoMotivo)}</div>`:''}</td>
+      <td>${it.desde?new Date(it.desde).toLocaleDateString('es-CR'):'—'}</td>
+      <td class="dias${it.diasEsperando>=2?' warn':''}">${it.diasEsperando} d</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function calMonthShift(delta){
+  calMonth.setMonth(calMonth.getMonth()+delta);
+  renderCalendario();
+}
+function renderCalendario(){
+  const y=calMonth.getFullYear(),m=calMonth.getMonth();
+  document.getElementById('calMonthLbl').textContent=calMonth.toLocaleDateString('es-CR',{month:'long',year:'numeric'});
+  const eventosPorDia={};
+  (controlData.eventos||[]).forEach(ev=>{
+    const d=new Date(ev.registrado_en);
+    if(d.getFullYear()!==y||d.getMonth()!==m)return;
+    const k=d.getDate();
+    (eventosPorDia[k]=eventosPorDia[k]||[]).push(ev.evento);
+  });
+  const first=new Date(y,m,1);
+  const startOffset=first.getDay();
+  const daysInMonth=new Date(y,m+1,0).getDate();
+  const today=new Date();
+  const dow=['D','L','M','M','J','V','S'];
+  let html=dow.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  for(let i=0;i<startOffset;i++)html+='<div class="cal-day empty"></div>';
+  for(let day=1;day<=daysInMonth;day++){
+    const isToday=today.getFullYear()===y&&today.getMonth()===m&&today.getDate()===day;
+    const evs=eventosPorDia[day]||[];
+    const dots=[...new Set(evs)].map(e=>`<span class="cal-dot ${e}"></span>`).join('');
+    html+=`<div class="cal-day${isToday?' today':''}"><span class="n">${day}</span><span class="dots">${dots}</span></div>`;
+  }
+  document.getElementById('calGrid').innerHTML=html;
+}
+
+cargar();
+</script>
+</body>
+</html>

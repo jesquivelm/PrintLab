@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
     <title>Socio</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <link rel="stylesheet" href="/socios-documento.css?v=20260823-sap-standardize">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
@@ -30,6 +31,7 @@
         <nav class="socios-detail-tabs standard-module-tabs" aria-label="Detalle del socio">
             <button type="button" class="standard-module-tab is-active" data-socio-tab="cliente">Datos del Cliente</button>
             <button type="button" class="standard-module-tab" data-socio-tab="manejo">Manejo y Entrega</button>
+            <button type="button" class="standard-module-tab" data-socio-tab="sap">Información SAP</button>
         </nav>
 
         <section class="socios-content">
@@ -38,28 +40,48 @@
                     <div class="socios-section">
                         <div class="section-caption">Información General</div>
                         <div class="socios-grid socios-grid-general-summary">
-                            <div class="field"><label>Vendedor</label><input id="salesperson" type="text"></div>
-                            <div class="field"><label>Correo General</label><input id="generalEmail" type="text"></div>
-                            <div class="field"><label>Fecha de Creación</label><input id="creationDate" type="text"></div>
+                            <div class="field"><label>Tipo de Identificación</label>
+                                <select id="tipoIdentificacion">
+                                    <option value="">-</option>
+                                    <option value="NIT">NIT</option>
+                                    <option value="DPI">DPI</option>
+                                    <option value="PASAPORTE">Pasaporte</option>
+                                    <option value="OTRO">Otro</option>
+                                </select>
+                            </div>
+                            <div class="field"><label>ID Fiscal</label><input id="taxId" type="text" autocomplete="off"></div>
+                            <div class="field"><label>Tipo de Socio</label>
+                                <select id="tipoSocio">
+                                    <option value="">-</option>
+                                    <option value="EMPRESA">Empresa / Persona jurídica</option>
+                                    <option value="PERSONA">Persona individual</option>
+                                </select>
+                            </div>
+                            <div class="field"><label>Correo General</label><input id="generalEmail" type="text" autocomplete="off"></div>
+                            <div class="field"><label>Vendedor</label><select id="salesperson"></select></div>
+                            <div class="field"><label>Vendedor SAP</label><input id="salespersonSap" type="text" autocomplete="off" readonly></div>
+                            <div class="field"><label>Fecha de Creación</label><input id="creationDate" type="text" autocomplete="off"></div>
+                            <label class="costs-default-check-field"><span>Activo</span><span class="costs-process-default-check"><input id="estadoActivo" type="checkbox"></span></label>
                         </div>
                     </div>
                     <div class="socios-section socios-quality-section">
                         <div class="section-caption">Información de Calidad</div>
                         <div class="socios-grid socios-grid-quality">
-                            <div class="field field-checkbox-inline checkbox-formato">
-                                <label for="requiereCartilla">Cartilla</label>
-                                <input id="requiereCartilla" type="checkbox">
-                            </div>
-                            <div class="field field-checkbox-inline checkbox-formato">
-                                <label for="requiereCertificado">Certificado</label>
-                                <input id="requiereCertificado" type="checkbox">
-                            </div>
-                            <div class="field field-checkbox-inline checkbox-formato">
-                                <label for="usarCartilla">Usar Cartilla</label>
-                                <input id="usarCartilla" type="checkbox">
-                            </div>
-                            <div class="field"><label>Unidad</label><input id="unidadDefecto" type="text"></div>
+                            <label class="costs-default-check-field"><span>Cartilla</span><span class="costs-process-default-check"><input id="requiereCartilla" type="checkbox"></span></label>
+                            <label class="costs-default-check-field"><span>Certificado</span><span class="costs-process-default-check"><input id="requiereCertificado" type="checkbox"></span></label>
+                            <label class="costs-default-check-field"><span>Usar Cartilla</span><span class="costs-process-default-check"><input id="usarCartilla" type="checkbox"></span></label>
                         </div>
+                    </div>
+                </div>
+
+                <div class="socios-section">
+                    <div class="section-caption">Información Financiera</div>
+                    <div class="socios-grid socios-grid-financial">
+                        <div class="field"><label>Nombre Comercial</label><input id="nombreComercial" type="text" autocomplete="off"></div>
+                        <div class="field"><label>Correo de Facturación</label><input id="invoiceEmail" type="text" autocomplete="off"></div>
+                        <div class="field"><label>Días de Crédito</label><input id="paymentTerms" type="text" autocomplete="off"></div>
+                        <div class="field"><label>Moneda</label><input id="currencyCode" type="text" autocomplete="off"></div>
+                        <label class="costs-default-check-field"><span>Socio Exento</span><span class="costs-process-default-check"><input id="taxExempt" type="checkbox"></span></label>
                     </div>
                 </div>
 
@@ -67,21 +89,27 @@
                     <div class="section-caption">Contacto Principal</div>
                     <div class="socios-contact-layout">
                         <div class="socios-grid socios-grid-contact">
-                            <div class="field"><label>Nombre</label><input id="contactFirstName" type="text"></div>
-                            <div class="field"><label>Apellido</label><input id="contactLastName" type="text"></div>
-                            <div class="field"><label>Identificación</label><input id="contactId" type="text"></div>
-                            <div class="field"><label>Celular</label><input id="contactMobile" type="text"></div>
-                            <div class="field"><label>Correo</label><input id="contactEmail" type="text"></div>
-                            <div class="field"><label>Fax</label><input id="contactFax" type="text"></div>
-                            <div class="field"><label>Teléfono</label><input id="contactPhone" type="text"></div>
-                            <div class="field field-checkbox-inline checkbox-formato">
-                                <label for="contactLegalRepresentative">Rep. Legal</label>
-                                <input id="contactLegalRepresentative" type="checkbox">
+                            <div class="field"><label>Nombre</label><input id="contactFirstName" type="text" autocomplete="off"></div>
+                            <div class="field"><label>Apellido</label><input id="contactLastName" type="text" autocomplete="off"></div>
+                            <div class="field"><label>Tipo de Identificación</label>
+                                <select id="contactIdentificationType">
+                                    <option value="">-</option>
+                                    <option value="NIT">NIT</option>
+                                    <option value="DPI">DPI</option>
+                                    <option value="PASAPORTE">Pasaporte</option>
+                                    <option value="OTRO">Otro</option>
+                                </select>
                             </div>
-                            <div class="field"><label>País</label><input id="contactCountry" type="text"></div>
-                            <div class="field"><label>Departamento</label><input id="contactState" type="text"></div>
-                            <div class="field"><label>Cantón</label><input id="contactCounty" type="text"></div>
-                            <div class="field field-full"><label>Detalle de Dirección</label><input id="contactAddress" type="text"></div>
+                            <div class="field"><label>Identificación</label><input id="contactId" type="text" autocomplete="off"></div>
+                            <div class="field"><label>Celular</label><input id="contactMobile" type="text" autocomplete="off"></div>
+                            <div class="field"><label>Correo</label><input id="contactEmail" type="text" autocomplete="off"></div>
+                            <div class="field"><label>Fax</label><input id="contactFax" type="text" autocomplete="off"></div>
+                            <div class="field"><label>Teléfono</label><input id="contactPhone" type="text" autocomplete="off"></div>
+                            <label class="costs-default-check-field"><span>Rep. Legal</span><span class="costs-process-default-check"><input id="contactLegalRepresentative" type="checkbox"></span></label>
+                            <div class="field"><label>País</label><select id="contactCountry"><option value=""></option><option>Guatemala</option><option>El Salvador</option><option>Honduras</option><option>Belice</option><option>Nicaragua</option><option>Costa Rica</option><option>Panamá</option><option>México</option></select></div>
+                            <div class="field"><label><span data-dir-etiqueta>Departamento</span></label><select id="contactState"></select></div>
+                            <div class="field"><label><span data-dir-etiqueta>Municipio</span></label><select id="contactCounty"></select></div>
+                            <div class="field field-full"><label>Detalle de Dirección</label><input id="contactAddress" type="text" autocomplete="off"></div>
                         </div>
                         <aside class="socios-map-card">
                             <div class="socios-map-head">
@@ -97,6 +125,10 @@
                 <div class="socios-related-layout">
                     <div class="socios-section">
                         <div class="section-caption">Contactos del Socio</div>
+                        <div class="socios-table-toolbar">
+                            <p>Contactos adicionales del socio</p>
+                            <button type="button" id="sociosAddContactButton" class="icon-only-btn" aria-label="Agregar contacto"></button>
+                        </div>
                         <div class="socios-table-wrap">
                             <table class="quote-table socios-table">
                                 <thead>
@@ -107,7 +139,7 @@
                                         <th>Teléfono</th>
                                         <th>Celular</th>
                                         <th>Rep. Legal</th>
-                                        <th>Departamento</th>
+                                        <th class="socios-table-actions-head"></th>
                                     </tr>
                                 </thead>
                                 <tbody id="contactsTableBody"></tbody>
@@ -116,6 +148,10 @@
                     </div>
                     <div class="socios-section">
                         <div class="section-caption">Direcciones del Socio</div>
+                        <div class="socios-table-toolbar">
+                            <p>Direcciones adicionales del socio</p>
+                            <button type="button" id="sociosAddAddressButton" class="icon-only-btn" aria-label="Agregar dirección"></button>
+                        </div>
                         <div class="socios-table-wrap">
                             <table class="quote-table socios-table">
                                 <thead>
@@ -123,30 +159,14 @@
                                         <th>Nombre</th>
                                         <th>Tipo</th>
                                         <th>País</th>
-                                        <th>Departamento</th>
-                                        <th>Zona</th>
-                                        <th>Cantón</th>
+                                        <th><span data-dir-etiqueta>Departamento</span></th>
+                                        <th><span data-dir-etiqueta>Municipio</span></th>
                                         <th>Dirección</th>
+                                        <th class="socios-table-actions-head"></th>
                                     </tr>
                                 </thead>
                                 <tbody id="addressesTableBody"></tbody>
                             </table>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="socios-section">
-                    <div class="section-caption">Información Financiera</div>
-                    <div class="socios-grid socios-grid-financial">
-                        <div class="field"><label>RTU</label><input id="taxId" type="text"></div>
-                        <div class="field"><label>Correo de Facturación</label><input id="invoiceEmail" type="text"></div>
-                        <div class="field"><label>Días de Crédito</label><input id="paymentTerms" type="text"></div>
-                        <div class="field"><label>Moneda</label><input id="currencyCode" type="text"></div>
-                        <div class="field"><label>Sector</label><input id="sector" type="text"></div>
-                        <div class="field"><label>Sub-sector</label><input id="subSector" type="text"></div>
-                        <div class="field field-checkbox-inline checkbox-formato">
-                            <label for="taxExempt">Socio Exento</label>
-                            <input id="taxExempt" type="checkbox">
                         </div>
                     </div>
                 </div>
@@ -158,11 +178,26 @@
                     <div class="section-caption">Manejo</div>
                     <div class="socios-grid socios-grid-handling-paired">
                         <div class="field"><label>Excedentes</label><select id="manejoExcedentes"></select></div>
-                        <div class="field"><label>% Excedentes</label><input id="allowedPercentage" type="text"></div>
+                        <div class="field"><label>% Excedentes</label>
+                            <span class="display-input-wrap">
+                                <input id="allowedPercentage" class="display-input" type="number" min="0" step="0.01">
+                                <span id="allowedPercentageDisplay" class="display-input-mask"></span>
+                            </span>
+                        </div>
                         <div class="field"><label>Adelantos</label><select id="manejoAdelantos"></select></div>
-                        <div class="field"><label>% Adelantos</label><input id="adelantosPorcentaje" type="text"></div>
+                        <div class="field"><label>% Adelantos</label>
+                            <span class="display-input-wrap">
+                                <input id="adelantosPorcentaje" class="display-input" type="number" min="0" step="0.01">
+                                <span id="adelantosPorcentajeDisplay" class="display-input-mask"></span>
+                            </span>
+                        </div>
                         <div class="field"><label>Faltantes</label><select id="manejoFaltantes"></select></div>
-                        <div class="field"><label>% Faltantes</label><input id="faltantesPorcentaje" type="text"></div>
+                        <div class="field"><label>% Faltantes</label>
+                            <span class="display-input-wrap">
+                                <input id="faltantesPorcentaje" class="display-input" type="number" min="0" step="0.01">
+                                <span id="faltantesPorcentajeDisplay" class="display-input-mask"></span>
+                            </span>
+                        </div>
                     </div>
                 </div>
 
@@ -170,34 +205,155 @@
                     <div class="section-caption">Entrega</div>
                     <div class="socios-grid socios-grid-delivery-new">
                         <div class="field"><label>Entrega Muestras</label><select id="entregaMuestras"></select></div>
-                        <div class="field"><label>Indicaciones</label><input id="indicacionesEntrega" type="text"></div>
+                        <div class="field"><label>Indicaciones</label><input id="indicacionesEntrega" type="text" autocomplete="off"></div>
                         <div class="socios-delivery-group">
                             <div class="socios-delivery-group-title">Visto Bueno</div>
                             <div class="socios-grid socios-grid-delivery-group">
-                                <div class="field"><label>Contacto</label><select id="contactoVB"></select></div>
-                                <div class="field"><label>Teléfono</label><input id="contactoVBTelefono" type="text"></div>
-                                <div class="field"><label>Correo</label><input id="contactoVBCorreo" type="text"></div>
-                                <div class="field"><label>Detalle</label><input id="indicacionesVB" type="text"></div>
+                                <div class="field"><label>Contacto</label><input id="contactoVB" type="text" list="socioContactosDatalist" autocomplete="off" placeholder="Nombre del contacto"></div>
+                                <div class="field"><label>Teléfono</label><input id="contactoVBTelefono" type="text" autocomplete="off"></div>
+                                <div class="field"><label>Correo</label><input id="contactoVBCorreo" type="text" autocomplete="off"></div>
+                                <div class="field"><label>Detalle</label><input id="indicacionesVB" type="text" autocomplete="off"></div>
                             </div>
                         </div>
                         <div class="socios-delivery-group">
                             <div class="socios-delivery-group-title">Producto</div>
                             <div class="socios-grid socios-grid-delivery-group">
-                                <div class="field"><label>Contacto</label><select id="contactoProducto"></select></div>
-                                <div class="field"><label>Teléfono</label><input id="contactoProductoTelefono" type="text"></div>
-                                <div class="field"><label>Correo</label><input id="contactoProductoCorreo" type="text"></div>
-                                <div class="field"><label>Detalle</label><input id="indicacionesProducto" type="text"></div>
+                                <div class="field"><label>Contacto</label><input id="contactoProducto" type="text" list="socioContactosDatalist" autocomplete="off" placeholder="Nombre del contacto"></div>
+                                <div class="field"><label>Teléfono</label><input id="contactoProductoTelefono" type="text" autocomplete="off"></div>
+                                <div class="field"><label>Correo</label><input id="contactoProductoCorreo" type="text" autocomplete="off"></div>
+                                <div class="field"><label>Detalle</label><input id="indicacionesProducto" type="text" autocomplete="off"></div>
                             </div>
                         </div>
+                        <datalist id="socioContactosDatalist"></datalist>
                     </div>
                 </div>
             </div>
+            </div>
+
+            <div id="socio-tab-sap" class="socios-tab-panel" data-socio-panel="sap" hidden>
+                <div class="socios-sap-layout">
+                    <!-- Contacto y Datos del Socio -->
+                    <div class="socios-section">
+                        <div class="section-caption">Datos del Socio (OCRD)</div>
+                        <div class="socios-grid socios-grid-sap-contact">
+                            <div class="field"><label>Código SAP (CardCode)</label><input id="sapCardCode" type="text" autocomplete="off"></div>
+                            <div class="field"><label>Teléfono 1</label><input id="sapPhone1" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Teléfono 2</label><input id="sapPhone2" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Celular</label><input id="sapCellular" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Fax</label><input id="sapFax" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Sitio Web</label><input id="sapWebsite" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Contacto Principal</label><input id="sapContactPerson" type="text" readonly class="sap-readonly"></div>
+                            <div class="field field-full"><label>Notas</label><input id="sapNotes" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>VatGroup</label><input id="sapVatGroup" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Territory</label><input id="sapTerritory" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>OwnerCode</label><input id="sapOwnerCode" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>GroupCode</label><input id="sapGroupCode" type="text" readonly class="sap-readonly"></div>
+                        </div>
+                    </div>
+
+                    <!-- Estado -->
+                    <div class="socios-section">
+                        <div class="section-caption">Estado</div>
+                        <div class="socios-grid socios-grid-sap-status">
+                            <div class="field"><label>Válido</label><input id="sapValidFor" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Congelado</label><input id="sapFrozenFor" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Válido Desde</label><input id="sapValidFrom" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Válido Hasta</label><input id="sapValidTo" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Congelado Desde</label><input id="sapFrozenFrom" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Congelado Hasta</label><input id="sapFrozenTo" type="text" readonly class="sap-readonly"></div>
+                        </div>
+                    </div>
+
+                    <!-- Dirección de Facturación -->
+                    <div class="socios-section">
+                        <div class="section-caption">Dirección de Facturación (OCRD)</div>
+                        <div class="socios-grid socios-grid-sap-address">
+                            <div class="field field-full"><label>Dirección</label><input id="sapBillingAddress" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Bloque</label><input id="sapBillingBlock" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Ciudad</label><input id="sapBillingCity" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Condado</label><input id="sapBillingCounty" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>País</label><input id="sapBillingCountry" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Estado</label><input id="sapBillingState" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>ZipCode</label><input id="sapBillingZipCode" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Edificio</label><input id="sapBillingBuilding" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Default</label><input id="sapBillToDefault" type="text" readonly class="sap-readonly"></div>
+                        </div>
+                    </div>
+
+                    <!-- Dirección de Envío -->
+                    <div class="socios-section">
+                        <div class="section-caption">Dirección de Envío (OCRD)</div>
+                        <div class="socios-grid socios-grid-sap-address">
+                            <div class="field field-full"><label>Dirección</label><input id="sapShippingAddress" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Bloque</label><input id="sapShippingBlock" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Ciudad</label><input id="sapShippingCity" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Condado</label><input id="sapShippingCounty" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>País</label><input id="sapShippingCountry" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Estado</label><input id="sapShippingState" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>ZipCode</label><input id="sapShippingZipCode" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Edificio</label><input id="sapShippingBuilding" type="text" readonly class="sap-readonly"></div>
+                            <div class="field"><label>Default</label><input id="sapShipToDefault" type="text" readonly class="sap-readonly"></div>
+                        </div>
+                    </div>
+
+                    <!-- Contactos SAP -->
+                    <div class="socios-section">
+                        <div class="section-caption">Contactos (OCPR)</div>
+                        <div class="socios-table-wrap">
+                            <table class="socios-table" id="sapContactsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Puesto</th>
+                                        <th>Tel1</th>
+                                        <th>Tel2</th>
+                                        <th>Tel3</th>
+                                        <th>Celular</th>
+                                        <th>Fax</th>
+                                        <th>Email</th>
+                                        <th>Sitio Web</th>
+                                        <th>Notas</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sapContactsBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Direcciones SAP -->
+                    <div class="socios-section">
+                        <div class="section-caption">Direcciones (CRD1)</div>
+                        <div class="socios-table-wrap">
+                            <table class="socios-table" id="sapAddressesTable">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Tipo</th>
+                                        <th>Calle</th>
+                                        <th>Bloque</th>
+                                        <th>Ciudad</th>
+                                        <th>Condado</th>
+                                        <th>País</th>
+                                        <th>Estado</th>
+                                        <th>ZipCode</th>
+                                        <th>Edificio</th>
+                                        <th>Piso</th>
+                                        <th>Habitación</th>
+                                        <th>Nro. Calle</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sapAddressesBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="/access-control.js"></script>
-    <script src="/socios-documento.js"></script>
+    <script src="/access-control.js?v=20260923-mensajes-carga"></script>
+    <script src="/direccion-pais.js?v=20260924-geo-v3"></script>
+    <script src="/socios-documento.js?v=20260924-geo-v2"></script>
 </body>
 </html>

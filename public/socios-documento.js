@@ -17,18 +17,19 @@ let loadedConfig = null;
 let sociosList = [];
 let currentSocioCode = '';
 let mapInstance = null;
+let currentSocioContacts = [];
 
 const fields = {
   partnerCode: document.getElementById('partnerCode'),
   partnerNameHero: document.getElementById('partnerNameHero'),
   salesperson: document.getElementById('salesperson'),
+  salespersonSap: document.getElementById('salespersonSap'),
   currencyCode: document.getElementById('currencyCode'),
   paymentTerms: document.getElementById('paymentTerms'),
   taxId: document.getElementById('taxId'),
+  sapCardCode: document.getElementById('sapCardCode'),
   invoiceEmail: document.getElementById('invoiceEmail'),
   generalEmail: document.getElementById('generalEmail'),
-  sector: document.getElementById('sector'),
-  subSector: document.getElementById('subSector'),
   taxExempt: document.getElementById('taxExempt'),
   creationDate: document.getElementById('creationDate'),
   contactFirstName: document.getElementById('contactFirstName'),
@@ -48,6 +49,10 @@ const fields = {
   manejoAdelantos: document.getElementById('manejoAdelantos'),
   adelantosPorcentaje: document.getElementById('adelantosPorcentaje'),
   tipoSocio: document.getElementById('tipoSocio'),
+  tipoIdentificacion: document.getElementById('tipoIdentificacion'),
+  nombreComercial: document.getElementById('nombreComercial'),
+  estadoActivo: document.getElementById('estadoActivo'),
+  contactIdentificationType: document.getElementById('contactIdentificationType'),
   manejoFaltantes: document.getElementById('manejoFaltantes'),
   faltantesPorcentaje: document.getElementById('faltantesPorcentaje'),
   entregaMuestras: document.getElementById('entregaMuestras'),
@@ -64,8 +69,7 @@ const fields = {
   indicacionesEntrega: document.getElementById('indicacionesEntrega'),
   requiereCartilla: document.getElementById('requiereCartilla'),
   requiereCertificado: document.getElementById('requiereCertificado'),
-  usarCartilla: document.getElementById('usarCartilla'),
-  unidadDefecto: document.getElementById('unidadDefecto')
+  usarCartilla: document.getElementById('usarCartilla')
 };
 
 function escapeHtml(value) {
@@ -75,6 +79,70 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+const sociosAddContactButton = document.getElementById('sociosAddContactButton');
+const sociosAddAddressButton = document.getElementById('sociosAddAddressButton');
+
+let salespeopleByFullName = {};
+let currentSalespersonCodes = { userCode: '', sapCode: '' };
+let mainContactId = null;
+let mainAddressId = null;
+
+async function loadSalespeople() {
+  try {
+    const [permRes, usersRes] = await Promise.all([
+      fetch('/api/admin-permissions'),
+      fetch('/api/admin-users')
+    ]);
+    if (!permRes.ok || !usersRes.ok) return;
+    const permissions = await permRes.json();
+    const vendorPermissionIds = new Set(
+      (Array.isArray(permissions) ? permissions : [])
+        .filter((p) => p.showInVendorList === true)
+        .map((p) => p.id)
+    );
+    const users = await usersRes.json();
+    const vendors = (Array.isArray(users) ? users : [])
+      .filter((user) => user.active !== false && vendorPermissionIds.has(user.permissionId));
+    salespeopleByFullName = {};
+    const options = vendors.map((user) => {
+      const label = user.name || user.username || '';
+      salespeopleByFullName[label] = {
+        username: user.username || '',
+        sapCode: user.sapSalespersonCode != null ? String(user.sapSalespersonCode) : ''
+      };
+      return `<option value="${escapeHtml(label)}">${escapeHtml(label)}</option>`;
+    });
+    fields.salesperson.innerHTML = '<option value=""></option>' + options.join('');
+  } catch (e) {
+    console.error('Error cargando vendedores:', e);
+  }
+}
+
+function getSocioIconHtml(iconKey, fallbackText, fallbackColor, fallbackSize) {
+  const config = loadedConfig || {};
+  const value = config.icons?.[iconKey] || fallbackText;
+  const suffix = String(iconKey || '').split(/[.\s_-]+/).filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('');
+  const color = config.general?.[`iconColor${suffix}`] || fallbackColor;
+  const size = Number(config.general?.[`iconSize${suffix}`]) || fallbackSize;
+  if (value && String(value).startsWith('data:image/svg')) {
+    return `<img src="${escapeHtml(value)}" style="width:${size}px;height:${size}px;vertical-align:middle;object-fit:contain;" alt="">`;
+  }
+  if (value && String(value).startsWith('data:image')) {
+    return `<img src="${escapeHtml(value)}" style="width:${size}px;height:${size}px;vertical-align:middle;object-fit:contain;">`;
+  }
+  if (value && /^\/|https?:\/\//i.test(String(value))) {
+    return `<img src="${escapeHtml(value)}" style="width:${size}px;height:${size}px;vertical-align:middle;object-fit:contain;">`;
+  }
+  return `<span style="color:${color};font-size:${size}px;vertical-align:middle;display:inline-block;line-height:1;font-family:'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif;">${escapeHtml(value)}&#xFE0F;</span>`;
+}
+
+function renderSocioTableButtons() {
+  const addHtml = getSocioIconHtml('proformaCurrencyAdd', '+', '#738196', 20);
+  if (sociosAddContactButton) sociosAddContactButton.innerHTML = addHtml;
+  if (sociosAddAddressButton) sociosAddAddressButton.innerHTML = addHtml;
 }
 
 function isImageValue(value) {
@@ -108,6 +176,20 @@ function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return date.toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function syncPercentDisplayMask(key, displayId) {
+  const input = fields[key];
+  const mask = document.getElementById(displayId);
+  if (!input || !mask) return;
+  const numeric = Number(input.value);
+  mask.textContent = (input.value !== '' && Number.isFinite(numeric)) ? `${numeric.toFixed(2)} %` : '';
+}
+
+function syncAllPercentDisplayMasks() {
+  syncPercentDisplayMask('allowedPercentage', 'allowedPercentageDisplay');
+  syncPercentDisplayMask('adelantosPorcentaje', 'adelantosPorcentajeDisplay');
+  syncPercentDisplayMask('faltantesPorcentaje', 'faltantesPorcentajeDisplay');
 }
 
 function setValue(key, value) {
@@ -169,6 +251,54 @@ function populateSelect(selectElement, options, selectedValue) {
   selectElement.innerHTML = '<option value=""></option>' + options.map(opt => 
     `<option value="${opt.replace(/"/g, '&quot;')}"${opt === currentValue ? ' selected' : ''}>${opt}</option>`
   ).join('');
+}
+
+function parseConfigJsonObjects(value) {
+  try {
+    const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+    return Array.isArray(parsed) ? parsed.filter((item) => item && typeof item === 'object') : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+// ── Catálogo geográfico por país (tabla divisiones_geograficas) ──────────
+// La cascada y las etiquetas las maneja direccion-pais.js; aquí solo se
+// inicializan los bloques y se cargan las opciones al abrir la pantalla.
+let geoPaises = [];
+async function cargarPaisesGeo() {
+  if (geoPaises.length) return geoPaises;
+  try {
+    const respuesta = await fetch('/api/geografia/paises');
+    if (!respuesta.ok) return [];
+    const datos = await respuesta.json();
+    geoPaises = (datos.paises || []).filter((p) => p.cargado);
+  } catch (e) { geoPaises = []; }
+  return geoPaises;
+}
+async function cargarDivisiones(codigoPais, idPadre) {
+  if (!codigoPais) return [];
+  try {
+    const url = idPadre
+      ? `/api/geografia/${encodeURIComponent(codigoPais)}/hijos/${encodeURIComponent(idPadre)}`
+      : `/api/geografia/${encodeURIComponent(codigoPais)}/primer-nivel`;
+    const respuesta = await fetch(url);
+    if (!respuesta.ok) return [];
+    const datos = await respuesta.json();
+    return datos.divisiones || [];
+  } catch (e) { return []; }
+}
+function llenarDivisionesSelect(select, divisiones, nombreSeleccionado) {
+  if (!select) return;
+  const actual = nombreSeleccionado != null ? nombreSeleccionado : select.value;
+  select.innerHTML = '<option value=""></option>' + divisiones.map((d) =>
+    `<option value="${escapeHtml(d.nombre)}" data-id-origen="${escapeHtml(d.id_origen)}"${d.nombre === actual ? ' selected' : ''}>${escapeHtml(d.nombre)}</option>`
+  ).join('');
+  select.value = actual && divisiones.some((d) => d.nombre === actual) ? actual : '';
+}
+function idOrigenSeleccionado(select) {
+  if (!select || !select.value) return '';
+  return select.selectedOptions[0]?.dataset?.idOrigen || '';
 }
 
 function legalRepresentativeFlag(contact = {}) {
@@ -286,40 +416,245 @@ function updateContactMap({ partnerName = '', address = '', county = '', state =
   });
 }
 
+function contactRowHtml(contact, isMain) {
+  const id = contact.id;
+  const deleteIconHtml = getSocioIconHtml('proformaCurrencyDelete', '\uD83D\uDDD1', '#b94848', 18);
+  return `
+    <tr data-contact-id="${escapeHtml(String(id))}">
+      <td><input class="socios-cell-input" data-contact-field="contactName" value="${escapeHtml(contact.contact_name || '')}"></td>
+      <td><input class="socios-cell-input" data-contact-field="position" value="${escapeHtml(contact.position || '')}"></td>
+      <td><input class="socios-cell-input" data-contact-field="email" value="${escapeHtml(contact.email || '')}"></td>
+      <td><input class="socios-cell-input" data-contact-field="phone" value="${escapeHtml(contact.phone || '')}"></td>
+      <td><input class="socios-cell-input" data-contact-field="mobile" value="${escapeHtml(contact.mobile || '')}"></td>
+      <td><label class="costs-process-default-check socios-cell-check" aria-label="Rep. Legal"><input type="checkbox" data-contact-field="isLegalRepresentative"${legalRepresentativeFlag(contact) ? ' checked' : ''}></label></td>
+      <td class="socios-actions-cell">${isMain ? '' : `<button type="button" class="socios-row-remove" data-contact-remove="${escapeHtml(String(id))}" aria-label="Eliminar contacto" title="Eliminar">${deleteIconHtml}</button>`}</td>
+    </tr>`;
+}
+
 function renderContacts(contacts) {
+  clearRowSaves();
   if (!contacts.length) {
     contactsTableBody.innerHTML = '<tr><td colspan="7">Sin contactos asociados.</td></tr>';
     return;
   }
-  contactsTableBody.innerHTML = contacts.map((contact) => `
-    <tr>
-      <td>${escapeHtml(contact.contact_name || [contact.first_name, contact.last_name].filter(Boolean).join(' '))}</td>
-      <td>${escapeHtml(contact.position)}</td>
-      <td>${escapeHtml(contact.email)}</td>
-      <td>${escapeHtml(contact.phone)}</td>
-      <td>${escapeHtml(contact.mobile)}</td>
-      <td><span class="socios-table-check checkbox-formato"><label for="contactLegalRep-${contact.id}">Rep. Legal</label><input id="contactLegalRep-${contact.id}" type="checkbox" disabled${legalRepresentativeFlag(contact) ? ' checked' : ''}></span></td>
-      <td>${escapeHtml(contact.state_province)}</td>
-    </tr>
-  `).join('');
+  mainContactId = contacts[0]?.id ?? null;
+  contactsTableBody.innerHTML = contacts.map((contact, index) =>
+    contactRowHtml(contact, mainContactId != null ? String(contact.id) === String(mainContactId) : index === 0)
+  ).join('');
+}
+
+function addContactRow() {
+  const id = `nuevo-${Date.now()}`;
+  const row = document.createElement('tr');
+  row.dataset.contactId = id;
+  row.innerHTML = contactRowHtml({ id, contact_name: '', position: '', email: '', phone: '', mobile: '', is_legal_representative: false, state_province: '' }, false);
+  contactsTableBody.appendChild(row);
+  row.querySelector('input[data-contact-field="contactName"]')?.focus();
+}
+
+function readContactRow(row) {
+  const fieldsList = ['contactName', 'position', 'email', 'phone', 'mobile'];
+  const payload = {};
+  fieldsList.forEach((key) => {
+    payload[key] = row.querySelector(`[data-contact-field="${key}"]`)?.value || '';
+  });
+  const check = row.querySelector('[data-contact-field="isLegalRepresentative"]');
+  payload.isLegalRepresentative = check ? check.checked : false;
+  return payload;
+}
+
+function saveContactRow(row) {
+  const id = String(row.dataset.contactId || '').trim();
+  if (!id || !currentSocioCode) return;
+  const isNew = id.startsWith('nuevo-');
+  const payload = readContactRow(row);
+  const url = isNew
+    ? `${SOCIOS_ENDPOINT}/${encodeURIComponent(currentSocioCode)}/contactos`
+    : `${SOCIOS_ENDPOINT}/${encodeURIComponent(currentSocioCode)}/contactos/${encodeURIComponent(id)}`;
+  fetch(url, {
+    method: isNew ? 'POST' : 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+    .then(async (response) => {
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    })
+    .then((result) => {
+      if (isNew && result.contacto?.id) {
+        row.dataset.contactId = String(result.contacto.id);
+      }
+    })
+    .catch((error) => console.error('Error guardando contacto:', error));
+}
+
+function deleteContactRow(id) {
+  if (!currentSocioCode) return;
+  if (!window.confirm('¿Eliminar este contacto del socio?')) return;
+  fetch(`${SOCIOS_ENDPOINT}/${encodeURIComponent(currentSocioCode)}/contactos/${encodeURIComponent(id)}`, { method: 'DELETE' })
+    .then(async (response) => {
+      if (!response.ok) {
+        let message = 'No fue posible eliminar el contacto.';
+        try {
+          const errorPayload = await response.json();
+          message = errorPayload?.error || message;
+        } catch (e) {}
+        throw new Error(message);
+      }
+      document.querySelector(`tr[data-contact-id="${CSS.escape(id)}"]`)?.remove();
+    })
+    .catch((error) => window.alert(error.message || 'No fue posible eliminar el contacto.'));
+}
+
+function addressRowHtml(address, isMain) {
+  const id = address.id;
+  const deleteIconHtml = getSocioIconHtml('proformaCurrencyDelete', '\uD83D\uDDD1', '#b94848', 18);
+  // País de la fila: si la dirección no trae país se asume Guatemala (catálogo por defecto).
+  const nombrePaisFila = normalizarNombrePais(address.country || 'Guatemala');
+  const codigoPaisFila = codigoPaisPorNombre(nombrePaisFila);
+  return `
+    <tr data-address-id="${escapeHtml(String(id))}" data-pais="${escapeHtml(nombrePaisFila)}">
+      <td><input class="socios-cell-input" data-address-field="addressName" value="${escapeHtml(address.address_name || '')}"></td>
+      <td><input class="socios-cell-input" data-address-field="addressType" value="${escapeHtml(address.address_type || '')}"></td>
+      <td><select class="socios-cell-input" data-address-field="country">${opcionesPaisesHtml(nombrePaisFila)}</select></td>
+      <td><select class="socios-cell-input" data-address-field="stateProvince"></select></td>
+      <td><select class="socios-cell-input" data-address-field="district"></select></td>
+      <td><input class="socios-cell-input" data-address-field="addressLine" value="${escapeHtml(address.address_line || '')}"></td>
+      <td class="socios-actions-cell">${isMain ? '' : `<button type="button" class="socios-row-remove" data-address-remove="${escapeHtml(String(id))}" aria-label="Eliminar dirección" title="Eliminar">${deleteIconHtml}</button>`}</td>
+    </tr>`;
+}
+
+// Después de pintar las filas, se llena la cascada de cada una (async).
+async function hidratarFilasDirecciones() {
+  await cargarPaisesGeo();
+  for (const fila of addressesTableBody.querySelectorAll('tr[data-address-id]')) {
+    await hidratarFilaDireccion(fila);
+  }
+}
+async function hidratarFilaDireccion(fila) {
+  const codigoPais = codigoPaisPorNombre(fila.dataset.pais || 'Guatemala');
+  const nombreGuardadoN1 = fila.dataset.valorN1 || '';
+  const nombreGuardadoN2 = fila.dataset.valorN2 || '';
+  fila.dataset.valorN1 = '';
+  fila.dataset.valorN2 = '';
+  const n1 = fila.querySelector('[data-address-field="stateProvince"]');
+  const n2 = fila.querySelector('[data-address-field="district"]');
+  if (!codigoPais) { llenarDivisionesSelect(n1, []); llenarDivisionesSelect(n2, []); return; }
+  const primerNivel = await cargarDivisiones(codigoPais, null);
+  llenarDivisionesSelect(n1, primerNivel, nombreGuardadoN1);
+  const idPadre = idOrigenSeleccionado(n1);
+  const hijos = idPadre ? await cargarDivisiones(codigoPais, idPadre) : [];
+  llenarDivisionesSelect(n2, hijos, nombreGuardadoN2);
+  const etiquetaN1 = etiquetaNivelGeo(fila, 'stateProvince');
+  const etiquetaN2 = etiquetaNivelGeo(fila, 'district');
+  if (etiquetaN1) etiquetaN1.textContent = etiquetasNiveles(codigoPais)[0] || 'Departamento';
+  if (etiquetaN2) etiquetaN2.textContent = etiquetasNiveles(codigoPais)[1] || 'Municipio';
+}
+function etiquetaNivelGeo(fila, campo) {
+  const th = fila.closest('table')?.querySelector(`thead th:nth-child(${campo === 'stateProvince' ? 4 : 5})`);
+  return th ? th.querySelector('span[data-dir-etiqueta]') : null;
+}
+function etiquetasNiveles(codigoPais) {
+  const pais = geoPaises.find((p) => p.codigo === codigoPais);
+  return pais ? pais.niveles.map((n) => n.nombreNivel) : ['Departamento', 'Municipio'];
+}
+const NOMBRES_PAIS_GEO = [
+  { codigo: 'GT', nombre: 'Guatemala', siglas: ['GT'] },
+  { codigo: 'SV', nombre: 'El Salvador', siglas: ['SV'] },
+  { codigo: 'HN', nombre: 'Honduras', siglas: ['HN'] },
+  { codigo: 'BZ', nombre: 'Belice', siglas: ['BZ'] },
+  { codigo: 'NI', nombre: 'Nicaragua', siglas: ['NI'] },
+  { codigo: 'CR', nombre: 'Costa Rica', siglas: ['CR'] },
+  { codigo: 'PA', nombre: 'Panamá', siglas: ['PA'] },
+  { codigo: 'MX', nombre: 'México', siglas: ['MX'] }
+];
+function normalizarNombrePais(valor) {
+  const texto = String(valor || '').trim();
+  if (!texto) return '';
+  const porSigla = NOMBRES_PAIS_GEO.find((p) => p.siglas.includes(texto.toUpperCase()));
+  return porSigla ? porSigla.nombre : texto;
+}
+function codigoPaisPorNombre(nombre) {
+  const texto = normalizarNombrePais(nombre);
+  const pais = NOMBRES_PAIS_GEO.find((p) => p.nombre.toLowerCase() === (texto || '').toLowerCase());
+  return pais ? pais.codigo : '';
+}
+function opcionesPaisesHtml(seleccionado) {
+  return NOMBRES_PAIS_GEO.map((p) =>
+    `<option value="${escapeHtml(p.nombre)}"${p.nombre === seleccionado ? ' selected' : ''}>${escapeHtml(p.nombre)}</option>`
+  ).join('');
 }
 
 function renderAddresses(addresses) {
+  clearRowSaves();
   if (!addresses.length) {
     addressesTableBody.innerHTML = '<tr><td colspan="7">Sin direcciones asociadas.</td></tr>';
     return;
   }
-  addressesTableBody.innerHTML = addresses.map((address) => `
-    <tr>
-      <td>${escapeHtml(address.address_name)}</td>
-      <td>${escapeHtml(address.address_type)}</td>
-      <td>${escapeHtml(address.country)}</td>
-      <td>${escapeHtml(address.state_province)}</td>
-      <td>${escapeHtml(address.district)}</td>
-      <td>${escapeHtml(address.county)}</td>
-      <td>${escapeHtml(address.address_line)}</td>
-    </tr>
-  `).join('');
+  mainAddressId = addresses[0]?.id ?? null;
+  addressesTableBody.innerHTML = addresses.map((address, index) =>
+    addressRowHtml(address, mainAddressId != null ? String(address.id) === String(mainAddressId) : index === 0)
+  ).join('');
+  // Guardar los valores de la cascada en la fila para hidratarla después.
+  const filas = Array.from(addressesTableBody.querySelectorAll('tr[data-address-id]'));
+  filas.forEach((fila, indice) => {
+    const address = addresses[indice] || {};
+    fila.dataset.valorN1 = address.state_province || '';
+    fila.dataset.valorN2 = address.district || '';
+  });
+  hidratarFilasDirecciones();
+}
+
+function addAddressRow() {
+  const id = `nuevo-${Date.now()}`;
+  const row = document.createElement('tr');
+  row.dataset.addressId = id;
+  row.dataset.pais = 'Guatemala';
+  row.innerHTML = addressRowHtml({ id, address_name: '', address_type: '', country: 'Guatemala', state_province: '', district: '', address_line: '' }, false);
+  addressesTableBody.appendChild(row);
+  hidratarFilaDireccion(row).catch(() => null);
+  row.querySelector('input[data-address-field="addressName"]')?.focus();
+}
+
+function readAddressRow(row) {
+  // El país también se guarda (columna country de business_partner_addresses).
+  const fieldsList = ['addressName', 'addressType', 'country', 'stateProvince', 'district', 'addressLine'];
+  const payload = {};
+  fieldsList.forEach((key) => {
+    payload[key] = row.querySelector(`[data-address-field="${key}"]`)?.value || '';
+  });
+  return payload;
+}
+
+function saveAddressRow(row) {
+  const chain = rowSaveChains.get(row) || Promise.resolve();
+  const next = chain
+    .then(() => {
+      const id = String(row.dataset.addressId || '').trim();
+      if (!id || !currentSocioCode) return;
+      const isNew = id.startsWith('nuevo-');
+      const payload = readAddressRow(row);
+      const url = isNew
+        ? `${SOCIOS_ENDPOINT}/${encodeURIComponent(currentSocioCode)}/direcciones`
+        : `${SOCIOS_ENDPOINT}/${encodeURIComponent(currentSocioCode)}/direcciones/${encodeURIComponent(id)}`;
+      return fetch(url, {
+        method: isNew ? 'POST' : 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+        .then(async (response) => {
+          if (!response.ok) throw new Error(await response.text());
+          return response.json();
+        })
+        .then((result) => {
+          if (isNew && result.direccion?.id) {
+            row.dataset.addressId = String(result.direccion.id);
+          }
+        });
+    })
+    .catch((error) => console.error('Error guardando dirección:', error));
+  rowSaveChains.set(row, next);
+  return next;
 }
 
 function getCurrentIndex() {
@@ -378,6 +713,7 @@ function applyConfig(config) {
   };
   styleNavButton(prevSocioButton, loadedConfig.icons?.quotePrev || '‹', prevPalette);
   styleNavButton(nextSocioButton, loadedConfig.icons?.quoteNext || '›', nextPalette);
+  renderSocioTableButtons();
 }
 
 let generalConfig = null;
@@ -414,11 +750,46 @@ function populateHandlingSelects() {
 function populateDeliverySelects() {
   if (!generalConfig) return;
   const sampleModes = parseJsonStringArray(generalConfig.deliverySampleModesJson);
-  const approvalRecipients = parseJsonStringArray(generalConfig.deliveryApprovalRecipientsJson);
-  const deliveryMethods = parseJsonStringArray(generalConfig.deliveryMethodsJson);
   populateSelect(fields.entregaMuestras, sampleModes);
-  populateSelect(fields.contactoVB, approvalRecipients);
-  populateSelect(fields.contactoProducto, deliveryMethods);
+}
+
+function populateContactosDatalist(contacts) {
+  const datalist = document.getElementById('socioContactosDatalist');
+  if (!datalist) return;
+  datalist.innerHTML = (contacts || [])
+    .map((c) => c.contact_name || [c.first_name, c.last_name].filter(Boolean).join(' '))
+    .filter(Boolean)
+    .map((name) => `<option value="${escapeHtml(name)}"></option>`)
+    .join('');
+}
+
+function contactoExisteEnSocio(nombre) {
+  const target = String(nombre || '').trim().toLowerCase();
+  if (!target) return true;
+  return currentSocioContacts.some((c) => {
+    const nombreContacto = (c.contact_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '').trim().toLowerCase();
+    return nombreContacto === target;
+  });
+}
+
+async function guardarContactoDigitadoSiHaceFalta(inputElement) {
+  if (!currentSocioCode || !inputElement) return;
+  const nombre = String(inputElement.value || '').trim();
+  if (!nombre || contactoExisteEnSocio(nombre)) return;
+  if (!window.confirm(`"${nombre}" no está entre los contactos de este socio. ¿Deseas guardarlo como un nuevo contacto?`)) return;
+  try {
+    const response = await fetch(`${SOCIOS_ENDPOINT}/${encodeURIComponent(currentSocioCode)}/contactos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contactName: nombre })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'No fue posible guardar el contacto.');
+    currentSocioContacts.push({ id: result.contacto?.id, contact_name: nombre });
+    populateContactosDatalist(currentSocioContacts);
+  } catch (error) {
+    window.alert(error.message || 'No fue posible guardar el contacto.');
+  }
 }
 
 function setSelectedValue(selectElement, value) {
@@ -427,6 +798,59 @@ function setSelectedValue(selectElement, value) {
   const target = String(value || '').trim();
   const match = options.find(opt => opt.value === target);
   selectElement.value = match ? target : '';
+}
+
+function renderSapContacts(contacts) {
+  const tbody = document.getElementById('sapContactsBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  if (!contacts.length) {
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#6B8CA8;">Sin contactos</td></tr>';
+    return;
+  }
+  for (const c of contacts) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(c.contact_name || c.first_name)}</td>
+      <td>${escapeHtml(c.position)}</td>
+      <td>${escapeHtml(c.phone)}</td>
+      <td>${escapeHtml(c.phone2)}</td>
+      <td>${escapeHtml(c.phone3)}</td>
+      <td>${escapeHtml(c.mobile)}</td>
+      <td>${escapeHtml(c.fax)}</td>
+      <td>${escapeHtml(c.email)}</td>
+      <td>${escapeHtml(c.website)}</td>
+      <td>${escapeHtml(c.notes)}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function renderSapAddresses(addresses) {
+  const tbody = document.getElementById('sapAddressesBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  if (!addresses.length) {
+    tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;color:#6B8CA8;">Sin direcciones</td></tr>';
+    return;
+  }
+  for (const a of addresses) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(a.address_name)}</td>
+      <td>${escapeHtml(a.address_type)}</td>
+      <td>${escapeHtml(a.address_line)}</td>
+      <td>${escapeHtml(a.block)}</td>
+      <td>${escapeHtml(a.city)}</td>
+      <td>${escapeHtml(a.county)}</td>
+      <td>${escapeHtml(a.country)}</td>
+      <td>${escapeHtml(a.state_province)}</td>
+      <td>${escapeHtml(a.zip_code)}</td>
+      <td>${escapeHtml(a.building)}</td>
+      <td>${escapeHtml(a.floor)}</td>
+      <td>${escapeHtml(a.room)}</td>
+      <td>${escapeHtml(a.street_number)}</td>`;
+    tbody.appendChild(tr);
+  }
 }
 
 async function loadSociosList() {
@@ -444,6 +868,8 @@ async function loadSocio(code, pushState = true) {
 
   const socio = payload.socio || {};
   const contacts = payload.contactos || [];
+  currentSocioContacts = contacts;
+  populateContactosDatalist(contacts);
   const addresses = payload.direcciones || [];
   const raw = socio.raw_data?.socio || {};
   const mainContact = contacts[0] || {};
@@ -454,55 +880,121 @@ async function loadSocio(code, pushState = true) {
   currentSocioCode = socio.partner_code || code;
   fields.partnerCode.textContent = socio.partner_code || '-';
   fields.partnerNameHero.textContent = socio.partner_name || '-';
-  setValue('salesperson', socio.salesperson_name || raw['Vendedor Asignado']);
+  const spName = socio.salesperson_name || raw['Vendedor Asignado'] || '';
+  if (spName && ![...fields.salesperson.options].some((option) => option.value === spName)) {
+    const legacyOption = document.createElement('option');
+    legacyOption.value = spName;
+    legacyOption.textContent = spName;
+    fields.salesperson.appendChild(legacyOption);
+  }
+  setValue('salesperson', spName);
+  currentSalespersonCodes = {
+    userCode: socio.salesperson_user_code || '',
+    sapCode: socio.salesperson_sap_code || ''
+  };
+  const sapVendCode = String(socio.salesperson_sap_code || '').trim();
+  const sapVendName = String(socio.salesperson_sap_name || '').trim();
+  let sapVendLabel = '';
+  if (sapVendCode && sapVendCode !== '-1') {
+    sapVendLabel = sapVendName ? `${sapVendCode} — ${sapVendName}` : sapVendCode;
+  } else if (sapVendCode === '-1') {
+    sapVendLabel = 'Sin asignar en SAP';
+  }
+  setValue('salespersonSap', sapVendLabel);
   setValue('currencyCode', raw.GROUPCODE_NOMBRE || socio.currency_code);
   setValue('paymentTerms', raw['RANGO CREDITO'] || socio.payment_terms);
   setValue('taxId', socio.tax_id);
+  setValue('sapCardCode', socio.sap_card_code);
   setValue('invoiceEmail', socio.email_facturacion || raw['Correo Facturacion 1']);
   setValue('generalEmail', socio.email || raw.EmailAddress);
-  setValue('sector', socio.sector || raw['Sector Comercial']);
-  setValue('subSector', socio.sub_sector || raw['Nicho Comercial']);
   setValue('taxExempt', firstFilled(raw['CLIENTE EXENTO MOSTRAR'], raw['CLIENTE EXCENTO MOSTRAR'], raw['CLIENTE EXENTO'], socio.is_tax_exempt));
   setValue('creationDate', formatDate(raw['Creacion Fecha'] || socio.creation_date));
+
+  setValue('tipoSocio', socio.tipo_socio);
+  setValue('tipoIdentificacion', socio.tipo_identificacion);
+  setValue('nombreComercial', socio.nombre_comercial);
+  setValue('estadoActivo', socio.valid_for !== 'N');
 
   setValue('contactFirstName', mainContact.first_name || raw['CONTACTO NOMBRE']);
   setValue('contactLastName', mainContact.last_name || raw['CONTACTO APELLIDO']);
   setValue('contactId', mainContact.raw_data?.IDENTIFICACION || raw['CONTACTO IDENTIFICACION']);
+  setValue('contactIdentificationType', mainContact.identification_type);
   setValue('contactMobile', mainContact.mobile);
   setValue('contactEmail', mainContact.email);
   setValue('contactFax', mainContact.fax);
   setValue('contactPhone', mainContact.phone || raw.PHONE1);
   setValue('contactLegalRepresentative', legalRepresentativeFlag(mainContact));
-  setValue('contactCountry', mainContact.country || raw['Country Name']);
-  setValue('contactState', mainContact.state_province || raw['STATE NAME']);
-  setValue('contactCounty', mainContact.county || raw['CONTACTO CANTON']);
+  const mainContactState = mainContact.state_province || raw['STATE NAME'] || '';
+  const mainContactCounty = mainContact.county || raw['CONTACTO CANTON'] || '';
+  // Cascada del contacto principal: país → nivel 1 → nivel 2 (según el país).
+  const contactoPais = normalizarNombrePais(mainContact.country) || 'Guatemala';
+  if (fields.contactCountry) fields.contactCountry.value = contactoPais;
+  hidratarCascadaContactoPrincipal(contactoPais, mainContactState, mainContactCounty).catch(() => null);
   setValue('contactAddress', buildContactAddress(mainContact) || raw.STREET);
 
-  setValue('manejoExcedentes', raw['MANEJO EXCEDENTES']);
-  setValue('allowedPercentage', raw['MANEJO EXCEDENTES | PORCENTAJE'] || socio.allowed_percentage);
-  setValue('manejoAdelantos', raw['MANEJO ADELANTOS']);
-  setValue('manejoFaltantes', raw['MANEJO FALTANTES']);
-  setValue('faltantesPorcentaje', raw['MANEJO FALTANTES | PORCENTAJE']);
-  setValue('entregaMuestras', raw['FORMA ENTREGA | MUESTRAS']);
-  setValue('entregaVB', raw['FORMA ENTREGA | VB']);
-  setValue('contactoVB', raw['FORMA ENTREGA | CONTACTO VB']);
-  setValue('entregaProducto', raw['FORMA ENTREGA | PRODUCTO']);
-  setValue('contactoProducto', raw['FORMA ENTREGA | CONTACTO PRODUCTO']);
-  setValue('indicacionesEntrega', raw['FORMA ENTREGA | INDICACIONES']);
-  const vbContact = findContactByName(contacts, raw['FORMA ENTREGA | CONTACTO VB']);
-  const productContact = findContactByName(contacts, raw['FORMA ENTREGA | CONTACTO PRODUCTO']);
-  setValue('contactoVBTelefono', firstFilled(vbContact?.phone, vbContact?.mobile));
-  setValue('contactoVBCorreo', vbContact?.email);
-  setValue('contactoProductoTelefono', firstFilled(productContact?.phone, productContact?.mobile));
-  setValue('contactoProductoCorreo', productContact?.email);
-  setValue('indicacionesVB', firstFilled(raw['FORMA ENTREGA | INDICACIONES VB'], raw['FORMA ENTREGA | INDICACIONES VISTO BUENO']));
-  setValue('indicacionesProducto', firstFilled(raw['FORMA ENTREGA | INDICACIONES PRODUCTO'], raw['FORMA ENTREGA | INDICACIONES PRODUCTO FINAL']));
+  setValue('manejoExcedentes', firstFilled(socio.manejo_excedentes, raw['MANEJO EXCEDENTES']));
+  setValue('allowedPercentage', firstFilled(socio.allowed_percentage, raw['MANEJO EXCEDENTES | PORCENTAJE']));
+  setValue('manejoAdelantos', firstFilled(socio.manejo_adelantos, raw['MANEJO ADELANTOS']));
+  setValue('adelantosPorcentaje', socio.porcentaje_adelantos);
+  setValue('manejoFaltantes', firstFilled(socio.manejo_faltantes, raw['MANEJO FALTANTES']));
+  setValue('faltantesPorcentaje', firstFilled(socio.porcentaje_faltantes, raw['MANEJO FALTANTES | PORCENTAJE']));
+  setValue('entregaMuestras', firstFilled(socio.entrega_muestras, raw['FORMA ENTREGA | MUESTRAS']));
+  setValue('contactoVB', firstFilled(socio.contacto_vb_tipo, raw['FORMA ENTREGA | CONTACTO VB']));
+  setValue('contactoProducto', firstFilled(socio.contacto_producto_tipo, raw['FORMA ENTREGA | CONTACTO PRODUCTO']));
+  setValue('indicacionesEntrega', firstFilled(socio.entrega_indicaciones, raw['FORMA ENTREGA | INDICACIONES']));
+  const vbContact = socio.contacto_vb_tipo ? null : findContactByName(contacts, raw['FORMA ENTREGA | CONTACTO VB']);
+  const productContact = socio.contacto_producto_tipo ? null : findContactByName(contacts, raw['FORMA ENTREGA | CONTACTO PRODUCTO']);
+  setValue('contactoVBTelefono', firstFilled(socio.contacto_vb_telefono, vbContact?.phone, vbContact?.mobile));
+  setValue('contactoVBCorreo', firstFilled(socio.contacto_vb_correo, vbContact?.email));
+  setValue('contactoProductoTelefono', firstFilled(socio.contacto_producto_telefono, productContact?.phone, productContact?.mobile));
+  setValue('contactoProductoCorreo', firstFilled(socio.contacto_producto_correo, productContact?.email));
+  setValue('indicacionesVB', firstFilled(socio.contacto_vb_detalle, raw['FORMA ENTREGA | INDICACIONES VB'], raw['FORMA ENTREGA | INDICACIONES VISTO BUENO']));
+  setValue('indicacionesProducto', firstFilled(socio.contacto_producto_detalle, raw['FORMA ENTREGA | INDICACIONES PRODUCTO'], raw['FORMA ENTREGA | INDICACIONES PRODUCTO FINAL']));
 
   setValue('requiereCartilla', raw['CALIDAD | REQUIERE CARTILLA COLOR | CHECK']);
   setValue('requiereCertificado', raw['CALIDAD | REQUIERE CERTIFICADO CALIDAD | CHECK']);
   setValue('usarCartilla', raw['CALIDAD | USAR CARTILLA COLOR | CHECK']);
-  setValue('unidadDefecto', raw['UNIDAD POR DEFECTO']);
 
+  // SAP Information Tab
+  setValue('sapPhone1', socio.phone1);
+  setValue('sapPhone2', socio.phone2);
+  setValue('sapCellular', socio.cellular);
+  setValue('sapFax', socio.fax);
+  setValue('sapWebsite', socio.website);
+  setValue('sapContactPerson', socio.contact_person);
+  setValue('sapNotes', socio.notes);
+  setValue('sapVatGroup', socio.vat_group);
+  setValue('sapTerritory', socio.territory);
+  setValue('sapOwnerCode', socio.owner_code);
+  setValue('sapGroupCode', socio.group_code);
+  setValue('sapValidFor', socio.valid_for === 'Y' ? 'Sí' : 'No');
+  setValue('sapFrozenFor', socio.frozen_for === 'Y' ? 'Sí' : 'No');
+  setValue('sapValidFrom', socio.valid_from);
+  setValue('sapValidTo', socio.valid_to);
+  setValue('sapFrozenFrom', socio.frozen_from);
+  setValue('sapFrozenTo', socio.frozen_to);
+  setValue('sapBillingAddress', socio.billing_address);
+  setValue('sapBillingBlock', socio.billing_block);
+  setValue('sapBillingCity', socio.billing_city);
+  setValue('sapBillingCounty', socio.billing_county);
+  setValue('sapBillingCountry', socio.billing_country);
+  setValue('sapBillingState', socio.billing_state);
+  setValue('sapBillingZipCode', socio.billing_zip_code);
+  setValue('sapBillingBuilding', socio.billing_building);
+  setValue('sapBillToDefault', socio.bill_to_default);
+  setValue('sapShippingAddress', socio.shipping_address);
+  setValue('sapShippingBlock', socio.shipping_block);
+  setValue('sapShippingCity', socio.shipping_city);
+  setValue('sapShippingCounty', socio.shipping_county);
+  setValue('sapShippingCountry', socio.shipping_country);
+  setValue('sapShippingState', socio.shipping_state);
+  setValue('sapShippingZipCode', socio.shipping_zip_code);
+  setValue('sapShippingBuilding', socio.shipping_building);
+  setValue('sapShipToDefault', socio.ship_to_default);
+  renderSapContacts(contacts);
+  renderSapAddresses(addresses);
+
+  syncAllPercentDisplayMasks();
   renderContacts(contacts);
   renderAddresses(addresses);
   updateContactMap({
@@ -537,40 +1029,167 @@ socioTabButtons.forEach((button) => {
   button.addEventListener('click', () => activateSocioTab(button.dataset.socioTab || 'cliente'));
 });
 
+sociosAddContactButton?.addEventListener('click', addContactRow);
+sociosAddAddressButton?.addEventListener('click', addAddressRow);
+
+fields.contactState?.addEventListener('change', async () => {
+  const codigoPais = codigoPaisPorNombre(fields.contactCountry?.value || 'Guatemala');
+  llenarDivisionesSelect(fields.contactCounty, await cargarDivisiones(codigoPais, idOrigenSeleccionado(fields.contactState)), '');
+});
+fields.contactCountry?.addEventListener('change', async () => {
+  const codigoPais = codigoPaisPorNombre(fields.contactCountry?.value || '');
+  const primerNivel = await cargarDivisiones(codigoPais, null);
+  llenarDivisionesSelect(fields.contactState, primerNivel, '');
+  llenarDivisionesSelect(fields.contactCounty, [], '');
+  actualizarEtiquetasContacto(codigoPais);
+  scheduleAutoSave();
+});
+function actualizarEtiquetasContacto(codigoPais) {
+  const etiquetas = etiquetasNiveles(codigoPais);
+  const spanN1 = document.querySelector('label:has(#contactState) [data-dir-etiqueta]');
+  const spanN2 = document.querySelector('label:has(#contactCounty) [data-dir-etiqueta]');
+  if (spanN1) spanN1.textContent = etiquetas[0] || 'Departamento';
+  if (spanN2) spanN2.textContent = etiquetas[1] || 'Municipio';
+}
+async function hidratarCascadaContactoPrincipal(codigoPaisNombre, nombreN1, nombreN2) {
+  await cargarPaisesGeo();
+  const codigoPais = codigoPaisPorNombre(codigoPaisNombre);
+  const primerNivel = await cargarDivisiones(codigoPais, null);
+  llenarDivisionesSelect(fields.contactState, primerNivel, nombreN1);
+  const hijos = await cargarDivisiones(codigoPais, idOrigenSeleccionado(fields.contactState));
+  llenarDivisionesSelect(fields.contactCounty, hijos, nombreN2);
+  actualizarEtiquetasContacto(codigoPais);
+}
+
+const rowSaveTimeouts = new Map();
+const rowSaveChains = new Map();
+
+function clearRowSaves() {
+  rowSaveTimeouts.forEach((timeout) => clearTimeout(timeout));
+  rowSaveTimeouts.clear();
+  rowSaveChains.clear();
+}
+
+contactsTableBody?.addEventListener('change', (event) => {
+  const row = event.target.closest('tr[data-contact-id]');
+  if (!row) return;
+  const id = row.dataset.contactId;
+  if (rowSaveTimeouts.has(id)) clearTimeout(rowSaveTimeouts.get(id));
+  rowSaveTimeouts.set(id, setTimeout(() => saveContactRow(row), 400));
+});
+
+contactsTableBody?.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-contact-remove]');
+  if (button) deleteContactRow(button.dataset.contactRemove);
+});
+
+addressesTableBody?.addEventListener('change', (event) => {
+  const row = event.target.closest('tr[data-address-id]');
+  if (!row) return;
+  if (event.target.matches('[data-address-field="country"]')) {
+    // Cambió el país: se reconstruye la cascada de la fila desde cero.
+    row.dataset.pais = event.target.value;
+    row.dataset.valorN1 = '';
+    row.dataset.valorN2 = '';
+    hidratarFilaDireccion(row).catch(() => null);
+  } else if (event.target.matches('[data-address-field="stateProvince"]')) {
+    const codigoPais = codigoPaisPorNombre(row.dataset.pais || 'Guatemala');
+    const zonaSelect = row.querySelector('[data-address-field="district"]');
+    if (zonaSelect) {
+      zonaSelect.innerHTML = '<option value=""></option>';
+      cargarDivisiones(codigoPais, idOrigenSeleccionado(event.target)).then((divisiones) => {
+        llenarDivisionesSelect(zonaSelect, divisiones, '');
+      }).catch(() => null);
+    }
+  }
+  const id = row.dataset.addressId;
+  if (rowSaveTimeouts.has(id)) clearTimeout(rowSaveTimeouts.get(id));
+  rowSaveTimeouts.set(id, setTimeout(() => saveAddressRow(row), 400));
+});
+
+addressesTableBody?.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-address-remove]');
+  if (button) deleteAddressRow(button.dataset.addressRemove);
+});
+
+function saveContactRow(row) {
+  const chain = rowSaveChains.get(row) || Promise.resolve();
+  const next = chain
+    .then(() => {
+      const id = String(row.dataset.contactId || '').trim();
+      if (!id || !currentSocioCode) return;
+      const isNew = id.startsWith('nuevo-');
+      const payload = readContactRow(row);
+      const url = isNew
+        ? `${SOCIOS_ENDPOINT}/${encodeURIComponent(currentSocioCode)}/contactos`
+        : `${SOCIOS_ENDPOINT}/${encodeURIComponent(currentSocioCode)}/contactos/${encodeURIComponent(id)}`;
+      return fetch(url, {
+        method: isNew ? 'POST' : 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+        .then(async (response) => {
+          if (!response.ok) throw new Error(await response.text());
+          return response.json();
+        })
+        .then((result) => {
+          if (isNew && result.contacto?.id) {
+            row.dataset.contactId = String(result.contacto.id);
+          }
+        });
+    })
+    .catch((error) => console.error('Error guardando contacto:', error));
+  rowSaveChains.set(row, next);
+  return next;
+}
+
 function buildSavePayload() {
+  const vendedorNombre = getValue('salesperson');
+  const vendedorAsignado = salespeopleByFullName[vendedorNombre] || {};
   return {
-    salesperson: getValue('salesperson'),
+    salesperson: vendedorNombre,
+    salespersonUserCode: vendedorAsignado.username || currentSalespersonCodes.userCode || '',
+    salespersonSapCode: vendedorAsignado.sapCode || currentSalespersonCodes.sapCode || '',
+    activo: getValue('estadoActivo'),
     generalEmail: getValue('generalEmail'),
     taxId: getValue('taxId'),
+    sapCardCode: getValue('sapCardCode'),
     invoiceEmail: getValue('invoiceEmail'),
     paymentTerms: getValue('paymentTerms'),
     currencyCode: getValue('currencyCode'),
-    sector: getValue('sector'),
-    subSector: getValue('subSector'),
     taxExempt: getValue('taxExempt'),
     requiereCartilla: getValue('requiereCartilla'),
     requiereCertificado: getValue('requiereCertificado'),
     usarCartilla: getValue('usarCartilla'),
-    unidadDefecto: getValue('unidadDefecto'),
+    tipoSocio: getValue('tipoSocio'),
+    tipoIdentificacion: getValue('tipoIdentificacion'),
+    nombreComercial: getValue('nombreComercial'),
     contactFirstName: getValue('contactFirstName'),
     contactLastName: getValue('contactLastName'),
     contactId: getValue('contactId'),
+    contactIdentificationType: getValue('contactIdentificationType'),
     contactMobile: getValue('contactMobile'),
     contactEmail: getValue('contactEmail'),
     contactFax: getValue('contactFax'),
     contactPhone: getValue('contactPhone'),
     contactLegalRepresentative: getValue('contactLegalRepresentative'),
-    contactCountry: getValue('contactCountry'),
     contactState: getValue('contactState'),
     contactCounty: getValue('contactCounty'),
+    contactCountry: getValue('contactCountry'),
     contactAddress: getValue('contactAddress'),
     manejoExcedentes: getValue('manejoExcedentes'),
     allowedPercentage: getValue('allowedPercentage'),
     manejoAdelantos: getValue('manejoAdelantos'),
+    adelantosPorcentaje: getValue('adelantosPorcentaje'),
     manejoFaltantes: getValue('manejoFaltantes'),
+    faltantesPorcentaje: getValue('faltantesPorcentaje'),
     entregaMuestras: getValue('entregaMuestras'),
     contactoVB: getValue('contactoVB'),
+    contactoVBTelefono: getValue('contactoVBTelefono'),
+    contactoVBCorreo: getValue('contactoVBCorreo'),
     contactoProducto: getValue('contactoProducto'),
+    contactoProductoTelefono: getValue('contactoProductoTelefono'),
+    contactoProductoCorreo: getValue('contactoProductoCorreo'),
     indicacionesEntrega: getValue('indicacionesEntrega'),
     indicacionesVB: getValue('indicacionesVB'),
     indicacionesProducto: getValue('indicacionesProducto'),
@@ -604,12 +1223,13 @@ async function performAutoSave() {
 
 function setupAutoSave() {
   const textInputs = [
-    'salesperson', 'generalEmail', 'taxId', 'invoiceEmail', 'paymentTerms',
-    'currencyCode', 'sector', 'subSector', 'unidadDefecto',
+    'generalEmail', 'taxId', 'sapCardCode', 'invoiceEmail', 'paymentTerms',
+    'currencyCode', 'nombreComercial',
     'contactFirstName', 'contactLastName', 'contactId', 'contactMobile',
-    'contactEmail', 'contactFax', 'contactPhone', 'contactCountry',
-    'contactState', 'contactCounty', 'contactAddress',
-    'allowedPercentage', 'indicacionesEntrega', 'indicacionesVB', 'indicacionesProducto'
+    'contactEmail', 'contactFax', 'contactPhone', 'contactAddress',
+    'allowedPercentage', 'adelantosPorcentaje', 'faltantesPorcentaje',
+    'contactoVBTelefono', 'contactoVBCorreo', 'contactoProductoTelefono', 'contactoProductoCorreo',
+    'indicacionesEntrega', 'indicacionesVB', 'indicacionesProducto'
   ];
 
   textInputs.forEach(key => {
@@ -619,9 +1239,16 @@ function setupAutoSave() {
     }
   });
 
+  ['allowedPercentage', 'adelantosPorcentaje', 'faltantesPorcentaje'].forEach((key) => {
+    fields[key]?.addEventListener('input', syncAllPercentDisplayMasks);
+  });
+
   const selectKeys = [
+    'salesperson',
     'manejoExcedentes', 'manejoAdelantos', 'manejoFaltantes',
-    'entregaMuestras', 'contactoVB', 'contactoProducto'
+    'entregaMuestras', 'contactoVB', 'contactoProducto',
+    'tipoSocio', 'tipoIdentificacion', 'contactIdentificationType',
+    'contactState', 'contactCounty'
   ];
 
   selectKeys.forEach(key => {
@@ -632,7 +1259,7 @@ function setupAutoSave() {
   });
 
   const checkboxKeys = [
-    'taxExempt', 'requiereCartilla', 'requiereCertificado',
+    'estadoActivo', 'taxExempt', 'requiereCartilla', 'requiereCertificado',
     'usarCartilla', 'contactLegalRepresentative'
   ];
 
@@ -642,6 +1269,28 @@ function setupAutoSave() {
       field.addEventListener('change', scheduleAutoSave);
     }
   });
+
+  ['contactoVB', 'contactoProducto'].forEach((key) => {
+    fields[key]?.addEventListener('blur', () => guardarContactoDigitadoSiHaceFalta(fields[key]));
+  });
+}
+
+function deleteAddressRow(id) {
+  if (!currentSocioCode) return;
+  if (!window.confirm('¿Eliminar esta dirección del socio?')) return;
+  fetch(`${SOCIOS_ENDPOINT}/${encodeURIComponent(currentSocioCode)}/direcciones/${encodeURIComponent(id)}`, { method: 'DELETE' })
+    .then(async (response) => {
+      if (!response.ok) {
+        let message = 'No fue posible eliminar la dirección.';
+        try {
+          const errorPayload = await response.json();
+          message = errorPayload?.error || message;
+        } catch (e) {}
+        throw new Error(message);
+      }
+      document.querySelector(`tr[data-address-id="${CSS.escape(id)}"]`)?.remove();
+    })
+    .catch((error) => window.alert(error.message || 'No fue posible eliminar la dirección.'));
 }
 
 async function init() {
@@ -649,6 +1298,7 @@ async function init() {
   if (!codigo) throw new Error('No se indicó el código del socio.');
   await loadConfig();
   await loadGeneralConfig();
+  await loadSalespeople();
   await loadSociosList();
   await loadSocio(codigo, false);
   activateSocioTab('cliente');

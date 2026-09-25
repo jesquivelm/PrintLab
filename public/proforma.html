@@ -25,9 +25,6 @@
             --radius: 18px;
             --proforma-page-width: 816px;
             --proforma-page-height: 1056px;
-            --proforma-scroll-track: #d6e2ec;
-            --proforma-scroll-thumb: linear-gradient(180deg, #5a7694 0%, #45627f 100%);
-            --proforma-scroll-thumb-hover: linear-gradient(180deg, #4f6f90 0%, #395674 100%);
         }
         * { box-sizing: border-box; }
         body {
@@ -35,27 +32,22 @@
             font-family: 'Outfit', sans-serif;
             color: var(--ink);
             background: linear-gradient(180deg, #edf5fa 0%, #f6f9fc 100%);
-            scrollbar-color: #6c88a5 #d6e2ec;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(11, 129, 184, 0.42) transparent;
         }
         body::-webkit-scrollbar,
         .proforma-sidebar::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
         }
         body::-webkit-scrollbar-track,
         .proforma-sidebar::-webkit-scrollbar-track {
-            background: var(--proforma-scroll-track);
-            border-radius: 999px;
+            background: transparent;
         }
         body::-webkit-scrollbar-thumb,
         .proforma-sidebar::-webkit-scrollbar-thumb {
-            background: var(--proforma-scroll-thumb);
+            background: rgba(11, 129, 184, 0.38);
             border-radius: 999px;
-            border: 1px solid color-mix(in srgb, #ffffff 36%, var(--proforma-scroll-track));
-        }
-        body::-webkit-scrollbar-thumb:hover,
-        .proforma-sidebar::-webkit-scrollbar-thumb:hover {
-            background: var(--proforma-scroll-thumb-hover);
         }
         .proforma-shell {
             min-height: 100vh;
@@ -78,6 +70,8 @@
             height: 100vh;
             overflow: auto;
             scrollbar-gutter: stable;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(11, 129, 184, 0.42) transparent;
         }
         .proforma-topbar {
             display: flex;
@@ -204,6 +198,145 @@
             margin: 0;
             accent-color: var(--accent);
         }
+        .proforma-field.proforma-check-field {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: relative;
+            flex-wrap: nowrap;
+        }
+        .proforma-field.proforma-check-field label.proforma-check {
+            flex: 1 1 auto;
+        }
+        .proforma-firma-pos-btn {
+            flex: 0 0 auto;
+            margin-left: auto;
+        }
+        .proforma-firma-pos-btn {
+            border: 0;
+            background: transparent;
+            padding: 4px;
+            cursor: pointer;
+            color: var(--muted);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+        }
+        .proforma-firma-pos-btn:hover {
+            color: var(--accent);
+            background: #eef4f9;
+        }
+        .proforma-firma-pos-btn:disabled {
+            opacity: .4;
+            cursor: default;
+        }
+        .proforma-firma-popover {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            z-index: 40;
+            background: #fff;
+            border: 1px solid #cfdae4;
+            border-radius: 12px;
+            padding: 10px 12px;
+            box-shadow: 0 10px 28px rgba(16, 35, 61, .14);
+            min-width: 240px;
+            max-height: min(70vh, 420px);
+            overflow: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(11, 129, 184, 0.42) transparent;
+        }
+        .proforma-firma-popover::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .proforma-firma-popover::-webkit-scrollbar-thumb {
+            border-radius: 999px;
+            background: rgba(11, 129, 184, 0.38);
+        }
+        .proforma-firma-popover::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .proforma-firma-popover-fields {
+            margin-top: 10px;
+            display: grid;
+            gap: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e3ebf0;
+        }
+        .proforma-firma-popover-fields .proforma-field {
+            gap: 4px;
+        }
+        .proforma-firma-popover-fields .proforma-field label {
+            font-size: 11px;
+        }
+        .proforma-firma-popover-fields .proforma-field input {
+            min-height: 36px;
+            border-radius: 10px;
+            font-size: 13px;
+        }
+        html[data-theme="dark"] .proforma-firma-popover {
+            background: #1a2a44;
+            border-color: #2d4759;
+            box-shadow: 0 14px 32px rgba(0,0,0,0.42);
+        }
+        html[data-theme="dark"] .proforma-firma-popover-title,
+        html[data-theme="dark"] .proforma-firma-popover-readout {
+            color: #94a3b8;
+        }
+        html[data-theme="dark"] .proforma-firma-popover-fields {
+            border-top-color: #2d4759;
+        }
+        html[data-theme="dark"] .proforma-firma-dpad button {
+            background: #111c30;
+            border-color: #2d4759;
+            color: #cbd5e1;
+        }
+        html[data-theme="dark"] .proforma-firma-dpad button:hover {
+            background: #1e2e4a;
+            color: #38bdf8;
+        }
+        .proforma-firma-popover[hidden] { display: none; }
+        .proforma-firma-popover-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--muted);
+            text-align: center;
+            margin-bottom: 8px;
+            letter-spacing: .02em;
+        }
+        .proforma-firma-dpad {
+            display: grid;
+            grid-template-columns: repeat(3, 34px);
+            grid-template-rows: repeat(2, 34px);
+            gap: 4px;
+            justify-content: center;
+        }
+        .proforma-firma-dpad button {
+            border: 1px solid #cfdae4;
+            background: #f7fafc;
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--ink);
+            font-size: 12px;
+            line-height: 1;
+        }
+        .proforma-firma-dpad button:hover {
+            background: #eef4f9;
+            color: var(--accent);
+        }
+        .proforma-firma-dpad-up { grid-column: 2; grid-row: 1; }
+        .proforma-firma-dpad-left { grid-column: 1; grid-row: 2; }
+        .proforma-firma-dpad-right { grid-column: 3; grid-row: 2; }
+        .proforma-firma-dpad-down { grid-column: 2; grid-row: 2; }
+        .proforma-firma-popover-readout {
+            margin-top: 8px;
+            text-align: center;
+            font-size: 11.5px;
+            color: var(--muted);
+        }
+        .proforma-firma-popover-readout b { color: var(--ink); font-weight: 600; }
         .proforma-field input,
         .proforma-field select,
         .proforma-field textarea {
@@ -226,14 +359,6 @@
             display: flex;
             flex-direction: column;
             background: #e8edf2;
-        }
-        html[data-theme="dark"] {
-            --proforma-scroll-track: #152334;
-            --proforma-scroll-thumb: linear-gradient(180deg, #355274 0%, #294563 100%);
-            --proforma-scroll-thumb-hover: linear-gradient(180deg, #406286 0%, #315171 100%);
-        }
-        html[data-theme="dark"] body {
-            scrollbar-color: #3a5b7d #152334;
         }
         #proformaPreviewFrame {
             flex: 1;
@@ -821,6 +946,13 @@
                 </div>
                 <div class="proforma-fields">
                     <div class="proforma-field is-full">
+                        <label for="proformaFormat">Formato de documento</label>
+                        <select id="proformaFormat">
+                            <option value="">Usar el de configuración general</option>
+                            <option value="formato2">Formato Principal</option>
+                        </select>
+                    </div>
+                    <div class="proforma-field is-full">
                         <label for="proformaValidity">Validez</label>
                         <select id="proformaValidity"></select>
                     </div>
@@ -836,11 +968,42 @@
                         <label for="proformaPriceDisplayMode">Detalle de Precio</label>
                         <select id="proformaPriceDisplayMode"></select>
                     </div>
-                    <div class="proforma-field is-full">
+                    <div class="proforma-field is-full proforma-check-field">
                         <label for="proformaSellerSignatureEnabled" class="proforma-check">
                             <input id="proformaSellerSignatureEnabled" type="checkbox">
                             Imprimir firma del vendedor
                         </label>
+                        <button type="button" id="proformaFirmaPositionBtn" class="proforma-firma-pos-btn" title="Ajustar firma" aria-label="Ajustar firma">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+                        </button>
+                        <div id="proformaFirmaPopover" class="proforma-firma-popover" hidden>
+                            <div class="proforma-firma-popover-title">Ajustar Firma</div>
+                            <div class="proforma-firma-dpad">
+                                <button type="button" class="proforma-firma-dpad-up" data-dir="up" title="Arriba 10 px">▲</button>
+                                <button type="button" class="proforma-firma-dpad-left" data-dir="left" title="Izquierda 10 px">◀</button>
+                                <button type="button" class="proforma-firma-dpad-right" data-dir="right" title="Derecha 10 px">▶</button>
+                                <button type="button" class="proforma-firma-dpad-down" data-dir="down" title="Abajo 10 px">▼</button>
+                            </div>
+                            <div class="proforma-firma-popover-readout">X: <b id="proformaFirmaPopX">0</b> px · Y: <b id="proformaFirmaPopY">14</b> px</div>
+                            <div class="proforma-firma-popover-fields">
+                                <div class="proforma-field">
+                                    <label for="proformaFirmaAncho">Ancho de Firma</label>
+                                    <input id="proformaFirmaAncho" type="number" min="40" max="400" step="5" value="160">
+                                </div>
+                                <div class="proforma-field">
+                                    <label for="proformaFirmaAlto">Alto de Firma</label>
+                                    <input id="proformaFirmaAlto" type="number" min="20" max="200" step="5" value="100">
+                                </div>
+                                <div class="proforma-field">
+                                    <label for="proformaFirmaOffsetX">Desplazamiento Horizontal</label>
+                                    <input id="proformaFirmaOffsetX" type="number" min="-100" max="100" step="1" value="0">
+                                </div>
+                                <div class="proforma-field">
+                                    <label for="proformaFirmaOffsetY">Desplazamiento Vertical</label>
+                                    <input id="proformaFirmaOffsetY" type="number" min="-60" max="60" step="1" value="35">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -851,6 +1014,10 @@
                     <div class="proforma-field is-full">
                         <label for="proformaIntro">Introducción</label>
                         <textarea id="proformaIntro"></textarea>
+                    </div>
+                    <div class="proforma-field is-full">
+                        <label for="proformaProductoDetalle">Detalle de Producto</label>
+                        <textarea id="proformaProductoDetalle"></textarea>
                     </div>
                     <div class="proforma-field is-full">
                         <label for="proformaPaymentTerms">Términos de Pago</label>
@@ -868,8 +1035,8 @@
             <iframe id="proformaPreviewFrame" title="Vista previa de proforma" allowfullscreen></iframe>
         </main>
     </div>
-    <script src="/access-control.js"></script>
-    <script src="/proforma.js?v=20260519-1634"></script>
+    <script src="/access-control.js?v=20260923-mensajes-carga"></script>
+    <script src="/proforma.js?v=20260831-preview-vivo-detalle4"></script>
     <script>
         /* Print mirror removed — printing is handled by proforma-print.html */
     </script>

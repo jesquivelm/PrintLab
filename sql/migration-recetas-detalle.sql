@@ -1,0 +1,41 @@
+-- Agrega los campos de detalle de fórmula que la UI (recetas.html) ya capturaba
+-- pero que crearReceta() nunca persistía (se perdían al guardar).
+ALTER TABLE tintas.pantones_recetas
+  ADD COLUMN IF NOT EXISTS nombre_comercial     VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS cliente_nota         TEXT,
+  ADD COLUMN IF NOT EXISTS codigo_cliente       VARCHAR(60),
+  ADD COLUMN IF NOT EXISTS marca_id             UUID REFERENCES tintas.marcas(id),
+  ADD COLUMN IF NOT EXISTS familia_id           UUID REFERENCES tintas.familias(id),
+  ADD COLUMN IF NOT EXISTS descripcion          TEXT,
+  ADD COLUMN IF NOT EXISTS confidencialidad     VARCHAR(20) NOT NULL DEFAULT 'INTERNO',
+  ADD COLUMN IF NOT EXISTS origen               VARCHAR(40),
+  ADD COLUMN IF NOT EXISTS codigo_pantone       VARCHAR(40),
+  ADD COLUMN IF NOT EXISTS codigo_fabricante    VARCHAR(60),
+  ADD COLUMN IF NOT EXISTS acabado              VARCHAR(40),
+  ADD COLUMN IF NOT EXISTS color_hex            VARCHAR(9),
+  ADD COLUMN IF NOT EXISTS sustrato             VARCHAR(40),
+  ADD COLUMN IF NOT EXISTS maquina_nombre       VARCHAR(80),
+  ADD COLUMN IF NOT EXISTS anilox               VARCHAR(60),
+  ADD COLUMN IF NOT EXISTS tecnologia           VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS aprobado_xrite       BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS disponible_gramos    NUMERIC(14,4) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS cantidad_base        NUMERIC(14,4),
+  ADD COLUMN IF NOT EXISTS unidad_base          VARCHAR(10),
+  ADD COLUMN IF NOT EXISTS orden_mezcla         TEXT,
+  ADD COLUMN IF NOT EXISTS tiempo_mezclado_min  INTEGER,
+  ADD COLUMN IF NOT EXISTS velocidad_agitacion  VARCHAR(60),
+  ADD COLUMN IF NOT EXISTS temperatura_c        NUMERIC(6,2),
+  ADD COLUMN IF NOT EXISTS tiempo_reposo_min    INTEGER,
+  ADD COLUMN IF NOT EXISTS filtrado             VARCHAR(80),
+  ADD COLUMN IF NOT EXISTS malla                VARCHAR(60),
+  ADD COLUMN IF NOT EXISTS instrucciones        TEXT,
+  ADD COLUMN IF NOT EXISTS viscosidad           VARCHAR(40),
+  ADD COLUMN IF NOT EXISTS ph                   VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS densidad             NUMERIC(10,4),
+  ADD COLUMN IF NOT EXISTS brillo               VARCHAR(40),
+  ADD COLUMN IF NOT EXISTS opacidad             VARCHAR(40),
+  ADD COLUMN IF NOT EXISTS tiempo_secado        VARCHAR(40),
+  ADD COLUMN IF NOT EXISTS vida_util            VARCHAR(40);
+
+CREATE INDEX IF NOT EXISTS idx_recetas_marca ON tintas.pantones_recetas(marca_id);
+CREATE INDEX IF NOT EXISTS idx_recetas_familia ON tintas.pantones_recetas(familia_id);

@@ -5,7 +5,7 @@
     <script src="/theme.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Vendedores</title>
-    <link rel="stylesheet" href="/vendedores-mobile.css">
+    <link rel="stylesheet" href="/vendedores-mobile.css?v=20260918-wizard">
     <link rel="stylesheet" href="/theme-extensions.css">
 </head>
 <body>
@@ -45,6 +45,7 @@
                     <button type="button" id="moduleQuotesButton" class="module-icon active" data-filter="quotes" title="Cotizaciones" aria-label="Cotizaciones"></button>
                     <button type="button" id="moduleOrdersButton" class="module-icon" data-filter="orders" title="Órdenes" aria-label="Órdenes"></button>
                     <button type="button" id="modulePartnersButton" class="module-icon" data-filter="partners" title="Socios" aria-label="Socios"></button>
+                    <button type="button" id="moduleProductsButton" class="module-icon" data-filter="products" title="Productos" aria-label="Productos"></button>
                     <button type="button" id="moduleAlertsButton" class="module-icon" data-filter="alerts" title="Alertas" aria-label="Alertas"></button>
                 </nav>
             </header>
@@ -79,78 +80,106 @@
                 </div>
                 <button type="button" id="quickActionCloseButton" class="detail-close-button" aria-label="Cerrar">×</button>
             </div>
-            <form id="quickActionForm" class="detail-body">
-                <div class="detail-block">
-                    <label class="quick-field">
-                        <span class="detail-label">Nombre</span>
-                        <input id="quickCustomerName" class="search-input quick-input" type="text" required>
-                    </label>
-                    <label class="quick-field">
-                        <span class="detail-label">Contacto</span>
-                        <input id="quickContactName" class="search-input quick-input" type="text">
-                    </label>
-                    <label class="quick-field" id="quickTaxWrapper">
-                        <span class="detail-label">Identificación</span>
-                        <input id="quickTaxId" class="search-input quick-input" type="text">
-                    </label>
-                    <label class="quick-field" id="quickBillingEmailWrapper">
-                        <span class="detail-label">Correo facturación</span>
-                        <input id="quickBillingEmail" class="search-input quick-input" type="email">
-                    </label>
+            <div class="wizard-progress" id="wizardProgress" hidden>
+                <div class="wizard-steps">
+                    <div class="wizard-step" data-step="1">
+                        <span class="wizard-step-circle">1</span>
+                        <span class="wizard-step-label">Cliente</span>
+                    </div>
+                    <div class="wizard-step" data-step="2">
+                        <span class="wizard-step-circle">2</span>
+                        <span class="wizard-step-label">Producto</span>
+                    </div>
+                    <div class="wizard-step" data-step="3">
+                        <span class="wizard-step-circle">3</span>
+                        <span class="wizard-step-label">Detalles</span>
+                    </div>
                 </div>
-                <div id="quickQuoteFields" class="detail-block">
-                    <label class="quick-field">
-                        <span class="detail-label">Nombre del producto</span>
-                        <input id="quickProductName" class="search-input quick-input" type="text">
-                    </label>
-                    <div class="quick-grid">
+            </div>
+            <form id="quickActionForm" class="detail-body">
+                <div id="wizardStep1" class="wizard-step-panel" data-step="1">
+                    <div class="detail-block">
                         <label class="quick-field">
-                            <span class="detail-label">Tipo de producto</span>
-                            <input id="quickProductType" class="search-input quick-input" type="text" placeholder="Etiqueta, caja, sticker...">
+                            <span class="detail-label">Nombre del cliente <span class="required">*</span></span>
+                            <input id="quickCustomerName" class="search-input quick-input" type="text" required autocomplete="name">
                         </label>
                         <label class="quick-field">
-                            <span class="detail-label">Cantidad</span>
-                            <input id="quickQuantity" class="search-input quick-input" type="number" min="1" step="1">
+                            <span class="detail-label">Persona de contacto</span>
+                            <input id="quickContactName" class="search-input quick-input" type="text" autocomplete="name">
                         </label>
-                    </div>
-                    <div class="quick-grid">
-                        <label class="quick-field">
-                            <span class="detail-label">Forma</span>
-                            <input id="quickShape" class="search-input quick-input" type="text" placeholder="Rectangular, circular...">
+                        <label class="quick-field" id="quickTaxWrapper">
+                            <span class="detail-label">Identificación fiscal</span>
+                            <input id="quickTaxId" class="search-input quick-input" type="text" autocomplete="off">
                         </label>
-                        <label class="quick-field">
-                            <span class="detail-label">Proceso productivo</span>
-                            <select id="quickProcessType" class="search-input quick-input">
-                                <option value="Flexografía">Flexografía</option>
-                                <option value="Digital">Digital</option>
-                                <option value="Offset">Offset</option>
-                                <option value="Serigrafía">Serigrafía</option>
-                            </select>
+                        <label class="quick-field" id="quickBillingEmailWrapper">
+                            <span class="detail-label">Correo para facturación</span>
+                            <input id="quickBillingEmail" class="search-input quick-input" type="email" autocomplete="email">
                         </label>
                     </div>
-                    <label class="quick-field">
-                        <span class="detail-label">Acabados</span>
-                        <div class="finish-chips">
-                            <label class="finish-chip"><input type="checkbox" value="Barniz UV" class="quick-finish">Barniz UV</label>
-                            <label class="finish-chip"><input type="checkbox" value="Laminado mate" class="quick-finish">Laminado mate</label>
-                            <label class="finish-chip"><input type="checkbox" value="Laminado brillante" class="quick-finish">Laminado brillante</label>
-                            <label class="finish-chip"><input type="checkbox" value="Estampado" class="quick-finish">Estampado</label>
-                            <label class="finish-chip"><input type="checkbox" value="Relieve" class="quick-finish">Relieve</label>
-                            <label class="finish-chip"><input type="checkbox" value="Numerado" class="quick-finish">Numerado</label>
+                </div>
+                <div id="wizardStep2" class="wizard-step-panel" data-step="2" hidden>
+                    <div class="detail-block">
+                        <label class="quick-field">
+                            <span class="detail-label">Nombre del producto <span class="required">*</span></span>
+                            <input id="quickProductName" class="search-input quick-input" type="text" required placeholder="Ej: Etiqueta adhesiva 10x5cm">
+                        </label>
+                        <div class="quick-grid">
+                            <label class="quick-field">
+                                <span class="detail-label">Tipo de producto</span>
+                                <input id="quickProductType" class="search-input quick-input" type="text" placeholder="Etiqueta, caja, sticker...">
+                            </label>
+                            <label class="quick-field">
+                                <span class="detail-label">Cantidad <span class="required">*</span></span>
+                                <input id="quickQuantity" class="search-input quick-input" type="number" min="1" step="1" required value="1">
+                            </label>
                         </div>
-                    </label>
-                    <label class="quick-field">
-                        <span class="detail-label">Comentarios</span>
-                        <textarea id="quickComments" class="search-input quick-input quick-textarea" rows="3" placeholder="Notas del cliente, colores, referencias..."></textarea>
-                    </label>
-                    <label class="quick-field">
-                        <span class="detail-label">Adjuntos</span>
-                        <input id="quickAttachments" class="search-input quick-input" type="file" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xlsx,.xls,.txt">
-                    </label>
-                    <div id="quickAttachmentsPreview" class="quick-attachments-preview">Sin adjuntos seleccionados.</div>
+                        <div class="quick-grid">
+                            <label class="quick-field">
+                                <span class="detail-label">Forma</span>
+                                <input id="quickShape" class="search-input quick-input" type="text" placeholder="Rectangular, circular, troquelada...">
+                            </label>
+                            <label class="quick-field">
+                                <span class="detail-label">Proceso productivo <span class="required">*</span></span>
+                                <select id="quickProcessType" class="search-input quick-input" required>
+                                    <option value="Flexografía">Flexografía</option>
+                                    <option value="Digital">Digital</option>
+                                    <option value="Offset">Offset</option>
+                                    <option value="Serigrafía">Serigrafía</option>
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div id="wizardStep3" class="wizard-step-panel" data-step="3" hidden>
+                    <div class="detail-block">
+                        <label class="quick-field">
+                            <span class="detail-label">Acabados</span>
+                            <div class="finish-chips">
+                                <label class="finish-chip"><input type="checkbox" value="Barniz UV" class="quick-finish">Barniz UV</label>
+                                <label class="finish-chip"><input type="checkbox" value="Laminado mate" class="quick-finish">Laminado mate</label>
+                                <label class="finish-chip"><input type="checkbox" value="Laminado brillante" class="quick-finish">Laminado brillante</label>
+                                <label class="finish-chip"><input type="checkbox" value="Estampado" class="quick-finish">Estampado</label>
+                                <label class="finish-chip"><input type="checkbox" value="Relieve" class="quick-finish">Relieve</label>
+                                <label class="finish-chip"><input type="checkbox" value="Numerado" class="quick-finish">Numerado</label>
+                            </div>
+                        </label>
+                        <label class="quick-field">
+                            <span class="detail-label">Comentarios / Referencias</span>
+                            <textarea id="quickComments" class="search-input quick-input quick-textarea" rows="3" placeholder="Colores, referencias, notas del cliente..."></textarea>
+                        </label>
+                        <label class="quick-field">
+                            <span class="detail-label">Adjuntos (fotos, PDFs, audios...)</span>
+                            <input id="quickAttachments" class="search-input quick-input" type="file" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xlsx,.xls,.txt">
+                        </label>
+                        <div id="quickAttachmentsPreview" class="quick-attachments-preview">Sin adjuntos seleccionados.</div>
+                    </div>
                 </div>
                 <p id="quickActionStatus" class="quick-status" hidden></p>
-                <button type="submit" id="quickActionSubmit" class="open-button quick-submit">Guardar</button>
+                <div class="wizard-nav" id="wizardNav" hidden>
+                    <button type="button" id="wizardPrev" class="open-button wizard-btn-prev" hidden>Anterior</button>
+                    <button type="button" id="wizardNext" class="open-button quick-submit wizard-btn-next">Siguiente</button>
+                    <button type="submit" id="quickActionSubmit" class="open-button quick-submit wizard-btn-submit" hidden>Crear cotización</button>
+                </div>
             </form>
         </div>
     </section>
@@ -158,7 +187,7 @@
     <input id="sellerPhotoInput" type="file" accept="image/*" hidden>
 
     
-    <script src="/access-control.js"></script>
-    <script src="/vendedores-mobile.js"></script>
+    <script src="/access-control.js?v=20260923-mensajes-carga"></script>
+    <script src="/vendedores-mobile.js?v=20260918-wizard"></script>
 </body>
 </html>

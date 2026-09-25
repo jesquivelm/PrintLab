@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <script src="/theme.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0e2a3a">
+    <title>Vendedor</title>
+    <link rel="stylesheet" href="/vendedores-mobile-v2.css?v=20260922-formato2c">
+</head>
+<body>
+    <main class="seller-app">
+
+        <!-- ============ VISTA INICIO ============ -->
+        <section id="view-home" class="vista activa" data-vista="inicio">
+            <header class="cabecera">
+                <div class="cabecera-saludo">
+                    <span id="saludoHora" class="saludo-hora">Hola</span>
+                    <strong id="saludoNombre">Vendedor</strong>
+                </div>
+                <div class="cabecera-acciones">
+                    <span class="tema-ranura" data-theme-toggle-slot></span>
+                    <button type="button" id="btnNotificaciones" class="btn-campana" aria-label="Notificaciones">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                        <span id="campanaPunto" class="campana-punto" hidden></span>
+                    </button>
+                </div>
+            </header>                <div class="contenido">
+                <!-- KPIs APILADOS (Tu Actividad) -->
+                <div class="kpi-pila" id="kpiPila"></div>
+
+                <!-- 2 PUERTAS -->
+                <div class="puertas">
+                    <button type="button" class="puerta puerta-primaria" data-abrir="cotizar">
+                        <span class="puerta-icono">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"></path></svg>
+                        </span>
+                        <span class="puerta-texto">
+                            <strong>Pedir cotización</strong>
+                            <small>Solicita un precio para tu cliente</small>
+                        </span>
+                        <svg class="puerta-flecha" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"></path></svg>
+                    </button>
+                    <button type="button" class="puerta" data-abrir="prospecto">
+                        <span class="puerta-icono">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"></circle><path d="M2.7 20c.8-3.6 3.3-5.6 6.3-5.6s5.5 2 6.3 5.6"></path><path d="M19 8v6M22 11h-6"></path></svg>
+                        </span>
+                        <span class="puerta-texto">
+                            <strong>Nuevo prospecto</strong>
+                            <small>Registra un cliente potencial</small>
+                        </span>
+                        <svg class="puerta-flecha" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"></path></svg>
+                    </button>
+                </div>
+
+                <!-- PENDIENTES DE RESPUESTA -->
+                <section class="seccion" id="seccionSeguimiento" hidden>
+                    <div class="seccion-cabecera">
+                        <h2>Pendientes de respuesta</h2>
+                        <span class="seccion-conteo seccion-conteo-alerta" id="conteoSeguimiento">0</span>
+                    </div>
+                    <div id="listaSeguimiento" class="tarjetas"></div>
+                </section>
+            </div>
+        </section>
+
+        <!-- ============ VISTA COTIZACIONES ============ -->
+        <section id="view-cotizaciones" class="vista" data-vista="cotizaciones">
+            <header class="cabecera cabecera-vista">
+                <h1 class="cabecera-titulo">Mis cotizaciones</h1>
+                <button type="button" class="btn-flotante-mini" data-abrir="cotizar" aria-label="Pedir cotización">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 5v14M5 12h14"></path></svg>
+                </button>
+            </header>
+            <div class="contenido">
+                <input type="search" id="buscarCotizaciones" class="campo-busqueda" placeholder="Buscar por cliente o número…" aria-label="Buscar cotizaciones">
+                <div class="tabs" role="tablist" aria-label="Estado de cotizaciones">
+                    <button type="button" class="tab activo" data-pestana="todas" role="tab" aria-selected="true">Todas</button>
+                    <button type="button" class="tab" data-pestana="espera" role="tab" aria-selected="false">Por cotizar</button>
+                    <button type="button" class="tab" data-pestana="cotizada" role="tab" aria-selected="false">Cotizadas</button>
+                </div>
+                <div id="listaCotizaciones" class="tarjetas lista-arrastre"></div>
+            </div>
+        </section>
+
+        <!-- ============ VISTA PROSPECTOS ============ -->
+        <section id="view-prospectos" class="vista" data-vista="prospectos">
+            <header class="cabecera cabecera-vista">
+                <h1 class="cabecera-titulo">Prospectos y clientes</h1>
+                <button type="button" class="btn-flotante-mini" data-abrir="prospecto" aria-label="Nuevo prospecto">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 5v14M5 12h14"></path></svg>
+                </button>
+            </header>
+            <div class="contenido">
+                <input type="search" id="buscarProspectos" class="campo-busqueda" placeholder="Buscar prospecto o cliente…" aria-label="Buscar prospectos">
+                <div class="tabs" role="tablist" aria-label="Tipo de contacto">
+                    <button type="button" class="tab activo" data-pestana-socios="prospectos" role="tab" aria-selected="true">Prospectos</button>
+                    <button type="button" class="tab" data-pestana-socios="clientes" role="tab" aria-selected="false">Clientes</button>
+                </div>
+                <div id="listaProspectos" class="tarjetas lista-arrastre"></div>
+            </div>
+        </section>
+
+        <!-- ============ VISTA ÓRDENES ============ -->
+        <section id="view-ordenes" class="vista" data-vista="ordenes">
+            <header class="cabecera cabecera-vista">
+                <h1 class="cabecera-titulo">Órdenes</h1>
+            </header>
+            <div class="contenido">
+                <input type="search" id="buscarOrdenes" class="campo-busqueda" placeholder="Buscar por cliente o número…" aria-label="Buscar órdenes">
+                <div id="listaOrdenesCompleta" class="tarjetas lista-arrastre"></div>
+            </div>
+        </section>
+
+        <!-- ============ VISTA SKU ============ -->
+        <section id="view-sku" class="vista" data-vista="sku">
+            <header class="cabecera cabecera-vista">
+                <h1 class="cabecera-titulo">SKU</h1>
+            </header>
+            <div class="contenido">
+                <input type="search" id="buscarSku" class="campo-busqueda" placeholder="Buscar producto o cliente…" aria-label="Buscar SKU">
+                <div id="listaSku" class="tarjetas lista-arrastre"></div>
+            </div>
+        </section>
+
+        <!-- ============ TAB BAR ============ -->
+        <nav class="tab-bar" aria-label="Navegación principal">
+            <button type="button" class="tab-btn activo" data-vista-destino="inicio">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V21h5v-6h4v6h5V9.5"></path></svg>
+                <span>Inicio</span>
+            </button>
+            <button type="button" class="tab-btn" data-vista-destino="cotizaciones">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                <span>Cotizaciones</span>
+            </button>
+            <button type="button" class="tab-btn" data-vista-destino="ordenes">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                <span>Órdenes</span>
+            </button>
+            <button type="button" class="tab-btn" data-vista-destino="sku">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>
+                <span>SKU</span>
+            </button>
+            <button type="button" class="tab-btn" data-vista-destino="prospectos">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                <span>Clientes</span>
+            </button>
+        </nav>
+
+        <!-- ============ MODAL: PEDIR COTIZACIÓN ============ -->
+        <dialog id="modalCotizar" class="modal-hoja">
+            <div class="modal-barra">
+                <div class="modal-pasos" role="progressbar" aria-valuemin="1" aria-valuemax="3" aria-valuenow="1" id="modalCotizarPasos">
+                    <span class="paso activo" data-paso="1"></span>
+                    <span class="paso" data-paso="2"></span>
+                    <span class="paso" data-paso="3"></span>
+                </div>
+                <button type="button" class="modal-cerrar" data-cerrar="modalCotizar" aria-label="Cerrar">×</button>
+            </div>
+            <form id="formCotizar" class="modal-cuerpo" novalidate>
+                <!-- PASO 1: CLIENTE -->
+                <div class="panel activo" data-panel="1">
+                    <h3 class="panel-titulo">¿Quién es el cliente?</h3>
+                    <label class="campo">
+                        <span>Cliente</span>
+                        <input type="text" name="cliente" required autocomplete="organization" placeholder="Nombre de la empresa o persona">
+                    </label>
+                    <label class="campo">
+                        <span>Contacto</span>
+                        <input type="text" name="contacto" autocomplete="name" placeholder="Nombre del contacto">
+                    </label>
+                    <label class="campo">
+                        <span>Celular</span>
+                        <input type="tel" name="celular" autocomplete="tel" inputmode="tel" placeholder="+506 8888 8888">
+                    </label>
+                    <label class="campo">
+                        <span>Correo</span>
+                        <input type="email" name="correo" autocomplete="email" inputmode="email" placeholder="correo@empresa.com">
+                    </label>
+                </div>
+                <!-- PASO 2: TRABAJO -->
+                <div class="panel" data-panel="2">
+                    <h3 class="panel-titulo">¿Qué necesita imprimir?</h3>
+                    <label class="campo">
+                        <span>Nombre del trabajo</span>
+                        <input type="text" name="trabajo" required placeholder="Ej: Etiqueta adhesiva 10 × 5 cm">
+                    </label>
+                    <label class="campo">
+                        <span>Cantidad</span>
+                        <input type="number" name="cantidad" required inputmode="numeric" min="1" value="1000">
+                    </label>
+                    <label class="campo">
+                        <span>Tipo de impresión</span>
+                        <select name="proceso">
+                            <option value="Flexografía">Flexografía</option>
+                            <option value="Digital">Digital</option>
+                            <option value="Offset">Offset</option>
+                            <option value="Serigrafía">Serigrafía</option>
+                        </select>
+                    </label>
+                </div>
+                <!-- PASO 3: DETALLES Y ADJUNTOS -->
+                <div class="panel" data-panel="3">
+                    <h3 class="panel-titulo">Detalles y archivos</h3>
+                    <label class="campo">
+                        <span>Comentarios</span>
+                        <textarea name="comentarios" rows="3" placeholder="Colores, medidas, referencia…"></textarea>
+                    </label>
+                    <label class="campo campo-archivo">
+                        <span>Adjuntar fotos o archivos</span>
+                        <input type="file" name="adjuntos" id="cotizarAdjuntos" multiple accept="image/*,.pdf,.doc,.docx,.xlsx,.xls,.txt" aria-label="Adjuntar archivos">
+                        <span class="archivo-vacio" id="cotizarAdjuntosVacio">Toca para elegir fotos, PDF o documentos</span>
+                        <div class="archivos-elegidos" id="cotizarAdjuntosLista"></div>
+                    </label>
+                </div>
+                <div class="modal-pie">
+                    <button type="button" class="btn-secundario" id="btnCotizarAtras" hidden>Atrás</button>
+                    <button type="button" class="btn-primario" id="btnCotizarSiguiente">Siguiente</button>
+                    <button type="submit" class="btn-primario" id="btnCotizarEnviar" hidden>Enviar solicitud</button>
+                </div>
+            </form>
+        </dialog>
+
+        <!-- ============ MODAL: NUEVO PROSPECTO ============ -->
+        <dialog id="modalProspecto" class="modal-hoja">
+            <div class="modal-barra">
+                <h2>Nuevo prospecto</h2>
+                <button type="button" class="modal-cerrar" data-cerrar="modalProspecto" aria-label="Cerrar">×</button>
+            </div>
+            <form id="formProspecto" class="modal-cuerpo" novalidate>
+                <label class="campo">
+                    <span>Tipo <em>*</em></span>
+                    <select name="tipoSocio" id="prospectoTipoSocio" required>
+                        <option value="EMPRESA">Empresa</option>
+                        <option value="PERSONA">Persona individual</option>
+                    </select>
+                </label>
+                <label class="campo" id="campoIdentificacionTipo">
+                    <span>Tipo de identificación <em>*</em></span>
+                    <select name="tipoIdentificacion" id="prospectoTipoIdentificacion" required>
+                        <option value="NIT">NIT</option>
+                    </select>
+                </label>
+                <label class="campo">
+                    <span>Número de identificación <em>*</em></span>
+                    <input type="text" name="identificacion" required placeholder="Ej: 310123456789">
+                </label>
+                <label class="campo">
+                    <span>Nombre <em>*</em></span>
+                    <input type="text" name="nombre" required autocomplete="organization" placeholder="Nombre de la empresa o persona">
+                </label>
+                <label class="campo">
+                    <span>Nombre del contacto <em>*</em></span>
+                    <input type="text" name="contactoNombre" required autocomplete="name" placeholder="Nombre y apellido">
+                </label>
+                <label class="campo">
+                    <span>Celular del contacto</span>
+                    <input type="tel" name="contactoCelular" autocomplete="tel" inputmode="tel" placeholder="+506 8888 8888">
+                </label>
+                <label class="campo">
+                    <span>Correo del contacto</span>
+                    <input type="email" name="contactoCorreo" autocomplete="email" inputmode="email" placeholder="correo@empresa.com">
+                </label>
+                <p class="campo-ayuda">Con el celular o el correo es suficiente.</p>
+                <div class="modal-pie">
+                    <button type="button" class="btn-secundario" data-cerrar="modalProspecto">Cancelar</button>
+                    <button type="submit" class="btn-primario" id="btnProspectoGuardar">Guardar prospecto</button>
+                </div>
+            </form>
+        </dialog>
+
+        <!-- ============ MODAL: NOTIFICACIONES ============ -->
+        <dialog id="modalNotificaciones" class="modal-hoja">
+            <div class="modal-barra">
+                <h2>Notificaciones</h2>
+                <button type="button" class="modal-cerrar" data-cerrar="modalNotificaciones" aria-label="Cerrar">×</button>
+            </div>
+            <div class="modal-cuerpo">
+                <div id="listaNotificaciones" class="tarjetas"></div>
+            </div>
+        </dialog>
+
+        <!-- ============ HOJA: DETALLE DE COTIZACIÓN ============ -->
+        <dialog id="modalDetalleCotizacion" class="modal-hoja">
+            <div class="modal-barra">
+                <h2 id="detalleTitulo">Cotización</h2>
+                <button type="button" class="modal-cerrar" data-cerrar="modalDetalleCotizacion" aria-label="Cerrar">×</button>
+            </div>
+            <div class="modal-cuerpo">
+                <div class="detalle-resumen">
+                    <div class="detalle-resumen-fila">
+                        <span>Cliente</span>
+                        <strong id="detalleCliente"></strong>
+                    </div>
+                    <div class="detalle-resumen-fila">
+                        <span>Contacto</span>
+                        <strong id="detalleContacto"></strong>
+                    </div>
+                    <div class="detalle-resumen-fila">
+                        <span>Creada</span>
+                        <strong id="detalleFecha"></strong>
+                    </div>
+                    <div class="detalle-resumen-fila">
+                        <span>Estado</span>
+                        <strong id="detalleEstado"></strong>
+                    </div>
+                    <div class="detalle-resumen-fila detalle-total">
+                        <span>Total cotizado</span>
+                        <strong id="detalleTotal"></strong>
+                    </div>
+                </div>
+                <h3 class="panel-titulo detalle-subtitulo">Trabajos en esta cotización</h3>
+                <div id="detalleLineas" class="tarjetas"></div>
+            </div>
+        </dialog>
+
+        <!-- ============ HOJA: DETALLE DE ORDEN ============ -->
+        <dialog id="modalDetalleOrden" class="modal-hoja">
+            <div class="modal-barra">
+                <h2 id="detalleOrdenTitulo">Orden</h2>
+                <button type="button" class="modal-cerrar" data-cerrar="modalDetalleOrden" aria-label="Cerrar">×</button>
+            </div>
+            <div class="modal-cuerpo">
+                <div class="detalle-resumen">
+                    <div class="detalle-resumen-fila">
+                        <span>Cliente</span>
+                        <strong id="detalleOrdenCliente"></strong>
+                    </div>
+                    <div class="detalle-resumen-fila">
+                        <span>Estado</span>
+                        <strong id="detalleOrdenEstado"></strong>
+                    </div>
+                    <div class="detalle-resumen-fila">
+                        <span>Proceso actual</span>
+                        <strong id="detalleOrdenProceso"></strong>
+                    </div>
+                    <div class="detalle-resumen-fila">
+                        <span>Creada</span>
+                        <strong id="detalleOrdenFecha"></strong>
+                    </div>
+                    <div class="detalle-resumen-fila">
+                        <span>Cantidad</span>
+                        <strong id="detalleOrdenCantidad"></strong>
+                    </div>
+                </div>
+                <div class="aviso-ayuda">Para ver el avance detallado de la producción, abre la orden desde la computadora.</div>
+            </div>
+        </dialog>
+
+        <!-- ============ HOJA: DETALLE DE SKU ============ -->
+        <dialog id="modalDetalleSku" class="modal-hoja">
+            <div class="modal-barra">
+                <h2 id="detalleSkuTitulo">SKU</h2>
+                <button type="button" class="modal-cerrar" data-cerrar="modalDetalleSku" aria-label="Cerrar">×</button>
+            </div>
+            <div class="modal-cuerpo">
+                <div class="detalle-resumen">
+                    <div class="detalle-resumen-fila">
+                        <span>Cliente</span>
+                        <strong id="detalleSkuCliente"></strong>
+                    </div>
+                    <div class="detalle-resumen-fila">
+                        <span>Tipo</span>
+                        <strong id="detalleSkuTipo"></strong>
+                    </div>
+                    <div class="detalle-resumen-fila">
+                        <span>Material</span>
+                        <strong id="detalleSkuMaterial"></strong>
+                    </div>
+                    <div class="detalle-resumen-fila">
+                        <span>Medidas</span>
+                        <strong id="detalleSkuMedidas"></strong>
+                    </div>
+                    <div class="detalle-resumen-fila">
+                        <span>Colores</span>
+                        <strong id="detalleSkuColores"></strong>
+                    </div>
+                    <div class="detalle-resumen-fila detalle-total">
+                        <span>Cotizado</span>
+                        <strong id="detalleSkuPrecio"></strong>
+                    </div>
+                </div>
+                <div class="aviso-ayuda">Pide una cotización nueva con este SKU y quedará todo precargado.</div>
+                <button type="button" class="btn-primario btn-completo" id="btnSkuCotizar">Pedir cotización de este SKU</button>
+            </div>
+        </dialog>
+
+        <!-- ============ HOJA: DETALLE DE CLIENTE / PROSPECTO ============ -->
+        <dialog id="modalDetalleSocio" class="modal-hoja">
+            <div class="modal-barra">
+                <h2 id="detalleSocioTitulo">Cliente</h2>
+                <button type="button" class="modal-cerrar" data-cerrar="modalDetalleSocio" aria-label="Cerrar">×</button>
+            </div>
+            <div class="modal-cuerpo">
+                <div class="detalle-resumen">
+                    <div class="detalle-resumen-fila">
+                        <span>Código</span>
+                        <strong id="detalleSocioCodigo"></strong>
+                    </div>
+                    <div class="detalle-resumen-fila">
+                        <span>Estado</span>
+                        <strong id="detalleSocioEstado"></strong>
+                    </div>
+                    <div class="detalle-resumen-fila">
+                        <span>Vendedor</span>
+                        <strong id="detalleSocioVendedor"></strong>
+                    </div>
+                    <div class="detalle-resumen-fila">
+                        <span>Correo</span>
+                        <strong id="detalleSocioCorreo"></strong>
+                    </div>
+                    <div class="detalle-resumen-fila">
+                        <span>Teléfono</span>
+                        <strong id="detalleSocioTelefono"></strong>
+                    </div>
+                    <div class="detalle-resumen-fila">
+                        <span>Contacto</span>
+                        <strong id="detalleSocioContacto"></strong>
+                    </div>
+                </div>
+                <div id="detalleSocioContactosExtras" class="tarjetas"></div>
+                <div class="aviso-ayuda">Con un toque generas la solicitud con el cliente ya precargado.</div>
+                <button type="button" class="btn-primario btn-completo" id="btnSocioCotizar">Pedir cotización para este cliente</button>
+            </div>
+        </dialog>
+
+        <!-- ============ AVISO (TOAST) ============ -->
+        <div id="avisos" class="avisos" aria-live="polite"></div>
+
+        <script src="/access-control.js?v=20260923-mensajes-carga"></script>
+        <script src="/theme.js"></script>
+        <script src="/vendedores-mobile-v2.js?v=20260922-formato2c"></script>
+    </main>
+</body>
+</html>

@@ -85,14 +85,14 @@ La gran mayoría de las tablas ya tenían el mismo esquema en ambas bases.
 | `production_material_verification` | 0 (vacía) |
 | `production_station_configs` | 0 (vacía) |
 
-### Tablas `_old` locales vs tablas sin `_old` del cliente
-Las 6 tablas con sufijo `_old` en local son **idénticas en esquema y datos** a sus contrapartes en cliente:
-- `flexo_dies_old` ↔ `flexo_dies` (1,374 registros)
-- `flexo_cost_profiles_old` ↔ `flexo_cost_profiles` (0 registros)
-- `flexo_machines_old` ↔ `flexo_machines` (2 registros)
-- `flexo_materials_old` ↔ `flexo_materials` (120 registros)
-- `import_audit_old` ↔ `import_audit` (8 registros)
-- `quote_lines_old` ↔ `quote_lines` (0 registros)
+### Tablas `_old` eliminadas
+Las 6 tablas con sufijo `_old` que existían en local fueron eliminadas el 2026-08-14 (Fase 0 de limpieza raw_data):
+- `flexo_dies_old` (1,374 registros) → eliminada
+- `flexo_cost_profiles_old` (0 registros) → eliminada
+- `flexo_machines_old` (2 registros) → eliminada
+- `flexo_materials_old` (120 registros) → eliminada
+- `import_audit_old` (8 registros) → eliminada
+- `quote_lines_old` (0 registros) → eliminada
 
 ### Tablas solo en cliente (preservadas sin modificar)
 - `tintas_auditoria`, `tintas_fabricantes`, `tintas_familias`, `tintas_marcas`, `tintas_pantones_biblioteca`, `tintas_pantones_clientes`, `tintas_sap_sincronizacion_log`, `tintas_ubicaciones` — todas vacías

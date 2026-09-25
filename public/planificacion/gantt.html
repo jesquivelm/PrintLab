@@ -3,25 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flexo APS — Consola de Planificación</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f3f7fb}
+body{font-family:system-ui,sans-serif;font-size:14px;color:#1a1a1a;background:#f3f7fb}
 
 /* ── HEADER & TOOLBAR ── */
 .hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #d8e4ef;background:#fff;gap:8px;flex-wrap:wrap}
-.hdr-title{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.hdr-title{font-size:17px;font-weight:600;display:flex;align-items:center;gap:8px}
 .dot{width:8px;height:8px;border-radius:50%;background:#1D9E75;display:inline-block;flex-shrink:0}
 .dot.offline{background:#E24B4A}
 .toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.btn{font-size:11px;padding:5px 11px;border-radius:6px;border:1px solid #c4d4e4;background:#fff;color:#1a1a1a;cursor:pointer;white-space:nowrap}
+.btn{font-size:13px;padding:6px 12px;border-radius:6px;border:1px solid #c4d4e4;background:#fff;color:#1a1a1a;cursor:pointer;white-space:nowrap}
 .btn:hover{background:#e8ecf0}
 .btn.primary{background:#e8f0fb;border-color:#b5d0f0;color:#185FA5}
 .btn.primary:hover{background:#d5e7f9}
 .btn.danger{background:#fceaea;border-color:#f0b5b5;color:#A32D2D}
 .btn.active-view{background:#185FA5;border-color:#185FA5;color:#fff}
-.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:5px}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:13px;padding:3px 9px;border-radius:5px}
 .badge.crit{background:#fceaea;color:#A32D2D}
 .badge.ok{background:#e8f7f1;color:#0F6E56}
 .badge.warn{background:#fef3e2;color:#854F0B}
@@ -30,18 +31,18 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 /* ── STATS BAR ── */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px 16px;border-bottom:1px solid #d8e4ef;background:#fff}
 .stat{background:#f3f7fb;border-radius:6px;padding:8px 12px}
-.stat-lbl{font-size:11px;color:#888;margin-bottom:2px}
-.stat-val{font-size:22px;font-weight:500}
+.stat-lbl{font-size:12px;color:#888;margin-bottom:2px}
+.stat-val{font-size:24px;font-weight:500}
 .alerts{padding:8px 16px;border-bottom:1px solid #d8e4ef;background:#fff;display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-height:38px}
 .conflict-toggle-btn.has-conflicts{background:#fceaea;border-color:#f0b5b5;color:#A32D2D}
 
 /* ── VIEW TOGGLE TAB BAR ── */
-.view-tabs{display:flex;gap:0;border-bottom:2px solid #d8e4ef;background:#f7fbff;padding:0 16px}
-.view-tab{font-size:12px;font-weight:500;padding:9px 16px;border:none;background:none;color:#888;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;display:flex;align-items:center;gap:6px;transition:color .15s,border-color .15s}
-.view-tab:hover{color:#378ADD}
-.view-tab.active{color:#185FA5;border-bottom-color:#185FA5}
-.view-tab .tab-count{font-size:10px;background:#d8e4ef;color:#666;border-radius:10px;padding:1px 6px;font-weight:600}
-.view-tab.active .tab-count{background:#d5e7f9;color:#185FA5}
+.view-tabs{display:flex;gap:2px;background:#f0f5fa;border-radius:9px;padding:3px}
+.view-tab{font-size:14px;font-weight:600;padding:8px 16px;border:none;background:none;border-radius:7px;color:#5c7286;cursor:pointer;display:flex;align-items:center;gap:6px;transition:color .15s,background-color .15s}
+.view-tab:hover{color:#185FA5}
+.view-tab.active{color:#fff;background:#185FA5}
+.view-tab .tab-count{font-size:11px;background:#d8e4ef;color:#666;border-radius:10px;padding:1px 7px;font-weight:600}
+.view-tab.active .tab-count{background:rgba(255,255,255,.25);color:#fff}
 
 /* ── GANTT ── */
 .gantt-wrap{overflow-x:auto;background:#fff}
@@ -60,6 +61,8 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .res-name{font-weight:600;font-size:12px}
 .res-sub{font-size:10px;color:#999}
 .res-count{font-size:10px;color:#378ADD;font-weight:500}
+.aviso-sin-horario{display:inline-block;margin-top:2px;padding:1px 6px;border-radius:999px;font-size:9px;font-weight:600;color:#92400e;background:#fef3c7;border:1px solid #fcd34d}
+html[data-theme="dark"] .aviso-sin-horario{color:#fcd34d;background:rgba(146,64,14,0.25);border-color:rgba(252,211,77,0.35)}
 
 /* Proceso header */
 .proceso-hdr{display:flex;align-items:center;border-bottom:1px solid #d8e4ef;border-top:3px solid transparent;background:#f7fbff}
@@ -200,9 +203,10 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .modal-header h3{margin:0;font-size:15px;font-weight:600}
 .modal-close{cursor:pointer;font-size:20px;color:#888;line-height:1;padding:4px 8px;border-radius:6px}
 .modal-close:hover{background:#e8ecf0}
-.modal-body{padding:16px 20px;overflow-y:auto;flex:1}
-.modal-body::-webkit-scrollbar{width:6px}
-.modal-body::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
+.modal-body{padding:16px 20px;overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:rgba(11,129,184,.42) transparent}
+.modal-body::-webkit-scrollbar{width:8px;height:8px}
+.modal-body::-webkit-scrollbar-track{background:transparent}
+.modal-body::-webkit-scrollbar-thumb{background:rgba(11,129,184,.38);border-radius:999px}
 .conflict-group{margin-bottom:14px;border:1px solid #d8e4ef;border-radius:8px;overflow:hidden}
 .conflict-group-header{padding:10px 12px;background:#f7fbff;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #d8e4ef;cursor:pointer}
 .conflict-group-header:hover{background:#e8ecf0}
@@ -214,16 +218,16 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .conflict-icon{flex-shrink:0;font-size:12px}
 .conflict-type-machine{color:#E24B4A}
 .conflict-type-sequence{color:#BA7517}
-.html[data-theme="dark"] .modal-box{background:var(--app-surface,#111827);border-color:var(--app-border,#334155)}
-.html[data-theme="dark"] .modal-header{border-color:var(--app-border,#334155);color:var(--app-text,#e5edf6)}
-.html[data-theme="dark"] .modal-body{color:var(--app-text,#e5edf6)}
-.html[data-theme="dark"] .conflict-group{border-color:var(--app-border,#334155)}
-.html[data-theme="dark"] .conflict-group-header{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155)}
-.html[data-theme="dark"] .conflict-group-header:hover{background:rgba(255,255,255,.05)}
-.html[data-theme="dark"] .conflict-group-title{color:var(--app-text,#e5edf6)}
-.html[data-theme="dark"] .conflict-item{color:var(--app-text-muted,#94a3b8);border-color:var(--app-border,#334155)}
-.html[data-theme="dark"] .modal-close{color:var(--app-text-muted,#94a3b8)}
-.html[data-theme="dark"] .modal-close:hover{background:rgba(255,255,255,.08)}
+html[data-theme="dark"] .modal-box{background:var(--app-surface,#111827);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .modal-header{border-color:var(--app-border,#334155);color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .modal-body{color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .conflict-group{border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .conflict-group-header{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .conflict-group-header:hover{background:rgba(255,255,255,.05)}
+html[data-theme="dark"] .conflict-group-title{color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .conflict-item{color:var(--app-text-muted,#94a3b8);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .modal-close{color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .modal-close:hover{background:rgba(255,255,255,.08)}
 
 /* ── MOVE DECISION MODAL ── */
 .move-modal-grid{display:flex;gap:12px;margin:12px 0}
@@ -251,14 +255,14 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .move-btn.danger:hover{background:#fef2f2}
 .move-info{padding:10px;background:#f7fbff;border-radius:6px;font-size:11px;color:#555;margin-bottom:10px}
 .move-info strong{color:#1a1a1a}
-.html[data-theme="dark"] .move-field label{color:var(--app-text-muted,#94a3b8)}
-.html[data-theme="dark"] .move-field input,.html[data-theme="dark"] .move-field select{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155);color:var(--app-text,#e5edf6)}
-.html[data-theme="dark"] .mini-gantt{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155)}
-.html[data-theme="dark"] .mini-gantt-hour-mark{border-color:var(--app-border,#334155);color:var(--app-text-muted,#94a3b8)}
-.html[data-theme="dark"] .move-btn{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155);color:var(--app-text-muted,#94a3b8)}
-.html[data-theme="dark"] .move-btn:hover{background:rgba(255,255,255,.05)}
-.html[data-theme="dark"] .move-info{background:var(--app-surface-soft,#172033);color:var(--app-text-muted,#94a3b8)}
-.html[data-theme="dark"] .move-info strong{color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .move-field label{color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .move-field input,html[data-theme="dark"] .move-field select{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155);color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .mini-gantt{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .mini-gantt-hour-mark{border-color:var(--app-border,#334155);color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .move-btn{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155);color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .move-btn:hover{background:rgba(255,255,255,.05)}
+html[data-theme="dark"] .move-info{background:var(--app-surface-soft,#172033);color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .move-info strong{color:var(--app-text,#e5edf6)}
 
 /* ── PIPELINE DETAIL PANEL TABS ── */
 .dp-tabs{display:flex;gap:0;border-bottom:1px solid #d8e4ef;margin:10px 0 0;background:transparent}
@@ -304,9 +308,10 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .dp-tab{font-size:11px;font-weight:500;padding:9px 16px;border:none;background:none;color:#888;cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;display:flex;align-items:center;gap:5px;white-space:nowrap}
 .dp-tab:hover{color:#378ADD}
 .dp-tab.active{color:#185FA5;border-bottom-color:#185FA5;font-weight:600}
-.dp-scroll-body{flex:1;overflow-y:auto;padding:14px 18px 16px}
-.dp-scroll-body::-webkit-scrollbar{width:5px}
-.dp-scroll-body::-webkit-scrollbar-thumb{background:#c4d4e4;border-radius:3px}
+.dp-scroll-body{flex:1;overflow-y:auto;padding:14px 18px 16px;scrollbar-width:thin;scrollbar-color:rgba(11,129,184,.42) transparent}
+.dp-scroll-body::-webkit-scrollbar{width:8px;height:8px}
+.dp-scroll-body::-webkit-scrollbar-track{background:transparent}
+.dp-scroll-body::-webkit-scrollbar-thumb{background:rgba(11,129,184,.38);border-radius:999px}
 /* Flow timeline — idéntico a orden-produccion.html */
 .tl-flow-wrap{padding:4px 0 8px}
 .tl-row{display:grid;grid-template-columns:44px 1fr;gap:0 10px;padding:4px 0}
@@ -380,7 +385,6 @@ html[data-theme="dark"] .fp-progress{background:var(--app-border,#334155)}
 html[data-theme="dark"] .fp-counter{background:rgba(255,255,255,.07);color:var(--app-text-muted,#94a3b8)}
 html[data-theme="dark"] .tl-node.avail{background:rgba(56,189,248,.14);border-color:rgba(56,189,248,.35);color:#38bdf8}
 html[data-theme="dark"] .tl-node.warn{background:rgba(251,191,36,.13);border-color:rgba(251,191,36,.32);color:#fbbf24}
-html[data-theme="dark"] .dp-scroll-body::-webkit-scrollbar-thumb{background:#334155}
 /* ── LOADING / ERROR ── */
 .loading{display:flex;align-items:center;justify-content:center;padding:40px;gap:10px;color:#888;font-size:13px}
 .spinner{width:16px;height:16px;border:2px solid #d8e4ef;border-top-color:#378ADD;border-radius:50%;animation:spin .7s linear infinite}
@@ -466,17 +470,17 @@ html[data-theme="dark"] .pc-chip.colores{background:rgba(139,92,246,.18);color:#
 html[data-theme="dark"] .pc-chip.maq{background:rgba(139,92,246,.12);color:#c4b5fd}
 html[data-theme="dark"] .pc-due{color:var(--app-text-muted,#94a3b8)}
 html[data-theme="dark"] .pipeline-empty{color:var(--app-text-muted,#94a3b8)}
-html[data-theme="dark"] .view-tabs{background:var(--app-surface,#111827);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .view-tabs{background:var(--app-surface,#111827)}
 html[data-theme="dark"] .view-tab{color:var(--app-text-muted,#94a3b8)}
-html[data-theme="dark"] .view-tab:hover{color:#378ADD}
-html[data-theme="dark"] .view-tab.active{color:#60a5fa;border-bottom-color:#60a5fa}
+html[data-theme="dark"] .view-tab:hover{color:#60a5fa}
+html[data-theme="dark"] .view-tab.active{color:#fff;background:#2563eb}
 </style>
 <link rel="stylesheet" href="/theme-extensions.css">
 </head>
 <body>
 
 <div id="error-bar" class="error-bar">
-  ⚠ <span id="error-msg">No se pudo conectar a la API</span>
+  ⚠ <span id="error-msg">La conexión está lenta. Seguimos intentando traer las órdenes.</span>
   <button class="btn" style="margin-left:auto" onclick="loadFromAPI()">Reintentar</button>
 </div>
 
@@ -498,11 +502,24 @@ html[data-theme="dark"] .view-tab.active{color:#60a5fa;border-bottom-color:#60a5
     <div class="dp-tabs" id="dp-tabs">
       <button class="dp-tab active" data-dp-tab="info" onclick="switchDPTab('info')">📋 Detalle</button>
       <button class="dp-tab" data-dp-tab="flow" onclick="switchDPTab('flow')">🔄 Flujo</button>
+      <button class="dp-tab" onclick="openOrderViewModal()">↗ Ver orden completa</button>
     </div>
   </div>
   <div class="dp-scroll-body" id="dp-body"></div>
   <div class="dp-footer">
     <button class="save-btn" id="save-btn" onclick="saveDP()">Guardar cambios</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="orderViewOverlay" style="display:none" onclick="if(event.target===this)closeOrderViewModal()">
+  <div class="modal-box" style="width:min(1100px,94vw);height:90vh;display:flex;flex-direction:column;padding:0">
+    <div class="modal-header">
+      <strong>Orden <span id="orderViewOverlayTitle">—</span></strong>
+      <span class="modal-close" onclick="closeOrderViewModal()">✕</span>
+    </div>
+    <div class="modal-body" style="padding:0;flex:1;overflow:hidden">
+      <iframe id="orderViewOverlayFrame" src="about:blank" style="width:100%;height:100%;border:0;display:block"></iframe>
+    </div>
   </div>
 </div>
 
@@ -520,9 +537,10 @@ const ZOOM_CONFIG = {
 };
 
 // Los únicos procesos que aparecen en el Gantt — en este orden exacto
-const GANTT_PROCESS_KEYS = ['diseno','preprensa','visto_bueno','planchas','impresion','rebobinado','empaque'];
+const GANTT_PROCESS_KEYS = ['diseno','preprensa','visto_bueno','impresion','rebobinado','empaque'];
 const searchParams = new URLSearchParams(window.location.search);
 const autoPlanRequested = searchParams.get('autoplan') === '1';
+const ordenBuscada = String(searchParams.get('orderCode') || searchParams.get('orden') || '').trim();
 
 let orders    = [];
 let machines  = [];
@@ -534,8 +552,10 @@ let dpFlowPayload = null;
 let activeChainIds = null;
 let isOnline  = false;
 let hasAutoPlanned = false;
-let currentView = 'pipeline'; // 'pipeline' | 'gantt'
-let pipelineFilter = '';
+let currentView = ['pipeline', 'gantt', 'seguimiento'].includes(searchParams.get('vista'))
+  ? searchParams.get('vista')
+  : (ordenBuscada ? 'pipeline' : 'seguimiento'); // 'pipeline' | 'gantt' | 'seguimiento'
+let pipelineFilter = ordenBuscada;
 let pipelineFilterEstado = '';
 let ganttFilter = ''; // buscador en Gantt
 const expandedProcessIds = new Set();
@@ -567,8 +587,8 @@ const PIPELINE_PROCESSES_BASE = [
   { key: 'seguimiento',  label: 'Seguimiento',  icon: '📋', color: '#64748B', bgLight: '#f1f5f9', bgHeader: '#e2e8f0', textColor: '#334155' },
   { key: 'diseno',       label: 'Diseño',        icon: '🎨', color: '#8B5CF6', bgLight: '#f5f3ff', bgHeader: '#ede9fe', textColor: '#5b21b6' },
   { key: 'preprensa',    label: 'Preprensa',     icon: '🖥',  color: '#0EA5E9', bgLight: '#f0f9ff', bgHeader: '#e0f2fe', textColor: '#0369a1' },
-  { key: 'visto_bueno',  label: 'Visto Bueno',   icon: '✅', color: '#1D9E75', bgLight: '#f0fdf4', bgHeader: '#dcfce7', textColor: '#15803d' },
-  { key: 'planchas',     label: 'Planchas',      icon: '🔲', color: '#9333EA', bgLight: '#faf5ff', bgHeader: '#f3e8ff', textColor: '#7e22ce' },
+  { key: 'visto_bueno',  label: 'Aprobaciones',  icon: '✅', color: '#1D9E75', bgLight: '#f0fdf4', bgHeader: '#dcfce7', textColor: '#15803d' },
+  { key: 'sellos',     label: 'Sellos',      icon: '🔲', color: '#9333EA', bgLight: '#faf5ff', bgHeader: '#f3e8ff', textColor: '#7e22ce' },
   { key: 'impresion',    label: 'Impresión',     icon: '🖨',  color: '#185FA5', bgLight: '#eff6ff', bgHeader: '#dbeafe', textColor: '#1d4ed8' },
   { key: 'rebobinado',   label: 'Rebobinado',    icon: '🔄', color: '#BA7517', bgLight: '#fffbeb', bgHeader: '#fef3c7', textColor: '#92400e' },
   { key: 'empaque',      label: 'Empaque',       icon: '📦', color: '#639922', bgLight: '#f7fee7', bgHeader: '#ecfccb', textColor: '#3f6212' },
@@ -670,6 +690,19 @@ function setZoom(level) {
   });
 }
 
+// Zoom con Ctrl+rueda del mouse sobre el Gantt (del más detallado al más amplio)
+const ZOOM_ORDER = ['day', '3day', 'week', '2week'];
+document.addEventListener('wheel', (e) => {
+  if (!e.target.closest || !e.target.closest('.gantt-wrap')) return;
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+  const idx = ZOOM_ORDER.indexOf(zoomLevel);
+  if (idx === -1) return;
+  const dir = e.deltaY < 0 ? -1 : 1;
+  const newIdx = Math.min(ZOOM_ORDER.length - 1, Math.max(0, idx + dir));
+  if (newIdx !== idx) setZoom(ZOOM_ORDER[newIdx]);
+}, { passive: false });
+
 function displayProcessName(value) {
   const raw = String(value || '').trim();
   const k = normalizeProcessKey(raw);
@@ -678,7 +711,7 @@ function displayProcessName(value) {
     impresion_convencional:'Impresión Convencional', impresion_digital:'Impresión Digital',
     barnizado:'Barniz', barniz:'Barniz', numeracion:'Numeración',
     rebobinado:'Rebobinado', empaque:'Empaque', seguimiento:'Seguimiento',
-    visto_bueno:'Visto Bueno', planchas:'Planchas'
+    visto_bueno:'Aprobaciones', sellos:'Sellos'
   };
   return labels[k] || raw || 'Sin proceso';
 }
@@ -686,27 +719,20 @@ function displayProcessName(value) {
 // ── API ──────────────────────────────────────────────────────
 async function loadFromAPI() {
   try {
-    const [res, costsRes] = await Promise.all([
-      fetch(`${API}/gantt-agrupado`),
-      fetch('/api/costos-config').catch(() => null)
-    ]);
+    const res = await fetch(`${API}/gantt-agrupado`);
     if (!res.ok) throw new Error('Error HTTP ' + res.status);
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Error en respuesta');
 
-    let costsProcessOrder = {};
-    if (costsRes && costsRes.ok) {
-      const costsData = await costsRes.json();
-      const defaults = costsData?.general?.processDefaults || [];
-      defaults.forEach((p, idx) => {
-        const key = (p.key || '').toLowerCase().trim();
-        costsProcessOrder[key] = {
-          order: p.order != null ? p.order : (idx + 1) * 10,
-          ganttEnabled: p.ganttEnabled !== false,
-          label: p.label || key
-        };
-      });
-    }
+    let turnosData = [];
+    try {
+      const turnosRes = await fetch('/api/costos/turnos');
+      const turnosPayload = await turnosRes.json();
+      if (turnosPayload.ok && Array.isArray(turnosPayload.data)) {
+        turnosData = turnosPayload.data.filter(t => t.activo);
+      }
+    } catch(e) { /* ignore */ }
+    window._costsTurnos = turnosData;
 
     machines = data.maquinas;
     orders = data.rutas.map(r => ({
@@ -719,6 +745,7 @@ async function loadFromAPI() {
       pies:        r.pies,
       proceso:     displayProcessName(r.proceso),
       proceso_key: normalizeProcessKey(r.proceso),
+      clave_proceso: r.clave_proceso || '',
       maquina:     r.maquina,
       inicio:      parseFloat(r.inicio),
       dur:         parseFloat(r.dur),
@@ -737,39 +764,32 @@ async function loadFromAPI() {
     }));
     configureTimelineHorizon();
 
-    const grupos = {};
     machines.forEach(m => {
-      // Normalizar: agregar _matchId con todos los posibles IDs para matching con orders.maquina
       m._matchId = String(m.id_maquina || m.id || m.machine_profile_id || '');
-      const processKey = (m.process_key || '').toLowerCase().trim();
-      const costCfg = costsProcessOrder[processKey];
-      if (costCfg && !costCfg.ganttEnabled) return;
-      const key = m.id_proceso || processKey || 0;
-      if (!grupos[key]) grupos[key] = {
-        id_proceso:   m.id_proceso,
-        process_key:  processKey,
-        nombre:       displayProcessName(m.proceso_nombre),
-        color:        m.color_hex      || '#888',
-        icono:        m.proceso_icono  || '⚙',
-        orden:        costCfg ? costCfg.order : (m.orden_secuencia || 99),
-        maquinas:     []
-      };
-      grupos[key].maquinas.push(m);
     });
-    procesos = Object.values(grupos).sort((a, b) => a.orden - b.orden);
+    procesos = (data.procesos || []).map(p => ({
+      id_proceso:  p.id_proceso,
+      process_key: p.process_key,
+      nombre:      p.nombre,
+      color:       p.color_hex || '#888',
+      icono:       p.icono || '⚙',
+      calendario_nombre: p.calendario_nombre || '',
+      maquinas:    machines.filter(m => m.process_key === p.process_key)
+    }));
 
     setOnline(true);
     loadTrackingUserPhotos();
     render();
   } catch (e) {
     setOnline(false);
-    showError('No se pudo conectar a la planificación del ERP — ' + e.message);
+    showError(orders.length
+      ? 'La conexión está lenta. Seguís viendo lo último que llegó y lo volvemos a intentar solo.'
+      : 'La conexión está lenta. Seguimos intentando traer las órdenes.');
     if (!orders.length) {
       document.getElementById('app').innerHTML =
         `<div class="loading" style="flex-direction:column;gap:8px">
-          <span style="font-size:22px">⚡</span>
-          <span>API offline. Asegurate que el servidor Express esté corriendo.</span>
-          <code style="font-size:11px;background:#e8ecf0;padding:4px 8px;border-radius:4px">node server.js</code>
+          <span>Seguimos esperando al servidor. La conexión está lenta y las órdenes todavía no llegan.</span>
+          <button class="btn" onclick="loadFromAPI()">Actualizar</button>
          </div>`;
     }
   }
@@ -801,7 +821,7 @@ function setOnline(v) {
   const el = document.getElementById('conn-dot');
   if (el) {
     el.className = 'dot' + (v ? '' : ' offline');
-    el.title = v ? 'API conectada' : 'API desconectada';
+    el.title = v ? 'Conectado' : 'Reconectando…';
   }
   document.getElementById('error-bar').style.display = v ? 'none' : 'flex';
 }
@@ -822,21 +842,56 @@ function showCenterMessage(msg) {
 }
 
 // ── CONFLICT DETECTION ──────────────────────────────────────
+// Solo los procesos que realmente se muestran/programan en el Gantt participan
+// en la detección de conflictos y de alertas de fecha. Otros renglones de ruta
+// (Planeación, Tintas, Salida de inventario, etc.) llegan con inicio/dur en 0 y
+// sin máquina asignada — incluirlos generaba miles de "conflictos" falsos.
+function isGanttProcess(o) {
+  const pk = normalizeProcessKey(o.proceso_key || o.proceso);
+  return GANTT_PROCESS_KEYS.some(gk => pk === gk || pk.includes(gk) || gk.includes(pk));
+}
+function ganttRelevantOrders() {
+  // Un paso ya completado no puede "chocar" con nada — si se cuenta, infla
+  // artificialmente los conflictos con posiciones viejas que ya no importan.
+  return orders.filter(o => isGanttProcess(o) && o.estado !== 'COMPLETADO');
+}
+
 function detectAllConflicts() {
   const conflicts = [];
-  for (let i = 0; i < orders.length; i++) {
-    const a = orders[i];
-    const aEnd = a.inicio + a.dur;
-    for (let j = i + 1; j < orders.length; j++) {
-      const b = orders[j];
-      const bEnd = b.inicio + b.dur;
-      if (a.maquina === b.maquina && a.id_ruta !== b.id_ruta) {
+  const relevant = ganttRelevantOrders();
+
+  // Conflictos de máquina: solo entre rutas que comparten la misma máquina real
+  const byMachine = new Map();
+  relevant.forEach(o => {
+    if (!o.maquina) return; // sin máquina asignada no hay conflicto de máquina real
+    if (!byMachine.has(o.maquina)) byMachine.set(o.maquina, []);
+    byMachine.get(o.maquina).push(o);
+  });
+  byMachine.forEach(group => {
+    for (let i = 0; i < group.length; i++) {
+      const a = group[i], aEnd = a.inicio + a.dur;
+      for (let j = i + 1; j < group.length; j++) {
+        const b = group[j], bEnd = b.inicio + b.dur;
+        if (a.id_ruta === b.id_ruta) continue;
         if (a.inicio < bEnd && aEnd > b.inicio) {
           conflicts.push({ type:'machine', ruta_a:a.id_ruta, ruta_b:b.id_ruta,
             message:`Máquina ${a.maquina}: "${a.id}" y "${b.id}" se superponen`});
         }
       }
-      if (a.id === b.id) {
+    }
+  });
+
+  // Conflictos de secuencia: solo entre rutas de la misma orden
+  const byOrder = new Map();
+  relevant.forEach(o => {
+    if (!byOrder.has(o.id)) byOrder.set(o.id, []);
+    byOrder.get(o.id).push(o);
+  });
+  byOrder.forEach(group => {
+    for (let i = 0; i < group.length; i++) {
+      const a = group[i], aEnd = a.inicio + a.dur;
+      for (let j = i + 1; j < group.length; j++) {
+        const b = group[j], bEnd = b.inicio + b.dur;
         if (b.dep_ruta_id === a.id_ruta || (b.dep === a.id && b.id_ruta !== a.id_ruta)) {
           if (b.inicio < aEnd) {
             conflicts.push({ type:'sequence', ruta_a:a.id_ruta, ruta_b:b.id_ruta,
@@ -851,12 +906,12 @@ function detectAllConflicts() {
         }
       }
     }
-  }
+  });
   return conflicts;
 }
 
 function getOrderChainBounds(orderCode) {
-  const ops = orders.filter(o => o.id === orderCode);
+  const ops = ganttRelevantOrders().filter(o => o.id === orderCode);
   if (!ops.length) return null;
   return ops.reduce((acc, op) => {
     const end = op.inicio + op.dur;
@@ -921,11 +976,12 @@ function processDomKey(proc) {
   return String(proc?.id_proceso || proc?.nombre || 'sin-proceso');
 }
 
-function machineVisibleOps(machineMatchId) {
+function machineVisibleOps(machineMatchId, claveProceso) {
   // orders.maquina puede ser machine_profile_id, id_maquina, o cualquier UUID de la API.
   // Comparamos con _matchId que normalizamos al cargar.
   return orders.filter(o => {
     if (!orderOverlapsVisible(o)) return false;
+    if (claveProceso && o.clave_proceso !== claveProceso) return false;
     return String(o.maquina || '') === String(machineMatchId || '');
   });
 }
@@ -1130,7 +1186,7 @@ function getChain(id_ruta) {
 }
 
 // ── TASK BAR HTML ────────────────────────────────────────────
-function taskBar(op, machineConflictRutas, sequenceConflictRutas) {
+function taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlertsMap) {
   const baseColor = op.alerta ? COLORS.PARO : (COLORS[op.estado] || COLORS.PENDIENTE);
   const customColor = String(op.route_payload?.colorHex || '').trim();
   const c = customColor ? { bg: customColor, bd: customColor, tx: '#fff' } : baseColor;
@@ -1144,7 +1200,7 @@ function taskBar(op, machineConflictRutas, sequenceConflictRutas) {
     if (machineConflictRutas.has(op.id_ruta)) conflictClass = ' conflict-machine';
     else if (sequenceConflictRutas.has(op.id_ruta)) conflictClass = ' conflict-sequence';
   }
-  const scheduleAlert = detectScheduleAlerts().find(e => e.orderCode === op.id);
+  const scheduleAlert = scheduleAlertsMap ? scheduleAlertsMap.get(op.id) : detectScheduleAlerts().find(e => e.orderCode === op.id);
   const scheduleClass = scheduleAlert
     ? (scheduleAlert.type === 'late' ? ' conflict-machine' : ' conflict-sequence') : '';
   const modeLabel = op.manual_lock ? 'Fijo' : op.schedule_mode === 'backward' ? 'Atrás' : op.schedule_mode === 'forward' ? 'Adelante' : '';
@@ -1199,14 +1255,15 @@ function renderHeader() {
   const lateAlerts    = scheduleAlerts.filter(e => e.type === 'late');
   const tightAlerts   = scheduleAlerts.filter(e => e.type === 'tight');
   const pendientes    = orders.filter(o => o.estado === 'PENDIENTE').length;
+  const uniqueOrderCount = new Set(orders.map(o => o.id)).size;
 
   // Count pipeline stats for tabs
   const pipelineCounts = {};
   getPIPELINE_PROCESSES().forEach(pp => {
     pipelineCounts[pp.key] = orders.filter(o => normalizeProcessKey(o.proceso_key) === pp.key || getPipelineProc(o.proceso_key).key === pp.key).length;
   });
-  const pipelineTotal = orders.length;
-  const ganttTotal = orders.length;
+  const pipelineTotal = uniqueOrderCount;
+  const ganttTotal = uniqueOrderCount;
 
   const headerEl = document.getElementById('hdr-section');
   if (!headerEl) return;
@@ -1214,47 +1271,76 @@ function renderHeader() {
   headerEl.innerHTML = `
   <div class="hdr">
     <span class="hdr-title">
-      <span class="dot${isOnline?'':' offline'}" id="conn-dot" title="${isOnline?'API conectada':'API desconectada'}"></span>
+      <span class="dot${isOnline?'':' offline'}" id="conn-dot" title="${isOnline?'Conectado':'Reconectando…'}"></span>
       Consola APS — Flexografía
     </span>
+    <div class="view-tabs">
+      <button class="view-tab${currentView==='seguimiento'?' active':''}" onclick="switchView('seguimiento')">
+        📈 Seguimiento
+      </button>
+      <button class="view-tab${currentView==='pipeline'?' active':''}" onclick="switchView('pipeline')">
+        📋 Vista Pipeline
+        <span class="tab-count">${pipelineTotal}</span>
+      </button>
+      <button class="view-tab${currentView==='gantt'?' active':''}" onclick="switchView('gantt')">
+        📊 Gantt
+        <span class="tab-count">${ganttTotal}</span>
+      </button>
+    </div>
     <div class="toolbar">
-      <span class="badge info" style="font-weight:500">👤 <span id="ganttUserName">Sin sesión</span></span>
+      <span class="badge info" style="font-weight:500">👤 <span id="ganttUserName"></span></span>
       <span class="badge ok">● ${enRun} en ejecución</span>
       ${criticas > 0 ? `<span class="badge crit">▲ ${criticas} crítica(s)</span>` : ''}
       ${lateAlerts.length > 0 ? `<span class="badge crit">⏰ ${lateAlerts.length} fuera de fecha</span>` : ''}
       ${tightAlerts.length > 0 ? `<span class="badge warn">⌛ ${tightAlerts.length} justas</span>` : ''}
-      <span class="conn-status ${isOnline?'online':'offline'}">${isOnline?'● Online':'● Offline'}</span>
-      <button class="btn" onclick="window.location.href='/planificacion/lanzamiento'">Cola</button>
+      <span class="conn-status ${isOnline?'online':'offline'}" title="Si dice Reconectando, la conexión está lenta: ves lo último que llegó y se vuelve a intentar solo">${isOnline?'● Conectado':'● Reconectando…'}</span>
+      <button class="btn" onclick="window.location.href='/planificacion/configuracion'" title="Calendarios, turnos y feriados">⚙ Calendarios</button>
       <button class="btn conflict-toggle-btn ${allConflicts.length?'has-conflicts':''}" onclick="openConflictsModal()">Conflictos (${allConflicts.length})</button>
       <button class="btn primary" onclick="autoSeqCapacidad()" title="Capacidad finita">⚡ Cap. Finita</button>
-      <button class="btn" onclick="loadFromAPI()">↻</button>
+      <button class="btn" onclick="loadFromAPI()" title="Actualizar"><span id="sgRefrescarIcon">↻</span></button>
       <button class="theme-toggle" onclick="toggleTheme()" title="Cambiar tema" style="width:32px;height:30px;border:1px solid #c4d4e4;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">
-        <span class="theme-toggle-icon-sun">☀</span>
-        <span class="theme-toggle-icon-moon" style="display:none">☾</span>
+        <span class="theme-toggle-icon-sun" id="sgModoClaroIcon">☀</span>
+        <span class="theme-toggle-icon-moon" id="sgModoOscuroIcon" style="display:none">☾</span>
       </button>
     </div>
   </div>
 
   <div class="stats">
-    <div class="stat"><div class="stat-lbl">Órdenes activas</div><div class="stat-val">${orders.length}</div></div>
-    <div class="stat"><div class="stat-lbl">Pendientes</div><div class="stat-val" style="color:#185FA5">${pendientes}</div></div>
+    <div class="stat"><div class="stat-lbl">Órdenes activas</div><div class="stat-val">${uniqueOrderCount}</div></div>
+    <div class="stat"><div class="stat-lbl">Pasos pendientes</div><div class="stat-val" style="color:#185FA5">${pendientes}</div></div>
     <div class="stat"><div class="stat-lbl">Conflictos</div><div class="stat-val" style="color:${allConflicts.length?'#E24B4A':'#1D9E75'}">${allConflicts.length}</div></div>
     <div class="stat"><div class="stat-lbl">Riesgo fecha</div><div class="stat-val" style="color:${lateAlerts.length?'#E24B4A':tightAlerts.length?'#BA7517':'#1D9E75'}">${lateAlerts.length + tightAlerts.length}</div></div>
-  </div>
-
-
-  <div class="view-tabs">
-    <button class="view-tab${currentView==='pipeline'?' active':''}" onclick="switchView('pipeline')">
-      📋 Vista Pipeline
-      <span class="tab-count">${pipelineTotal}</span>
-    </button>
-    <button class="view-tab${currentView==='gantt'?' active':''}" onclick="switchView('gantt')">
-      📊 Gantt
-      <span class="tab-count">${ganttTotal}</span>
-    </button>
   </div>`;
 
   syncGanttUserName();
+  applySeguimientoIcons();
+}
+
+// Íconos propios de esta consola (grupo "Seguimiento" en Configuración → Diseño → Íconos),
+// en vez de copiar el ícono de otra pantalla como Producción.
+let sgIconsCache = null;
+async function applySeguimientoIcons() {
+  if (!sgIconsCache) {
+    try {
+      const cfg = await fetch('/api/config/shell').then(r => r.ok ? r.json() : {}).catch(() => ({}));
+      sgIconsCache = (cfg && cfg.icons) || {};
+    } catch (e) { sgIconsCache = {}; }
+  }
+  const paint = (elId, iconKey, fallback) => {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    const value = String(sgIconsCache[iconKey] || fallback || '').trim();
+    if (/\.svg(\?|#|$)/i.test(value) || value.indexOf('data:image/svg+xml') === 0) {
+      el.innerHTML = `<span style="display:inline-flex;width:16px;height:16px;-webkit-mask-image:url('${value}');mask-image:url('${value}');-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain;background-color:currentColor"></span>`;
+    } else if (/^(\/|data:image\/)/i.test(value)) {
+      el.innerHTML = `<img style="width:16px;height:16px;object-fit:contain" src="${value}" alt="">`;
+    } else {
+      el.textContent = value;
+    }
+  };
+  paint('sgModoClaroIcon', 'seguimientoModoClaro', '☀');
+  paint('sgModoOscuroIcon', 'seguimientoModoOscuro', '☾');
+  paint('sgRefrescarIcon', 'seguimientoRefrescar', '↻');
 }
 
 // ── MAIN RENDER ─────────────────────────────────────────────
@@ -1266,20 +1352,26 @@ function render() {
     app.innerHTML = `
       <div id="hdr-section"></div>
       <div id="pipeline-view" style="display:none"></div>
-      <div id="gantt-view" style="display:none"></div>`;
+      <div id="gantt-view" style="display:none"></div>
+      <div id="seguimiento-view" style="display:none;height:calc(100vh - 210px)">
+        <iframe id="seguimiento-frame" title="Seguimiento" style="width:100%;height:100%;border:0"></iframe>
+      </div>`;
   }
 
   renderHeader();
 
+  document.getElementById('pipeline-view').style.display = currentView === 'pipeline' ? 'block' : 'none';
+  document.getElementById('gantt-view').style.display = currentView === 'gantt' ? 'block' : 'none';
+  document.getElementById('seguimiento-view').style.display = currentView === 'seguimiento' ? 'block' : 'none';
+
   if (currentView === 'pipeline') {
-    document.getElementById('pipeline-view').style.display = 'block';
-    document.getElementById('gantt-view').style.display = 'none';
     renderPipeline();
-  } else {
-    document.getElementById('pipeline-view').style.display = 'none';
-    document.getElementById('gantt-view').style.display = 'block';
+  } else if (currentView === 'gantt') {
     renderGantt();
     requestAnimationFrame(() => drawArrows());
+  } else if (currentView === 'seguimiento') {
+    const frame = document.getElementById('seguimiento-frame');
+    if (frame && !frame.src) frame.src = '/planificacion/seguimiento?embebido=1';
   }
 }
 
@@ -1315,6 +1407,7 @@ function movePipelineCard(ppKey, fromIdx, direction) {
   if (!arr || toIdx < 0 || toIdx >= arr.length) return;
   [arr[fromIdx], arr[toIdx]] = [arr[toIdx], arr[fromIdx]];
   renderPipeline();
+  guardarOrdenManualPipeline(ppKey, arr);
 }
 
 // Drag state for card reordering
@@ -1373,6 +1466,23 @@ function cardDrop(e, ppKey, cardIdx) {
   arr.splice(cardIdx, 0, removed);
   cardDragSrcKey = null; cardDragSrcIdx = null;
   renderPipeline();
+  guardarOrdenManualPipeline(ppKey, arr);
+}
+
+// Guarda en la base de datos el orden en que quedaron las tarjetas de una
+// columna del Pipeline, para que Producción lo respete en su cola de trabajo.
+async function guardarOrdenManualPipeline(ppKey, idRutaArr) {
+  const codigosOrden = idRutaArr
+    .map(idRuta => orders.find(o => o.id_ruta === idRuta)?.id)
+    .filter(Boolean);
+  if (!codigosOrden.length) return;
+  try {
+    await fetch('/api/planificacion/pipeline/orden-manual', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codigosOrden })
+    });
+  } catch (e) { /* se reintentará en el próximo drag */ }
 }
 
 // ── PIPELINE VIEW ────────────────────────────────────────────
@@ -1406,13 +1516,12 @@ function renderPipeline() {
     // Priority: RUN/SETUP first, then earliest non-completed route with pred completed
     let activeRoute = null;
 
-    // Pass 1: find running route
+    // Pass 1: find running route — un proceso en RUN/SETUP es "activo" por su
+    // estado real en el MES, sin importar si start_turn_hour cae en la ventana
+    // de hoy (esa hora puede ser un valor de planificación desactualizado).
     for (const op of routes) {
       if (op.estado === 'COMPLETADO') continue;
-      if (op.estado === 'RUN' || op.estado === 'SETUP') {
-        const inicio = Number(op.inicio || 0);
-        if (inicio >= 0 && inicio < 24) { activeRoute = op; break; }
-      }
+      if (op.estado === 'RUN' || op.estado === 'SETUP') { activeRoute = op; break; }
     }
 
     // Pass 2: find first pending route whose predecessor is completed
@@ -1425,8 +1534,6 @@ function renderPipeline() {
           predCompleted = pred && pred.estado === 'COMPLETADO';
         }
         if (!predCompleted) continue;
-        const inicio = Number(op.inicio || 0);
-        if (inicio < 0 || inicio >= 24) continue;
         activeRoute = op;
         break;
       }
@@ -1598,6 +1705,7 @@ function renderGantt() {
   const allConflicts = detectAllConflicts();
   const machineConflictRutas   = new Set(allConflicts.filter(c=>c.type==='machine').flatMap(c=>[c.ruta_a,c.ruta_b]));
   const sequenceConflictRutas  = new Set(allConflicts.filter(c=>c.type==='sequence').flatMap(c=>[c.ruta_a,c.ruta_b]));
+  const scheduleAlertsMap = new Map(detectScheduleAlerts().map(a => [a.orderCode, a]));
 
   const slotW = ZOOM_CONFIG[zoomLevel].slotW;
 
@@ -1640,16 +1748,7 @@ function renderGantt() {
       </div>
     </div>`;
 
-  // Filtrar y reordenar según el orden actual del pipeline (respeta reordenamientos del usuario)
-  const orderedGanttKeys = getPIPELINE_PROCESSES()
-    .map(pp => pp.key)
-    .filter(k => GANTT_PROCESS_KEYS.includes(k));
-  const ganttProcesos = orderedGanttKeys
-    .map(gk => procesos.find(proc => {
-      const pk = normalizeProcessKey(proc.process_key || proc.nombre);
-      return pk === gk || pk.includes(gk) || gk.includes(pk);
-    }))
-    .filter(Boolean);
+  const ganttProcesos = procesos;
 
   // Filtro de búsqueda para el Gantt
   const ganttFilterLower = ganttFilter.toLowerCase();
@@ -1666,11 +1765,18 @@ function renderGantt() {
     const expanded = expandedProcessIds.has(procKey);
     // Usar getMachineMatchId para buscar órdenes asignadas
     const assignedMachines = proc.maquinas.filter(m => {
-      const ops = machineVisibleOps(getMachineMatchId(m));
+      const ops = machineVisibleOps(getMachineMatchId(m), proc.process_key);
       return filteredOrderIds ? ops.some(o => filteredOrderIds.has(o.id_ruta)) : ops.length > 0;
     });
     const visibleMachines  = expanded ? proc.maquinas : assignedMachines;
     const hiddenCount = proc.maquinas.length - visibleMachines.length;
+    const idsMaquinasProceso = new Set(proc.maquinas.map(getMachineMatchId));
+    let opsDelProceso = orders.filter(o =>
+      orderOverlapsVisible(o) &&
+      o.clave_proceso === proc.process_key &&
+      !idsMaquinasProceso.has(String(o.maquina || ''))
+    );
+    if (filteredOrderIds) opsDelProceso = opsDelProceso.filter(o => filteredOrderIds.has(o.id_ruta));
 
     html += `
     <div class="proceso-hdr" style="border-top-color:${proc.color}">
@@ -1689,7 +1795,7 @@ function renderGantt() {
 
     visibleMachines.forEach(m => {
       const mid = getMachineMatchId(m);
-      let mOps = machineVisibleOps(mid);
+      let mOps = machineVisibleOps(mid, proc.process_key);
       if (filteredOrderIds) mOps = mOps.filter(o => filteredOrderIds.has(o.id_ruta));
       const machineSub = [m.sub_descripcion || '', mOps.length ? `${mOps.length} asignada${mOps.length>1?'s':''}` : ''].filter(Boolean).join(' · ');
 
@@ -1698,16 +1804,34 @@ function renderGantt() {
         <div class="res-lbl">
           <span class="res-name">${m.nombre_recurso}</span>
           ${machineSub ? `<span class="res-sub">${machineSub}</span>` : ''}
+          ${!m.calendario_id ? `<span class="aviso-sin-horario" title="Esta máquina no tiene horario en la Cadena de Procesos. Se programa con 8 horas de lunes a viernes, de 7:00 a 15:00.">Sin horario · usa 8 horas</span>` : ''}
           ${mOps.length > 0 ? `<span class="res-count">${mOps.length} orden${mOps.length>1?'es':''}</span>` : ''}
         </div>
         <div class="timeline" data-machine="${mid}">
           <div class="drop-hint"></div>
           ${HOURS.map((_, i) => `<div class="grid-ln" style="left:${pct(i)}"></div>`).join('')}
           ${DAYS.filter(d => d.slot > 0).map(d => `<div class="day-sep" style="left:${pct(d.slot)}"></div>`).join('')}
-          ${mOps.map(op => taskBar(op, machineConflictRutas, sequenceConflictRutas)).join('')}
+          ${mOps.map(op => taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlertsMap)).join('')}
         </div>
       </div>`;
     });
+
+    if (!proc.maquinas.length || opsDelProceso.length) {
+      html += `
+      <div class="g-row" data-machine="" style="border-left:3px solid ${proc.color}">
+        <div class="res-lbl">
+          <span class="res-name">${proc.maquinas.length ? 'Sin Máquina Asignada' : displayProcessName(proc.nombre)}</span>
+          ${!proc.maquinas.length && !proc.calendario_nombre ? `<span class="aviso-sin-horario" title="Este proceso no tiene horario en la Cadena de Procesos. Se programa con 8 horas de lunes a viernes, de 7:00 a 15:00.">Sin horario · usa 8 horas</span>` : ''}
+          ${opsDelProceso.length > 0 ? `<span class="res-count">${opsDelProceso.length} orden${opsDelProceso.length>1?'es':''}</span>` : ''}
+        </div>
+        <div class="timeline" data-machine="">
+          <div class="drop-hint"></div>
+          ${HOURS.map((_, i) => `<div class="grid-ln" style="left:${pct(i)}"></div>`).join('')}
+          ${DAYS.filter(d => d.slot > 0).map(d => `<div class="day-sep" style="left:${pct(d.slot)}"></div>`).join('')}
+          ${opsDelProceso.map(op => taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlertsMap)).join('')}
+        </div>
+      </div>`;
+    }
   });
 
   if (ganttProcesos.length === 0) {
@@ -2393,8 +2517,22 @@ function openDP(id_ruta) {
   if (ganttWrapAfter) ganttWrapAfter.scrollLeft = scrollX;
   window.scrollTo(0, scrollY);
 
+  document.querySelectorAll('.dp-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.dpTab === 'info');
+  });
+  const footer0 = document.getElementById('save-btn')?.closest('.dp-footer');
+  if (footer0) footer0.style.display = '';
+  document.getElementById('dp').style.display = 'flex';
+  renderDPInfo();
+}
+
+function renderDPInfo() {
+  const op = currentDP;
+  if (!op) return;
+  const id_ruta = op.id_ruta;
+
   const allConflicts = detectAllConflicts();
-  // Mostrar en la cadena los procesos válidos del Gantt (incluyendo planchas)
+  // Mostrar en la cadena los procesos válidos del Gantt (incluyendo sellos)
   const chainOps = orders
     .filter(o => activeChainIds.has(o.id_ruta))
     .filter(o => {
@@ -2439,7 +2577,7 @@ function openDP(id_ruta) {
     <div class="dp-field"><div class="dp-lbl">Setup estimado</div><div class="dp-val">${Number(op.route_payload?.setupMinutes||0).toLocaleString('es-CR')} min</div></div>
     <div class="dp-field"><div class="dp-lbl">Corrida estimada</div><div class="dp-val">${Number(op.route_payload?.runMinutes||0).toLocaleString('es-CR')} min</div></div>
     <div class="dp-field"><div class="dp-lbl">Buffer</div><div class="dp-val">${Number(op.route_payload?.bufferMinutes||0).toLocaleString('es-CR')} min</div></div>
-    <div class="dp-field"><div class="dp-lbl">Velocidad base</div><div class="dp-val">${Number(op.route_payload?.speedFpm||0).toLocaleString('es-CR')} fpm</div></div>
+    <div class="dp-field"><div class="dp-lbl">Velocidad base</div><div class="dp-val">${Number(op.route_payload?.velocidad_m_min||0).toLocaleString('es-CR')} m/min</div></div>
     <div class="dp-field"><div class="dp-lbl">Modo de acomodo</div>
       <div class="dp-val">${op.manual_lock?'Fijo manual':op.schedule_mode==='backward'?'Prog. hacia atrás':op.schedule_mode==='forward'?'Prog. hacia adelante':'Sin definir'}</div>
     </div>
@@ -2512,13 +2650,6 @@ function openDP(id_ruta) {
       </div>`;
     })()}
   `;
-
-  document.querySelectorAll('.dp-tab').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.dpTab === 'info');
-  });
-  const footer = document.getElementById('save-btn')?.closest('.dp-footer');
-  if (footer) footer.style.display = '';
-  document.getElementById('dp').style.display = 'flex';
 }
 
 function closeDP() {
@@ -2537,6 +2668,19 @@ function closeDP() {
   window.scrollTo(0, scrollY);
 }
 
+function openOrderViewModal() {
+  if (!currentDP) return;
+  const overlay = document.getElementById('orderViewOverlay');
+  const frame = document.getElementById('orderViewOverlayFrame');
+  document.getElementById('orderViewOverlayTitle').textContent = currentDP.id;
+  frame.src = `/orden-produccion/${encodeURIComponent(currentDP.id)}`;
+  overlay.style.display = 'flex';
+}
+function closeOrderViewModal() {
+  document.getElementById('orderViewOverlay').style.display = 'none';
+  document.getElementById('orderViewOverlayFrame').src = 'about:blank';
+}
+
 function switchDPTab(tab) {
   currentDPTab = tab;
   document.querySelectorAll('.dp-tab').forEach(btn => {
@@ -2545,6 +2689,7 @@ function switchDPTab(tab) {
   const footer = document.getElementById('save-btn')?.closest('.dp-footer');
   if (footer) footer.style.display = tab === 'info' ? '' : 'none';
   if (tab === 'flow') renderDPFlow();
+  else renderDPInfo();
 }
 
 async function renderDPFlow() {
@@ -2561,7 +2706,7 @@ async function renderDPFlow() {
     bindTrackingAvatarFallback(body);
   } catch (e) {
     console.error('Flow load error:', e);
-    body.innerHTML = '<div style="padding:20px;text-align:center;color:#E24B4A;font-size:12px">Error al cargar seguimiento</div>';
+    body.innerHTML = '<div style="padding:20px;text-align:center;color:#888;font-size:12px">No pudimos traer el seguimiento en este momento. Revisá la conexión y abrilo de nuevo.</div>';
   }
 }
 
@@ -2607,11 +2752,11 @@ function renderFlowTimeline(steps) {
     const line = isLast ? '' : '<div class="tl-connector ' + (solid ? 'solid' : 'dashed') + '"></div>';
 
     let detailRows = '';
-    const machineKeys = ['planchas', 'impresion', 'acabados', 'barnizado', 'laminado', 'troquelado', 'estampado', 'embosado', 'numeracion', 'rebobinado'];
+    const machineKeys = ['sellos', 'impresion', 'acabados', 'barnizado', 'laminado', 'troquelado', 'estampado', 'embosado', 'numeracion', 'rebobinado'];
     if (machineKeys.includes(s.processKey) && s.planned?.machineName) {
       detailRows += '<span class="flow-detail-row"><i class="ti ti-cpu" style="font-size:11px;"></i>' + escHtml(s.planned.machineName) + '</span>';
     }
-    if (s.processKey === 'planchas') {
+    if (s.processKey === 'sellos') {
       const planSource = s.actual?.planSourceLabel || s.planned?.planSource;
       const planDias = s.actual?.diasEstimados || s.planned?.diasEstimados;
       if (planSource) detailRows += '<span class="flow-detail-row"><i class="ti ti-layers-subtract" style="font-size:11px;"></i>' + escHtml(planSource) + '</span>';
@@ -2659,18 +2804,34 @@ function renderFlowTimeline(steps) {
     + '</div>';
 }
 
+function promptEmpaqueLoteData() {
+  const cantidad = Number(prompt('Cantidad Producida (requerido):', '') || 0);
+  if (!(cantidad > 0)) return null;
+  const fecha = prompt('Fecha Producción (YYYY-MM-DD):', new Date().toISOString().slice(0, 10)) || new Date().toISOString().slice(0, 10);
+  const turno = prompt('Turno (opcional):', '') || null;
+  return { cantidad_producida: cantidad, fecha_produccion: fecha, turno };
+}
+
 async function dpFlowToggle(index) {
   if (!dpFlowPayload) return;
   const steps = dpFlowPayload.steps;
   if (!steps || !steps[index]) return;
   const step = steps[index];
   const isDone = String(step.routeStatus || '').toUpperCase() === 'COMPLETADO';
+  const body = { processKey: step.processKey, marked: !isDone };
+  if (step.processKey === 'empaque' && !isDone) {
+    const loteData = promptEmpaqueLoteData();
+    if (!loteData) return;
+    body.loteData = loteData;
+  }
   try {
-    await fetch('/api/ordenes-produccion/' + encodeURIComponent(currentDP.id) + '/seguimiento/marca', {
+    const res = await fetch('/api/ordenes-produccion/' + encodeURIComponent(currentDP.id) + '/seguimiento/marca', {
       method: 'POST',
       headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
-      body: JSON.stringify({ processKey: step.processKey, marked: !isDone })
+      body: JSON.stringify(body)
     });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || payload.ok === false) { alert(payload.error || 'No fue posible actualizar la marca.'); return; }
     await renderDPFlow();
     if (currentView === 'gantt') { renderGantt(); drawArrows(); }
     else { renderPipeline(); }
@@ -2684,13 +2845,22 @@ async function dpFlowComplete(index) {
   const steps = dpFlowPayload.steps;
   if (!steps || !steps[index]) return;
   const step = steps[index];
-  const notes = prompt('Nota opcional para ' + (step.processName || step.processKey) + ':', '') || '';
+  const body = { processKey: step.processKey };
+  if (step.processKey === 'empaque') {
+    const loteData = promptEmpaqueLoteData();
+    if (!loteData) return;
+    body.loteData = loteData;
+  } else {
+    body.notes = prompt('Nota opcional para ' + (step.processName || step.processKey) + ':', '') || '';
+  }
   try {
-    await fetch('/api/ordenes-produccion/' + encodeURIComponent(currentDP.id) + '/seguimiento/completar', {
+    const res = await fetch('/api/ordenes-produccion/' + encodeURIComponent(currentDP.id) + '/seguimiento/completar', {
       method: 'POST',
       headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
-      body: JSON.stringify({ processKey: step.processKey, notes })
+      body: JSON.stringify(body)
     });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || payload.ok === false) { alert(payload.error || 'No fue posible completar el paso.'); return; }
     await renderDPFlow();
     if (currentView === 'gantt') { renderGantt(); drawArrows(); }
     else { renderPipeline(); }
@@ -2743,7 +2913,7 @@ async function saveDP() {
       ));
     }
     if (newEstado !== currentDP.estado) {
-      await apiPatch(`${API}/gantt/estado`, { codigo_op:currentDP.id, estado:newEstado });
+      await apiPatch(`${API}/gantt/estado`, { id_ruta:currentDP.id_ruta, codigo_op:currentDP.id, estado:newEstado });
     }
     closeDP();
     await loadFromAPI();
@@ -2759,18 +2929,25 @@ async function autoSeqCapacidad() {
     const res = await fetch(`${API}/gantt-capacidad`);
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Error al calcular capacidad finita.');
+    const sinHorario = data.data.sinHorario || [];
+    if (sinHorario.length) {
+      const lista = sinHorario.map(x => '• ' + displayProcessName(x.proceso) + (x.maquina ? ': ' + x.maquina : '')).join('\n');
+      if (!confirm('Estos procesos o máquinas no tienen horario en la Cadena de Procesos. Se van a programar con 8 horas, de lunes a viernes de 7:00 a 15:00:\n\n' + lista + '\n\n¿Desea programar así?')) return;
+    }
     const positions = data.data.positions || {};
     let updatedCount = 0;
+    const repositioned = [];
     orders.forEach(op => {
       const pos = positions[op.id_ruta];
       if (pos) {
         op.inicio = pos.inicio; op.dur = pos.dur;
         op.projectedStart = pos.projectedStart; op.projectedEnd = pos.projectedEnd;
-        op.maquina = pos.machineProfileId || pos.resourceId || op.maquina;
-        op.capacityResourceId = pos.resourceId || null;
+        op.maquina = pos.maquinaId || '';
+        op.capacityResourceId = null;
         op.capacityResourceName = pos.resourceName || '';
         op.schedule_mode = 'capacity';
         updatedCount++;
+        repositioned.push(op);
       }
     });
     configureTimelineHorizon();
@@ -2781,11 +2958,21 @@ async function autoSeqCapacidad() {
     } else {
       showCenterMessage(`✓ ${updatedCount} rutas re-secuenciadas por capacidad finita.`);
     }
-    Promise.all(orders.map(o => apiPatch(`${API}/gantt/mover`, {
-      id_ruta: o.id_ruta, inicio: o.inicio, id_maquina: o.maquina,
-      planned_start_at: o.projectedStart||null, planned_end_at: o.projectedEnd||null,
-      route_payload_updates: { scheduleMode:'capacity', capacityResourceId:o.capacityResourceId||null, capacityResourceName:o.capacityResourceName||'' }
-    }))).then(() => loadFromAPI()).catch(e => showError('Error al guardar: ' + e.message));
+    (async () => {
+      const BATCH = 20;
+      let failures = 0;
+      for (let i = 0; i < repositioned.length; i += BATCH) {
+        const slice = repositioned.slice(i, i + BATCH);
+        const results = await Promise.allSettled(slice.map(o => apiPatch(`${API}/gantt/mover`, {
+          id_ruta: o.id_ruta, inicio: o.inicio, id_maquina: o.maquina,
+          planned_start_at: o.projectedStart||null, planned_end_at: o.projectedEnd||null,
+          route_payload_updates: { scheduleMode:'capacity', capacityResourceId:o.capacityResourceId||null, capacityResourceName:o.capacityResourceName||'' }
+        })));
+        failures += results.filter(r => r.status === 'rejected').length;
+      }
+      await loadFromAPI();
+      if (failures > 0) showError(`${failures} rutas no se pudieron guardar. Volvé a intentar Cap. Finita.`);
+    })().catch(e => showError('Error al guardar: ' + e.message));
   } catch (e) {
     showError('Error en capacidad finita: ' + e.message);
   }

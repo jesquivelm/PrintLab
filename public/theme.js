@@ -4,6 +4,7 @@
     const CACHE_CLEANUP_KEY = 'erp-bootstrap-cache-cleanup-20260518';
     const root = document.documentElement;
     const isEmbedded = window !== window.parent || new URLSearchParams(window.location.search).get('shell') === '1';
+    const APP_BG = { light: '#f8fafc', dark: '#0f172a' };
 
     function cleanupBootstrapCache() {
         try {
@@ -83,6 +84,7 @@
         root.dataset.themeMode = normalized;
         root.dataset.theme = theme;
         root.style.colorScheme = theme;
+        root.style.backgroundColor = APP_BG[theme];
         document.querySelectorAll('[data-theme-toggle]').forEach((button) => updateButton(button, normalized, theme));
         if (!isEmbedded && options?.broadcast !== false) broadcastMode(normalized);
     }
@@ -140,5 +142,54 @@
                 theme: root.dataset.theme || resolvedTheme(readMode())
             };
         }
+    };
+})();
+
+// Cada petición a /api/ lleva el usuario de la sesión en "x-erp-session", para que el servidor
+// registre quién hizo cada acción en vez de caer al usuario por defecto. Solo identidad (sin
+// permisos) y solo si la petición no lo trae ya.
+(function () {
+    if (window.__erpFetchConUsuario || typeof window.fetch !== 'function') return;
+    window.__erpFetchConUsuario = true;
+    const fetchOriginal = window.fetch;
+
+    function encabezadoUsuario() {
+        try {
+            const sesion = JSON.parse(localStorage.getItem('erp-user-session') || sessionStorage.getItem('erp-user-session') || 'null');
+            if (!sesion || typeof sesion !== 'object') return '';
+            const username = sesion.username || sesion.user || '';
+            const nombre = sesion.fullName || sesion.name || '';
+            if (!username && !nombre) return '';
+            return JSON.stringify({
+                id: sesion.id || sesion.userId || '',
+                userId: sesion.userId || sesion.id || '',
+                username,
+                user: sesion.user || username,
+                name: sesion.name || nombre,
+                fullName: sesion.fullName || nombre
+            }).replace(/[\u007f-\uffff]/g, (c) => '\\u' + ('0000' + c.charCodeAt(0).toString(16)).slice(-4));
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function esApiPropia(url) {
+        try {
+            const destino = new URL(url, window.location.href);
+            return destino.origin === window.location.origin && destino.pathname.startsWith('/api/');
+        } catch (_) {
+            return false;
+        }
+    }
+
+    window.fetch = function (input, init) {
+        const url = typeof input === 'string' ? input : (input && input.url) || String(input);
+        if (!esApiPropia(url)) return fetchOriginal.call(this, input, init);
+        const valor = encabezadoUsuario();
+        if (!valor) return fetchOriginal.call(this, input, init);
+        const headers = new Headers((init && init.headers) || (input instanceof Request ? input.headers : undefined));
+        if (headers.has('x-erp-session')) return fetchOriginal.call(this, input, init);
+        headers.set('x-erp-session', valor);
+        return fetchOriginal.call(this, input, Object.assign({}, init || {}, { headers }));
     };
 })();

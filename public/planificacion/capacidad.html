@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Capacidad Finita — Planificación</title>
 <style>
@@ -99,11 +100,11 @@ html[data-theme="dark"] .bottleneck-badge{background:rgba(164,67,67,0.15);border
       <option value="90">90 días</option>
     </select>
     <span id="last-computed" style="font-size:11px;color:var(--color-text-secondary)"></span>
-    <a class="btn" href="/planificacion/simulador">Simular</a>
-    <a class="btn" href="/planificacion/recursos">Recursos</a>
+    <a class="btn" href="/planificacion/simulador" onclick="return navShellAware(event,'/planificacion/simulador','Simulador')">Simular</a>
+    <a class="btn" href="/planificacion/recursos" onclick="return navShellAware(event,'/planificacion/recursos','Recursos')">Recursos</a>
     <span data-theme-toggle-slot></span>
     <button id="recalculate" class="btn primary" onclick="recalculateCapacity()">↻ Recalcular</button>
-    <a class="btn" href="/planificacion/gantt">← Gantt</a>
+    <a class="btn" href="/planificacion/gantt" onclick="return navShellAware(event,'/planificacion/gantt','Gantt')">← Gantt</a>
   </div>
 </div>
 
@@ -140,6 +141,14 @@ html[data-theme="dark"] .bottleneck-badge{background:rgba(164,67,67,0.15);border
 </div>
 
 <script>
+function navShellAware(e,route,label){
+  if(window.parent&&window.parent!==window&&window.location.search.includes('shell=1')){
+    e.preventDefault();
+    window.parent.postMessage({type:'erp-open-tab',route:route+(route.includes('?')?'&':'?')+'shell=1',label:label},window.location.origin);
+    return false;
+  }
+  return true;
+}
 const API = '/api/planificacion';
 let capacityData = null;
 
@@ -365,7 +374,7 @@ function renderOrders() {
               ${o.earliestStart ? 'Inicio: ' + o.earliestStart : ''}
               ${o.latestEnd ? ' · Fin: ' + o.latestEnd : ''}
             </div>
-            <a href="/planificacion/timeline?codigo=${encodeURIComponent(o.orderCode)}" class="btn sm">📋 Timeline</a>
+            <a href="/planificacion/timeline?codigo=${encodeURIComponent(o.orderCode)}" onclick="return navShellAware(event,'/planificacion/timeline?codigo=${encodeURIComponent(o.orderCode)}','Timeline ${esc(o.orderCode)}')" class="btn sm">📋 Timeline</a>
           </div>
         </div>
         <div class="order-timeline">${routeSteps}</div>

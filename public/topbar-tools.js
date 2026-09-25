@@ -168,6 +168,27 @@
         if (force || !String(miniColorField?.value || '').trim()) miniColorField.value = preset.miniColor;
     }
 
+    function normalizeTransicionesConfig(config = {}) {
+        return {
+            activar: config.activar === true || String(config.activar || '').trim().toLowerCase() === 'true',
+            transicionDesvanecerMs: clampNumber(config.transicionDesvanecerMs, 140, 0, 1000),
+            transicionCrecerMs: clampNumber(config.transicionCrecerMs, 260, 0, 1200)
+        };
+    }
+
+    function emitTransicionesProfilePreview(form) {
+        if (!form) return;
+        const preview = {
+            activar: form.elements.transicionesActivar?.checked,
+            transicionDesvanecerMs: form.elements.transicionDesvanecerMs?.value,
+            transicionCrecerMs: form.elements.transicionCrecerMs?.value
+        };
+        window.dispatchEvent(new CustomEvent('erp-transiciones-preview-profile', { detail: preview }));
+        if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'erp-transiciones-preview-profile', preview }, window.location.origin);
+        }
+    }
+
     function emitFloatingButtonProfilePreview(form) {
         if (!form) return;
         const preview = normalizeFloatingButtonConfig({
@@ -211,6 +232,20 @@
             syncProfileRangeValues(form);
             emitFloatingButtonProfilePreview(form);
             scheduleProfileAutosave(form);
+        });
+        ['transicionesActivar', 'transicionDesvanecerMs', 'transicionCrecerMs'].forEach((fieldName) => {
+            const field = form.elements[fieldName];
+            if (!field) return;
+            field.addEventListener('change', () => {
+                emitTransicionesProfilePreview(form);
+                scheduleProfileAutosave(form);
+            });
+            if (field instanceof HTMLInputElement && field.type !== 'checkbox') {
+                field.addEventListener('input', () => {
+                    emitTransicionesProfilePreview(form);
+                    scheduleProfileAutosave(form);
+                });
+            }
         });
         popover.querySelectorAll('[data-profile-range-target]').forEach((range) => {
             range.addEventListener('input', () => {
@@ -325,6 +360,7 @@
                 <div class="topbar-profile-tabs">
                     <button type="button" class="topbar-profile-tab is-active" data-profile-tab="perfil">Perfil</button>
                     <button type="button" class="topbar-profile-tab" data-profile-tab="boton-flotante">Botón flotante</button>
+                    <button type="button" class="topbar-profile-tab" data-profile-tab="transiciones">Transiciones</button>
                 </div>
                 <form id="globalUserProfileForm" class="topbar-profile-form">
                     <div class="topbar-profile-panel" data-profile-panel="perfil">
@@ -428,6 +464,32 @@
                             </label>
                         </div>
                     </div>
+                    <div class="topbar-profile-panel" data-profile-panel="transiciones" hidden>
+                        <div class="topbar-profile-grid">
+                            <label>
+                                <span>Activar configuración personal</span>
+                                <div class="topbar-profile-inline-check">
+                                    <input name="transicionesActivar" type="checkbox">
+                                    <strong style="font-size:13px; color:var(--app-text); font-weight:600;">Usar mi configuración</strong>
+                                </div>
+                            </label>
+                            <label>
+                                <span>Desvanecimiento de botones</span>
+                                <div class="topbar-profile-range-row">
+                                    <input type="range" min="0" max="1000" step="10" data-profile-range-target="transicionDesvanecerMs" aria-label="Desvanecimiento de botones">
+                                    <input name="transicionDesvanecerMs" type="number" min="0" max="1000" step="10">
+                                </div>
+                            </label>
+                            <label>
+                                <span>Nacimiento de la pestaña</span>
+                                <div class="topbar-profile-range-row">
+                                    <input type="range" min="0" max="1200" step="10" data-profile-range-target="transicionCrecerMs" aria-label="Nacimiento de la pestaña">
+                                    <input name="transicionCrecerMs" type="number" min="0" max="1200" step="10">
+                                </div>
+                            </label>
+                            <p style="font-size:12px; color:var(--app-text-muted); margin:0;">Si no activas tu configuración, se usa la velocidad definida en Configuración → Diseño → Transiciones.</p>
+                        </div>
+                    </div>
                     <p id="globalUserProfileStatus" class="topbar-profile-status"></p>
                     <div class="topbar-profile-actions">
                         <button type="button" class="action-btn topbar-profile-logout" data-profile-logout="true">Cerrar sesión</button>
@@ -457,6 +519,11 @@
             form.elements.email.value = payload.email || '';
             form.elements.phone.value = payload.phone || '';
             form.elements.phoneSecondary.value = payload.phoneSecondary || '';
+            const transicionesConfig = normalizeTransicionesConfig(payload.transicionesConfig || {});
+            form.elements.transicionesActivar.checked = transicionesConfig.activar;
+            form.elements.transicionDesvanecerMs.value = String(transicionesConfig.transicionDesvanecerMs);
+            form.elements.transicionCrecerMs.value = String(transicionesConfig.transicionCrecerMs);
+            syncProfileRangeValues(form);
             const floatingConfig = normalizeFloatingButtonConfig(payload.floatingButtonConfig || {});
             form.elements.bdfgEnabled.checked = floatingConfig.enabled;
             form.elements.bdfgTheme.value = floatingConfig.theme;
@@ -499,9 +566,21 @@
     }
 
     function logoutCurrentSession() {
+        const session = readSession();
         try {
-            localStorage.removeItem(SESSION_STORAGE_KEY);
-            sessionStorage.removeItem(SESSION_STORAGE_KEY);
+            if (window.ErpAccess?.notifyLogout) {
+                window.ErpAccess.notifyLogout(session, 'manual');
+            }
+        } catch (_) {
+            // Ignore logout notification failure.
+        }
+        try {
+            if (window.ErpAccess?.clearSessionStorage) {
+                window.ErpAccess.clearSessionStorage();
+            } else {
+                localStorage.removeItem(SESSION_STORAGE_KEY);
+                sessionStorage.removeItem(SESSION_STORAGE_KEY);
+            }
         } catch (_) {
             // Ignore storage cleanup failure.
         }
@@ -512,7 +591,7 @@
         } catch (_) {
             // Ignore parent notification failure.
         }
-        window.location.href = '/login';
+        (window.top || window).location.href = '/login';
     }
 
     async function saveProfile(form, options = {}) {
@@ -538,7 +617,12 @@
             email: form.elements.email.value,
             phone: form.elements.phone.value,
             phoneSecondary: form.elements.phoneSecondary.value,
-            floatingButtonConfig
+            floatingButtonConfig,
+            transicionesConfig: normalizeTransicionesConfig({
+                activar: form.elements.transicionesActivar?.checked,
+                transicionDesvanecerMs: form.elements.transicionDesvanecerMs?.value,
+                transicionCrecerMs: form.elements.transicionCrecerMs?.value
+            })
         };
         const response = await fetch(PROFILE_ENDPOINT, {
             method: 'PATCH',

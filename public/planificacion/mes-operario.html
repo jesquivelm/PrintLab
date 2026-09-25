@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="/theme.js"></script>
+<script src="/desplegable.js?v=20260924-desplegable-v5"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Produccion</title>
 <style>
@@ -111,6 +112,12 @@ input[type=number],select{
   margin-bottom:12px;border:1px solid #d4ebde
 }
 .loading{padding:36px 16px;text-align:center;color:var(--muted)}
+.btn-incidencia{width:100%;padding:11px;border-radius:14px;font-size:13px;font-weight:700;border:1px solid #e2c4c4;background:#fdf3f3;color:#a32d2d;cursor:pointer;margin:0 0 6px}
+.modal-overlay{position:fixed;inset:0;background:rgba(20,30,45,.5);display:flex;align-items:flex-end;justify-content:center;z-index:50}
+.modal-sheet{width:100%;max-width:520px;background:var(--surface);border-radius:22px 22px 0 0;padding:18px;max-height:85vh;overflow-y:auto}
+.modal-sheet textarea{width:100%;padding:10px 12px;border:1px solid #cbd8e6;border-radius:14px;font-size:13px;background:var(--surface);color:var(--text);min-height:70px;resize:vertical;font-family:inherit}
+.check-row{display:flex;align-items:center;gap:8px;font-size:13px;margin:10px 0}
+.check-row input{width:18px;height:18px}
 </style>
 <link rel="stylesheet" href="/theme-extensions.css">
 </head>
@@ -124,7 +131,32 @@ input[type=number],select{
     <div id="top-badge"><span class="badge pend">PENDIENTE</span></div>
   </div>
   <div class="state-bar" id="state-bar"></div>
-  <div class="screen" id="screen"><div class="loading">Cargando control de proceso...</div></div>
+  <div class="screen">
+    <button class="btn-incidencia" id="btn-incidencia" style="display:none" onclick="abrirModalIncidencia()">Reportar incidencia de calidad</button>
+    <div id="screen-body"><div class="loading">Cargando control de proceso...</div></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-incidencia" style="display:none">
+  <div class="modal-sheet">
+    <div class="paro-title">Reportar incidencia de calidad</div>
+    <div class="field-group">
+      <div class="field-label">Descripcion del problema</div>
+      <textarea id="inc-descripcion" placeholder="Describa lo observado..."></textarea>
+    </div>
+    <div class="field-group">
+      <div class="field-label">Prioridad</div>
+      <select id="inc-prioridad">
+        <option value="baja">Baja</option>
+        <option value="media" selected>Media</option>
+        <option value="alta">Alta</option>
+        <option value="critica">Critica</option>
+      </select>
+    </div>
+    <label class="check-row"><input type="checkbox" id="inc-detener"> Detener produccion por este problema</label>
+    <button class="btn-main paro" onclick="enviarIncidencia()">Guardar incidencia</button>
+    <button class="btn-main outline" onclick="cerrarModalIncidencia()">Cancelar</button>
+  </div>
 </div>
 
 <script>
@@ -139,6 +171,11 @@ let kit = [false, false, false];
 let timerSecs = 0;
 let timerInterval = null;
 let activeStopReasonId = '';
+
+const FT_TO_M = 0.3048;
+function ftToM(v){ return Number(v||0) * FT_TO_M; }
+function mToFt(v){ return Number(v||0) / FT_TO_M; }
+function roundM(v, dec=2){ const f=Math.pow(10,dec); return Math.round(Number(v||0)*f)/f; }
 
 function queryValue(name) { return new URLSearchParams(window.location.search).get(name) || ''; }
 function fmtTime(s){ const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), ss=s%60; return (h>0?String(h).padStart(2,'0')+':':'')+String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0'); }
@@ -187,14 +224,14 @@ function opInfo(){
     <div class="op-row"><span class="op-key">Producto</span><span class="op-val">${contextData.productName || 'Sin nombre'}</span></div>
     <div class="op-row"><span class="op-key">Cliente</span><span class="op-val">${contextData.customerName || 'Sin cliente'}</span></div>
     <div class="op-row"><span class="op-key">Tintas</span><span class="op-val">${contextData.tintCount || 0}C</span></div>
-    <div class="op-row"><span class="op-key">Pies planificados</span><span class="op-val">${Number(contextData.plannedFeet || 0).toLocaleString('es-CR')} pies</span></div>
+    <div class="op-row"><span class="op-key">Metros planificados</span><span class="op-val">${roundM(ftToM(contextData.plannedFeet || 0)).toLocaleString('es-CR')} m</span></div>
     <div class="op-row"><span class="op-key">Maquina</span><span class="op-val">${contextData.machineName || 'Sin maquina'}</span></div>
   </div>`;
 }
 
 function kittingItems() {
   return [
-    { label:'Troquel o plancha base', sub:'Verificar recurso fisico asociado al trabajo', id: contextData.dieCode || 'Pendiente', idx:0, ready:Boolean(contextData.dieCode) },
+    { label:'Troquel o sello base', sub:'Verificar recurso fisico asociado al trabajo', id: contextData.dieCode || 'Pendiente', idx:0, ready:Boolean(contextData.dieCode) },
     { label:'Lote de sustrato', sub:'Confirmar existencia del material para la corrida', id: contextData.materialCode || 'Pendiente', idx:1, ready:Boolean(contextData.materialCode) },
     { label:'Configuracion de tintas', sub:'Confirmar que el trabajo tiene sus tintas definidas', id: `${contextData.tintCount || 0} colores`, idx:2, ready:Number(contextData.tintCount || 0) > 0 }
   ];
@@ -229,7 +266,8 @@ async function postWaste(body) {
 
 function renderScreen(){
   if (!contextData) return;
-  const scr = document.getElementById('screen');
+  document.getElementById('btn-incidencia').style.display = (state >= 2 && state <= 4) ? 'block' : 'none';
+  const scr = document.getElementById('screen-body');
 
   if(state===0){
     scr.innerHTML = `
@@ -237,7 +275,7 @@ function renderScreen(){
       <div class="section-title">Detalle del plan</div>
       <div class="op-card">
         <div class="op-row"><span class="op-key">Proceso</span><span class="op-val">${contextData.processName}</span></div>
-        <div class="op-row"><span class="op-key">Velocidad nominal</span><span class="op-val">${Number(contextData.nominalSpeedFpm || 0).toLocaleString('es-CR')} pies/min</span></div>
+        <div class="op-row"><span class="op-key">Velocidad nominal</span><span class="op-val">${roundM(contextData.velocidad_nominal_m_min || 0).toLocaleString('es-CR')} m/min</span></div>
         <div class="op-row"><span class="op-key">Setup base</span><span class="op-val">${Number(contextData.setupMinutes || 0).toLocaleString('es-CR')} min</span></div>
         <div class="op-row"><span class="op-key">Troquel o recurso</span><span class="op-val">${contextData.dieCode || 'Pendiente'}</span></div>
       </div>
@@ -287,8 +325,8 @@ function renderScreen(){
         <div class="timer-val running" id="timer-display">${fmtTime(timerSecs)}</div>
       </div>
       <div class="op-card">
-        <div class="op-row"><span class="op-key">Velocidad nominal</span><span class="op-val">${Number(contextData.nominalSpeedFpm || 0).toLocaleString('es-CR')} pies/min</span></div>
-        <div class="op-row"><span class="op-key">Pies a producir</span><span class="op-val">${Number(contextData.plannedFeet || 0).toLocaleString('es-CR')}</span></div>
+        <div class="op-row"><span class="op-key">Velocidad nominal</span><span class="op-val">${roundM(contextData.velocidad_nominal_m_min || 0).toLocaleString('es-CR')} m/min</span></div>
+        <div class="op-row"><span class="op-key">Metros a producir</span><span class="op-val">${roundM(ftToM(contextData.plannedFeet || 0)).toLocaleString('es-CR')} m</span></div>
         <div class="op-row"><span class="op-key">Costo hora maquina</span><span class="op-val">$${Number(contextData.hourlyMachineCost || 0).toFixed(2)}</span></div>
       </div>
       <button class="btn-main paro" onclick="goState(4)">Reportar paro</button>
@@ -318,18 +356,19 @@ function renderScreen(){
   } else if(state===5){
     stopTimer();
     const latestWaste = contextData.latestWaste || {};
-    const feetTotal = Number(latestWaste.feet_consumed || contextData.plannedFeet || 0);
-    const setupWaste = Number(latestWaste.setup_waste_feet || 0);
-    const runWaste = Number(latestWaste.run_waste_feet || 0);
+    const totalM = roundM(latestWaste.metros_consumidos || ftToM(contextData.plannedFeet || 0), 3);
+    const setupWasteM = roundM(latestWaste.merma_setup_metros || 0, 3);
+    const runWasteM = roundM(latestWaste.merma_tiraje_metros || 0, 3);
+    const velM = latestWaste.velocidad_final_m_min ? roundM(latestWaste.velocidad_final_m_min, 2) : '';
     scr.innerHTML = `
       <div class="section-title">Declaracion de mermas y cierre</div>
       <div class="alert-box">Todos los campos son obligatorios para liberar la maquina.</div>
-      <div class="field-group"><div class="field-label">Pies consumidos</div><input type="number" id="f-total" value="${feetTotal}" oninput="calcMerma()"></div>
-      <div class="field-group"><div class="field-label">Pies merma | Setup</div><input type="number" id="f-setup" value="${setupWaste}" oninput="calcMerma()"></div>
-      <div class="field-group"><div class="field-label">Pies merma | Tiraje</div><input type="number" id="f-tiraje" value="${runWaste}" oninput="calcMerma()"></div>
-      <div class="merma-total"><span>Pies utiles -> ERP</span><span id="pies-utiles" style="font-weight:700;color:#1D9E75">${Math.max(0, feetTotal - setupWaste - runWaste).toLocaleString('es-CR')} pies</span></div>
+      <div class="field-group"><div class="field-label">Metros consumidos</div><input type="number" step="0.01" id="f-total" value="${totalM}" oninput="calcMerma()"></div>
+      <div class="field-group"><div class="field-label">Metros merma | Setup</div><input type="number" step="0.01" id="f-setup" value="${setupWasteM}" oninput="calcMerma()"></div>
+      <div class="field-group"><div class="field-label">Metros merma | Tiraje</div><input type="number" step="0.01" id="f-tiraje" value="${runWasteM}" oninput="calcMerma()"></div>
+      <div class="merma-total"><span>Metros utiles -> ERP</span><span id="metros-utiles" style="font-weight:700;color:#1D9E75">${roundM(Math.max(0, totalM - setupWasteM - runWasteM)).toLocaleString('es-CR')} m</span></div>
       <div class="section-title" style="margin-top:14px">Memoria tecnica</div>
-      <div class="field-group"><div class="field-label">Velocidad final estable (pies/min)</div><input type="number" id="f-vel" placeholder="ej. 420" value="${latestWaste.final_speed_fpm || ''}"></div>
+      <div class="field-group"><div class="field-label">Velocidad final estable (m/min)</div><input type="number" step="0.01" id="f-vel" placeholder="ej. 128" value="${velM}"></div>
       <div class="field-group"><div class="field-label">Presion de cilindros (bar)</div><input type="number" id="f-cil" step="0.1" placeholder="ej. 2.4" value="${latestWaste.cylinder_pressure || ''}"></div>
       <div class="field-group"><div class="field-label">Linea de anilox utilizada</div><input type="number" id="f-anilox" placeholder="ej. 360" value="${latestWaste.anilox_line || ''}"></div>
       <button class="btn-main go" onclick="cerrarOP()">Cerrar orden y enviar al ERP</button>
@@ -338,11 +377,11 @@ function renderScreen(){
 }
 
 function calcMerma(){
-  const t = parseInt(document.getElementById('f-total')?.value||0, 10);
-  const s = parseInt(document.getElementById('f-setup')?.value||0, 10);
-  const r = parseInt(document.getElementById('f-tiraje')?.value||0, 10);
-  const el = document.getElementById('pies-utiles');
-  if(el) el.textContent = Math.max(0, t - s - r).toLocaleString('es-CR') + ' pies';
+  const t = parseFloat(document.getElementById('f-total')?.value||0);
+  const s = parseFloat(document.getElementById('f-setup')?.value||0);
+  const r = parseFloat(document.getElementById('f-tiraje')?.value||0);
+  const el = document.getElementById('metros-utiles');
+  if(el) el.textContent = roundM(Math.max(0, t - s - r)).toLocaleString('es-CR') + ' m';
 }
 
 function toggleKit(idx){ kit[idx] = !kit[idx]; renderScreen(); }
@@ -382,20 +421,28 @@ async function cerrarOP(){
   const anilox = document.getElementById('f-anilox')?.value;
   if(!vel || !cil || !anilox){ alert('Completa todos los campos de memoria tecnica para cerrar la orden.'); return; }
   try {
-    const feetConsumed = Number(document.getElementById('f-total')?.value || 0);
-    const setupWasteFeet = Number(document.getElementById('f-setup')?.value || 0);
-    const runWasteFeet = Number(document.getElementById('f-tiraje')?.value || 0);
-    await postWaste({ feetConsumed, setupWasteFeet, runWasteFeet, finalSpeedFpm: Number(vel), aniloxLine: String(anilox), cylinderPressure: String(cil) });
+    const totalM = Number(document.getElementById('f-total')?.value || 0);
+    const setupWasteM = Number(document.getElementById('f-setup')?.value || 0);
+    const runWasteM = Number(document.getElementById('f-tiraje')?.value || 0);
+    const velM = Number(vel);
+    await postWaste({
+      metros_consumidos: totalM,
+      merma_setup_metros: setupWasteM,
+      merma_tiraje_metros: runWasteM,
+      velocidad_final_m_min: velM,
+      aniloxLine: String(anilox),
+      cylinderPressure: String(cil)
+    });
     await postEvent('completado');
-    const useful = Math.max(0, feetConsumed - setupWasteFeet - runWasteFeet);
-    document.getElementById('screen').innerHTML = `
+    const useful = roundM(Math.max(0, totalM - setupWasteM - runWasteM));
+    document.getElementById('screen-body').innerHTML = `
       <div style="text-align:center;padding:32px 16px">
         <div style="font-size:42px;margin-bottom:12px">OK</div>
         <div style="font-size:18px;font-weight:700;margin-bottom:8px">${contextData.orderCode} cerrada</div>
         <div style="font-size:13px;color:var(--muted);margin-bottom:20px">Datos enviados al ERP de produccion</div>
         <div class="op-card" style="text-align:left">
-          <div class="op-row"><span class="op-key">Pies utiles enviados</span><span class="op-val" style="color:#1D9E75">${useful.toLocaleString('es-CR')} pies</span></div>
-          <div class="op-row"><span class="op-key">Velocidad registrada</span><span class="op-val">${vel} pies/min</span></div>
+          <div class="op-row"><span class="op-key">Metros utiles enviados</span><span class="op-val" style="color:#1D9E75">${useful.toLocaleString('es-CR')} m</span></div>
+          <div class="op-row"><span class="op-key">Velocidad registrada</span><span class="op-val">${velM} m/min</span></div>
           <div class="op-row"><span class="op-key">Presion cilindros</span><span class="op-val">${cil} bar</span></div>
           <div class="op-row"><span class="op-key">Anilox utilizado</span><span class="op-val">${anilox}</span></div>
         </div>
@@ -430,13 +477,54 @@ async function loadContext() {
     renderBadge();
     renderScreen();
   } catch (error) {
-    document.getElementById('screen').innerHTML = `<div class="loading">${error.message}</div>`;
+    document.getElementById('screen-body').innerHTML = `<div class="loading">${error.message}</div>`;
+  }
+}
+
+function abrirModalIncidencia(){
+  document.getElementById('inc-descripcion').value = '';
+  document.getElementById('inc-prioridad').value = 'media';
+  document.getElementById('inc-detener').checked = false;
+  document.getElementById('modal-incidencia').style.display = 'flex';
+}
+function cerrarModalIncidencia(){
+  document.getElementById('modal-incidencia').style.display = 'none';
+}
+async function enviarIncidencia(){
+  const descripcion = document.getElementById('inc-descripcion').value.trim();
+  if(!descripcion){ alert('Describa el problema antes de guardar.'); return; }
+  const detener = document.getElementById('inc-detener').checked;
+  try {
+    const res = await fetch('/api/calidad/incidencias', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        origen: 'produccion',
+        descripcion,
+        prioridad: document.getElementById('inc-prioridad').value,
+        departamento_origen: 'Producción',
+        creado_por_nombre: 'Operario',
+        orden_produccion_codigo: contextData.orderCode || null,
+        ruta_produccion_id: contextData.routeId || null,
+        maquina: contextData.machineName || null,
+        proceso: contextData.processName || null,
+        operador: 'Operario',
+        genero_paro: detener
+      })
+    });
+    const payload = await res.json();
+    if (!res.ok) throw new Error(payload.error || 'No fue posible registrar la incidencia.');
+    cerrarModalIncidencia();
+    alert(`Incidencia ${payload.codigo} registrada.`);
+    if (detener && state !== 4) goState(4);
+  } catch (error) {
+    alert(error.message || 'No fue posible registrar la incidencia.');
   }
 }
 
 loadContext();
   const erpAccessScript = document.createElement('script');
-  erpAccessScript.src = '/access-control.js';
+  erpAccessScript.src = '/access-control.js?v=20260923-mensajes-carga';
   document.head.appendChild(erpAccessScript);
 </script>
 </body>

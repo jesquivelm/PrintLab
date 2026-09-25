@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
+    <title>Centro de Capacitación</title>
+    <link rel="stylesheet" href="../styles.css?v=20260919-apple5">
+    <link rel="stylesheet" href="../styles-apple.css?v=20260919-apple5">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        svg { width: 18px; height: 18px; flex-shrink: 0; }
+        body { font-family: "Segoe UI", sans-serif; background: #f8fafc; color: #0f172a; }
+    </style>
+</head>
+<body class="cc-body cc-article-view-page">
+
+    <header class="cc-topbar">
+        <div class="cc-search-wrap">
+            <svg class="cc-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="search" class="cc-search-input" id="searchInput" placeholder="Buscar en los manuales..." autocomplete="off">
+            <div class="cc-search-results" id="searchResults"></div>
+        </div>
+    </header>
+
+    <main class="cc-main" id="mainContent"></main>
+
+    <div class="cc-edit-overlay" id="editOverlay">
+        <div class="cc-edit-panel">
+            <div class="cc-edit-header">
+                <h3>Editar artículo</h3>
+                <button class="cc-edit-close" id="editClose" aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="cc-edit-toolbar">
+                <select type="button" class="cc-edit-tool cc-edit-tool--select" id="fmtBloque" title="Estilo del párrafo">
+                    <option value="texto">Texto normal</option>
+                    <option value="titulo">Título</option>
+                    <option value="subtitulo">Subtítulo</option>
+                </select>
+                <span class="cc-edit-tool-sep"></span>
+                <button type="button" class="cc-edit-tool" id="fmtNegrita" title="Negrita"><strong>N</strong></button>
+                <button type="button" class="cc-edit-tool" id="fmtCursiva" title="Cursiva"><em>C</em></button>
+                <button type="button" class="cc-edit-tool" id="fmtLista" title="Lista con viñetas">• Lista</button>
+                <span class="cc-edit-tool-sep"></span>
+                <button type="button" class="cc-edit-tool cc-edit-tool--media" id="editInsertMedia" title="Insertar imagen o video">🖼 Insertar Imagen / Video</button>
+                <input type="file" id="editMediaFile" accept="image/*,video/*" multiple hidden>
+            </div>
+            <div class="cc-edit-body">
+                <div id="editTextarea" class="cc-edit-content" contenteditable="true"></div>
+                <div class="cc-edit-media-preview" id="ccEditMediaPreview"></div>
+                <p class="cc-edit-hint">También puedes arrastrar imágenes o videos directamente sobre el texto. Toca una imagen en el manual para verla en grande.</p>
+            </div>
+            <div class="cc-edit-footer">
+                <button class="cc-edit-cancel" id="editCancel">Cancelar</button>
+                <button class="cc-edit-save" id="editSave">Guardar cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/access-control.js?v=20260923-mensajes-carga"></script>
+    <script src="../app.js?v=20260919-apple5"></script>
+</body>
+</html>

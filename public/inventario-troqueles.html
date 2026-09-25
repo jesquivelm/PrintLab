@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
     <title>Inventario Troqueles</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
 </head>
 <body>
     <main class="workspace workspace-quote quote-browser-main">
@@ -13,9 +14,10 @@
             <div class="quote-browser-search-row inventory-browser-search-row">
                 <div class="inventory-actions quote-browser-actions-left">
                     <button id="troquelNewButton" type="button" class="action-btn quote-browser-action-btn">Nuevo Troquel</button>
+                    <button id="troquelDesdeCalculoButton" type="button" class="action-btn quote-browser-action-btn">Crear desde Cálculo de Troquel</button>
                 </div>
                 <div class="quote-browser-search-wrap">
-                    <input id="troquelesSearchInput" class="copy-popover-search quote-browser-search" type="search" placeholder="Buscar por código, descripción o estado" autocomplete="off">
+                    <input id="troquelesSearchInput" class="copy-popover-search quote-browser-search" type="search" placeholder="Buscar por código, descripción, clasificación, estado, ancho, largo, desarrollo, filas, dientes o proveedor" autocomplete="off">
                 </div>
             </div>
 
@@ -37,7 +39,7 @@
                             <th></th>
                         </tr>
                     </thead>
-                    <tbody id="troquelesTableBody"></tbody>
+                    <tbody id="troquelesTableBody"><tr><td colspan="12">Cargando los troqueles desde el servidor, un momento por favor…</td></tr></tbody>
                 </table>
             </div>
         </section>
@@ -52,84 +54,124 @@
                     <button type="button" class="material-modal-close" data-close-troquel-detail="true" aria-label="Cerrar">&times;</button>
                 </div>
 
-                <form id="troquelDetailForm" autocomplete="nope">
+                <div class="standard-module-tabs troquel-detail-tabs">
+                    <button type="button" class="standard-module-tab troquel-detail-tab is-active" data-troquel-tab="general">General</button>
+                    <button type="button" class="standard-module-tab troquel-detail-tab" data-troquel-tab="adicionales">Datos Adicionales</button>
+                </div>
+
+                <form id="troquelDetailForm" autocomplete="off">
                     <input type="hidden" name="id">
 
-                    <div class="socios-section troquel-detail-section-card troquel-section-touch">
-                        <button type="button" id="troquelImageBtn" class="troquel-touch-btn" title="Imagen del troquel"></button>
-                        <input type="hidden" name="image_url" id="troquelImageUrl">
-                        <input type="file" id="troquelImageInput" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
-                        <div class="section-caption">Identificación</div>
-                        <div class="socios-grid troquel-grid-3 troquel-grid-tight">
-                            <div class="field inventory-span-2"><label>Código</label><input name="codigo" type="text" autocomplete="nope"></div>
-                            <div class="field inventory-span-2"><label>Descripción</label><input name="descripcion" type="text" autocomplete="nope"></div>
-                            <div class="field field-full"><label>Descripción Cotización</label><input name="descripcion_cotizaciones" type="text" autocomplete="nope"></div>
-                            <div class="field"><label>Forma Troquel</label><select name="formato" autocomplete="nope"></select></div>
-                            <div class="field"><label>Estado</label><select name="estado" autocomplete="nope"><option value="">Seleccione...</option><option value="Bueno">Bueno</option><option value="Malo">Malo</option></select></div>
-                            <div class="field"><label>Clasificación</label><input name="clasificacion" type="text" autocomplete="nope"></div>
-                            <div class="field"><label>Código Cliente</label><input name="codigo_cliente" type="text" autocomplete="nope"></div>
-                            <div class="field troquel-detail-checkbox-col">
-                                <label>Código Preprensa</label>
-                                <input name="codigo_preprensa" type="text" autocomplete="nope">
+                    <div class="troquel-detail-tab-panel" data-troquel-tab="general">
+                        <div class="troquel-detail-top-row">
+                            <div class="socios-section troquel-detail-section-card">
+                                <div class="section-caption">Identificación</div>
+                                <div class="socios-grid troquel-grid-3 troquel-grid-tight">
+                                    <div class="field inventory-span-2"><label>Código</label><input name="codigo" type="text" autocomplete="off"></div>
+                                    <div class="field troquel-activo-field">
+                                        <label class="inventory-checkbox-field troquel-checkbox-vertical"><span>Activo</span><input name="activo" type="checkbox"></label>
+                                    </div>
+                                    <div class="field inventory-span-2"><label>Descripción</label><input name="descripcion" type="text" autocomplete="off" title=""></div>
+                                    <div class="field"><label>Forma Troquel</label><select name="formato" autocomplete="off"></select></div>
+                                    <div class="field"><label>Clasificación</label><input name="clasificacion" type="text" autocomplete="off"></div>
+                                </div>
+                            </div>
+                            <div class="socios-section troquel-detail-section-card troquel-detail-image-card">
+                                <div class="section-caption">Imagen del Troquel</div>
+                                <button type="button" id="troquelImageBtn" class="troquel-image-upload-box" title="Cargar imagen del troquel"></button>
+                                <input type="hidden" name="image_url" id="troquelImageUrl">
+                                <input type="file" id="troquelImageInput" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
+                            </div>
+                        </div>
+
+                        <div class="socios-section troquel-detail-section-card">
+                            <div class="section-caption">Montaje y Distorsión</div>
+                            <div class="socios-grid troquel-grid-3 troquel-grid-tight">
+                                <div class="field"><label>Ancho Etiqueta in</label><div class="display-input-wrap"><input class="display-input" name="ancho_etiqueta_in" type="text" autocomplete="off"><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Largo Etiqueta in</label><div class="display-input-wrap"><input class="display-input" name="largo_etiqueta_in" type="text" autocomplete="off"><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Desarrollo in</label><div class="display-input-wrap"><input class="display-input" name="desarrollo_in" type="text" autocomplete="off"><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Elongación %</label><div class="display-input-wrap"><input class="display-input" name="elongacion_pct" type="text" autocomplete="off"><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Ancho Material in</label><div class="display-input-wrap"><input class="display-input" name="ancho_material_in" type="text" autocomplete="off"><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Filas</label><div class="display-input-wrap"><input class="display-input" name="cantidad_filas" type="text" autocomplete="off"><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Dientes</label><div class="display-input-wrap"><input class="display-input" name="dientes" type="text" autocomplete="off"><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Repeticiones</label><div class="display-input-wrap"><input class="display-input" name="repeticiones" type="text" autocomplete="off"><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Gap in</label><div class="display-input-wrap"><input class="display-input" name="gap_in" type="text" autocomplete="off"><span class="display-input-mask"></span></div></div>
+                            </div>
+                        </div>
+
+                        <div class="socios-section troquel-detail-section-card">
+                            <div class="section-caption">Diseño Paramétrico</div>
+                            <div class="troquel-design-tool" id="troquelDetailDesignTool">
+                                <div class="socios-grid troquel-grid-3 troquel-grid-tight">
+                                    <div class="field"><label>Radio de Esquina in</label><input id="detailTroquelRadio" type="text" autocomplete="off" placeholder="0.125"></div>
+                                    <div class="field"><label>Sustrato de Referencia</label><select id="detailTroquelSustrato"><option value="">Seleccione sustrato...</option></select></div>
+                                    <div></div>
+                                </div>
+                                <button type="button" id="detailTroquelAutoMount" class="material-footer-btn troquel-design-tool-btn">Calcular Montaje Repeticiones</button>
+                                <div class="note troquel-design-tool-note" id="detailTroquelMountNote">—</div>
+                                <div class="troquel-design-tool-diagram"><svg id="detailTroquelSvg" viewBox="0 0 600 380" preserveAspectRatio="xMidYMid meet"></svg></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="troquel-detail-tab-panel" data-troquel-tab="adicionales" hidden>
+                        <div class="socios-section troquel-detail-section-card">
+                            <div class="section-caption">Identificación Adicional</div>
+                            <div class="socios-grid troquel-grid-3 troquel-grid-tight">
+                                <div class="field field-full"><label>Descripción Cotización</label><input name="descripcion_cotizaciones" type="text" autocomplete="off"></div>
+                                <div class="field"><label>Estado</label><select name="estado" autocomplete="off"><option value="">Seleccione...</option><option value="Bueno">Bueno</option><option value="Malo">Malo</option></select></div>
+                                <div class="field"><label>Código Cliente</label><input name="codigo_cliente" type="text" autocomplete="off"></div>
+                                <div class="field"><label>Código Preprensa</label><input name="codigo_preprensa" type="text" autocomplete="off"></div>
                                 <div class="troquel-check-group">
-                                    <label class="inventory-checkbox-field"><span>Activo</span><input name="activo" type="checkbox"></label>
                                     <label class="inventory-checkbox-field"><span>Convencional</span><input name="uso_convencional" type="checkbox"></label>
                                     <label class="inventory-checkbox-field"><span>Digital</span><input name="uso_digital" type="checkbox"></label>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="socios-section troquel-detail-section-card">
-                        <div class="section-caption">Montaje y Distorsión</div>
-                        <div class="socios-grid troquel-grid-3 troquel-grid-tight">
-                            <div class="field"><label>Desarrollo in</label><input name="desarrollo_in" type="text" autocomplete="nope"></div>
-                            <div class="field"><label>Elongación %</label><input name="elongacion_pct" type="text" autocomplete="nope"></div>
-                            <div class="field"><label>Elongado</label><input name="elongado" type="text" autocomplete="nope"></div>
-                            <div class="field"><label>Montaje Troquel</label><input name="montaje_troquel" type="text" autocomplete="nope"></div>
-                            <div class="field"><label>Tensión</label><input name="tension" type="text" autocomplete="nope"></div>
-                            <div class="field inventory-span-2"><label>Dimensiones Troquel in</label><input name="dimensiones_troquel_in" type="text" autocomplete="nope" placeholder="13 x 7,8"></div>
-                            <div class="field"><label>Ancho Etiqueta in</label><input name="ancho_etiqueta_in" type="text" autocomplete="nope"></div>
-                            <div class="field"><label>Largo Etiqueta in</label><input name="largo_etiqueta_in" type="text" autocomplete="nope"></div>
-                            <div class="field"><label>Ancho Material in</label><input name="ancho_material_in" type="text" autocomplete="nope"></div>
-                            <div class="field"><label>Filas</label><input name="cantidad_filas" type="text" autocomplete="nope"></div>
-                            <div class="field"><label>Dientes</label><input name="dientes" type="text" autocomplete="nope"></div>
-                            <div class="field"><label>Repeticiones</label><input name="repeticiones" type="text" autocomplete="nope"></div>
+                        <div class="socios-section troquel-detail-section-card">
+                            <div class="section-caption">Montaje y Distorsión</div>
+                            <div class="socios-grid troquel-grid-3 troquel-grid-tight">
+                                <div class="field"><label>Elongado</label><input name="elongado" type="text" autocomplete="off"></div>
+                                <div class="field"><label>Montaje Troquel</label><input name="montaje_troquel" type="text" autocomplete="off"></div>
+                                <div class="field"><label>Tensión</label><input name="tension" type="text" autocomplete="off"></div>
+                                <div class="field inventory-span-2"><label>Dimensiones Troquel in</label><input name="dimensiones_troquel_in" type="text" autocomplete="off" placeholder="13 x 7,8"></div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="socios-section troquel-detail-section-card">
-                        <div class="section-caption">Áreas</div>
-                        <div class="socios-grid troquel-grid-3 troquel-grid-tight">
-                            <div class="field"><label>Área Etiqueta in²</label><input name="area_etiqueta_in" type="text" autocomplete="nope"></div>
-                            <div class="field"><label>Área Etiqueta c/Excesos in²</label><input name="area_etiqueta_excesos_in" type="text" autocomplete="nope"></div>
-                            <div class="field"><label>Área Troquel in²</label><input name="area_troquel_in2" type="text" autocomplete="nope"></div>
+                        <div class="socios-section troquel-detail-section-card">
+                            <div class="section-caption">Áreas</div>
+                            <div class="socios-grid troquel-grid-3 troquel-grid-tight">
+                                <div class="field"><label>Área Etiqueta in²</label><div class="display-input-wrap"><input class="display-input" name="area_etiqueta_in" type="text" autocomplete="off"><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Área Etiqueta c/Excesos in²</label><div class="display-input-wrap"><input class="display-input" name="area_etiqueta_excesos_in" type="text" autocomplete="off"><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Área Troquel in²</label><div class="display-input-wrap"><input class="display-input" name="area_troquel_in2" type="text" autocomplete="off"><span class="display-input-mask"></span></div></div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="socios-section troquel-detail-section-card">
-                        <div class="section-caption">Producción</div>
-                        <div class="socios-grid troquel-grid-3 troquel-grid-tight">
-                            <div class="field"><label>Vida Útil Total</label><input name="vida_util_golpes_total" type="text" autocomplete="nope"></div>
-                            <div class="field"><label>Vida Útil Usada</label><input name="vida_util_golpes_usados" type="text" autocomplete="nope"></div>
-                            <div class="field"><label>Vida Útil Restante</label><input name="vida_util_golpes_restantes" type="text" autocomplete="nope"></div>
-                            <div class="field"><label>Reemplaza a</label><input name="reemplaza_a" type="text" autocomplete="nope"></div>
-                            <div class="field"><label>Reemplazado por</label><input name="reemplazado_por" type="text" autocomplete="nope"></div>
+                        <div class="socios-section troquel-detail-section-card">
+                            <div class="section-caption">Vida Útil / Trazabilidad</div>
+                            <div class="socios-grid troquel-grid-3 troquel-grid-tight">
+                                <div class="field"><label>Vida Útil Total</label><div class="display-input-wrap"><input class="display-input" name="vida_util_golpes_total" type="text" autocomplete="off"><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Vida Útil Usada</label><div class="display-input-wrap"><input class="display-input" name="vida_util_golpes_usados" type="text" autocomplete="off"><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Vida Útil Restante</label><div class="display-input-wrap"><input class="display-input" name="vida_util_golpes_restantes" type="text" autocomplete="off"><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Reemplaza a</label><input name="reemplaza_a" type="text" autocomplete="off"></div>
+                                <div class="field"><label>Reemplazado por</label><input name="reemplazado_por" type="text" autocomplete="off"></div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="socios-section troquel-detail-section-card">
-                        <div class="section-caption">Proveedor</div>
-                        <div class="socios-grid troquel-grid-3 troquel-grid-tight">
-                            <div class="field"><label>Proveedor Troquel</label><input name="proveedor_troquel" type="text" autocomplete="nope"></div>
-                            <div class="field"><label>Código Proveedor</label><input name="codigo_proveedor" type="text" autocomplete="nope"></div>
+                        <div class="socios-section troquel-detail-section-card">
+                            <div class="section-caption">Proveedor</div>
+                            <div class="socios-grid troquel-grid-3 troquel-grid-tight">
+                                <div class="field"><label>Proveedor Troquel</label><input name="proveedor_troquel" type="text" autocomplete="off"></div>
+                                <div class="field"><label>Código Proveedor</label><input name="codigo_proveedor" type="text" autocomplete="off"></div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="socios-section troquel-detail-section-card">
-                        <div class="section-caption">Observaciones</div>
-                        <div class="socios-grid troquel-grid-3 troquel-grid-tight">
-                            <div class="field field-full"><textarea name="observaciones" rows="3" autocomplete="nope"></textarea></div>
+                        <div class="socios-section troquel-detail-section-card">
+                            <div class="section-caption">Observaciones</div>
+                            <div class="socios-grid troquel-grid-3 troquel-grid-tight">
+                                <div class="field field-full"><textarea name="observaciones" rows="3" autocomplete="off"></textarea></div>
+                            </div>
                         </div>
                     </div>
 
@@ -184,6 +226,19 @@
                     <div class="field"><label>Dimensiones Troquel in</label><input id="modalTroquelDimensiones" name="dimensiones_troquel_in" type="text" autocomplete="off" placeholder="13 x 7,8"></div>
                     <div class="field"><label>Tensión</label><input id="modalTroquelTension" name="tension" type="text" autocomplete="off"></div>
                     <div class="field"><label>Elongado</label><input id="modalTroquelElongado" name="elongado" type="text" autocomplete="off"></div>
+                    <div class="field"><label>Gap in</label><input id="modalTroquelGap" name="gap_in" type="text" autocomplete="off"></div>
+                </div>
+
+                <div class="section-caption" style="margin:12px 0 6px">Diseño Paramétrico</div>
+                <div class="troquel-design-tool" id="troquelCreateDesignTool">
+                    <div class="socios-grid troquel-grid-3 troquel-grid-tight">
+                        <div class="field"><label>Radio de Esquina in</label><input id="modalTroquelRadio" type="text" autocomplete="off" placeholder="0.125"></div>
+                        <div class="field"><label>Sustrato de Referencia</label><select id="modalTroquelSustrato"><option value="">Seleccione sustrato...</option></select></div>
+                        <div></div>
+                    </div>
+                    <button type="button" id="modalTroquelAutoMount" class="material-footer-btn troquel-design-tool-btn">Calcular Montaje Repeticiones</button>
+                    <div class="note troquel-design-tool-note" id="modalTroquelMountNote">—</div>
+                    <div class="troquel-design-tool-diagram"><svg id="modalTroquelSvg" viewBox="0 0 600 380" preserveAspectRatio="xMidYMid meet"></svg></div>
                 </div>
 
                 <div class="section-caption" style="margin:12px 0 6px">Proveedor</div>
@@ -203,7 +258,7 @@
         </section>
     </div>
 
-    <script src="/access-control.js"></script>
-    <script src="/inventario-troqueles.js"></script>
+    <script src="/access-control.js?v=20260923-mensajes-carga"></script>
+    <script src="/inventario-troqueles.js?v=20260923-mensajes-carga"></script>
 </body>
 </html>

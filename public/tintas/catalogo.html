@@ -4,14 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
     <title>Catálogo de Tintas - PrintLab</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <link rel="stylesheet" href="/tintas/styles.css?v=20260919-colorimetria">
+    <script src="/tintas/color-utils.js?v=20260919-colorimetria"></script>
 </head>
 <body>
     <main class="workspace workspace-quote quote-browser-main tintas-shell">
         <section class="quote-card quote-card-clean quote-browser-card tintas-card">
             <div class="tintas-toolbar">
-                <div class="tintas-toolbar-actions">
+                <h2>Catálogo de Tintas</h2>
+            </div>
+            <div class="tintas-toolbar" style="margin-right: 80px;">
+                <div class="tintas-toolbar-actions tintas-toolbar-actions-right">
+                    <span class="tintas-toolbar-search-inline">
+                        <input id="searchText" class="tintas-search-input" type="search" placeholder="Buscar...">
+                    </span>
                     <select id="filterTipo" class="tintas-select">
                         <option value="">Todos los tipos</option>
                         <option value="TINTA_UV">Tinta UV</option>
@@ -19,8 +28,29 @@
                         <option value="PRIMER">Primer</option>
                         <option value="ADHESIVO">Adhesivo</option>
                         <option value="BASE">Base</option>
+                        <option value="BLANCO">Blanco</option>
+                        <option value="TRANSPARENTE">Transparente</option>
+                        <option value="EXTENDER">Extender</option>
+                        <option value="DILUYENTE">Diluyente</option>
                         <option value="SOLVENTE">Solvente</option>
+                        <option value="LIMPIADOR">Limpiador</option>
                         <option value="ADITIVO">Aditivo</option>
+                        <option value="RETARDANTE">Retardante</option>
+                        <option value="ACELERANTE">Acelerante</option>
+                        <option value="PROCESO_CYAN">Proceso — Cyan</option>
+                        <option value="PROCESO_MAGENTA">Proceso — Magenta</option>
+                        <option value="PROCESO_AMARILLO">Proceso — Amarillo</option>
+                        <option value="PROCESO_NEGRO">Proceso — Negro</option>
+                        <option value="PANTONE_DIRECTA">Pantone / Directa</option>
+                        <option value="ROJO">Rojo</option>
+                        <option value="NARANJA">Naranja</option>
+                        <option value="VERDE">Verde</option>
+                        <option value="AZUL">Azul</option>
+                        <option value="VIOLETA">Violeta</option>
+                        <option value="ROSA">Rosa</option>
+                        <option value="METALICA">Metálica</option>
+                        <option value="FLUORESCENTE">Fluorescente</option>
+                        <option value="ESPECIAL">Especial</option>
                         <option value="OTRO">Otro</option>
                     </select>
                     <select id="filterEstado" class="tintas-select">
@@ -29,9 +59,7 @@
                         <option value="INACTIVO">Inactivo</option>
                     </select>
                     <button class="tintas-btn" onclick="cargar()">Buscar</button>
-                </div>
-                <div class="tintas-toolbar-search">
-                    <input id="searchText" class="tintas-search-input" type="search" placeholder="Buscar...">
+                    <button class="tintas-btn" onclick="abrirTintaModal()">+ Nueva Tinta</button>
                 </div>
             </div>
             <div class="tintas-table-wrap">
@@ -43,19 +71,267 @@
                             <th>Tipo</th>
                             <th>Familia</th>
                             <th>Marca</th>
+                            <th>Pantón base</th>
                             <th>Unidad</th>
                             <th>Costo Prom.</th>
+                            <th>Vida útil</th>
                             <th>Estado</th>
+                            <th>Lotes</th>
                         </tr>
                     </thead>
                     <tbody id="tablaBody">
-                        <tr><td colspan="8" class="tintas-loading">Cargando...</td></tr>
+                        <tr><td colspan="11" class="tintas-loading">Cargando...</td></tr>
                     </tbody>
                 </table>
             </div>
         </section>
     </main>
+
+    <!-- Modal: Nueva Tinta -->
+    <div class="material-modal" id="tintaModal">
+        <div class="material-modal-backdrop" onclick="cerrarTintaModal()"></div>
+        <div class="material-modal-panel tinta-formula-modal-panel">
+            <div class="material-modal-header">
+                <h2>Nueva Tinta</h2>
+                <button class="material-modal-close" onclick="cerrarTintaModal()" aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="material-modal-body">
+                <form class="inventory-form inventory-form-formula" id="tintaForm" onsubmit="return false;">
+                    <label><span>Código interno *</span><input id="tCodigoInterno" type="text" placeholder="TIN-010"></label>
+                    <label><span>Nombre *</span><input id="tNombre" type="text" placeholder="Ej. Rojo Rubí UV"></label>
+                    <label><span>Tipo *</span>
+                        <select id="tTipo">
+                            <option value="TINTA_UV">Tinta UV</option>
+                            <option value="BARNIZ">Barniz</option>
+                            <option value="PRIMER">Primer</option>
+                            <option value="ADHESIVO">Adhesivo</option>
+                            <option value="BASE">Base</option>
+                            <option value="BLANCO">Blanco</option>
+                            <option value="TRANSPARENTE">Transparente</option>
+                            <option value="EXTENDER">Extender</option>
+                            <option value="DILUYENTE">Diluyente</option>
+                            <option value="SOLVENTE">Solvente</option>
+                            <option value="LIMPIADOR">Limpiador</option>
+                            <option value="ADITIVO">Aditivo</option>
+                            <option value="RETARDANTE">Retardante</option>
+                            <option value="ACELERANTE">Acelerante</option>
+                            <option value="PROCESO_CYAN">Proceso — Cyan</option>
+                            <option value="PROCESO_MAGENTA">Proceso — Magenta</option>
+                            <option value="PROCESO_AMARILLO">Proceso — Amarillo</option>
+                            <option value="PROCESO_NEGRO">Proceso — Negro</option>
+                            <option value="PANTONE_DIRECTA">Pantone / Directa</option>
+                            <option value="BLANCO">Blanco</option>
+                            <option value="BASE">Base</option>
+                            <option value="TRANSPARENTE">Transparente</option>
+                            <option value="EXTENDER">Extender</option>
+                            <option value="ROJO">Rojo</option>
+                            <option value="NARANJA">Naranja</option>
+                            <option value="VERDE">Verde</option>
+                            <option value="AZUL">Azul</option>
+                            <option value="VIOLETA">Violeta</option>
+                            <option value="ROSA">Rosa</option>
+                            <option value="METALICA">Metálica</option>
+                            <option value="FLUORESCENTE">Fluorescente</option>
+                            <option value="ESPECIAL">Especial</option>
+                            <option value="OTRO">Otro</option>
+                        </select>
+                    </label>
+                    <label><span>Color</span><input id="tColor" type="text" placeholder="Ej. Rojo"></label>
+                    <label><span>Marca</span>
+                        <span class="tinta-inline-select">
+                            <select id="tMarcaId"><option value="">Sin marca</option></select>
+                            <button type="button" class="tinta-quickadd-btn" onclick="crearRapido('marca')" title="Agregar marca">+</button>
+                        </span>
+                    </label>
+                    <label><span>Familia</span>
+                        <span class="tinta-inline-select">
+                            <select id="tFamiliaId"><option value="">Sin familia</option></select>
+                            <button type="button" class="tinta-quickadd-btn" onclick="crearRapido('familia')" title="Agregar familia">+</button>
+                        </span>
+                    </label>
+                    <label><span>Fabricante</span>
+                        <span class="tinta-inline-select">
+                            <select id="tFabricanteId"><option value="">Sin fabricante</option></select>
+                            <button type="button" class="tinta-quickadd-btn" onclick="crearRapido('fabricante')" title="Agregar fabricante">+</button>
+                        </span>
+                    </label>
+                    <label><span>Pantón base (biblioteca)</span>
+                        <input id="tPantoneBusqueda" type="text" list="tListaPantones" placeholder="Buscar código o nombre..." oninput="onPantoneInput()">
+                        <datalist id="tListaPantones"></datalist>
+                        <input id="tPantoneId" type="hidden">
+                    </label>
+                    <label><span>Unidad de medida base</span>
+                        <select id="tUnidad">
+                            <option value="KG">Kilogramos (KG)</option>
+                            <option value="G">Gramos (G)</option>
+                            <option value="OZ">Onzas (OZ)</option>
+                            <option value="L">Litros (L)</option>
+                            <option value="ML">Mililitros (ML)</option>
+                            <option value="GAL">Galones (GAL)</option>
+                        </select>
+                    </label>
+                    <label><span>Peso por envase</span><input id="tPesoEnvase" type="number" min="0" step="0.01"></label>
+                    <label><span>Vida útil (días)</span><input id="tVidaUtil" type="number" min="0" placeholder="Ej. 365"></label>
+                    <label><span>Costo promedio</span><input id="tCostoPromedio" type="number" min="0" step="0.0001"></label>
+                    <label><span>Costo último</span><input id="tCostoUltimo" type="number" min="0" step="0.0001"></label>
+                    <label class="inventory-span-2"><span>Observaciones</span><textarea id="tObservaciones"></textarea></label>
+
+                    <h3 class="tinta-form-seccion">Identificación del color</h3>
+                    <label><span>Color (HEX)</span><input id="tHex" type="text" placeholder="#C8102E" oninput="onColorEntrada('hex')"></label>
+                    <label><span>Vista previa</span><div id="tSwatch" style="height:34px;border-radius:10px;border:1px solid #d9e2e9;"></div></label>
+                    <label><span>RGB R</span><input id="tRgbR" type="number" min="0" max="255" oninput="onColorEntrada('rgb')"></label>
+                    <label><span>RGB G</span><input id="tRgbG" type="number" min="0" max="255" oninput="onColorEntrada('rgb')"></label>
+                    <label><span>RGB B</span><input id="tRgbB" type="number" min="0" max="255" oninput="onColorEntrada('rgb')"></label>
+                    <label><span>CMYK C (%)</span><input id="tCmykC" type="number" min="0" max="100" oninput="onColorEntrada('cmyk')"></label>
+                    <label><span>CMYK M (%)</span><input id="tCmykM" type="number" min="0" max="100" oninput="onColorEntrada('cmyk')"></label>
+                    <label><span>CMYK Y (%)</span><input id="tCmykY" type="number" min="0" max="100" oninput="onColorEntrada('cmyk')"></label>
+                    <label><span>CMYK K (%)</span><input id="tCmykK" type="number" min="0" max="100" oninput="onColorEntrada('cmyk')"></label>
+                    <label><span>L*</span><input id="tLabL" type="number" step="0.01" readonly placeholder="calculado"></label>
+                    <label><span>a*</span><input id="tLabA" type="number" step="0.01" readonly placeholder="calculado"></label>
+                    <label><span>b*</span><input id="tLabB" type="number" step="0.01" readonly placeholder="calculado"></label>
+                    <label><span>C* (calculado)</span><input id="tCroma" type="number" step="0.01" readonly placeholder="calculado"></label>
+                    <label><span>h° (calculado)</span><input id="tMatiz" type="number" step="0.01" readonly placeholder="calculado"></label>
+                    <label><span>Origen del color</span>
+                        <select id="tOrigenColor">
+                            <option value="">Sin especificar</option>
+                            <option value="FABRICANTE">Fabricante</option>
+                            <option value="PANTONE">Pantone</option>
+                            <option value="MUESTRA_FISICA">Muestra física</option>
+                            <option value="ESPECTROFOTOMETRO">Espectrofotómetro</option>
+                            <option value="DISENO">Illustrator / diseño</option>
+                            <option value="RGB_HEX">RGB / HEX</option>
+                            <option value="CMYK">CMYK</option>
+                            <option value="CALCULADO">Calculado</option>
+                            <option value="OTRO">Otro</option>
+                        </select>
+                    </label>
+                    <label><span>Método de obtención</span>
+                        <select id="tMetodoObtencion">
+                            <option value="">Sin especificar</option>
+                            <option value="MEDICION">Medición espectrofotométrica</option>
+                            <option value="DATOS_FABRICANTE">Datos del fabricante</option>
+                            <option value="BIBLIOTECA_PANTONE">Biblioteca Pantone</option>
+                            <option value="CONVERSION_RGB">Conversión RGB</option>
+                            <option value="CONVERSION_CMYK">Conversión CMYK</option>
+                            <option value="INGRESO_MANUAL">Ingreso manual</option>
+                            <option value="FORMULA_HISTORICA">Fórmula histórica</option>
+                            <option value="OTRO">Otro</option>
+                        </select>
+                    </label>
+                    <label><span>Color medido</span>
+                        <select id="tColorMedido"><option value="false">No</option><option value="true">Sí</option></select>
+                    </label>
+
+                    <h3 class="tinta-form-seccion">Datos colorimétricos</h3>
+                    <label><span>Fuerza tintórea (%)</span><input id="tFuerza" type="number" min="0" max="100" step="0.01"></label>
+                    <label><span>Opacidad (%)</span><input id="tOpacidad" type="number" min="0" max="100" step="0.01"></label>
+                    <label><span>Transparencia (%)</span><input id="tTransparencia" type="number" min="0" max="100" step="0.01"></label>
+                    <label><span>Concentración (%)</span><input id="tConcentracion" type="number" min="0" max="100" step="0.01"></label>
+                    <label><span>Densidad</span><input id="tDensidad" type="number" min="0" step="0.0001"></label>
+                    <label><span>Viscosidad</span><input id="tViscosidad" type="number" min="0" step="0.01"></label>
+                    <label><span>pH</span><input id="tPh" type="number" min="0" max="14" step="0.01"></label>
+
+                    <h3 class="tinta-form-seccion">Datos espectrales</h3>
+                    <label><span>Instrumento</span><input id="tEspInstrumento" type="text"></label>
+                    <label><span>Modelo</span><input id="tEspModelo" type="text"></label>
+                    <label><span>Número de serie</span><input id="tEspSerie" type="text"></label>
+                    <label><span>Iluminante</span>
+                        <select id="tEspIluminante">
+                            <option value="">Sin especificar</option>
+                            <option>D50</option><option>D65</option><option>A</option><option>F2</option><option>F11</option><option>Otro</option>
+                        </select>
+                    </label>
+                    <label><span>Observador</span>
+                        <select id="tEspObservador">
+                            <option value="">Sin especificar</option>
+                            <option>2°</option><option>10°</option>
+                        </select>
+                    </label>
+                    <label><span>Geometría</span>
+                        <select id="tEspGeometria">
+                            <option value="">Sin especificar</option>
+                            <option>45/0</option><option>d/8</option><option>0/45</option><option>Otra</option>
+                        </select>
+                    </label>
+                    <label><span>Condición de medición</span><input id="tEspCondicion" type="text"></label>
+                    <label><span>Sustrato de medición</span><input id="tEspSustrato" type="text"></label>
+                    <p style="grid-column:1/-1;font-size:11px;color:var(--app-text-muted);margin:-4px 0 0;">
+                        La curva espectral (400–700 nm) queda preparada como estructura en la base de datos; se capturará con el espectrofotómetro.
+                    </p>
+                </form>
+            </div>
+            <div class="material-modal-footer">
+                <button type="button" class="material-footer-btn" onclick="cerrarTintaModal()">Cancelar</button>
+                <button type="button" class="material-footer-btn" id="tintaSaveButton" onclick="guardarTinta()">Guardar Tinta</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Lotes / Trazabilidad -->
+    <div class="material-modal" id="lotesModal">
+        <div class="material-modal-backdrop" onclick="cerrarLotesModal()"></div>
+        <div class="material-modal-panel tinta-formula-modal-panel">
+            <div class="material-modal-header">
+                <h2 id="lotesModalTitulo">Lotes</h2>
+                <button class="material-modal-close" onclick="cerrarLotesModal()" aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="material-modal-body">
+                <div class="tintas-subtoolbar">
+                    <span>Historial de lotes de esta tinta</span>
+                    <button type="button" class="tintas-table-add-btn" onclick="abrirNuevoLoteModal()" title="Agregar lote" aria-label="Agregar lote">+</button>
+                </div>
+                <div class="tintas-table-wrap" style="max-height:360px;">
+                    <table class="tintas-table">
+                        <thead>
+                            <tr><th>Lote</th><th>Fabricación</th><th>Vencimiento</th><th>Disponible</th><th>Ubicación</th><th>Estado</th></tr>
+                        </thead>
+                        <tbody id="lotesTablaBody"><tr><td colspan="6" class="tintas-loading">Cargando...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Nuevo Lote (asociado a la tinta abierta en el modal de Lotes) -->
+    <div class="material-modal" id="nuevoLoteModal">
+        <div class="material-modal-backdrop" onclick="cerrarNuevoLoteModal()"></div>
+        <div class="material-modal-panel tinta-formula-modal-panel">
+            <div class="material-modal-header">
+                <h2 id="nuevoLoteModalTitulo">Nuevo Lote</h2>
+                <button class="material-modal-close" onclick="cerrarNuevoLoteModal()" aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="material-modal-body">
+                <form class="inventory-form inventory-form-formula" id="loteForm" onsubmit="return false;">
+                    <label><span>Código de lote *</span><input id="lLote" type="text" placeholder="LOTE-2026-001"></label>
+                    <label><span>Peso neto *</span><input id="lPesoNeto" type="number" min="0" step="0.01"></label>
+                    <label><span>Fecha de fabricación</span><input id="lFechaFab" type="date"></label>
+                    <label class="tinta-vencimiento-field"><span>⚠ Fecha de vencimiento</span><input id="lFechaVenc" type="date"></label>
+                    <label><span>Costo del lote</span><input id="lCostoLote" type="number" min="0" step="0.0001"></label>
+                    <label><span>Ubicación</span>
+                        <span class="tinta-inline-select">
+                            <select id="lUbicacionId"><option value="">Sin ubicación</option></select>
+                            <button type="button" class="tinta-quickadd-btn" onclick="crearRapido('ubicacion')" title="Agregar ubicación">+</button>
+                        </span>
+                    </label>
+                    <label class="inventory-span-2"><span>Observaciones</span><input id="lObservaciones" type="text"></label>
+                </form>
+            </div>
+            <div class="material-modal-footer">
+                <button type="button" class="material-footer-btn" onclick="cerrarNuevoLoteModal()">Cancelar</button>
+                <button type="button" class="material-footer-btn" id="loteSaveButton" onclick="guardarLote()">Guardar lote</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+    var API = '/api/tintas';
+    var marcasCache = [], familiasCache = [], fabricantesCache = [], ubicacionesCache = [], pantonesCache = [];
+    var productoActivoLotes = null;
+
+    function hm(v) {
+        return String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
     async function cargar() {
         var tb = document.getElementById('tablaBody');
         var params = new URLSearchParams();
@@ -65,26 +341,259 @@
         if (texto) params.set('texto', texto);
         if (tipo) params.set('tipo', tipo);
         if (estado) params.set('estado', estado);
-        tb.innerHTML = '<tr><td colspan="8" class="tintas-loading">Cargando...</td></tr>';
+        tb.innerHTML = '<tr><td colspan="11" class="tintas-loading">Cargando...</td></tr>';
         try {
             var r = await fetch('/api/tintas/productos?' + params.toString());
             if (!r.ok) throw new Error(await r.text());
             var data = await r.json();
             if (!data.length) {
-                tb.innerHTML = '<tr><td colspan="8" class="tintas-loading">Sin resultados.</td></tr>';
+                tb.innerHTML = '<tr><td colspan="11" class="tintas-loading">Sin resultados.</td></tr>';
                 return;
             }
             tb.innerHTML = data.map(function(p) {
-                return '<tr><td>' + hm(p.codigo_interno) + '</td><td><strong>' + hm(p.nombre) + '</strong></td><td>' + hm(p.tipo) + '</td><td>' + hm(p.familia_nombre) + '</td><td>' + hm(p.marca_nombre) + '</td><td>' + hm(p.unidad_medida_base) + '</td><td>$' + Number(p.costo_promedio || 0).toFixed(4) + '</td><td><span class="tintas-badge tintas-badge-' + hm(p.estado) + '">' + hm(p.estado) + '</span></td></tr>';
+                return '<tr><td>' + hm(p.codigo_interno) + '</td><td><strong>' + hm(p.nombre) + '</strong></td><td>' + hm(p.tipo) + '</td><td>' + hm(p.familia_nombre) + '</td><td>' + hm(p.marca_nombre) + '</td><td>' + hm(p.pantone_base_id ? (pantoneNombrePorId(p.pantone_base_id) || '—') : '—') + '</td><td>' + hm(p.unidad_medida_base) + '</td><td>$' + Number(p.costo_promedio || 0).toFixed(4) + '</td><td>' + (p.vida_util_dias ? p.vida_util_dias + ' d' : '—') + '</td><td><span class="tintas-badge tintas-badge-' + hm(p.estado) + '">' + hm(p.estado) + '</span></td><td><button class="tintas-ver-btn" onclick="abrirLotesModal(\'' + p.id + '\',\'' + hm(p.codigo_interno) + ' - ' + hm(p.nombre).replace(/'/g,'') + '\',\'' + hm(p.unidad_medida_base) + '\')">Lotes</button></td></tr>';
             }).join('');
         } catch (e) {
-            tb.innerHTML = '<tr><td colspan="8" class="tintas-loading">Error: ' + hm(e.message) + '</td></tr>';
+            tb.innerHTML = '<tr><td colspan="11" class="tintas-loading">Error: ' + hm(e.message) + '</td></tr>';
         }
     }
-    function hm(v) {
-        return String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    function pantoneNombrePorId(id) {
+        var p = pantonesCache.find(function (x) { return String(x.id) === String(id); });
+        return p ? (p.codigo_pantone + (p.nombre ? ' · ' + p.nombre : '')) : null;
     }
-    cargar();
+
+    async function cargarCatalogosApoyo() {
+        var [m, f, fab, u, pant] = await Promise.all([
+            fetch(API + '/marcas').then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }),
+            fetch(API + '/familias').then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }),
+            fetch(API + '/fabricantes').then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }),
+            fetch(API + '/ubicaciones').then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }),
+            fetch(API + '/pantones/biblioteca').then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; })
+        ]);
+        marcasCache = m; familiasCache = f; fabricantesCache = fab; ubicacionesCache = u; pantonesCache = pant;
+        poblarSelect('tMarcaId', marcasCache, 'Sin marca');
+        poblarSelect('tFamiliaId', familiasCache, 'Sin familia');
+        poblarSelect('tFabricanteId', fabricantesCache, 'Sin fabricante');
+        poblarSelect('lUbicacionId', ubicacionesCache, 'Sin ubicación', 'codigo');
+        var dl = document.getElementById('tListaPantones');
+        dl.innerHTML = pantonesCache.map(function (p) { return '<option data-id="' + p.id + '" value="' + hm(p.codigo_pantone) + (p.nombre ? ' - ' + hm(p.nombre) : '') + '">'; }).join('');
+    }
+
+    function poblarSelect(id, items, placeholder, campo) {
+        var sel = document.getElementById(id);
+        var actual = sel.value;
+        sel.innerHTML = '<option value="">' + placeholder + '</option>' +
+            items.map(function (it) { return '<option value="' + it.id + '">' + hm(it[campo || 'nombre']) + '</option>'; }).join('');
+        sel.value = actual;
+    }
+
+    function onPantoneInput() {
+        var input = document.getElementById('tPantoneBusqueda').value.trim();
+        var match = pantonesCache.find(function (p) { return (p.codigo_pantone + (p.nombre ? ' - ' + p.nombre : '')) === input; });
+        document.getElementById('tPantoneId').value = match ? match.id : '';
+    }
+
+    async function crearRapido(tipo) {
+        var nombre = prompt(tipo === 'ubicacion' ? 'Código de la nueva ubicación (ej. BOD-01):' : 'Nombre de la nueva ' + tipo + ':');
+        if (!nombre || !nombre.trim()) return;
+        try {
+            var endpoint, body;
+            if (tipo === 'marca') { endpoint = '/marcas'; body = { nombre: nombre.trim() }; }
+            else if (tipo === 'familia') { endpoint = '/familias'; body = { nombre: nombre.trim() }; }
+            else if (tipo === 'fabricante') { endpoint = '/fabricantes'; body = { nombre: nombre.trim() }; }
+            else { var desc = prompt('Descripción de la ubicación:') || nombre.trim(); endpoint = '/ubicaciones'; body = { codigo: nombre.trim(), descripcion: desc }; }
+            var r = await fetch(API + endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            if (!r.ok) throw new Error(await r.text());
+            var creado = await r.json();
+            await cargarCatalogosApoyo();
+            if (tipo === 'marca') document.getElementById('tMarcaId').value = creado.id;
+            if (tipo === 'familia') document.getElementById('tFamiliaId').value = creado.id;
+            if (tipo === 'fabricante') document.getElementById('tFabricanteId').value = creado.id;
+            if (tipo === 'ubicacion') document.getElementById('lUbicacionId').value = creado.id;
+        } catch (e) { alert('Error: ' + e.message); }
+    }
+
+    function abrirTintaModal() {
+        document.getElementById('tintaForm').reset();
+        document.getElementById('tPantoneId').value = '';
+        document.getElementById('tSwatch').style.background = '';
+        document.getElementById('tintaModal').classList.add('open');
+    }
+
+    // Recalcula los derivados del color cuando el usuario ingresa HEX, RGB o CMYK.
+    function onColorEntrada(fuente) {
+        try {
+            var entrada = {};
+            if (fuente === 'hex') entrada.hex = document.getElementById('tHex').value.trim();
+            else if (fuente === 'rgb') {
+                var r = document.getElementById('tRgbR').value, g = document.getElementById('tRgbG').value, b = document.getElementById('tRgbB').value;
+                if (r === '' || g === '' || b === '') return;
+                entrada.rgb = { r: Number(r), g: Number(g), b: Number(b) };
+            } else if (fuente === 'cmyk') {
+                var c = document.getElementById('tCmykC').value, m = document.getElementById('tCmykM').value, y = document.getElementById('tCmykY').value, k = document.getElementById('tCmykK').value;
+                if (c === '' || m === '' || y === '' || k === '') return;
+                entrada.cmyk = { c: Number(c), m: Number(m), y: Number(y), k: Number(k) };
+            }
+            var calc = colorCompleto(entrada);
+            if (!calc || !calc.hex) return;
+            document.getElementById('tHex').value = calc.hex;
+            document.getElementById('tSwatch').style.background = calc.hex;
+            if (calc.rgb) {
+                document.getElementById('tRgbR').value = calc.rgb.r;
+                document.getElementById('tRgbG').value = calc.rgb.g;
+                document.getElementById('tRgbB').value = calc.rgb.b;
+            }
+            if (calc.cmyk) {
+                document.getElementById('tCmykC').value = calc.cmyk.c;
+                document.getElementById('tCmykM').value = calc.cmyk.m;
+                document.getElementById('tCmykY').value = calc.cmyk.y;
+                document.getElementById('tCmykK').value = calc.cmyk.k;
+            }
+            if (calc.lab) {
+                document.getElementById('tLabL').value = calc.lab.L;
+                document.getElementById('tLabA').value = calc.lab.a;
+                document.getElementById('tLabB').value = calc.lab.b;
+                document.getElementById('tCroma').value = calc.c;
+                document.getElementById('tMatiz').value = calc.h;
+            }
+        } catch (e) { /* entrada incompleta: no interrumpir la escritura del usuario */ }
+    }
+    function cerrarTintaModal() { document.getElementById('tintaModal').classList.remove('open'); }
+
+    async function guardarTinta() {
+        var codigo_interno = document.getElementById('tCodigoInterno').value.trim();
+        var nombre = document.getElementById('tNombre').value.trim();
+        var tipo = document.getElementById('tTipo').value;
+        if (!codigo_interno || !nombre || !tipo) { alert('Código interno, nombre y tipo son obligatorios.'); return; }
+        var payload = {
+            codigo_interno: codigo_interno,
+            nombre: nombre,
+            tipo: tipo,
+            color: document.getElementById('tColor').value.trim() || null,
+            marca_id: document.getElementById('tMarcaId').value || null,
+            familia_id: document.getElementById('tFamiliaId').value || null,
+            fabricante_id: document.getElementById('tFabricanteId').value || null,
+            pantone_base_id: document.getElementById('tPantoneId').value || null,
+            unidad_medida_base: document.getElementById('tUnidad').value,
+            peso_por_envase: document.getElementById('tPesoEnvase').value || null,
+            vida_util_dias: document.getElementById('tVidaUtil').value || null,
+            costo_promedio: document.getElementById('tCostoPromedio').value || 0,
+            costo_ultimo: document.getElementById('tCostoUltimo').value || 0,
+            observaciones: document.getElementById('tObservaciones').value.trim() || null,
+            color_hex: document.getElementById('tHex').value.trim() || null,
+            rgb_r: document.getElementById('tRgbR').value || null,
+            rgb_g: document.getElementById('tRgbG').value || null,
+            rgb_b: document.getElementById('tRgbB').value || null,
+            cmyk_c: document.getElementById('tCmykC').value || null,
+            cmyk_m: document.getElementById('tCmykM').value || null,
+            cmyk_y: document.getElementById('tCmykY').value || null,
+            cmyk_k: document.getElementById('tCmykK').value || null,
+            lab_l: document.getElementById('tLabL').value || null,
+            lab_a: document.getElementById('tLabA').value || null,
+            lab_b: document.getElementById('tLabB').value || null,
+            croma_c: document.getElementById('tCroma').value || null,
+            matiz_h: document.getElementById('tMatiz').value || null,
+            origen_color: document.getElementById('tOrigenColor').value || null,
+            metodo_obtencion: document.getElementById('tMetodoObtencion').value || null,
+            color_medido: document.getElementById('tColorMedido').value === 'true',
+            fuerza_tintorea: document.getElementById('tFuerza').value || null,
+            opacidad_pct: document.getElementById('tOpacidad').value || null,
+            transparencia_pct: document.getElementById('tTransparencia').value || null,
+            concentracion_pct: document.getElementById('tConcentracion').value || null,
+            densidad: document.getElementById('tDensidad').value || null,
+            viscosidad: document.getElementById('tViscosidad').value || null,
+            ph: document.getElementById('tPh').value || null,
+            espectro_instrumento: document.getElementById('tEspInstrumento').value.trim() || null,
+            espectro_modelo: document.getElementById('tEspModelo').value.trim() || null,
+            espectro_numero_serie: document.getElementById('tEspSerie').value.trim() || null,
+            espectro_iluminante: document.getElementById('tEspIluminante').value || null,
+            espectro_observador: document.getElementById('tEspObservador').value || null,
+            espectro_geometria: document.getElementById('tEspGeometria').value || null,
+            espectro_condicion: document.getElementById('tEspCondicion').value.trim() || null,
+            espectro_sustrato: document.getElementById('tEspSustrato').value.trim() || null
+        };
+
+        // Validacion del total % de CMYK no aplica aqui; los valores derivados los completa el servidor.
+        // Si el usuario escribio HEX, recalcular todo localmente para vista previa coherente:
+        var colorCalc = colorCompleto({ hex: payload.color_hex });
+        if (colorCalc && colorCalc.lab) {
+            payload.lab_l = colorCalc.lab.L; payload.lab_a = colorCalc.lab.a; payload.lab_b = colorCalc.lab.b;
+            payload.croma_c = colorCalc.c; payload.matiz_h = colorCalc.h;
+        }
+        var btn = document.getElementById('tintaSaveButton');
+        btn.disabled = true; var txt = btn.textContent; btn.textContent = 'Guardando...';
+        try {
+            var r = await fetch(API + '/productos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!r.ok) throw new Error(await r.text());
+            cerrarTintaModal();
+            await cargar();
+        } catch (e) { alert('Error al guardar la tinta: ' + e.message); }
+        finally { btn.disabled = false; btn.textContent = txt; }
+    }
+
+    async function abrirLotesModal(productoId, titulo, unidad) {
+        productoActivoLotes = { id: productoId, unidad: unidad, titulo: titulo };
+        document.getElementById('lotesModalTitulo').textContent = 'Lotes — ' + titulo;
+        document.getElementById('lotesModal').classList.add('open');
+        await cargarLotesDeProducto();
+    }
+    function cerrarLotesModal() { document.getElementById('lotesModal').classList.remove('open'); productoActivoLotes = null; }
+
+    function abrirNuevoLoteModal() {
+        if (!productoActivoLotes) return;
+        document.getElementById('nuevoLoteModalTitulo').textContent = 'Nuevo Lote — ' + productoActivoLotes.titulo;
+        document.getElementById('loteForm').reset();
+        document.getElementById('nuevoLoteModal').classList.add('open');
+    }
+    function cerrarNuevoLoteModal() { document.getElementById('nuevoLoteModal').classList.remove('open'); }
+
+    async function cargarLotesDeProducto() {
+        var tb = document.getElementById('lotesTablaBody');
+        tb.innerHTML = '<tr><td colspan="6" class="tintas-loading">Cargando...</td></tr>';
+        try {
+            var r = await fetch(API + '/productos/' + productoActivoLotes.id + '/lotes');
+            if (!r.ok) throw new Error(await r.text());
+            var data = await r.json();
+            if (!data.length) { tb.innerHTML = '<tr><td colspan="6" class="tintas-loading">Esta tinta aún no tiene lotes registrados.</td></tr>'; return; }
+            tb.innerHTML = data.map(function (l) {
+                var vencido = l.fecha_vencimiento && new Date(l.fecha_vencimiento) < new Date();
+                return '<tr><td>' + hm(l.lote) + '</td><td>' + (l.fecha_fabricacion ? String(l.fecha_fabricacion).slice(0,10) : '—') + '</td><td' + (vencido ? ' style="color:var(--app-danger);font-weight:600;"' : '') + '>' + (l.fecha_vencimiento ? String(l.fecha_vencimiento).slice(0,10) : '—') + '</td><td>' + Number(l.peso_disponible || 0).toFixed(4) + ' ' + hm(l.unidad_medida) + '</td><td>' + hm(l.ubicacion_descripcion || '—') + '</td><td><span class="tintas-badge tintas-badge-' + hm(l.estado) + '">' + hm(l.estado) + '</span></td></tr>';
+            }).join('');
+        } catch (e) { tb.innerHTML = '<tr><td colspan="6" class="tintas-loading">Error: ' + hm(e.message) + '</td></tr>'; }
+    }
+
+    async function guardarLote() {
+        var lote = document.getElementById('lLote').value.trim();
+        var peso_neto = Number(document.getElementById('lPesoNeto').value);
+        if (!lote || !peso_neto) { alert('Código de lote y peso neto son obligatorios.'); return; }
+        var payload = {
+            producto_id: productoActivoLotes.id,
+            lote: lote,
+            peso_neto: peso_neto,
+            unidad_medida: productoActivoLotes.unidad || 'KG',
+            fecha_fabricacion: document.getElementById('lFechaFab').value || null,
+            fecha_vencimiento: document.getElementById('lFechaVenc').value || null,
+            costo_lote: document.getElementById('lCostoLote').value || 0,
+            ubicacion_id: document.getElementById('lUbicacionId').value || null,
+            observaciones: document.getElementById('lObservaciones').value.trim() || null
+        };
+        var btn = document.getElementById('loteSaveButton');
+        btn.disabled = true; var txt = btn.textContent; btn.textContent = 'Guardando...';
+        try {
+            var r = await fetch(API + '/lotes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!r.ok) throw new Error(await r.text());
+            cerrarNuevoLoteModal();
+            await cargarLotesDeProducto();
+        } catch (e) { alert('Error al guardar el lote: ' + e.message); }
+        finally { btn.disabled = false; btn.textContent = txt; }
+    }
+
+    async function init() {
+        await cargarCatalogosApoyo();
+        await cargar();
+    }
+    init();
     </script>
 </body>
 </html>

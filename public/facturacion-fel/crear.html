@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
+    <title>Crear Factura FEL - PrintLab</title>
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <link rel="stylesheet" href="/facturacion-fel/styles.css?v=20260905-sellos">
+</head>
+<body>
+    <main class="workspace workspace-quote quote-browser-main factfel-shell">
+        <section class="quote-card quote-card-clean quote-browser-card factfel-card">
+            <div class="factfel-toolbar">
+                <h2>Crear Factura FEL</h2>
+            </div>
+            <div class="factfel-hint">El número de factura se asigna automáticamente al generar (prefijo configurable en Configuración → Nomenclaturas → Nomenclaturas de Facturación).</div>
+
+            <div class="factfel-client-grid">
+                <label><span>Código</span><input id="clienteCodigo" type="text" readonly placeholder="—"></label>
+                <label><span>Cliente *</span>
+                    <div class="factfel-client-row">
+                        <input id="clienteNombreDisplay" type="text" readonly placeholder="Ningún cliente seleccionado">
+                        <button type="button" class="factfel-icon-btn" id="btnElegirCliente" title="Elegir cliente" aria-label="Elegir cliente"></button>
+                    </div>
+                </label>
+            </div>
+
+            <div class="factfel-info-row">
+                <button type="button" class="factfel-info-capsule" id="contactoCapsule" title="Clic para elegir el contacto">
+                    <span class="factfel-info-label">Contacto</span>
+                    <strong id="contactoNombreDisplay">Sin contacto</strong>
+                </button>
+                <label class="factfel-info-currency"><span>Moneda</span>
+                    <select id="monedaSelect"></select>
+                </label>
+            </div>
+
+            <div id="advertenciaBox" class="factfel-hint" style="display:none; color:var(--app-warning); font-weight:600;"></div>
+
+            <div class="factfel-subtoolbar" style="padding:10px 18px 0; display:flex; justify-content:space-between; align-items:center;">
+                <strong style="font-size:13px; color:var(--app-text);">Líneas de la Factura</strong>
+                <button type="button" class="factfel-icon-btn" id="btnAgregarLinea" title="Agregar línea" aria-label="Agregar línea"></button>
+            </div>
+
+            <div class="factfel-lineas-wrap">
+                <div class="factfel-lineas-head">
+                    <span>Producto (Existencia Disponible)</span>
+                    <span>Disponible</span>
+                    <span>Cantidad</span>
+                    <span>Precio Unitario</span>
+                    <span>Total Línea</span>
+                    <span></span>
+                </div>
+                <div id="lineasBody"></div>
+            </div>
+
+            <div class="factfel-form-grid factfel-form-1col" style="margin-top:8px;">
+                <label><span>Notas</span><textarea id="notasTexto" placeholder="Notas u observaciones para esta factura..."></textarea></label>
+            </div>
+
+            <div class="factfel-totales-box">
+                <div><span>Subtotal Gravable</span><strong id="totalGravable">Q 0.00</strong></div>
+                <div><span>IVA</span><strong id="totalIva">Q 0.00</strong></div>
+                <div><span>Gran Total</span><strong id="totalGeneral">Q 0.00</strong></div>
+            </div>
+
+            <div id="errorBox" class="factfel-error" style="display:none;"></div>
+
+            <div class="factfel-actions-bar">
+                <button type="button" class="factfel-btn-ghost" onclick="location.reload()">Limpiar</button>
+                <button type="button" class="factfel-btn" id="btnGenerar">Generar Factura</button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal: elegir cliente y contacto -->
+    <div class="factfel-modal" id="pickerModal">
+        <div class="factfel-modal-backdrop" onclick="cerrarPicker()"></div>
+        <div class="factfel-modal-panel">
+            <div class="factfel-modal-header">
+                <h2 id="pickerTitulo">Elegir Cliente</h2>
+                <button class="factfel-modal-close" onclick="cerrarPicker()" aria-label="Cerrar">&times;</button>
+            </div>
+            <div id="pickerClientePanel" style="padding: 0 20px 16px;">
+                <input id="pickerBuscar" class="factfel-search-input" type="search" placeholder="Buscar por nombre o código...">
+                <div id="pickerClienteLista" class="factfel-picker-lista"></div>
+            </div>
+            <div id="pickerContactoPanel" style="padding: 0 20px 20px;" hidden>
+                <div class="factfel-hint" style="padding:0 0 10px;">Cliente: <strong id="pickerClienteNombre"></strong> — <a href="#" id="pickerCambiarCliente">cambiar cliente</a></div>
+                <div id="pickerContactoLista" class="factfel-picker-lista"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = '/api/facturacion-fel';
+        let clienteSeleccionado = null;
+        let contactoSeleccionado = null;
+        let lineas = [];
+        let lineaSeq = 0;
+        let iconConfig = { lineAdd: '+', lineDelete: '✕' };
+        let inventarioCache = [];
+        let currencyCatalog = [];
+        let defaultCurrency = 'GTQ';
+        let clientesCache = [];
+
+        function money(value) {
+            return 'Q ' + (Number(value) || 0).toFixed(2);
+        }
+
+        function escapeHtml(text) {
+            const d = document.createElement('div');
+            d.textContent = text == null ? '' : text;
+            return d.innerHTML;
+        }
+
+        function iconMarkup(value, altText) {
+            const normalized = String(value || '').trim().toLowerCase();
+            if (normalized.startsWith('data:image/svg+xml') || /\.svg(\?|#|$)/i.test(normalized)) {
+                return `<span class="factfel-icon-svg" role="img" aria-label="${escapeHtml(altText)}" style="-webkit-mask-image:url('${escapeHtml(value)}');mask-image:url('${escapeHtml(value)}');"></span>`;
+            }
+            if (normalized.startsWith('data:image') || /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(normalized)) {
+                return `<img src="${escapeHtml(value)}" alt="${escapeHtml(altText)}" class="factfel-icon-image">`;
+            }
+            return `<span class="factfel-icon-glyph">${escapeHtml(value || '')}</span>`;
+        }
+
+        async function cargarIconos() {
+            try {
+                const r = await fetch('/api/config/shell', { cache: 'no-cache' });
+                const data = await r.json();
+                iconConfig.lineAdd = (data.icons && data.icons.lineAdd) || '+';
+                iconConfig.lineDelete = (data.icons && data.icons.lineDelete) || '✕';
+            } catch (e) { /* usa valores por defecto */ }
+            document.getElementById('btnAgregarLinea').innerHTML = iconMarkup(iconConfig.lineAdd, 'Agregar línea');
+            document.getElementById('btnElegirCliente').innerHTML = iconMarkup(iconConfig.lineAdd, 'Elegir cliente');
+        }
+
+        async function cargarMonedas() {
+            try {
+                const r = await fetch('/api/exchange-rates/state');
+                const data = await r.json();
+                currencyCatalog = data.catalog || [];
+                const enabled = (data.config && data.config.enabledCurrencies) || ['GTQ', 'USD'];
+                defaultCurrency = (data.config && data.config.defaultCurrency) || 'GTQ';
+                const select = document.getElementById('monedaSelect');
+                select.innerHTML = enabled.map((code) => {
+                    const info = currencyCatalog.find((c) => c.code === code);
+                    const label = info ? `${code} — ${info.name}` : code;
+                    return `<option value="${escapeHtml(code)}">${escapeHtml(label)}</option>`;
+                }).join('');
+                select.value = defaultCurrency;
+            } catch (e) {
+                document.getElementById('monedaSelect').innerHTML = '<option value="GTQ">GTQ — Quetzal</option><option value="USD">USD — Dólar</option>';
+            }
+        }
+
+        // ── Modal de selección: cliente → contactos ──
+        function abrirPickerCliente() {
+            document.getElementById('pickerTitulo').textContent = 'Elegir Cliente';
+            document.getElementById('pickerClientePanel').hidden = false;
+            document.getElementById('pickerContactoPanel').hidden = true;
+            document.getElementById('pickerBuscar').value = '';
+            document.getElementById('pickerClienteLista').innerHTML = '';
+            document.getElementById('pickerModal').classList.add('is-open');
+            document.getElementById('pickerBuscar').focus();
+        }
+
+        function abrirPickerContacto() {
+            if (!clienteSeleccionado) { abrirPickerCliente(); return; }
+            document.getElementById('pickerTitulo').textContent = 'Elegir Contacto';
+            document.getElementById('pickerClientePanel').hidden = true;
+            document.getElementById('pickerContactoPanel').hidden = false;
+            document.getElementById('pickerClienteNombre').textContent = `${clienteSeleccionado.codigo} — ${clienteSeleccionado.nombre}`;
+            cargarContactosEnPicker(clienteSeleccionado.id);
+            document.getElementById('pickerModal').classList.add('is-open');
+        }
+
+        function cerrarPicker() {
+            document.getElementById('pickerModal').classList.remove('is-open');
+        }
+
+        document.getElementById('btnElegirCliente').addEventListener('click', abrirPickerCliente);
+        document.getElementById('contactoCapsule').addEventListener('click', abrirPickerContacto);
+        document.getElementById('pickerCambiarCliente').addEventListener('click', (e) => {
+            e.preventDefault();
+            abrirPickerCliente();
+        });
+
+        let pickerTimer = null;
+        document.getElementById('pickerBuscar').addEventListener('input', (e) => {
+            clearTimeout(pickerTimer);
+            pickerTimer = setTimeout(() => buscarClientesPicker(e.target.value.trim()), 250);
+        });
+
+        async function buscarClientesPicker(texto) {
+            const lista = document.getElementById('pickerClienteLista');
+            if (!texto) { lista.innerHTML = ''; return; }
+            lista.innerHTML = '<div class="factfel-picker-empty">Buscando...</div>';
+            try {
+                const r = await fetch(`${API}/clientes?texto=${encodeURIComponent(texto)}`);
+                const data = await r.json();
+                clientesCache = data.rows || [];
+                if (!clientesCache.length) {
+                    lista.innerHTML = '<div class="factfel-picker-empty">Sin resultados.</div>';
+                    return;
+                }
+                lista.innerHTML = clientesCache.map(c => `
+                    <div class="factfel-picker-item">
+                        <div><strong>${escapeHtml(c.partner_code)}</strong> — ${escapeHtml(c.partner_name)}</div>
+                        <button type="button" class="factfel-btn-ghost factfel-picker-choose" data-id="${escapeHtml(c.id)}">Elegir</button>
+                    </div>
+                `).join('');
+                lista.querySelectorAll('.factfel-picker-choose').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const c = clientesCache.find(x => x.id === btn.dataset.id);
+                        if (c) elegirClienteDesdePicker(c);
+                    });
+                });
+            } catch (e) { lista.innerHTML = '<div class="factfel-picker-empty">Error al buscar.</div>'; }
+        }
+
+        function elegirClienteDesdePicker(c) {
+            seleccionarCliente({ id: c.id, codigo: c.partner_code, nombre: c.partner_name, nit: c.tax_id, moneda: c.currency_code });
+            document.getElementById('pickerTitulo').textContent = 'Elegir Contacto';
+            document.getElementById('pickerClientePanel').hidden = true;
+            document.getElementById('pickerContactoPanel').hidden = false;
+            document.getElementById('pickerClienteNombre').textContent = `${c.partner_code} — ${c.partner_name}`;
+            cargarContactosEnPicker(c.id);
+        }
+
+        async function cargarContactosEnPicker(clienteId) {
+            const lista = document.getElementById('pickerContactoLista');
+            lista.innerHTML = '<div class="factfel-picker-empty">Cargando...</div>';
+            try {
+                const r = await fetch(`${API}/clientes/${encodeURIComponent(clienteId)}/contactos`);
+                const data = await r.json();
+                const rows = data.rows || [];
+                const opciones = [{ nombre: 'Sin contacto', email: '', telefono: '' }].concat(rows.map(c => ({
+                    nombre: c.contact_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || 'Contacto',
+                    email: c.email || '', telefono: c.phone || c.mobile || '', cargo: c.position || ''
+                })));
+                lista.innerHTML = opciones.map((c, i) => `
+                    <div class="factfel-picker-item">
+                        <div><strong>${escapeHtml(c.nombre)}</strong>${c.cargo ? ' — ' + escapeHtml(c.cargo) : ''}</div>
+                        <button type="button" class="factfel-btn-ghost factfel-picker-choose-contacto" data-index="${i}">Elegir</button>
+                    </div>
+                `).join('');
+                lista.querySelectorAll('.factfel-picker-choose-contacto').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const c = opciones[Number(btn.dataset.index)];
+                        contactoSeleccionado = c.nombre === 'Sin contacto' ? null : c;
+                        document.getElementById('contactoNombreDisplay').textContent = contactoSeleccionado ? contactoSeleccionado.nombre : 'Sin contacto';
+                        cerrarPicker();
+                    });
+                });
+            } catch (e) {
+                lista.innerHTML = '<div class="factfel-picker-empty">Error al cargar contactos.</div>';
+            }
+        }
+
+        function seleccionarCliente(cliente) {
+            const clienteAnterior = clienteSeleccionado;
+            clienteSeleccionado = cliente;
+            contactoSeleccionado = null;
+            document.getElementById('clienteCodigo').value = cliente.codigo || '';
+            document.getElementById('clienteNombreDisplay').value = cliente.nombre || '';
+            document.getElementById('contactoNombreDisplay').textContent = 'Sin contacto';
+            if (cliente.moneda) document.getElementById('monedaSelect').value = cliente.moneda;
+            if (!clienteAnterior || clienteAnterior.id !== cliente.id) {
+                lineas = [];
+                renderLineas();
+            }
+            revisarAdvertencias();
+        }
+
+        function renderLineas() {
+            const body = document.getElementById('lineasBody');
+            body.innerHTML = '';
+            lineas.forEach((linea) => {
+                const row = document.createElement('div');
+                row.className = 'factfel-linea-row';
+                row.dataset.seq = linea.seq;
+                row.innerHTML = `
+                    <select class="factfel-linea-producto"></select>
+                    <input type="text" class="factfel-linea-disponible" readonly>
+                    <input type="number" class="factfel-linea-cantidad" min="0.01" step="0.01" value="${linea.cantidad || ''}">
+                    <input type="text" class="factfel-linea-precio" readonly>
+                    <span class="factfel-linea-total">Q 0.00</span>
+                    <button type="button" class="factfel-icon-btn factfel-icon-btn-danger factfel-linea-remove" title="Eliminar línea" aria-label="Eliminar línea">${iconMarkup(iconConfig.lineDelete, 'Eliminar línea')}</button>
+                `;
+                body.appendChild(row);
+
+                const select = row.querySelector('.factfel-linea-producto');
+                select.innerHTML = '<option value="">Cargando...</option>';
+                cargarInventarioParaLinea(select, linea);
+
+                row.querySelector('.factfel-linea-cantidad').addEventListener('input', (e) => {
+                    linea.cantidad = Number(e.target.value) || 0;
+                    actualizarTotales();
+                });
+                row.querySelector('.factfel-linea-remove').addEventListener('click', () => {
+                    lineas = lineas.filter(l => l.seq !== linea.seq);
+                    renderLineas();
+                    revisarAdvertencias();
+                });
+            });
+            actualizarTotales();
+        }
+
+        async function cargarInventarioParaLinea(select, linea) {
+            try {
+                if (!inventarioCache.length) {
+                    const r = await fetch(`${API}/inventario-disponible`);
+                    const data = await r.json();
+                    inventarioCache = data.rows || [];
+                }
+                select.innerHTML = '<option value="">Seleccione producto...</option>' + inventarioCache.map(p =>
+                    `<option value="${p.inventario_pt_id}" data-disponible="${p.cantidad_disponible}" data-precio="${p.price_unit}" data-cliente-id="${escapeHtml(p.cliente_id || '')}" data-cliente-nombre="${escapeHtml(p.cliente_nombre || '')}">${escapeHtml(p.product_code)} — ${escapeHtml(p.product_name)}${p.cliente_nombre ? ' (de: ' + escapeHtml(p.cliente_nombre) + ')' : ' (sin cliente asignado)'}</option>`
+                ).join('');
+                select.addEventListener('change', () => {
+                    const opt = select.selectedOptions[0];
+                    const row = select.closest('.factfel-linea-row');
+                    linea.inventario_pt_id = select.value ? Number(select.value) : null;
+                    linea.disponible = opt ? Number(opt.dataset.disponible || 0) : 0;
+                    linea.precio_unitario = opt ? Number(opt.dataset.precio || 0) : 0;
+                    linea.cliente_id = opt ? opt.dataset.clienteId : '';
+                    linea.cliente_nombre = opt ? opt.dataset.clienteNombre : '';
+                    row.querySelector('.factfel-linea-disponible').value = linea.disponible ? linea.disponible.toFixed(2) : '';
+                    row.querySelector('.factfel-linea-precio').value = linea.precio_unitario ? ('Q ' + linea.precio_unitario.toFixed(4)) : '';
+                    if (!clienteSeleccionado && linea.cliente_id) {
+                        seleccionarClientePorId(linea.cliente_id);
+                    }
+                    actualizarTotales();
+                    revisarAdvertencias();
+                });
+            } catch (e) {
+                select.innerHTML = '<option value="">Error al cargar</option>';
+            }
+        }
+
+        async function seleccionarClientePorId(id) {
+            try {
+                const r = await fetch(`${API}/clientes`);
+                const data = await r.json();
+                const c = (data.rows || []).find(x => x.id === id);
+                if (c) seleccionarCliente({ id: c.id, codigo: c.partner_code, nombre: c.partner_name, nit: c.tax_id, moneda: c.currency_code });
+            } catch (e) { /* no bloquea */ }
+        }
+
+        function revisarAdvertencias() {
+            const box = document.getElementById('advertenciaBox');
+            if (!clienteSeleccionado) { box.style.display = 'none'; return; }
+            const mezcladas = lineas.filter(l => l.cliente_id && l.cliente_id !== clienteSeleccionado.id);
+            if (mezcladas.length) {
+                box.textContent = `Atención: ${mezcladas.length} línea(s) corresponden a existencias reservadas para otro cliente distinto al seleccionado. Verifica antes de generar la factura.`;
+                box.style.display = 'block';
+            } else {
+                box.style.display = 'none';
+            }
+        }
+
+        function actualizarTotales() {
+            let gravable = 0, iva = 0, total = 0;
+            document.querySelectorAll('.factfel-linea-row').forEach((row) => {
+                const seq = Number(row.dataset.seq);
+                const linea = lineas.find(l => l.seq === seq);
+                if (!linea) return;
+                const cantidad = Number(linea.cantidad) || 0;
+                const precio = Number(linea.precio_unitario) || 0;
+                const montoLinea = Math.round(cantidad * precio * 100) / 100;
+                const montoGravable = Math.round((montoLinea / 1.12) * 100) / 100;
+                const montoImpuesto = Math.round((montoLinea - montoGravable) * 100) / 100;
+                row.querySelector('.factfel-linea-total').textContent = money(montoLinea);
+                gravable += montoGravable;
+                iva += montoImpuesto;
+                total += montoLinea;
+            });
+            document.getElementById('totalGravable').textContent = money(gravable);
+            document.getElementById('totalIva').textContent = money(iva);
+            document.getElementById('totalGeneral').textContent = money(total);
+        }
+
+        document.getElementById('btnAgregarLinea').addEventListener('click', () => {
+            lineaSeq += 1;
+            lineas.push({ seq: lineaSeq, inventario_pt_id: null, cantidad: 1, precio_unitario: 0, disponible: 0, cliente_id: '', cliente_nombre: '' });
+            renderLineas();
+        });
+
+        function mostrarError(msg) {
+            const box = document.getElementById('errorBox');
+            box.textContent = msg;
+            box.style.display = msg ? 'block' : 'none';
+        }
+
+        document.getElementById('btnGenerar').addEventListener('click', async () => {
+            mostrarError('');
+            if (!clienteSeleccionado) { mostrarError('Seleccione un cliente.'); return; }
+            const lineasValidas = lineas.filter(l => l.inventario_pt_id && l.cantidad > 0);
+            if (!lineasValidas.length) { mostrarError('Agregue al menos una línea válida.'); return; }
+            for (const l of lineasValidas) {
+                if (l.cantidad > l.disponible) {
+                    mostrarError(`La cantidad de una línea (${l.cantidad}) supera lo disponible (${l.disponible}).`);
+                    return;
+                }
+            }
+            const btn = document.getElementById('btnGenerar');
+            btn.disabled = true;
+            btn.textContent = 'Generando...';
+            try {
+                const r = await fetch(`${API}/generar-desde-inventario`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        cliente_id: clienteSeleccionado.id,
+                        moneda: document.getElementById('monedaSelect').value,
+                        contacto_nombre: contactoSeleccionado ? contactoSeleccionado.nombre : '',
+                        contacto_email: contactoSeleccionado ? contactoSeleccionado.email : '',
+                        contacto_telefono: contactoSeleccionado ? contactoSeleccionado.telefono : '',
+                        notas: document.getElementById('notasTexto').value,
+                        lineas: lineasValidas.map(l => ({ inventario_pt_id: l.inventario_pt_id, cantidad: l.cantidad }))
+                    })
+                });
+                const data = await r.json();
+                if (!r.ok) throw new Error(data.error || 'No fue posible generar la factura.');
+                if (data.advertencias && data.advertencias.length) {
+                    alert('Factura generada con advertencias:\n' + data.advertencias.join('\n'));
+                }
+                var parent = window.parent;
+                var route = `/facturacion-fel/facturas?id=${data.id}`;
+                if (parent && parent !== window) {
+                    parent.postMessage({ type:'erp-open-tab', route, label: 'Factura ' + data.numero_interno }, window.location.origin);
+                } else {
+                    window.location.href = route;
+                }
+            } catch (e) {
+                mostrarError(e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Generar Factura';
+            }
+        });
+
+        cargarIconos();
+        cargarMonedas();
+    </script>
+</body>
+</html>

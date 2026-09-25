@@ -1,0 +1,18 @@
+{
+    "name": "PrintLab",
+    "short_name": "PrintLab",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "any",
+    "background_color": "#eef6fb",
+    "theme_color": "#118fc6",
+    "lang": "es",
+    "icons": [
+        {
+            "src": "/assets/bootstrap/branding-logoUrl.png",
+            "sizes": "808x808",
+            "type": "image/png"
+        }
+    ]
+}

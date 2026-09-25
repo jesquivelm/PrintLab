@@ -18,9 +18,6 @@
             --paper: #fffdf8;
             --line: #d7e2ea;
             --muted: #647384;
-            --p-scroll-track: #d9e3ec;
-            --p-scroll-thumb: linear-gradient(180deg, #5d7a97 0%, #486582 100%);
-            --p-scroll-thumb-hover: linear-gradient(180deg, #52718f 0%, #3c5a78 100%);
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -28,37 +25,26 @@
             font-family: 'Outfit', sans-serif;
             color: var(--ink);
             background: #e8edf2;
-            scrollbar-color: #6d89a5 #d9e3ec;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(11, 129, 184, 0.42) transparent;
         }
         body::-webkit-scrollbar,
         #pPageWrap::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
         }
         body::-webkit-scrollbar-track,
         #pPageWrap::-webkit-scrollbar-track {
-            background: var(--p-scroll-track);
-            border-radius: 999px;
+            background: transparent;
         }
         body::-webkit-scrollbar-thumb,
         #pPageWrap::-webkit-scrollbar-thumb {
-            background: var(--p-scroll-thumb);
+            background: rgba(11, 129, 184, 0.38);
             border-radius: 999px;
-            border: 1px solid color-mix(in srgb, #ffffff 38%, var(--p-scroll-track));
-        }
-        body::-webkit-scrollbar-thumb:hover,
-        #pPageWrap::-webkit-scrollbar-thumb:hover {
-            background: var(--p-scroll-thumb-hover);
         }
         html[data-theme="dark"] body {
             background: #0f1b2d;
             color: #e6eef8;
-            scrollbar-color: #3b5d7f #152334;
-        }
-        html[data-theme="dark"] {
-            --p-scroll-track: #152334;
-            --p-scroll-thumb: linear-gradient(180deg, #355274 0%, #294563 100%);
-            --p-scroll-thumb-hover: linear-gradient(180deg, #406286 0%, #315171 100%);
         }
 
         /* ── Toolbar (screen only) ─────────────────── */
@@ -349,14 +335,17 @@
 
         /* ── Document footer section (terms + signature) ── */
         .p-doc-footer {
-            margin-top: auto;
             padding-top: 14px;
-            /* sin línea — el espacio visual es suficiente */
+            padding-bottom: 24px;
+            /* margin-top: auto — empuja el contenido (terms + sig) hacia el fondo */
+            margin-top: auto;
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
         .p-terms-grid {
+            /* margin-top: auto — se adhiere al fondo junto con la firma */
+            margin-top: auto;
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
@@ -380,6 +369,7 @@
 
         /* Signature */
         .p-sig-row {
+            margin-top: auto;
             display: flex;
             justify-content: center;
             gap: 24px;
@@ -394,11 +384,8 @@
             align-items: flex-end;
             justify-content: center;
             padding-bottom: 4px;
-            overflow: hidden;
         }
         .p-sig-line img {
-            max-width: 160px;
-            max-height: 42px;
             object-fit: contain;
         }
         .p-signature strong {
@@ -444,6 +431,158 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
+        /* ── FORMATO 2 (independiente del Clásico, prefijo .p2-*) ── */
+        .p2-page {
+            width: 215.9mm;
+            min-height: 279.4mm;
+            background: #fff;
+            box-shadow: 0 8px 32px rgba(0,0,0,.18);
+            display: flex;
+            flex-direction: column;
+            font-family: 'Outfit', sans-serif;
+            color: #1b1f24;
+        }
+        .p2-body {
+            padding: 26px 34px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            flex: 1;
+        }
+        .p2-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+        }
+        .p2-logo img {
+            object-fit: contain;
+            display: block;
+        }
+        .p2-doc-meta {
+            text-align: right;
+            font-size: 12px;
+        }
+        .p2-doc-meta .p2-doc-label {
+            font-size: 10.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #647384;
+        }
+        .p2-doc-meta .p2-doc-code {
+            font-size: 27px;
+            font-weight: 800;
+            color: #1b1f24;
+            line-height: 1.1;
+            margin: 3px 0 5px;
+        }
+        .p2-doc-meta .p2-doc-date {
+            font-size: 12px;
+            color: #647384;
+        }
+        .p2-hr {
+            border: none;
+            border-top: 2px solid #1b1f24;
+            margin-top: 6px;
+        }
+        .p2-section h3 {
+            font-size: 12.5px;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+        .p2-section p, .p2-section div.p2-value {
+            font-size: 12.5px;
+            margin: 0 0 6px;
+        }
+        .p2-intro p { font-size: 12.5px; line-height: 1.5; margin-bottom: 8px; }
+        .p2-producto-detalle {
+            background: #f3f6f9;
+            border: 1px solid #e2e8ee;
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-top: 8px;
+            font-size: 12.5px;
+            line-height: 1.5;
+        }
+        .p2-producto-detalle strong {
+            color: #1b1f24;
+            font-weight: 700;
+        }
+        .p2-field-row {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            font-size: 12.5px;
+            row-gap: 3px;
+        }
+        .p2-field-row strong { font-weight: 700; }
+        .p2-product-desc {
+            font-size: 13px;
+            color: #1b1f24;
+            background: #f3f6f9;
+            border: 1px solid #e2e8ee;
+            border-radius: 10px;
+            padding: 12px 14px;
+            line-height: 1.55;
+        }
+        .p2-product-desc p { margin: 0; }
+        .p2-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        .p2-table th {
+            border-bottom: 1px solid #1b1f24;
+            padding: 6px 8px;
+            text-align: center;
+            font-weight: 700;
+        }
+        .p2-table td {
+            padding: 6px 8px;
+            text-align: center;
+            border-bottom: 1px dotted #c7ccd1;
+        }
+        .p2-footer {
+            padding-top: 20px;
+            padding-bottom: 24px;
+            margin-top: auto;
+        }
+        .p2-terms {
+            margin-top: auto;
+            margin-bottom: 20px;
+        }
+        .p2-terms h3 {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .p2-terms p {
+            font-size: 11.5px;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            margin: 0;
+        }
+        .p2-sig-row {
+            margin-top: auto;
+            display: flex;
+            justify-content: center;
+        }
+        .p2-signature { min-width: 220px; text-align: center; }
+        .p2-sig-line {
+            min-height: 50px;
+            border-bottom: 1px solid #1b1f24;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 4px;
+        }
+        .p2-sig-line img {
+            object-fit: contain;
+        }
+        .p2-signature strong { display: block; font-size: 12px; font-weight: 600; }
+        .p2-signature span { display: block; font-size: 11px; color: #647384; }
+
         /* ── PRINT ──────────────────────────────────── */
         @page {
             size: Letter portrait;
@@ -463,7 +602,7 @@
                 background: #fff !important;
                 display: block !important;
             }
-            .p-page {
+            .p-page, .p2-page {
                 width: 100% !important;
                 /* Mantener altura carta para que margin-top:auto funcione */
                 height: 279.4mm !important;
@@ -472,7 +611,7 @@
                 page-break-after: always;
                 overflow: hidden;
             }
-            .p-page:last-child { page-break-after: auto; }
+            .p-page:last-child, .p2-page:last-child { page-break-after: auto; }
             .p-tech-summary, .p-intro { page-break-inside: avoid; }
         }
     </style>
@@ -567,6 +706,111 @@
             return r*0.299 + g*0.587 + b*0.114;
         }
 
+        function normalizePreviewCurrencies(value) {
+            const fallback = [
+                { code: 'USD', label: 'Dólares', symbol: '$', exchangeRate: 1 },
+                { code: 'CRC', label: 'Colones', symbol: '₡', exchangeRate: 1 }
+            ];
+            try {
+                const source = typeof value === 'string' ? JSON.parse(value || '[]') : value;
+                const rows = Array.isArray(source) ? source : [];
+                const cleaned = rows.map((row) => ({
+                    code: String(row?.code || '').trim().toUpperCase().slice(0, 10),
+                    label: String(row?.label || '').trim().slice(0, 80),
+                    symbol: String(row?.symbol || '').trim().slice(0, 10),
+                    exchangeRate: Number(row?.exchangeRate || 0)
+                })).filter((row) => row.code && row.label && Number.isFinite(row.exchangeRate) && row.exchangeRate > 0);
+                return cleaned.length ? cleaned : fallback;
+            } catch (error) {
+                return fallback;
+            }
+        }
+
+        function normalizePreviewPriceDisplayMode(value) {
+            const normalized = String(value || '').trim();
+            const aliases = {
+                both: 'totalized_unit',
+                unit: 'regular_unit',
+                thousand: 'regular_thousand',
+                product_totals: 'totalized_simple',
+                global_totals: 'totalized_simple',
+                totalized_unit: 'totalized_simple',
+                totalized_thousand: 'totalized_simple'
+            };
+            const resolved = aliases[normalized] || normalized;
+            return ['regular_simple', 'regular_unit', 'regular_thousand', 'totalized_simple'].includes(resolved) ? resolved : 'regular_unit';
+        }
+
+        function getPreviewFontConfig(general) {
+            const selected = String(general.proformaCompanyFontFamily || 'Cormorant Garamond').trim();
+            const customLabel = String(general.proformaCompanyFontLabel || 'ProformaCompanyCustom').trim() || 'ProformaCompanyCustom';
+            const customUrl = String(general.proformaCompanyFontUrl || '').trim();
+            if (selected === '__custom__' && customUrl) {
+                return { family: customLabel, url: customUrl, source: '__custom__' };
+            }
+            return { family: selected === '__custom__' ? 'Cormorant Garamond' : selected, url: '', source: '' };
+        }
+
+        function buildPreviewPayload(general, formato) {
+            const currencies = normalizePreviewCurrencies(general.proformaCurrenciesJson);
+            const defaultCode = String(general.proformaDefaultCurrency || 'USD').trim().toUpperCase();
+            const currency = currencies.find((row) => row.code === defaultCode) || currencies[0];
+            const font = getPreviewFontConfig(general);
+            return {
+                format: formato === 'clasico' ? 'clasico' : 'formato2',
+                quoteCode: 'PRO-0001',
+                issueDate: new Date().toISOString(),
+                validity: String(general.proformaDefaultValidity || '30 días').trim(),
+                intro: String(general.proformaIntro || '').trim(),
+                productoDetalle: String(general.proformaProductoDetalle || '').trim(),
+                paymentTerms: String(general.proformaPaymentTerms || '').trim(),
+                deliveryTime: String(general.proformaDeliveryTime || '').trim(),
+                technicalSpecs: String(general.proformaTechnicalSpecs || '').trim(),
+                qualityPolicies: String(general.proformaQualityPolicies || '').trim(),
+                termsConditions: String(general.proformaTermsConditions || '').trim(),
+                priceDisplayMode: normalizePreviewPriceDisplayMode(general.proformaPriceDisplayMode),
+                sellerSignatureEnabled: String(general.proformaSellerSignatureEnabled ?? 'true') !== 'false',
+                firmaAncho: Number(general.proformaFirmaAncho) || 160,
+                firmaAlto: Number(general.proformaFirmaAlto) || 100,
+                firmaOffsetX: general.proformaFirmaOffsetX == null ? 0 : Number(general.proformaFirmaOffsetX),
+                firmaOffsetY: general.proformaFirmaOffsetY == null ? 35 : Number(general.proformaFirmaOffsetY),
+                company: {
+                    name: String(general.proformaCompanyName || 'Empresa').trim(),
+                    slogan: String(general.proformaSlogan || '').trim(),
+                    logoUrl: String(general.proformaLogoUrl || '').trim(),
+                    logoWidth: Number(general.proformaLogoWidth) || 120,
+                    logoHeight: Number(general.proformaLogoHeight) || 64,
+                    showCompanyName: String(general.proformaShowCompanyName ?? 'true').toLowerCase() !== 'false',
+                    headerColor: String(general.proformaHeaderColor || '#1f314b').trim(),
+                    nameColor: String(general.proformaCompanyNameColor || '').trim(),
+                    fontFamily: font.family,
+                    fontUrl: font.url,
+                    fontFamilySource: font.source
+                },
+                client: {
+                    company: 'Cliente de ejemplo',
+                    contactName: 'Departamento de Compras',
+                    email: 'compras@cliente.com',
+                    phone: '2222-2222'
+                },
+                seller: { name: 'Asesor Comercial', signatureUrl: String(general.proformaFirmaVendedorUrl || '').trim() },
+                currency,
+                totals: { subtotal: 5520, taxAmount: 717.6, grandTotal: 6237.6 },
+                products: [
+                    { name: 'Etiqueta Premium', dimensionsText: '10" x 15"', material: 'Papel couché', acabadosProforma: 'Barniz UV Brillante · Laminado Brillante · Estampado Foil Dorado', descriptionText: 'Papel couché · 10" x 15" · Laminado brillante · Barniz UV brillo · Numerado', quantity: 2500, unitPrice: 0.84, subtotal: 2100, taxAmount: 273, totalPrice: 2373, thousandPrice: 840 },
+                    { name: 'Funda Termoencogible', dimensionsText: '8" x 22"', material: 'BOPP', acabadosProforma: 'Laminado Mate', descriptionText: 'BOPP · 8" x 22" · Laminado mate · Código QR', quantity: 18000, unitPrice: 0.19, subtotal: 3420, taxAmount: 444.6, totalPrice: 3864.6, thousandPrice: 190 }
+                ]
+            };
+        }
+
+        function renderProforma(data) {
+            const wrap = document.getElementById('pPageWrap');
+            wrap.innerHTML = data.format === 'formato2' ? buildPageFormat2(data) : buildPage(data);
+            document.title = `Proforma ${data.quoteCode || ''}`;
+            const loading = document.getElementById('pLoading');
+            if (loading) loading.style.display = 'none';
+        }
+
         function buildPage(data) {
             const company   = data.company   || {};
             const client    = data.client    || {};
@@ -580,6 +824,10 @@
             const headerColor = String(company.headerColor || '#1f314b').trim();
             const isLight = getLuma(headerColor) > 160;
             const showSig = data.sellerSignatureEnabled !== false;
+            const sigW = Math.max(40, Math.min(400, Number(data.firmaAncho || 160) || 160));
+            const sigH = Math.max(20, Math.min(200, Number(data.firmaAlto || 100) || 100));
+            const offX = Math.max(-100, Math.min(100, data.firmaOffsetX == null ? 0 : Number(data.firmaOffsetX)));
+            const offY = Math.max(-60, Math.min(60, data.firmaOffsetY == null ? 35 : Number(data.firmaOffsetY)));
 
             // Logo sizing
             const logoW = Math.max(40, Number(company.logoWidth)  || 120);
@@ -701,8 +949,8 @@
             ${showSig ? `
             <div class="p-sig-row">
                 <div class="p-signature">
-                    <div class="p-sig-line">
-                        ${seller.signatureUrl ? `<img src="${escHtml(seller.signatureUrl)}" alt="Firma">` : ''}
+                    <div class="p-sig-line" style="min-height:${sigH + 2}px">
+                        ${seller.signatureUrl ? `<img src="${escHtml(seller.signatureUrl)}" alt="Firma" style="width:${sigW}px;height:${sigH}px;object-fit:contain;transform:translate(${offX}px,${offY}px)">` : ''}
                     </div>
                     <strong>${escHtml(seller.name||'')}</strong>
                     <span>Ejecutivo de Ventas</span>
@@ -714,33 +962,141 @@
 </div><!-- /p-page -->`;
         }
 
+        function buildPageFormat2(data) {
+            const company  = data.company  || {};
+            const client   = data.client   || {};
+            const seller   = data.seller   || {};
+            const currency = data.currency || {};
+            const products = data.products || [];
+            const showSig  = data.sellerSignatureEnabled !== false;
+            const sigW = Math.max(40, Math.min(400, Number(data.firmaAncho || 160) || 160));
+            const sigH = Math.max(20, Math.min(200, Number(data.firmaAlto || 100) || 100));
+            const offX = Math.max(-100, Math.min(100, data.firmaOffsetX == null ? 0 : Number(data.firmaOffsetX)));
+            const offY = Math.max(-60, Math.min(60, data.firmaOffsetY == null ? 35 : Number(data.firmaOffsetY)));
+            const intro    = String(data.intro || '').trim();
+            const terminos = String(data.termsConditions || '').trim();
+            const logoW    = Math.max(40, Number(company.logoWidth)  || 120);
+            const logoH    = Math.max(24, Number(company.logoHeight) || 64);
+
+            const rows = products.map(p => {
+                const quantity = Number(p.quantity || 0);
+                const thousands = quantity / 1000;
+                const priceNoTax = Number(p.thousandPrice ?? (thousands ? (p.subtotal || 0) / thousands : 0));
+                const priceWithTax = thousands ? Number(p.totalPrice || 0) / thousands : 0;
+                return `
+                <tr>
+                    <td>${escHtml(fmtNum(quantity))}</td>
+                    <td>${escHtml(fmtNum(thousands))}</td>
+                    <td>${escHtml(fmtCur(priceNoTax, currency))}</td>
+                    <td>${escHtml(fmtCur(priceWithTax, currency))}</td>
+                    <td>${escHtml(fmtCur(p.totalPrice, currency))}</td>
+                </tr>`;
+            }).join('');
+
+            const detalleManual = String(data.productoDetalle || '').trim();
+            const productDesc = detalleManual
+                ? escHtml(detalleManual).replace(/\n/g, '<br>')
+                : products.map(p =>
+                    escHtml([p.name, p.dimensionsText, p.material, p.acabadosProforma].filter(Boolean).join(' · '))
+                ).filter(Boolean).join('<br>');
+
+            return `
+<div class="p2-page">
+    <div class="p2-body">
+        <div class="p2-header">
+            <div class="p2-logo">
+                ${company.logoUrl
+                    ? `<img src="${escHtml(company.logoUrl)}" alt="${escHtml(company.name||'Logo')}" style="width:${logoW}px;height:${logoH}px">`
+                    : `<span style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600">${escHtml(company.name||'Empresa')}</span>`}
+            </div>
+            <div class="p2-doc-meta">
+                <div class="p2-doc-label">Cotización</div>
+                <div class="p2-doc-code">${escHtml(data.quoteCode||'')}</div>
+                <div class="p2-doc-date">Fecha: ${escHtml(fmtDate(data.issueDate))}</div>
+            </div>
+        </div>
+        <hr class="p2-hr">
+
+        <div class="p2-section">
+            <div class="p2-field-row">
+                <strong>Cliente:</strong><span>${escHtml(client.company||'')}</span>
+                <strong>Atención:</strong><span>${escHtml(client.contactName||'')}</span>
+            </div>
+        </div>
+
+        ${intro ? `<div class="p2-intro"><p>${escHtml(intro)}</p></div>` : ''}
+
+        ${productDesc ? `<div class="p2-section p2-product-desc">
+            <h3>Detalle del Producto</h3>
+            <p>${productDesc}</p>
+        </div>` : ''}
+
+        <table class="p2-table">
+            <thead>
+                <tr>
+                    <th>Cantidad</th>
+                    <th>Millares</th>
+                    <th>Precio por millar sin IVA</th>
+                    <th>Precio por millar con IVA</th>
+                    <th>Precio total con IVA</th>
+                </tr>
+            </thead>
+            <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:#999;padding:16px">Sin productos</td></tr>`}</tbody>
+        </table>
+
+        <div class="p2-footer">
+            ${terminos ? `
+            <div class="p2-terms">
+                <h3>Términos y condiciones:</h3>
+                <p>${escHtml(terminos)}</p>
+            </div>` : ''}
+
+            ${showSig ? `
+            <div class="p2-sig-row">
+                <div class="p2-signature">
+                    <div class="p2-sig-line" style="min-height:${sigH + 8}px">
+                        ${seller.signatureUrl ? `<img src="${escHtml(seller.signatureUrl)}" alt="Firma" style="width:${sigW}px;height:${sigH}px;object-fit:contain;transform:translate(${offX}px,${offY}px)">` : ''}
+                    </div>
+                    <strong>${escHtml(seller.name||'')}</strong>
+                    <span>Ejecutivo de Ventas</span>
+                </div>
+            </div>` : ''}
+        </div><!-- /p2-footer -->
+    </div><!-- /p2-body -->
+</div><!-- /p2-page -->`;
+        }
+
+        let previewRenderedViaMessage = false;
+
         async function init() {
             const params = new URLSearchParams(window.location.search);
             const code   = params.get('codigo') || '';
-            if (!code) {
+            const previewMode = params.get('preview') === '1';
+            if (!code && !previewMode) {
                 document.getElementById('pLoading').innerHTML = '<p style="color:#c0392b">No se indicó ninguna cotización.</p>';
                 return;
             }
+            // Toolbar: hide when embedded in iframe
+            const isEmbed = params.get('embed') === '1';
+            // Adjust page wrap padding when embedded
+            if (isEmbed) {
+                document.getElementById('pPageWrap').style.padding = '20px 16px 24px';
+            }
             try {
-                const res     = await fetch(`/api/proformas/${encodeURIComponent(code)}`);
-                const data    = await res.json().catch(() => ({}));
-                if (!res.ok) throw new Error(data?.error || 'Error al cargar la proforma.');
-
-                const wrap = document.getElementById('pPageWrap');
-                wrap.innerHTML = buildPage(data);
-
-                // Toolbar: hide when embedded in iframe
-                const isEmbed = params.get('embed') === '1';
-                // Adjust page wrap padding when embedded
-                if (isEmbed) {
-                    document.getElementById('pPageWrap').style.padding = '20px 16px 24px';
+                let data;
+                if (previewMode) {
+                    if (previewRenderedViaMessage) return;
+                    const configRes = await fetch('/api/config/general');
+                    const config = await configRes.json().catch(() => ({}));
+                    if (previewRenderedViaMessage) return;
+                    data = buildPreviewPayload(config.general || {}, params.get('formato') || '');
+                } else {
+                    const res  = await fetch(`/api/proformas/${encodeURIComponent(code)}`);
+                    data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data?.error || 'Error al cargar la proforma.');
                 }
 
-                document.title = `Proforma ${data.quoteCode || ''}`;
-
-                // Hide loading
-                const loading = document.getElementById('pLoading');
-                if (loading) loading.style.display = 'none';
+                renderProforma(data);
 
                 // Auto-print if ?print=1
                 if (params.get('print') === '1') {
@@ -751,6 +1107,20 @@
                 if (loading) loading.innerHTML = `<p style="color:#c0392b;font-family:sans-serif;padding:24px">Error: ${escHtml(err.message)}</p>`;
             }
         }
+
+        window.addEventListener('message', function (event) {
+            if (event.origin !== window.location.origin) return;
+            const message = event.data;
+            if (!message || message.type !== 'proforma-preview-config') return;
+            previewRenderedViaMessage = true;
+            try {
+                renderProforma(message.data
+                    ? message.data
+                    : buildPreviewPayload((message.config || {}).general || {}, message.formato || ''));
+            } catch (error) {
+                // Ignorar mensajes de vista previa malformados.
+            }
+        });
 
         init();
     })();

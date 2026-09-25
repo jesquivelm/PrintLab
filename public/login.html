@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
     <title>Acceso | PrintLab</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#118fc6">
+    <link rel="apple-touch-icon" href="/assets/bootstrap/branding-logoUrl.png">
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
     <style>
         :root {
             --login-accent: #118fc6;
@@ -34,6 +37,7 @@
 
         .login-shell {
             min-height: 100vh;
+            min-height: 100dvh;
             width: 100%;
             display: grid;
             grid-template-columns: minmax(320px, 26vw) minmax(0, 1fr);
@@ -44,9 +48,12 @@
             position: relative;
             z-index: 3;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             padding: 32px 26px;
+            max-height: 100vh;
+            max-height: 100dvh;
+            overflow-y: auto;
             background: linear-gradient(180deg, rgba(241,248,252,0.38) 0%, rgba(232,243,249,0.24) 100%);
             border-right: 1px solid rgba(193, 214, 228, 0.38);
             backdrop-filter: blur(12px);
@@ -55,6 +62,7 @@
         .login-card {
             width: 100%;
             max-width: 360px;
+            margin: auto;
             padding: 28px 24px 24px;
             border: 1px solid rgba(193, 214, 228, 0.72);
             border-radius: 26px;
@@ -142,9 +150,9 @@
             width: 100%;
             height: 44px;
             padding: 0 14px;
-            border: 1px solid #cfdbe4;
+            border: 1px solid var(--login-border);
             border-radius: 14px;
-            background: #fff;
+            background: var(--login-panel-bg);
             font-size: 14px;
             color: var(--login-text);
             outline: none;
@@ -152,7 +160,7 @@
         }
 
         .login-field input:focus {
-            border-color: #91c9e4;
+            border-color: var(--login-accent);
             box-shadow: 0 0 0 4px rgba(17,143,198,0.12);
         }
 
@@ -258,15 +266,15 @@
         .forgot-modal input {
             width: 100%;
             padding: 10px 12px;
-            border: 1px solid #c1d6e4;
+            border: 1px solid var(--login-border);
             border-radius: 10px;
             font-size: 14px;
-            background: #fff;
-            color: #223140;
+            background: var(--login-panel-bg);
+            color: var(--login-text);
             outline: none;
         }
         .forgot-modal input:focus {
-            border-color: #118fc6;
+            border-color: var(--login-accent);
             box-shadow: 0 0 0 3px rgba(17,143,198,0.15);
         }
         .forgot-modal .forgot-actions {
@@ -474,6 +482,129 @@
                 display: none;
             }
         }
+
+        @media (max-height: 760px) {
+            .login-panel {
+                padding: 18px 26px;
+            }
+
+            .login-brand {
+                margin-bottom: 16px;
+            }
+
+            .login-card {
+                padding: 20px 24px 20px;
+            }
+
+            .login-form {
+                gap: 13px;
+            }
+        }
+
+        html[data-theme="dark"] .login-field input {
+            border: 1px solid var(--app-border);
+            background: color-mix(in srgb, var(--app-surface) 78%, var(--app-bg));
+            color: var(--app-text);
+        }
+
+        html[data-theme="dark"] .login-field input:focus {
+            border-color: var(--app-accent);
+            box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.14);
+        }
+
+        html[data-theme="dark"] .login-field > span {
+            color: var(--app-text-muted);
+        }
+
+        html[data-theme="dark"] .forgot-modal input {
+            border: 1px solid var(--app-border);
+            background: color-mix(in srgb, var(--app-surface) 78%, var(--app-bg));
+            color: var(--app-text);
+        }
+
+        html[data-theme="dark"] .forgot-modal input:focus {
+            border-color: var(--app-accent);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.14);
+        }
+
+        html[data-theme="dark"] .login-password-toggle {
+            color: var(--app-text-muted);
+        }
+
+        html[data-theme="dark"] .login-password-toggle:hover {
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--app-text);
+        }
+
+        /* ─── Login solo-PIN (tablets) ───────────────────────────────────────
+           Todo el bloque usa clamp() para achicarse según el espacio VISIBLE
+           real (100dvh: alto de pantalla menos barra del navegador y demás),
+           no el tamaño físico de la tableta — así nunca obliga a hacer scroll. */
+        body.login-tablet-mode .login-hero { display: none; }
+        body.login-tablet-mode .login-shell {
+            grid-template-columns: 1fr;
+            height: 100vh;
+            height: 100dvh;
+        }
+        body.login-tablet-mode .login-panel {
+            background: transparent;
+            border-right: 0;
+            backdrop-filter: none;
+            padding: clamp(10px, 3vh, 32px) 20px;
+            overflow: hidden;
+        }
+        body.login-tablet-mode .login-card {
+            max-width: 420px;
+            max-height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: clamp(14px, 2.5vh, 28px) 24px clamp(12px, 2vh, 24px);
+        }
+        body.login-tablet-mode .login-brand { margin-bottom: clamp(6px, 2vh, 24px); }
+        body.login-tablet-mode #loginForm,
+        body.login-tablet-mode .login-subtitle { display: none; }
+
+        .login-pin-only { display: none; text-align: center; }
+        .login-pin-only.active { display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+        .login-pin-only-title { font-size: clamp(14px, 2.4vh, 18px); font-weight: 700; margin: clamp(2px, 1vh, 4px) 0 clamp(8px, 2vh, 20px); }
+        .login-pin-only-dots { display: flex; justify-content: center; gap: 14px; margin-bottom: clamp(10px, 2.5vh, 24px); flex-shrink: 0; }
+        .login-pin-only-dot {
+            width: 18px; height: 18px; border-radius: 50%;
+            border: 2px solid var(--login-border); background: #fff;
+        }
+        .login-pin-only-dot.filled { background: var(--login-accent); border-color: var(--login-accent); }
+        .login-pin-only-dot.error { background: #b94848; border-color: #b94848; }
+        .login-pin-only-keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: clamp(6px, 1.5vh, 10px);
+            max-width: 320px;
+            width: 100%;
+            margin: 0 auto;
+            flex-shrink: 0;
+        }
+        .login-pin-only-key {
+            height: clamp(38px, 7.5vh, 64px);
+            border-radius: 16px;
+            border: 1px solid var(--login-border);
+            background: #fff;
+            font-size: clamp(15px, 3vh, 24px);
+            font-weight: 700;
+            color: var(--login-text);
+            cursor: pointer;
+        }
+        .login-pin-only-key:active { background: #eef6fb; border-color: var(--login-accent); }
+        .login-pin-only-key.ghost { visibility: hidden; }
+        .login-pin-only-status { min-height: 20px; margin-top: 16px; font-size: 14px; color: #b94848; font-weight: 600; }
+
+        html[data-theme="dark"] .login-pin-only-dot { border-color: var(--app-border); background: var(--app-surface); }
+        html[data-theme="dark"] .login-pin-only-dot.filled { background: var(--login-accent); border-color: var(--login-accent); }
+        html[data-theme="dark"] .login-pin-only-dot.error { background: #b94848; border-color: #b94848; }
+        html[data-theme="dark"] .login-pin-only-key {
+            border-color: var(--app-border);
+            background: color-mix(in srgb, var(--app-surface) 78%, var(--app-bg));
+            color: var(--app-text);
+        }
     </style>
 </head>
 <body class="login-body">
@@ -501,7 +632,7 @@
                     </label>
 
                     <label class="login-field">
-                        <span>Contraseña</span>
+                        <span id="loginPasswordLabel">Contraseña</span>
                         <div class="login-password-wrap">
                             <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Contraseña">
                             <button type="button" id="loginPasswordToggle" class="login-password-toggle" aria-label="Mostrar contraseña" title="Mostrar contraseña"></button>
@@ -515,10 +646,21 @@
                         </label>
                         <a id="forgotPasswordLink" class="login-forgot-link">¿Olvidó su contraseña?</a>
                     </div>
+                    <a id="loginPinModeToggle" class="login-forgot-link" style="display:block;margin-top:-8px;margin-bottom:12px;">Entrar con PIN en vez de contraseña</a>
 
                     <button type="submit" class="login-submit">Entrar al Sistema</button>
                     <p id="loginStatus" class="login-status"></p>
                 </form>
+
+                <div id="loginPinOnlyStage" class="login-pin-only">
+                    <p class="login-pin-only-title">Ingresa tu PIN</p>
+                    <div class="login-pin-only-dots" id="loginPinOnlyDots">
+                        <span class="login-pin-only-dot"></span><span class="login-pin-only-dot"></span>
+                        <span class="login-pin-only-dot"></span><span class="login-pin-only-dot"></span>
+                    </div>
+                    <div class="login-pin-only-keypad" id="loginPinOnlyKeypad"></div>
+                    <p class="login-pin-only-status" id="loginPinOnlyStatus"></p>
+                </div>
 
                 <!-- Forgot Password Modal -->
                 <div id="forgotOverlay" class="forgot-overlay">
@@ -552,6 +694,6 @@
         </section>
     </div>
 
-    <script src="/login.js"></script>
+    <script src="/login.js?v=20260921-mi-actividad-2"></script>
 </body>
 </html>

@@ -86,8 +86,8 @@ html[data-theme="dark"] .tl-bar.process.bottleneck{background:#c0392b;border-col
   </div>
   <div class="top-actions">
     <span data-theme-toggle-slot></span>
-    <a class="btn" href="/planificacion/capacidad">← Capacidad</a>
-    <a class="btn" href="/planificacion/gantt">Gantt</a>
+    <a class="btn" href="/planificacion/capacidad" onclick="return navShellAware(event,'/planificacion/capacidad','Capacidad')">← Capacidad</a>
+    <a class="btn" href="/planificacion/gantt" onclick="return navShellAware(event,'/planificacion/gantt','Gantt')">Gantt</a>
   </div>
 </div>
 
@@ -103,6 +103,14 @@ html[data-theme="dark"] .tl-bar.process.bottleneck{background:#c0392b;border-col
 </div>
 
 <script>
+function navShellAware(e,route,label){
+  if(window.parent&&window.parent!==window&&window.location.search.includes('shell=1')){
+    e.preventDefault();
+    window.parent.postMessage({type:'erp-open-tab',route:route+(route.includes('?')?'&':'?')+'shell=1',label:label},window.location.origin);
+    return false;
+  }
+  return true;
+}
 const API = '/api/planificacion';
 const params = new URLSearchParams(window.location.search);
 const orderCode = params.get('codigo') || params.get('order') || '';

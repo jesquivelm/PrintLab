@@ -87,7 +87,8 @@ SET
     empaque_costo_externo = fc.empaque_costo_externo,
     empaque_horas = fc.empaque_horas,
     empaque_costo_total = fc.empaque_costo_total,
-    empaque_comentario = fc.empaque_comentario
+    empaque_comentario = fc.empaque_comentario,
+    empaque_kg_por_caja = fc.empaque_kg_por_caja
 FROM flexo_calculations fc
 WHERE fc.quote_code = o.raw_data->>'source_quote_code'
   AND fc.line_code = o.raw_data->>'source_line_code'

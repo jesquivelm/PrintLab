@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Órdenes de Calidad - PrintLab</title>
+<link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+<link rel="stylesheet" href="/calidad/styles.css?v=20260905-sellos">
+<script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
+<style>body { margin:0; background:transparent; }</style>
+</head>
+<body>
+<main class="workspace workspace-quote quote-browser-main">
+    <section class="quote-card quote-card-clean quote-browser-card">
+        <div class="quote-browser-search-row">
+            <div class="quote-browser-actions-left">
+                <button id="calNuevaOrden" type="button" class="action-btn quote-browser-action-btn">+ Nueva Orden de Calidad</button>
+            </div>
+            <div class="quote-browser-search-wrap">
+                <input id="calBusqueda" class="copy-popover-search quote-browser-search" type="search" placeholder="Buscar por código, cliente o descripción...">
+            </div>
+        </div>
+        <div class="scroll-bottom-indicator-host">
+            <div class="copy-popover-table-wrap quote-browser-table-wrap">
+                <table class="copy-popover-table quote-browser-table">
+                    <thead>
+                        <tr><th>Código</th><th>Orden de Producción</th><th>Cliente</th><th>Fecha de Detección</th><th>Estado</th></tr>
+                    </thead>
+                    <tbody id="calOrdenesBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</main>
+<script>
+function calEscapar(text) {
+    const d = document.createElement('div');
+    d.textContent = text == null ? '' : String(text);
+    return d.innerHTML;
+}
+function calEscaparAtributo(text) {
+    return calEscapar(text).replace(/"/g, '&quot;');
+}
+function calFecha(value) {
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('es-CR');
+}
+const ETIQUETA_ESTADO = {
+    ABIERTA: 'Abierta',
+    EN_INVESTIGACION: 'En Investigación',
+    ACCION_CORRECTIVA_DEFINIDA: 'Acción Correctiva Definida',
+    CERRADA: 'Cerrada'
+};
+async function calCargarOrdenes() {
+    const q = document.getElementById('calBusqueda').value.trim();
+    const url = '/api/calidad/ordenes' + (q ? '?q=' + encodeURIComponent(q) : '');
+    const respuesta = await fetch(url);
+    const ordenes = await respuesta.json();
+    const cuerpo = document.getElementById('calOrdenesBody');
+    cuerpo.innerHTML = (ordenes || []).map(function(o) {
+        const estado = o.estado || '';
+        return '<tr class="quote-master-row" data-codigo="' + calEscaparAtributo(o.codigo) + '">' +
+            '<td><button type="button" class="quote-master-code" data-codigo="' + calEscaparAtributo(o.codigo) + '">' + calEscapar(o.codigo) + '</button></td>' +
+            '<td>' + calEscapar(o.orden_produccion_codigo || '—') + '</td>' +
+            '<td>' + calEscapar(o.cliente_nombre || '—') + '</td>' +
+            '<td>' + calFecha(o.fecha_deteccion) + '</td>' +
+            '<td><span class="calidad-status-chip" data-estado="' + calEscaparAtributo(estado) + '">' + calEscapar(ETIQUETA_ESTADO[estado] || estado) + '</span></td>' +
+        '</tr>';
+    }).join('') || '<tr><td colspan="5">Sin órdenes de calidad registradas.</td></tr>';
+    cuerpo.querySelectorAll('tr[data-codigo]').forEach(function(fila) {
+        fila.addEventListener('click', function(event) {
+            const codigo = event.currentTarget.dataset.codigo;
+            if (codigo) window.location.href = '/calidad/orden/' + encodeURIComponent(codigo);
+        });
+    });
+}
+document.getElementById('calBusqueda').addEventListener('input', function() {
+    clearTimeout(window.__calBusquedaTimer);
+    window.__calBusquedaTimer = setTimeout(calCargarOrdenes, 300);
+});
+document.getElementById('calNuevaOrden').addEventListener('click', function() {
+    window.location.href = '/calidad/orden/nueva';
+});
+calCargarOrdenes();
+</script>
+</body>
+</html>

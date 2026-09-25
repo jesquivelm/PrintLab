@@ -1,0 +1,165 @@
+/* ========================================
+   Centro de Capacitación — Toques Apple
+   Se activa con body.cc-apple-theme
+   USA las variables del proyecto (--app-*),
+   por lo que respeta el modo claro y
+   oscuro de todo el sistema. Solo aporta:
+   tipografía con tracking por tamaño,
+   esquinas suaves y respuesta inmediata
+   al toque.
+   ======================================== */
+
+/* ---- Tipografía del sistema ---- */
+body.cc-apple-theme {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ---- Barra superior: sin banda de fondo propia, flota sobre la página ---- */
+body.cc-apple-theme .cc-topbar {
+    background: transparent;
+    border-bottom: none;
+    box-shadow: none;
+}
+
+/* Buscador alineado a la derecha */
+body.cc-apple-theme .cc-topbar {
+    justify-content: flex-end;
+}
+
+/* Campo del buscador con las variables del proyecto */
+body.cc-apple-theme .cc-search-wrap .cc-search-input {
+    background: var(--app-surface, #ffffff);
+    border: 1px solid var(--app-border, #e2e8f0);
+    color: var(--app-text, #0f172a);
+}
+
+body.cc-apple-theme .cc-search-wrap .cc-search-input:focus {
+    outline: none;
+    border-color: var(--app-primary, #0277a9);
+    box-shadow: 0 0 0 3px var(--app-ring, rgba(2,119,169,0.18));
+}
+
+/* Despliegue de resultados: superficie del proyecto */
+body.cc-apple-theme .cc-search-results {
+    background: var(--app-surface-raised, var(--app-surface, #ffffff));
+    border: 1px solid var(--app-border, #e2e8f0);
+    box-shadow: var(--app-shadow-md, 0 14px 32px rgba(15,23,42,0.10));
+}
+
+/* ---- Encabezado de la portada: tracking negativo en títulos grandes ---- */
+body.cc-apple-theme .cc-hero h1 {
+    letter-spacing: -0.022em;
+    line-height: 1.08;
+}
+
+body.cc-apple-theme .cc-hero p {
+    letter-spacing: -0.01em;
+    color: var(--app-text-muted, #64748b);
+}
+
+/* ---- Tarjetas: superficie y borde del proyecto, esquina y movimiento Apple ---- */
+body.cc-apple-theme .cc-module-card {
+    border-radius: 28px;
+    transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1),
+                box-shadow 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform;
+}
+
+body.cc-apple-theme .cc-module-card:hover {
+    transform: translateY(-4px) scale(1.015);
+}
+
+/* Respuesta inmediata al presionar */
+body.cc-apple-theme .cc-module-card:active {
+    transform: scale(0.96);
+    transition-duration: 0.1s;
+}
+
+body.cc-apple-theme .cc-module-name {
+    letter-spacing: -0.012em;
+}
+
+body.cc-apple-theme .cc-module-desc {
+    letter-spacing: -0.005em;
+}
+
+/* ---- Encabezado de módulo / artículo ---- */
+body.cc-apple-theme .cc-category-header h1,
+body.cc-apple-theme .cc-article-header h1 {
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+}
+
+/* ---- Tarjetas de artículos (lista de pasos) ---- */
+body.cc-apple-theme .cc-article-card,
+body.cc-apple-theme .cc-step-card {
+    border-radius: 20px;
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1),
+                box-shadow 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+body.cc-apple-theme .cc-article-card:active,
+body.cc-apple-theme .cc-step-card:active {
+    transform: scale(0.98);
+    transition-duration: 0.1s;
+}
+
+/* ---- Contenido del artículo: tipografía editorial con variables ---- */
+body.cc-apple-theme .cc-article-content h2,
+body.cc-apple-theme .cc-content-shell h2 {
+    font-size: 26px;
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+}
+
+body.cc-apple-theme .cc-article-content h3,
+body.cc-apple-theme .cc-content-shell h3 {
+    font-size: 19px;
+    letter-spacing: -0.014em;
+}
+
+body.cc-apple-theme .cc-article-content p,
+body.cc-apple-theme .cc-content-shell p {
+    letter-spacing: -0.004em;
+    line-height: 1.65;
+}
+
+/* ---- Botones de icono (lápiz / menú) del catálogo: toque sin caja ---- */
+body.cc-apple-theme .cc-icon-btn {
+    border-radius: 12px;
+    transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1),
+                background 0.25s ease;
+}
+
+body.cc-apple-theme .cc-icon-btn:active {
+    transform: scale(0.9);
+    transition-duration: 0.1s;
+}
+
+/* ---- Navegación Anterior / Siguiente y Salir ---- */
+body.cc-apple-theme .cc-nav-btn,
+body.cc-apple-theme .cc-nav-exit {
+    transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1),
+                box-shadow 0.25s ease,
+                background 0.25s ease;
+}
+
+body.cc-apple-theme .cc-nav-btn:active,
+body.cc-apple-theme .cc-nav-exit:active {
+    transform: scale(0.96);
+    transition-duration: 0.1s;
+}
+
+/* ---- Movimiento reducido: fundidos cortos, nada de rebotes ---- */
+@media (prefers-reduced-motion: reduce) {
+    body.cc-apple-theme .cc-module-card,
+    body.cc-apple-theme .cc-article-card,
+    body.cc-apple-theme .cc-step-card,
+    body.cc-apple-theme .cc-icon-btn,
+    body.cc-apple-theme .cc-nav-btn,
+    body.cc-apple-theme .cc-nav-exit {
+        transition: opacity 0.2s ease !important;
+        transform: none !important;
+    }
+}

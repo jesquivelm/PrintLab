@@ -289,6 +289,7 @@ CREATE TABLE public."CRD1" (
     "State" text DEFAULT ''::text NOT NULL,
     "Country" text DEFAULT ''::text NOT NULL,
     "ZipCode" text DEFAULT ''::text NOT NULL,
+    "Building" text DEFAULT ''::text NOT NULL,
     raw_data jsonb DEFAULT '{}'::jsonb NOT NULL,
     synced_at timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -389,12 +390,15 @@ ALTER SEQUENCE public."ITT1_id_seq" OWNED BY public."ITT1".id;
 CREATE TABLE public."OCPR" (
     id bigint NOT NULL,
     "CardCode" text NOT NULL,
+    "CntctCode" integer,
     "Name" text DEFAULT ''::text NOT NULL,
     "FirstName" text DEFAULT ''::text NOT NULL,
     "LastName" text DEFAULT ''::text NOT NULL,
-    "E_MailL" text DEFAULT ''::text NOT NULL,
+    "E_Mail" text DEFAULT ''::text NOT NULL,
     "Tel1" text DEFAULT ''::text NOT NULL,
+    "Tel2" text DEFAULT ''::text NOT NULL,
     "Cellolar" text DEFAULT ''::text NOT NULL,
+    "Fax" text DEFAULT ''::text NOT NULL,
     "Position" text DEFAULT ''::text NOT NULL,
     raw_data jsonb DEFAULT '{}'::jsonb NOT NULL,
     synced_at timestamp with time zone DEFAULT now() NOT NULL
@@ -432,12 +436,43 @@ CREATE TABLE public."OCRD" (
     "LicTradNum" text DEFAULT ''::text NOT NULL,
     "FederalTaxID" text DEFAULT ''::text NOT NULL,
     "Phone1" text DEFAULT ''::text NOT NULL,
+    "Phone2" text DEFAULT ''::text NOT NULL,
+    "Cellular" text DEFAULT ''::text NOT NULL,
+    "Fax" text DEFAULT ''::text NOT NULL,
     "E_Mail" text DEFAULT ''::text NOT NULL,
+    "IntrntSite" text DEFAULT ''::text NOT NULL,
     "CntctPrsn" text DEFAULT ''::text NOT NULL,
+    "Notes" text DEFAULT ''::text NOT NULL,
+    "VatGroup" text DEFAULT ''::text NOT NULL,
+    "GroupCode" text DEFAULT ''::text NOT NULL,
+    "Territory" text DEFAULT ''::text NOT NULL,
+    "OwnerCode" text DEFAULT ''::text NOT NULL,
     "ListNum" integer,
     "validFor" text DEFAULT 'Y'::text NOT NULL,
     "frozenFor" text DEFAULT 'N'::text NOT NULL,
     "Balance" numeric,
+    "ValidFrom" text DEFAULT ''::text NOT NULL,
+    "ValidTo" text DEFAULT ''::text NOT NULL,
+    "FrozenFrom" text DEFAULT ''::text NOT NULL,
+    "FrozenTo" text DEFAULT ''::text NOT NULL,
+    "Address" text DEFAULT ''::text NOT NULL,
+    "Block" text DEFAULT ''::text NOT NULL,
+    "ZipCode" text DEFAULT ''::text NOT NULL,
+    "City" text DEFAULT ''::text NOT NULL,
+    "County" text DEFAULT ''::text NOT NULL,
+    "Country" text DEFAULT ''::text NOT NULL,
+    "State1" text DEFAULT ''::text NOT NULL,
+    "Building" text DEFAULT ''::text NOT NULL,
+    "MailAddres" text DEFAULT ''::text NOT NULL,
+    "MailBlock" text DEFAULT ''::text NOT NULL,
+    "MailZipCod" text DEFAULT ''::text NOT NULL,
+    "MailCity" text DEFAULT ''::text NOT NULL,
+    "MailCounty" text DEFAULT ''::text NOT NULL,
+    "MailCountr" text DEFAULT ''::text NOT NULL,
+    "State2" text DEFAULT ''::text NOT NULL,
+    "MailBuildi" text DEFAULT ''::text NOT NULL,
+    "BillToDef" text DEFAULT ''::text NOT NULL,
+    "ShipToDef" text DEFAULT ''::text NOT NULL,
     raw_data jsonb DEFAULT '{}'::jsonb NOT NULL,
     synced_at timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -719,6 +754,10 @@ CREATE TABLE public.admin_users (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     permission_id bigint,
     signature_url text DEFAULT ''::text NOT NULL,
+    firma_ancho numeric(6,2),
+    firma_alto numeric(6,2),
+    firma_offset_x numeric(6,2),
+    firma_offset_y numeric(6,2),
     email text DEFAULT ''::text NOT NULL,
     phone text DEFAULT ''::text NOT NULL,
     phone_secondary text DEFAULT ''::text NOT NULL,
@@ -832,14 +871,8 @@ CREATE TABLE public.business_partner_addresses (
     district text,
     address_line text,
     zip_code text,
-    raw_data jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
-
-
---
--- Name: business_partner_contacts; Type: TABLE; Schema: public; Owner: -
---
 
 CREATE TABLE public.business_partner_contacts (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -856,7 +889,6 @@ CREATE TABLE public.business_partner_contacts (
     country text,
     state_province text,
     county text,
-    raw_data jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
@@ -882,7 +914,6 @@ CREATE TABLE public.business_partners (
     allowed_percentage numeric(12,4),
     client_type text,
     creation_date date,
-    raw_data jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -1479,6 +1510,7 @@ CREATE TABLE public.flexo_calculations (
     empaque_adjunto text,
     empaque_horas numeric(12,4),
     empaque_costo_total numeric(14,6),
+    empaque_kg_por_caja numeric(14,4),
     merma_total_pies numeric(14,4),
     merma_total_costo numeric(14,6),
     subtotal_financiero numeric(14,6),
@@ -1533,88 +1565,6 @@ CREATE TABLE public.flexo_calculations (
     line_order integer
 );
 
-
---
--- Name: flexo_cost_profiles_old; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.flexo_cost_profiles_old (
-    id uuid DEFAULT gen_random_uuid() CONSTRAINT flexo_cost_profiles_id_not_null NOT NULL,
-    profile_name text DEFAULT 'default'::text CONSTRAINT flexo_cost_profiles_profile_name_not_null NOT NULL,
-    raw_data jsonb DEFAULT '{}'::jsonb CONSTRAINT flexo_cost_profiles_raw_data_not_null NOT NULL,
-    created_at timestamp with time zone DEFAULT now() CONSTRAINT flexo_cost_profiles_created_at_not_null NOT NULL
-);
-
-
---
--- Name: flexo_dies_old; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.flexo_dies_old (
-    id uuid DEFAULT gen_random_uuid() CONSTRAINT flexo_dies_id_not_null NOT NULL,
-    die_code text,
-    description text,
-    category text,
-    dimensions text,
-    teeth numeric(12,4),
-    rows_count numeric(12,4),
-    repetitions numeric(12,4),
-    material_width numeric(12,4),
-    status text,
-    use_digital boolean,
-    use_conventional boolean,
-    raw_data jsonb DEFAULT '{}'::jsonb CONSTRAINT flexo_dies_raw_data_not_null NOT NULL,
-    created_at timestamp with time zone DEFAULT now() CONSTRAINT flexo_dies_created_at_not_null NOT NULL
-);
-
-
---
--- Name: flexo_machines_old; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.flexo_machines_old (
-    id uuid DEFAULT gen_random_uuid() CONSTRAINT flexo_machines_id_not_null NOT NULL,
-    machine_key text,
-    machine_name text,
-    brand text,
-    model text,
-    process text,
-    subprocess text,
-    category text,
-    work_unit text,
-    setup_base_minutes numeric(12,4),
-    setup_per_station_minutes numeric(12,4),
-    setup_extra_minutes numeric(12,4),
-    production_speed numeric(12,4),
-    hourly_machine_cost numeric(12,4),
-    hourly_operator_cost numeric(12,4),
-    raw_data jsonb DEFAULT '{}'::jsonb CONSTRAINT flexo_machines_raw_data_not_null NOT NULL,
-    created_at timestamp with time zone DEFAULT now() CONSTRAINT flexo_machines_created_at_not_null NOT NULL
-);
-
-
---
--- Name: flexo_materials_old; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.flexo_materials_old (
-    id uuid DEFAULT gen_random_uuid() CONSTRAINT flexo_materials_id_not_null NOT NULL,
-    material_code text,
-    material_name text,
-    display_name text,
-    presentation_type text,
-    provider text,
-    width_inches numeric(12,4),
-    length_value numeric(12,4),
-    cost_per_kg_usd numeric(12,4),
-    cost_per_linear_meter_usd numeric(12,4),
-    cost_per_unit_usd numeric(12,4),
-    active boolean,
-    digital_enabled boolean,
-    conventional_enabled boolean,
-    raw_data jsonb DEFAULT '{}'::jsonb CONSTRAINT flexo_materials_raw_data_not_null NOT NULL,
-    created_at timestamp with time zone DEFAULT now() CONSTRAINT flexo_materials_created_at_not_null NOT NULL
-);
 
 
 --
@@ -1830,25 +1780,11 @@ CREATE TABLE public.flexo_products (
     length_inches numeric(12,4),
     price_unit numeric(14,4),
     total_price numeric(14,4),
-    raw_data jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     source_calculation_code text,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
-
---
--- Name: import_audit_old; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.import_audit_old (
-    id uuid DEFAULT gen_random_uuid() CONSTRAINT import_audit_id_not_null NOT NULL,
-    source_name text CONSTRAINT import_audit_source_name_not_null NOT NULL,
-    source_path text CONSTRAINT import_audit_source_path_not_null NOT NULL,
-    records_imported integer DEFAULT 0 CONSTRAINT import_audit_records_imported_not_null NOT NULL,
-    imported_at timestamp with time zone DEFAULT now() CONSTRAINT import_audit_imported_at_not_null NOT NULL,
-    notes text
-);
 
 
 --
@@ -1914,7 +1850,8 @@ CREATE TABLE public.maquina (
     especificaciones jsonb DEFAULT '{}'::jsonb,
     sustrato_montaje_merma_cantidad numeric(12,4) DEFAULT 0,
     sustrato_montaje_merma_unidad character varying(20) DEFAULT 'pies'::character varying,
-    sustrato_montaje_merma_base character varying(20) DEFAULT 'trabajo'::character varying
+    sustrato_montaje_merma_base character varying(20) DEFAULT 'trabajo'::character varying,
+    lavado_por_estacion numeric(12,4) DEFAULT 0
 );
 
 
@@ -2544,29 +2481,6 @@ CREATE TABLE public.quote_line_notifications (
 );
 
 
---
--- Name: quote_lines_old; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.quote_lines_old (
-    id uuid DEFAULT gen_random_uuid() CONSTRAINT quote_lines_id_not_null NOT NULL,
-    quote_code text,
-    line_code text,
-    department text,
-    job_name text,
-    material_name text,
-    status text,
-    subtotal_1 numeric(14,4),
-    subtotal_2 numeric(14,4),
-    subtotal_3 numeric(14,4),
-    subtotal_4 numeric(14,4),
-    hidden_flag boolean,
-    optional_flag boolean,
-    proof_flag boolean,
-    raw_data jsonb DEFAULT '{}'::jsonb CONSTRAINT quote_lines_raw_data_not_null NOT NULL,
-    created_at timestamp with time zone DEFAULT now() CONSTRAINT quote_lines_created_at_not_null NOT NULL
-);
-
 
 --
 -- Name: quote_proformas; Type: TABLE; Schema: public; Owner: -
@@ -2579,9 +2493,26 @@ CREATE TABLE public.quote_proformas (
     issue_date_fixed timestamp with time zone,
     closed_at timestamp with time zone,
     closed_reason text DEFAULT ''::text NOT NULL,
-    raw_data jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    client_company text,
+    client_contact_name text,
+    client_phone text,
+    client_email text,
+    salesperson_name text,
+    currency_code text,
+    exchange_rate numeric(14,4),
+    validity text,
+    intro text,
+    payment_terms text,
+    delivery_time text,
+    price_display_mode text,
+    seller_signature_enabled boolean DEFAULT true,
+    firma_ancho numeric(6,2) DEFAULT 160,
+    firma_alto numeric(6,2) DEFAULT 100,
+    firma_offset_x numeric(6,2) DEFAULT 0,
+    firma_offset_y numeric(6,2) DEFAULT 35,
+    proforma_format text
 );
 
 
@@ -2617,10 +2548,17 @@ CREATE TABLE public.quotes (
     email text,
     salesperson_name text,
     phone text,
+    phone_secondary text,
     status text,
     created_on date,
     due_on date,
-    raw_data jsonb DEFAULT '{}'::jsonb NOT NULL,
+    clave_solicitud text,
+    exchange_sale numeric(12,4),
+    exchange_buy numeric(12,4),
+    footer_dates text,
+    footer_exchange text,
+    payment_terms_quote text,
+    delivery_time_quote text,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
@@ -3144,29 +3082,6 @@ CREATE TABLE public.security_config (
     updated_at timestamp without time zone DEFAULT now() NOT NULL
 );
 
-
---
--- Name: socio_old; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.socio_old (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    tenant_id uuid NOT NULL,
-    codigo character varying(20) NOT NULL,
-    nombre character varying(300) NOT NULL,
-    nombre_comercial character varying(300),
-    cedula_juridica character varying(30),
-    condicion_pago character varying(100) DEFAULT 'Contado'::character varying,
-    limite_credito numeric(14,2) DEFAULT 0,
-    tiene_credito_aprobado boolean DEFAULT false NOT NULL,
-    pct_descuento numeric(6,4) DEFAULT 0,
-    idioma_defecto public.idioma_codigo DEFAULT 'es'::public.idioma_codigo NOT NULL,
-    moneda_defecto public.moneda_codigo DEFAULT 'USD'::public.moneda_codigo NOT NULL,
-    codigo_sap character varying(30),
-    activo boolean DEFAULT true NOT NULL,
-    creado_en timestamp with time zone DEFAULT now() NOT NULL,
-    actualizado_en timestamp with time zone DEFAULT now() NOT NULL
-);
 
 
 --
@@ -4259,61 +4174,6 @@ ALTER TABLE ONLY public.flexo_calculations
     ADD CONSTRAINT flexo_calculations_pkey PRIMARY KEY (id);
 
 
---
--- Name: flexo_cost_profiles_old flexo_cost_profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.flexo_cost_profiles_old
-    ADD CONSTRAINT flexo_cost_profiles_pkey PRIMARY KEY (id);
-
-
---
--- Name: flexo_dies_old flexo_dies_die_code_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.flexo_dies_old
-    ADD CONSTRAINT flexo_dies_die_code_key UNIQUE (die_code);
-
-
---
--- Name: flexo_dies_old flexo_dies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.flexo_dies_old
-    ADD CONSTRAINT flexo_dies_pkey PRIMARY KEY (id);
-
-
---
--- Name: flexo_machines_old flexo_machines_machine_key_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.flexo_machines_old
-    ADD CONSTRAINT flexo_machines_machine_key_key UNIQUE (machine_key);
-
-
---
--- Name: flexo_machines_old flexo_machines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.flexo_machines_old
-    ADD CONSTRAINT flexo_machines_pkey PRIMARY KEY (id);
-
-
---
--- Name: flexo_materials_old flexo_materials_material_code_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.flexo_materials_old
-    ADD CONSTRAINT flexo_materials_material_code_key UNIQUE (material_code);
-
-
---
--- Name: flexo_materials_old flexo_materials_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.flexo_materials_old
-    ADD CONSTRAINT flexo_materials_pkey PRIMARY KEY (id);
-
 
 --
 -- Name: flexo_orders flexo_orders_order_code_key; Type: CONSTRAINT; Schema: public; Owner: -
@@ -4354,13 +4214,6 @@ ALTER TABLE ONLY public.flexo_products
 ALTER TABLE ONLY public.flexo_products
     ADD CONSTRAINT flexo_products_product_code_key UNIQUE (product_code);
 
-
---
--- Name: import_audit_old import_audit_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.import_audit_old
-    ADD CONSTRAINT import_audit_pkey PRIMARY KEY (id);
 
 
 --
@@ -4699,21 +4552,6 @@ ALTER TABLE ONLY public.quote_line_notifications
     ADD CONSTRAINT quote_line_notifications_pkey PRIMARY KEY (id);
 
 
---
--- Name: quote_lines_old quote_lines_line_code_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quote_lines_old
-    ADD CONSTRAINT quote_lines_line_code_key UNIQUE (line_code);
-
-
---
--- Name: quote_lines_old quote_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quote_lines_old
-    ADD CONSTRAINT quote_lines_pkey PRIMARY KEY (id);
-
 
 --
 -- Name: quote_proformas quote_proformas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
@@ -5003,20 +4841,6 @@ ALTER TABLE ONLY public.security_config
     ADD CONSTRAINT security_config_pkey PRIMARY KEY (id);
 
 
---
--- Name: socio_old socio_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.socio_old
-    ADD CONSTRAINT socio_pkey PRIMARY KEY (id);
-
-
---
--- Name: socio_old socio_tenant_id_codigo_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.socio_old
-    ADD CONSTRAINT socio_tenant_id_codigo_key UNIQUE (tenant_id, codigo);
 
 
 --
@@ -5734,13 +5558,6 @@ CREATE INDEX idx_quote_line_notifications_line ON public.quote_line_notification
 
 
 --
--- Name: idx_quote_lines_quote_code; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_quote_lines_quote_code ON public.quote_lines_old USING btree (quote_code);
-
-
---
 -- Name: idx_quotes_customer_code; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5761,11 +5578,6 @@ CREATE INDEX idx_resource_calendar_exceptions_calendar ON public.resource_calend
 CREATE INDEX idx_resource_shifts_calendar ON public.resource_shifts USING btree (calendar_id, day_of_week);
 
 
---
--- Name: idx_socio_tenant; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_socio_tenant ON public.socio_old USING btree (tenant_id);
 
 
 --
@@ -6374,13 +6186,6 @@ ALTER TABLE ONLY public.cotizacion_secuencia
     ADD CONSTRAINT cotizacion_secuencia_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenant(id) ON DELETE CASCADE;
 
 
---
--- Name: cotizacion cotizacion_socio_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.cotizacion
-    ADD CONSTRAINT cotizacion_socio_id_fkey FOREIGN KEY (socio_id) REFERENCES public.socio_old(id);
-
 
 --
 -- Name: cotizacion cotizacion_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
@@ -6663,14 +6468,6 @@ ALTER TABLE ONLY public.production_waste_logs
 
 
 --
--- Name: quote_lines_old quote_lines_quote_code_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quote_lines_old
-    ADD CONSTRAINT quote_lines_quote_code_fkey FOREIGN KEY (quote_code) REFERENCES public.quotes(quote_code) ON DELETE CASCADE;
-
-
---
 -- Name: resource_calendar_exceptions resource_calendar_exceptions_calendar_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6692,14 +6489,6 @@ ALTER TABLE ONLY public.resource_shifts
 
 ALTER TABLE ONLY public.sap_outbox_attempts
     ADD CONSTRAINT sap_outbox_attempts_outbox_id_fkey FOREIGN KEY (outbox_id) REFERENCES public.sap_outbox(id) ON DELETE CASCADE;
-
-
---
--- Name: socio_old socio_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.socio_old
-    ADD CONSTRAINT socio_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenant(id) ON DELETE CASCADE;
 
 
 --

@@ -283,8 +283,29 @@ html[data-theme="dark"] .report-body {
     background: linear-gradient(90deg, #16a34a, #0b81b8);
 }
 
+.report-table {
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(11, 129, 184, 0.42) transparent;
+}
+
+.report-table::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.report-table::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(11, 129, 184, 0.38);
+}
+
+.report-table::-webkit-scrollbar-track {
+    background: transparent;
+}
+
 .report-table table {
     width: 100%;
+    min-width: max-content;
     border-collapse: collapse;
     font-size: 13px;
 }
@@ -355,3 +376,433 @@ html[data-theme="dark"] .report-table td {
         grid-template-columns: 1fr;
     }
 }
+
+/* Menú de Reportería (grid de tarjetas) */
+.reporteria-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(180px, 240px));
+    justify-content: center;
+    gap: 18px;
+    padding: 32px 24px;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.reporteria-menu-card {
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 12px;
+    aspect-ratio: 1 / 1;
+    padding: 18px;
+    border: 1px solid var(--app-border, #dbe3ee);
+    border-radius: 24px;
+    background: var(--app-surface, #fff);
+    text-align: center;
+    box-shadow: var(--app-shadow-sm, 0 8px 20px rgba(15, 23, 42, .06));
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    cursor: pointer;
+}
+
+.reporteria-menu-card:hover,
+.reporteria-menu-card:focus-visible {
+    transform: translateY(-2px);
+    box-shadow: var(--app-shadow-md, 0 14px 30px rgba(15, 23, 42, .12));
+}
+
+.reporteria-menu-card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 54px;
+    height: 54px;
+    flex: 0 0 54px;
+    color: var(--icon-base-color, #0b81b8);
+    border-radius: 14px;
+    transition: color .18s ease, transform .18s ease;
+}
+
+.reporteria-menu-card:hover .reporteria-menu-card-icon,
+.reporteria-menu-card:focus-visible .reporteria-menu-card-icon {
+    color: var(--icon-hover-color, #0b81b8);
+    transform: translateY(-1px);
+}
+
+.reporteria-menu-card-icon .icon-glyph {
+    color: currentColor;
+    font-size: var(--config-icon-size, 38px);
+}
+
+.reporteria-menu-card-icon .icon-svg-mask,
+.reporteria-menu-card-icon .icon-image {
+    width: var(--config-icon-size, 38px);
+    height: var(--config-icon-size, 38px);
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.reporteria-menu-card-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--app-text-muted, #64748b);
+}
+
+.reporteria-menu-card:hover .reporteria-menu-card-title {
+    color: var(--app-text, #1f2a37);
+}
+
+@media (max-width: 720px) {
+    .reporteria-menu-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Celda "Cotización" que abre el cálculo en ventana flotante */
+.report-cell-link {
+    color: #0b81b8;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+}
+
+.report-cell-link:hover,
+.report-cell-link:focus-visible {
+    color: #0a6c9a;
+    outline: none;
+}
+
+html[data-theme="dark"] .report-cell-link {
+    color: #4bb4e0;
+}
+
+/* Ventana flotante arrastrable con el cálculo real */
+.calc-window {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(1100px, 92vw);
+    height: min(780px, 84vh);
+    min-width: 420px;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    background: var(--card, #fff);
+    border: 1px solid var(--border2, #d7dee6);
+    border-radius: 12px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, .32);
+    overflow: hidden;
+    resize: both;
+    z-index: 9999;
+}
+
+.calc-window.is-dragging {
+    user-select: none;
+}
+
+.calc-window-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    background: #0b81b8;
+    color: #fff;
+    cursor: move;
+}
+
+.calc-window-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.calc-window-open {
+    flex: 0 0 auto;
+    padding: 3px 10px;
+    border: 1px solid rgba(255, 255, 255, .6);
+    border-radius: 999px;
+    background: transparent;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.calc-window-open:hover {
+    background: rgba(255, 255, 255, .16);
+}
+
+.calc-window-close {
+    flex: 0 0 auto;
+    padding: 0 4px;
+    border: 0;
+    background: transparent;
+    color: #fff;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.calc-window-body {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.calc-window-frame {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: var(--app-bg, #fff);
+}
+
+html[data-theme="dark"] .calc-window {
+    background: #16202e;
+    border-color: #2b3a4f;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Reportería · componentes compartidos añadidos para "KPIs Flexo Semanal"
+   (pestañas internas, botones de ícono, modal, nota de sección, campos).
+   Reusa los mismos tokens que el resto de reporteria.css. Usar de aquí en
+   adelante para cualquier reporte con estas piezas.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Pestañas internas del reporte */
+.report-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    border-bottom: 1px solid #dbe3ee;
+    margin-bottom: 18px;
+}
+.report-tab {
+    appearance: none;
+    border: 1px solid transparent;
+    border-bottom: 0;
+    background: transparent;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    margin-bottom: -1px;
+}
+.report-tab:hover { color: #0b81b8; }
+.report-tab.is-active {
+    background: #fff;
+    border-color: #dbe3ee;
+    color: #0b3d57;
+}
+
+/* Botón de solo ícono (descargar PDF/Excel, engranaje de automatización).
+   Sin borde ni fondo, y respeta el color/tamaño configurados en el catálogo
+   de íconos (Configuración → Diseño → Iconos) vía --icon-color / --icon-hover-color
+   / --config-icon-size, igual que .row-tool-btn y los íconos de tabla. */
+.report-head-tools { display: flex; align-items: center; gap: 2px; }
+.report-filters .report-iconbtn,
+.report-iconbtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    width: calc(var(--config-icon-size, 20px) + 14px);
+    min-width: calc(var(--config-icon-size, 20px) + 14px);
+    height: calc(var(--config-icon-size, 20px) + 14px);
+    border: 0;
+    background: transparent;
+    color: var(--icon-color, #52627a);
+    cursor: pointer;
+    padding: 0;
+    border-radius: 8px;
+    transition: color .18s ease, background-color .18s ease;
+}
+.report-filters .report-iconbtn:hover,
+.report-iconbtn:hover,
+.report-iconbtn:focus-visible {
+    color: var(--icon-hover-color, var(--icon-color, #0b81b8));
+    background: rgba(11, 129, 184, 0.09);
+}
+.report-iconbtn .icon-svg-mask,
+.report-iconbtn .icon-image,
+.report-iconbtn .icon-glyph {
+    width: var(--config-icon-size, 20px);
+    height: var(--config-icon-size, 20px);
+    pointer-events: none;
+}
+.report-iconbtn .icon-glyph { font-size: var(--config-icon-size, 20px); line-height: 1; }
+
+/* Botón de texto secundario (cuando de verdad hace falta un botón con palabra) */
+.report-btn {
+    height: 34px;
+    padding: 0 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #fff;
+    color: #1f2a37;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.report-btn:hover { border-color: #0b81b8; color: #0b81b8; }
+.report-btn-primary {
+    background: #0b81b8;
+    border-color: #0b81b8;
+    color: #fff;
+}
+.report-btn-primary:hover { background: #0a6f9f; color: #fff; }
+
+/* Nota explicativa de cada pestaña (lo que decía la hoja de Instrucciones del Excel) */
+.report-note {
+    background: #eef6fb;
+    border: 1px solid #d3e7f2;
+    border-left: 3px solid #0b81b8;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: #3f5566;
+    margin-bottom: 16px;
+}
+
+/* Campo de formulario unificado dentro de reportes */
+.report-field {
+    width: 100%;
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid #cfd8df;
+    border-radius: 10px;
+    font-size: 13px;
+    background: #fff;
+    color: #1f2b36;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+textarea.report-field { height: auto; padding: 10px 12px; resize: vertical; }
+.report-field:focus {
+    outline: none;
+    border-color: #118fc6;
+    box-shadow: 0 0 0 3px rgba(17, 143, 198, 0.15);
+}
+.report-field-label { display: flex; flex-direction: column; gap: 4px; }
+.report-field-label > span { font-size: 11px; font-weight: 600; color: #60707f; }
+
+/* Zebra + números tabulares para las tablas de reporte */
+.report-table tbody tr:nth-child(even) td { background: #f7f9fb; }
+.report-table td.num, .report-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Modal (automatización de informes) */
+.report-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(16, 27, 40, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 3000;
+}
+.report-modal {
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #dbe3ee;
+    border-radius: 16px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+}
+.report-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5eaf2;
+}
+.report-modal-head h2 { margin: 0; font-size: 16px; }
+.report-modal-close {
+    border: 0;
+    background: transparent;
+    font-size: 20px;
+    line-height: 1;
+    color: #64748b;
+    cursor: pointer;
+}
+.report-modal-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.report-modal-foot {
+    padding: 14px 20px;
+    border-top: 1px solid #e5eaf2;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.report-radio-group { display: flex; flex-direction: column; gap: 8px; border: 1px solid #e3e9ee; border-radius: 12px; padding: 12px 14px; }
+.report-radio-group > legend { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: #60707f; padding: 0 6px; }
+.report-radio-group label { font-size: 12.5px; line-height: 1.5; color: #3a4854; display: block; }
+.report-inline-row { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; }
+.report-check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+
+/* Estado vacío ya existe (.report-empty); refuerzo de espaciado cuando va solo */
+.report-empty.is-block { padding: 34px 16px; text-align: center; }
+
+/* ── Modo oscuro ── */
+html[data-theme="dark"] .report-tabs { border-bottom-color: #2b3a4f; }
+html[data-theme="dark"] .report-tab { color: #9aa8bb; }
+html[data-theme="dark"] .report-tab:hover { color: #4fb3e0; }
+html[data-theme="dark"] .report-tab.is-active {
+    background: #172233;
+    border-color: #2b3a4f;
+    color: #dbe9f6;
+}
+html[data-theme="dark"] .report-btn {
+    background: #172233;
+    border-color: #2b3a4f;
+    color: #cdd9e6;
+}
+html[data-theme="dark"] .report-btn:hover { border-color: #4fb3e0; color: #4fb3e0; }
+html[data-theme="dark"] .report-iconbtn { color: var(--icon-color, #9aa8bb); }
+html[data-theme="dark"] .report-iconbtn:hover,
+html[data-theme="dark"] .report-iconbtn:focus-visible {
+    color: var(--icon-hover-color, var(--icon-color, #4fb3e0));
+    background: rgba(79, 179, 224, 0.12);
+}
+html[data-theme="dark"] .report-btn-primary { background: #1c86b3; border-color: #1c86b3; color: #fff; }
+html[data-theme="dark"] .report-note {
+    background: #14293a;
+    border-color: #23415a;
+    border-left-color: #2f8fbf;
+    color: #a8c0d2;
+}
+html[data-theme="dark"] .report-field {
+    background: #0f172a;
+    border-color: #2a384a;
+    color: #dce8f2;
+}
+html[data-theme="dark"] .report-field:focus {
+    border-color: #3fa9dd;
+    box-shadow: 0 0 0 3px rgba(63, 169, 221, 0.22);
+}
+html[data-theme="dark"] .report-field-label > span,
+html[data-theme="dark"] .report-radio-group > legend { color: var(--app-text-muted, #8aa0b2); }
+html[data-theme="dark"] .report-radio-group { border-color: #2b3a4f; }
+html[data-theme="dark"] .report-radio-group label { color: #b8c6d2; }
+html[data-theme="dark"] .report-table tbody tr:nth-child(even) td { background: #14202f; }
+html[data-theme="dark"] .report-modal {
+    background: #16202e;
+    border-color: #2b3a4f;
+    color: #e5edf7;
+}
+html[data-theme="dark"] .report-modal-head,
+html[data-theme="dark"] .report-modal-foot { border-color: #2b3a4f; }

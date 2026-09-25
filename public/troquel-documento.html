@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
     <title>Troquel</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
 </head>
 <body>
     <main class="workspace workspace-quote troquel-document-workspace">
@@ -48,14 +49,14 @@
                         <section class="socios-section troquel-section-compact">
                             <div class="section-caption">Dimensionamiento</div>
                             <div class="socios-grid troquel-grid-3 troquel-grid-tight">
-                                <div class="field"><label>Ancho Etiqueta in</label><input id="troquelAnchoEtiqueta" name="ancho_etiqueta_in" type="text"></div>
-                                <div class="field"><label>Largo Etiqueta in</label><input id="troquelLargoEtiqueta" name="largo_etiqueta_in" type="text"></div>
-                                <div class="field"><label>Ancho Material in</label><input id="troquelAnchoMaterial" name="ancho_material_in" type="text"></div>
-                                <div class="field"><label>Desarrollo in</label><input id="troquelDesarrolloIn" name="desarrollo_in" type="text"></div>
-                                <div class="field"><label>Dientes</label><input id="troquelDientes" name="dientes" type="text"></div>
-                                <div class="field"><label>Elongación %</label><input id="troquelElongacion" name="elongacion_pct" type="text"></div>
-                                <div class="field"><label>Filas</label><input id="troquelFilas" name="cantidad_filas" type="text"></div>
-                                <div class="field"><label>Repeticiones</label><input id="troquelRepeticiones" name="repeticiones" type="text"></div>
+                                <div class="field"><label>Ancho Etiqueta in</label><div class="display-input-wrap"><input class="display-input" id="troquelAnchoEtiqueta" name="ancho_etiqueta_in" type="text" readonly><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Largo Etiqueta in</label><div class="display-input-wrap"><input class="display-input" id="troquelLargoEtiqueta" name="largo_etiqueta_in" type="text" readonly><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Ancho Material in</label><div class="display-input-wrap"><input class="display-input" id="troquelAnchoMaterial" name="ancho_material_in" type="text" readonly><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Desarrollo in</label><div class="display-input-wrap"><input class="display-input" id="troquelDesarrolloIn" name="desarrollo_in" type="text" readonly><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Dientes</label><div class="display-input-wrap"><input class="display-input" id="troquelDientes" name="dientes" type="text" readonly><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Elongación %</label><div class="display-input-wrap"><input class="display-input" id="troquelElongacion" name="elongacion_pct" type="text" readonly><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Filas</label><div class="display-input-wrap"><input class="display-input" id="troquelFilas" name="cantidad_filas" type="text" readonly><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Repeticiones</label><div class="display-input-wrap"><input class="display-input" id="troquelRepeticiones" name="repeticiones" type="text" readonly><span class="display-input-mask"></span></div></div>
                                 <div class="field"><label>Montaje Troquel</label><input id="troquelMontaje" name="montaje_troquel" type="text"></div>
                                 <div class="field"><label>Dimensiones Troquel in</label><input id="troquelDimensiones" name="dimensiones_troquel_in" type="text" placeholder="13 x 7,8"></div>
                                 <div class="field"><label>Tensión</label><input id="troquelTension" name="tension" type="text"></div>
@@ -67,9 +68,9 @@
                         <section class="socios-section troquel-section-compact">
                             <div class="section-caption">Áreas</div>
                             <div class="socios-grid troquel-grid-3 troquel-grid-tight">
-                                <div class="field"><label>Área Etiqueta in²</label><input id="troquelAreaEtiqueta" name="area_etiqueta_in" type="text"></div>
-                                <div class="field"><label>Área Etiqueta c/Excesos in²</label><input id="troquelAreaEtiquetaExcesos" name="area_etiqueta_excesos_in" type="text"></div>
-                                <div class="field"><label>Área Troquel in²</label><input id="troquelAreaTroquel" name="area_troquel_in2" type="text"></div>
+                                <div class="field"><label>Área Etiqueta in²</label><div class="display-input-wrap"><input class="display-input" id="troquelAreaEtiqueta" name="area_etiqueta_in" type="text" readonly><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Área Etiqueta c/Excesos in²</label><div class="display-input-wrap"><input class="display-input" id="troquelAreaEtiquetaExcesos" name="area_etiqueta_excesos_in" type="text" readonly><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Área Troquel in²</label><div class="display-input-wrap"><input class="display-input" id="troquelAreaTroquel" name="area_troquel_in2" type="text" readonly><span class="display-input-mask"></span></div></div>
                             </div>
                         </section>
 
@@ -77,9 +78,9 @@
                         <section class="socios-section troquel-section-compact">
                             <div class="section-caption">Vida Útil / Trazabilidad</div>
                             <div class="socios-grid troquel-grid-3 troquel-grid-tight">
-                                <div class="field"><label>Vida Útil Total</label><input id="troquelVidaTotal" name="vida_util_golpes_total" type="text"></div>
-                                <div class="field"><label>Vida Útil Usada</label><input id="troquelVidaUsada" name="vida_util_golpes_usados" type="text"></div>
-                                <div class="field"><label>Vida Útil Restante</label><input id="troquelVidaRestante" name="vida_util_golpes_restantes" type="text"></div>
+                                <div class="field"><label>Vida Útil Total</label><div class="display-input-wrap"><input class="display-input" id="troquelVidaTotal" name="vida_util_golpes_total" type="text" readonly><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Vida Útil Usada</label><div class="display-input-wrap"><input class="display-input" id="troquelVidaUsada" name="vida_util_golpes_usados" type="text" readonly><span class="display-input-mask"></span></div></div>
+                                <div class="field"><label>Vida Útil Restante</label><div class="display-input-wrap"><input class="display-input" id="troquelVidaRestante" name="vida_util_golpes_restantes" type="text" readonly><span class="display-input-mask"></span></div></div>
                                 <div class="field"><label>Reemplaza a</label><input id="troquelReemplazaA" name="reemplaza_a" type="text"></div>
                                 <div class="field"><label>Reemplazado por</label><input id="troquelReemplazadoPor" name="reemplazado_por" type="text"></div>
                                 <div></div>
@@ -122,7 +123,7 @@
             </form>
         </section>
     </main>
-    <script src="/access-control.js"></script>
+    <script src="/access-control.js?v=20260923-mensajes-carga"></script>
     <script src="/troquel-documento.js"></script>
 </body>
 </html>

@@ -174,13 +174,23 @@ function renderErrorRow(message) {
 }
 
 function getProductRowLabel(item) {
-    return firstFilled(item.product_name, item.product_code, item.line_code, 'producto');
+    return firstFilled(item.product_name, item.finished_product_sku, item.line_code, 'producto');
 }
 
 async function loadProducts(search = '') {
     const params = new URLSearchParams({ limit: '200' });
     if (search) params.set('q', search);
-    const payload = await fetchJson(`${PRODUCTS_ENDPOINT}?${params.toString()}`);
+    if (!productsTableBody.querySelector('a, button')) {
+        productsTableBody.innerHTML = '<tr><td colspan="7">Cargando los SKU desde el servidor, un momento por favor…</td></tr>';
+    }
+    let payload;
+    try {
+        payload = await fetchJson(`${PRODUCTS_ENDPOINT}?${params.toString()}`);
+    } catch (error) {
+        throw new Error(error?.name === 'TypeError' || !error?.message || error.message === 'No fue posible completar la solicitud.'
+            ? 'No pudimos traer los SKU en este momento. Revisa la conexión e intenta de nuevo.'
+            : error.message);
+    }
     const items = Array.isArray(payload.productos) ? payload.productos : [];
     const openIcon = getOpenIconConfig();
     const displayItems = sortProductsList(items);
@@ -188,10 +198,10 @@ async function loadProducts(search = '') {
     productsTableBody.innerHTML = displayItems.length ? displayItems.map((item) => {
         const route = productDocumentRoute(item.product_code);
         const label = getProductRowLabel(item);
-        const dateVal = item.last_quoted_at || item.created_at;
+        const dateVal = item.created_at;
         return `
         <tr>
-            <td>${escapeHtml(item.product_code || '')}</td>
+            <td>${escapeHtml(item.finished_product_sku || item.product_code || '')}</td>
             <td>${escapeHtml(item.quote_code || '')}</td>
             <td>${escapeHtml(item.line_code || '')}</td>
             <td>${escapeHtml(item.client_name || '')}</td>

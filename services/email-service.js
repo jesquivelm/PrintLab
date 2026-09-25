@@ -132,19 +132,23 @@ async function buildTransporter() {
     });
 }
 
-async function sendEmail({ to, subject, html, text }) {
+async function sendEmail({ to, subject, html, text, attachments }) {
     const cfg = await loadSmtpConfig();
     if (!cfg || !cfg.fromEmail) {
         throw new Error('Correo remitente no configurado.');
     }
     const transporter = await buildTransporter();
-    const info = await transporter.sendMail({
+    const mensaje = {
         from: `"${cfg.fromName || 'PrintLab'}" <${cfg.fromEmail}>`,
         to,
         subject: subject || 'Notificación PrintLab',
         html,
         text: text || ''
-    });
+    };
+    if (Array.isArray(attachments) && attachments.length) {
+        mensaje.attachments = attachments;
+    }
+    const info = await transporter.sendMail(mensaje);
     await pgQuery(`INSERT INTO email_log (recipient, subject, body_preview, status, smtp_response, sent_at)
         VALUES ($1, $2, LEFT($3, 200), 'sent', $4, NOW())`,
         [to, subject || '', html || text || '', info.response || '']);

@@ -62,6 +62,20 @@ const newCalcSubmitButton = document.getElementById('aceptarNuevoCalculoButton')
 const newCalcCustomerNameInput = document.getElementById('nuevoCalculoClienteNombre');
 const newCalcCustomerCodeInput = document.getElementById('nuevoCalculoClienteCodigo');
 const newCalcContactSelect = document.getElementById('nuevoCalculoContacto');
+const requestManualContact = document.getElementById('requestManualContact');
+const requestManualContactName = document.getElementById('requestManualContactName');
+const requestManualContactEmail = document.getElementById('requestManualContactEmail');
+const requestManualContactPhone = document.getElementById('requestManualContactPhone');
+const requestManualContactSave = document.getElementById('requestManualContactSave');
+const newCalcManualContact = document.getElementById('newCalcManualContact');
+const newCalcManualContactName = document.getElementById('newCalcManualContactName');
+const newCalcManualContactEmail = document.getElementById('newCalcManualContactEmail');
+const newCalcManualContactPhone = document.getElementById('newCalcManualContactPhone');
+const newCalcManualContactSave = document.getElementById('newCalcManualContactSave');
+const MANUAL_CONTACT_REFS = {
+    [customerContactSelect?.id]: { block: requestManualContact, name: requestManualContactName, email: requestManualContactEmail, phone: requestManualContactPhone, save: requestManualContactSave },
+    [newCalcContactSelect?.id]: { block: newCalcManualContact, name: newCalcManualContactName, email: newCalcManualContactEmail, phone: newCalcManualContactPhone, save: newCalcManualContactSave }
+};
 const newCalcCustomerLookupPanel = document.getElementById('newCalcCustomerLookupPanel');
 const newCalcCustomerLookupResults = document.getElementById('newCalcCustomerLookupResults');
 const newCalcStatusNode = document.getElementById('nuevoCalculoStatus');
@@ -88,7 +102,8 @@ const requestProductTypeSelect = document.getElementById('requestProductType');
 const requestProductTypeTrigger = document.getElementById('requestProductTypeTrigger');
 const requestProductTypePanel = document.getElementById('requestProductTypePanel');
 const requestQuantityRepeater = document.getElementById('requestQuantityRepeater');
-const stampingWidthInput = document.getElementById('stampingWidth');
+const requestStampingMaterialSelect = document.getElementById('requestStampingMaterial');
+const requestLaminadoMaterialSelect = document.getElementById('requestLaminadoMaterial');
 const routePreviewConfig = document.getElementById('requestRoutePreviewConfig');
 const routePreviewList = document.getElementById('requestRoutePreviewList');
 const wizardSections = Array.from(form?.querySelectorAll('.quote-request-section[data-step]') || []);
@@ -96,7 +111,6 @@ const wizardProgress = document.getElementById('quoteWizardProgress');
 const wizardBackButton = document.getElementById('quoteWizardBackButton');
 const wizardNextButton = document.getElementById('quoteWizardNextButton');
 const wizardPrintButton = document.getElementById('quoteWizardPrintButton');
-const wizardAdvancedButton = document.getElementById('quoteWizardAdvancedButton');
 const requestSummaryGrid = document.getElementById('requestSummaryGrid');
 const requestTechnicalNotes = document.getElementById('requestTechnicalNotes');
 const requestSummaryRows = document.getElementById('requestSummaryRows');
@@ -138,6 +152,33 @@ const processLauncherBridge = document.getElementById('processLauncherBridge');
 const createButton = document.getElementById('enviarSolicitudFabButton');
 const advancedButton = document.getElementById('modoAvanzadoFabButton');
 const shapePicker = document.getElementById('dieShapePicker');
+const requestTroquelTrigger = document.getElementById('requestTroquelTrigger');
+const requestTroquelCodeInput = document.getElementById('requestTroquelCode');
+const requestTroquelDescriptionInput = document.getElementById('requestTroquelDescription');
+const requestTroquelShapeInput = document.getElementById('requestTroquelShape');
+const requestVarnishMaterialSelect = document.getElementById('requestVarnishMaterial');
+const requestClientSkuInput = document.getElementById('requestClientSku');
+const requestInsumoArteDigital = document.getElementById('requestInsumoArteDigital');
+const requestInsumoMuestrasFisicas = document.getElementById('requestInsumoMuestrasFisicas');
+const requestInsumoEnvase = document.getElementById('requestInsumoEnvase');
+const requestInkGroup = document.getElementById('requestInkGroup');
+const requestUseCmykInput = document.getElementById('requestUseCmyk');
+const requestNoPrintInput = document.getElementById('requestNoPrint');
+const requestDirectColorInput = document.getElementById('requestDirectColorInput');
+const requestDirectColorAdd = document.getElementById('requestDirectColorAdd');
+const requestDirectColorMenu = document.getElementById('requestDirectColorMenu');
+const requestDirectColorList = document.getElementById('requestDirectColorList');
+const requestOutputTypeSelect = document.getElementById('requestOutputType');
+const requestOutputTypeFrame = document.getElementById('requestOutputTypeFrame');
+const requestLabelingTypeSelect = document.getElementById('requestLabelingType');
+const requestReferenciaInput = document.getElementById('requestReferencia');
+const requestReferenciaSearchBtn = document.getElementById('requestReferenciaSearchBtn');
+const requestReferenciaChanges = document.getElementById('requestReferenciaChanges');
+const requestRefCambioMedidas = document.getElementById('requestRefCambioMedidas');
+const requestRefCambioArte = document.getElementById('requestRefCambioArte');
+const requestRefCambioTextos = document.getElementById('requestRefCambioTextos');
+const requestRefCambioOtros = document.getElementById('requestRefCambioOtros');
+const requestReferenciaComentario = document.getElementById('requestReferenciaComentario');
 const launcherErrors = document.getElementById('processLauncherErrors');
 const launcherErrorsList = document.getElementById('processLauncherErrorsList');
 const sapConfigPopover = document.getElementById('sapConfigPopover');
@@ -220,6 +261,19 @@ function canCreateModule(moduleKey) {
     return normalizePermissionLevel(modules[moduleKey]).create;
 }
 
+function canSeeCotizadorSeguimiento() {
+    const session = readUserSession();
+    const permissionName = String(session?.permissionName || '').trim();
+    return /administrador(?:es)?|implementador(?:es)?|emergencia|cotizador(?:es)?/i.test(permissionName);
+}
+
+function canUseQuoteQuickFilters() {
+    if (canSeeCotizadorSeguimiento()) return true;
+    const session = readUserSession();
+    const permissionName = String(session?.permissionName || '').trim();
+    return /vendedor(?:es)?/i.test(permissionName);
+}
+
 function sessionHeader() {
     const session = readUserSession();
     if (!session) return {};
@@ -257,9 +311,27 @@ function updateQuotesScrollBottomIndicator() {
 }
 
 let loadedConfig = {};
+let requestProductTypesCatalogo = null;
 let quoteCatalog = [];
+let cotizacionesCargadas = false;
 let quoteSearchTimer = null;
 let quoteSortState = { key: null, dir: null };
+let quotesQuickFilter = 'todas';
+
+function setQuotesQuickFilter(value) {
+    quotesQuickFilter = value === 'crear-orden' || value === 'pendientes' || value === 'sin-enviar' ? value : 'todas';
+    renderQuotesTable(getFilteredQuotes());
+    updateQuotesQuickFilterButtons();
+}
+
+function updateQuotesQuickFilterButtons() {
+    const row = document.getElementById('quotesQuickFilterRow');
+    if (!row) return;
+    row.hidden = !canUseQuoteQuickFilters();
+    row.querySelectorAll('.quote-quickfilter-btn').forEach((btn) => {
+        btn.classList.toggle('is-active', btn.dataset.quickFilter === quotesQuickFilter);
+    });
+}
 
 function sortQuotesList(data) {
     if (!quoteSortState.key || !quoteSortState.dir) return data;
@@ -385,8 +457,26 @@ function normalizeConfiguredList(rawValue) {
 }
 
 function resolveConfiguredProductTypes() {
-    const items = normalizeConfiguredList(loadedConfig?.general?.quoteProductTypesJson);
-    return items.length ? items : [...DEFAULT_PRODUCT_TYPES];
+    if (Array.isArray(requestProductTypesCatalogo) && requestProductTypesCatalogo.length) {
+        return requestProductTypesCatalogo;
+    }
+    return [...DEFAULT_PRODUCT_TYPES];
+}
+
+async function loadRequestProductTypesCatalogo() {
+    try {
+        const payload = await fetchJson('/api/productos/tipos');
+        const tipos = Array.isArray(payload?.tipos) ? payload.tipos : [];
+        const flexografia = tipos.filter((item) => String(item.department_name || '').trim().toLowerCase() === 'flexografía' && item.active !== false)
+            .map((item) => String(item.name || '').trim())
+            .filter(Boolean);
+        if (flexografia.length) {
+            requestProductTypesCatalogo = flexografia;
+        }
+        renderRequestProductTypeOptions();
+    } catch (error) {
+        requestProductTypesCatalogo = null;
+    }
 }
 
 function resolveConfiguredApplicationOptions() {
@@ -767,8 +857,8 @@ function getCheckedFinishValue(name, fallback = '') {
 
 function updateFinishCompactSummaries() {
     const summaries = {
-        varnish: [getCheckedFinishValue('varnish', 'Sin Barniz'), document.getElementById('varnishSonified')?.checked ? 'Zonificado' : ''].filter(Boolean).join(' · '),
-        stamping: [getCheckedFinishValue('stamping', 'Ninguno'), normalizeText(stampingWidthInput?.value) ? `${normalizeText(stampingWidthInput?.value)} mm` : ''].filter(Boolean).join(' · '),
+        varnish: normalizeText(requestVarnishMaterialSelect?.value) || 'Sin Barniz',
+        stamping: normalizeText(requestStampingMaterialSelect?.value) || 'Ninguno',
         embossed: document.getElementById('finishEmbossed')?.checked ? 'Activo' : 'Sin embosado',
         diecut: document.getElementById('finishDieCut')?.checked ? 'Activo' : 'Sin troquelado',
         numbering: buildNumberingSummaryText().title
@@ -1405,6 +1495,11 @@ function applyConfiguredIcons() {
     // Iconos de cantidades desde base de datos
     const qtyAddConf = getResolvedIcon(['quantity.add', 'quantityAdd', 'icons.quantity.add'], 'quantity.add');
     const qtyDelConf = getResolvedIcon(['quantity.delete', 'quantityDelete', 'icons.quantity.delete'], 'quantity.delete');
+    if (requestDirectColorAdd) {
+        requestDirectColorAdd.style.setProperty('--icon-color', qtyAddConf.color || '#0b81b8');
+        requestDirectColorAdd.style.setProperty('--icon-hover-color', qtyAddConf.hover || '#0b6a97');
+        renderIcon(requestDirectColorAdd, qtyAddConf.value, qtyAddConf.color || '#0b81b8', qtyAddConf.size || 18);
+    }
     document.querySelectorAll('[data-qty-icon="add"]').forEach((span) => {
         if (qtyAddConf.value) {
             span.parentElement.style.color = qtyAddConf.color || '#1e6fa8';
@@ -1435,6 +1530,30 @@ function applyConfiguredIcons() {
         button.style.setProperty('--icon-hover-color', loadedConfig?.general?.[`iconColorHover${button.id === 'audioRecordButton' ? 'QuoteRequestRecord' : 'QuoteRequestAttachment'}`] || conf.color || '#1e516d');
         if (button.id === 'audioRecordButton') button.style.setProperty('--icon-recording-color', recordConf.color || '#ef4444');
     });
+
+    const general = loadedConfig?.general || {};
+    const icons = loadedConfig?.icons || {};
+    const addIconValue = icons.tableAdd || icons.quantityAdd || '+';
+    const addIconColor = general.iconColorTableAdd || general.iconColorQuantityAdd || general.iconColor || '#178fc7';
+    const addIconSize = Number(general.iconSizeTableAdd || general.iconSizeQuantityAdd) || 16;
+    [nuevoCalculoButton, nuevaCotizacionButton].forEach((button) => {
+        if (!button) return;
+        const label = (button.querySelector('.quote-browser-action-label')?.textContent || button.textContent).trim();
+        button.innerHTML = `${iconMarkup(addIconValue, label, 'table-icon-media')}<span class="quote-browser-action-label">${escapeHtml(label)}</span>`;
+        button.style.setProperty('--icon-color', addIconColor);
+        button.style.setProperty('--config-icon-size', `${addIconSize}px`);
+    });
+    const troquelAddButton = document.getElementById('requestTroquelAddButton');
+    if (troquelAddButton) {
+        troquelAddButton.innerHTML = iconMarkup(addIconValue, 'Buscar troquel', 'table-icon-media');
+        troquelAddButton.style.setProperty('--icon-color', addIconColor);
+        troquelAddButton.style.setProperty('--config-icon-size', `${addIconSize}px`);
+    }
+    if (requestReferenciaSearchBtn) {
+        requestReferenciaSearchBtn.innerHTML = iconMarkup(addIconValue, 'Buscar referencia del cliente', 'table-icon-media');
+        requestReferenciaSearchBtn.style.setProperty('--icon-color', addIconColor);
+        requestReferenciaSearchBtn.style.setProperty('--config-icon-size', `${addIconSize}px`);
+    }
 }
 
 function formatDate(value) {
@@ -1565,6 +1684,8 @@ function normalizeQuoteLine(line, quoteCode, index = 0) {
         frontBackGroup: normalizeFrontBackGroupClient(line.grupo_frente_dorso || line.front_back_group || summary.grupo_frente_dorso || summary.front_back_group || raw),
         estado: summary.status || line.status || 'Borrador',
         finalizadaOrden: Boolean(summary.finalized_for_order || line.finalized_for_order),
+        ordenCodigo: String(line.order_code || summary.order_code || '').trim(),
+        productoCodigos: Array.isArray(line.product_codes) ? line.product_codes.filter(Boolean) : [],
         calculationBlockMessage,
         subtotal1: fallbackTotal ?? '',
         productId: summary.product_code || line.product_code || line.line_code || '',
@@ -1636,7 +1757,7 @@ const PROFORMA_BLOCK_PROCESS_LABELS = [
     { key: 'sustrato', label: 'Sustrato' },
     { key: 'diseno', label: 'Diseño' },
     { key: 'preprensa', label: 'Preprensa' },
-    { key: 'planchas', label: 'Planchas' },
+    { key: 'sellos', label: 'Sellos' },
     { key: 'impresion', label: 'Impresión' },
     { key: 'empaque', label: 'Empaque' },
     { key: 'adicionales', label: 'Procesos adicionales' }
@@ -1651,7 +1772,7 @@ function processKeyFromIssueText(message = '') {
     if (!text) return '';
     if (text.includes('troquelado')) return 'troquelado';
     if (text.includes('troquel')) return 'troquel';
-    if (text.includes('plancha') || text.includes('cliche') || text.includes('fotopol')) return 'planchas';
+    if (text.includes('sello') || text.includes('cliche') || text.includes('fotopol')) return 'sellos';
     if (text.includes('impresion') || text.includes('maquina de impresion')) return 'impresion';
     if (text.includes('preprensa')) return 'preprensa';
     if (text.includes('diseno') || text.includes('arte')) return 'diseno';
@@ -2074,7 +2195,12 @@ function buildQuoteLineFinishParts(row) {
     const raw = row.rawData || {};
     const parts = [];
     const barniz = firstQuoteDetail(raw, ['REQ | Barniz', 'BARNIZ', 'CONV | BARNIZ | TIPO']);
-    if (barniz) parts.push(`Barniz ${barniz}`);
+    if (barniz) {
+        const barnizReservado = ['si', 'sí', 'yes', 'true', '1'].includes(
+            normalizeText(raw['REQ | Barniz Zonificado'] || raw['CONV | BARNIZ | ZONIFICADO']).toLowerCase()
+        );
+        parts.push(`Barniz ${barniz}${barnizReservado ? ' reservado' : ''}`);
+    }
     const laminado = firstQuoteDetail(raw, ['REQ | Laminado', 'LAMINADO', 'CONV | LAMINADO | TIPO']);
     if (laminado) parts.push(`Laminado ${laminado}`);
     const estampado = firstQuoteDetail(raw, ['REQ | Estampado', 'ESTAMPADO', 'CONV | ESTAMPADO | FOIL']);
@@ -2101,27 +2227,31 @@ function isQuoteLineNoPrint(row) {
     });
 }
 
+function formatQuoteLineMeasure(row) {
+    const raw = row.rawData || {};
+    const width = String(raw['DIMENSIONES ETIQUETA | ANCHO'] ?? '').trim();
+    const length = String(raw['DIMENSIONES ETIQUETA | LARGO'] ?? '').trim();
+    if (isCircularShapeValue(raw['REQ | Forma'] || raw['GENERAL | TROQUEL | FORMA'])) {
+        return width ? `Diámetro ${width}` : String(row.medida ?? '').trim();
+    }
+    if (width && length) return `${width} x ${length}`;
+    return String(row.medida ?? '').trim();
+}
+
 function renderQuoteLineDetail(row, index) {
     const raw = row.rawData || {};
     const lineCode = cleanQuoteDetail(row.linea || row.originalLinea || `LC${String(index + 1).padStart(5, '0')}`);
-    const productId = cleanQuoteDetail(row.productId);
     const title = cleanQuoteDetail(row.nombreTrabajo) || 'Sin nombre';
-    const measure = cleanQuoteDetail(row.medida);
+    const measure = cleanQuoteDetail(formatQuoteLineMeasure(row));
     const quantities = formatQuoteLineQuantities(row);
     const material = cleanQuoteDetail(row.material || raw['REQ | Sustrato'] || raw['SUSTRATO'] || raw['MATERIAL']);
-    const machine = cleanQuoteDetail(row.machineName);
     const die = formatQuoteLineDie(row);
     const finishParts = buildQuoteLineFinishParts(row);
-    const noPrint = isQuoteLineNoPrint(row);
     const secondLine = [
         quantities ? `Cantidad: ${quantities}` : '',
         material
     ].filter(Boolean).join(' | ');
-    const thirdLineParts = [
-        machine ? escapeHtml(machine) : (noPrint ? '' : '<span class="is-warning">Sin máquina</span>'),
-        die ? escapeHtml(die) : ''
-    ].filter(Boolean);
-    const thirdLine = thirdLineParts.join(' - ');
+    const thirdLine = die ? escapeHtml(die) : '';
     const fourthLine = finishParts.length
         ? finishParts.map((part) => escapeHtml(part)).join(' - ')
         : (die ? '' : '<span class="is-warning">Sin acabados</span>');
@@ -2132,7 +2262,6 @@ function renderQuoteLineDetail(row, index) {
                 <span class="quote-master-line-product">${escapeHtml(title)}</span>
                 ${measure ? `<span class="quote-master-line-measure">(${escapeHtml(measure)})</span>` : ''}
             </div>
-            ${productId && productId !== lineCode ? `<div class="quote-master-line-detail-row">Producto: ${escapeHtml(productId)}</div>` : ''}
             ${secondLine ? `<div class="quote-master-line-detail-row">${escapeHtml(secondLine)}</div>` : ''}
             ${thirdLine ? `<div class="quote-master-line-detail-row">${thirdLine}</div>` : ''}
             ${fourthLine ? `<div class="quote-master-line-detail-row">${fourthLine}</div>` : ''}
@@ -2324,29 +2453,29 @@ function attachmentRowsMarkup(items = []) {
 }
 
 async function loadLineAttachmentsModal(row) {
-    const body = document.getElementById('lineActionAttachmentRows');
-    if (!body) return;
-    body.innerHTML = '<tr><td colspan="5">Cargando adjuntos...</td></tr>';
-    const payload = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/adjuntos`, { headers: sessionHeader() });
-    body.innerHTML = attachmentRowsMarkup(payload.items || []);
+    const cont = document.getElementById('lineActionAdjuntosProducto');
+    if (!cont || !window.AdjuntosProducto) return;
+    window.AdjuntosProducto.crear({
+        contenedor: cont,
+        contexto: { cotizacion: row.quoteId || '', linea: row.linea || '' },
+        origenSubida: 'cotizacion',
+        titulo: '',
+        sessionHeaders: typeof sessionHeader === 'function' ? sessionHeader : undefined,
+        renderizarIcono: function (el, cual) {
+            if (!el) return;
+            var conf;
+            if (cual === 'audio') conf = iconConfigFor('quoteRequestRecord');
+            else if (cual === 'descargar') conf = iconConfigFor('attachmentDownload');
+            else conf = iconConfigFor('quoteRequestAttachment');
+            renderIcon(el, conf.value, conf.color, conf.size);
+        }
+    });
 }
 
 function openLineAttachmentsModal(row) {
     lineActionState = { row, mode: 'attachments' };
     openLineActionModal(`Adjuntos de ${row.linea || 'línea'}`, `
-        <div class="line-action-upload-row">
-            <label class="quote-request-field"><span>Clasificación</span><input id="lineActionAttachmentClass" class="quote-request-input" type="text" placeholder="Arte, visto bueno, orden, referencia"></label>
-            <input id="lineActionAttachmentFile" type="file" multiple hidden>
-            <button type="button" class="action-btn quote-browser-action-btn" data-pick-line-attachment>Elegir archivo</button>
-            <button type="button" class="action-btn quote-browser-action-btn" data-upload-line-attachment>Subir</button>
-            <span id="lineActionAttachmentName" class="attachment-upload-name">Ningún archivo seleccionado</span>
-        </div>
-        <div class="copy-popover-table-wrap line-action-table-wrap">
-            <table class="copy-popover-table attachments-table">
-                <thead><tr><th>Clasificación</th><th>Archivo</th><th>Usuario</th><th>Fecha</th><th></th></tr></thead>
-                <tbody id="lineActionAttachmentRows"></tbody>
-            </table>
-        </div>
+        <div id="lineActionAdjuntosProducto"></div>
     `);
     loadLineAttachmentsModal(row).catch((error) => setStatus(error.message, 'error'));
 }
@@ -2556,6 +2685,23 @@ function handleLineActionModalClick(event) {
 let lineDragState = null;
 let lineDragDropInitialized = false;
 
+function quoteLineOrdenProductoMarkup(row) {
+    const ordenCodigo = String(row?.ordenCodigo || '').trim();
+    const productos = Array.isArray(row?.productoCodigos) ? row.productoCodigos.filter(Boolean) : [];
+    const ordenHtml = ordenCodigo
+        ? `<a class="quote-master-line-reflink" href="/orden-produccion/${encodeURIComponent(ordenCodigo)}" data-open-order="${escapeHtml(ordenCodigo)}" title="Abrir orden de producción">${escapeHtml(ordenCodigo)}</a>`
+        : '';
+    const productoHtml = productos.length
+        ? productos.map((codigo) => `<a class="quote-master-line-reflink" href="/producto-documento?codigo=${encodeURIComponent(codigo)}" data-open-product="${escapeHtml(codigo)}" title="Abrir producto">${escapeHtml(codigo)}</a>`).join('')
+        : '';
+    return `
+        <div class="quote-master-line-refs">
+            <span class="quote-master-line-refcol" data-ref-kind="orden">${ordenHtml}</span>
+            <span class="quote-master-line-refcol" data-ref-kind="producto">${productoHtml}</span>
+        </div>
+    `;
+}
+
 function renderQuoteLineCard(row, index, totalLines, treeOptions = {}) {
     quoteLineLookup.set(row.id, row);
     const reorderConf = getResolvedIcon(['lineReorder', 'tableMove'], 'lineReorder');
@@ -2586,7 +2732,7 @@ function renderQuoteLineCard(row, index, totalLines, treeOptions = {}) {
         ? `<button type="button" class="quote-master-line-tree-toggle" data-front-back-toggle="${escapeHtml(treeOptions.groupKey || '')}" aria-expanded="${treeOptions.expanded ? 'true' : 'false'}" aria-label="${treeToggleLabel}" style="--icon-color:${escapeHtml(treeToggleConf.color)};--icon-hover-color:${escapeHtml(treeToggleConf.hover)};--config-icon-size:${escapeHtml(String(treeToggleConf.size || 18))}px;">${iconMarkup(treeToggleConf.value, treeToggleLabel, 'table-icon-media')}</button>`
         : '<span class="quote-master-line-tree-spacer" aria-hidden="true"></span>';
     return `
-        <article class="quote-master-line${treeClass}" data-line-id="${row.id}" data-line-index="${displayIndex}" data-quote-id="${escapeHtml(row.quoteId)}"${treeAttrs} draggable="true">
+        <article class="quote-master-line${treeClass}" data-line-id="${row.id}" data-line-index="${displayIndex}" data-quote-id="${escapeHtml(row.quoteId)}"${treeAttrs} draggable="false">
             <div class="quote-master-line-order" title="Arrastrar para reordenar">
                 ${groupToggle}
                 <span class="quote-master-line-num">${displayIndex + 1}</span>
@@ -2595,6 +2741,7 @@ function renderQuoteLineCard(row, index, totalLines, treeOptions = {}) {
             <div class="quote-master-line-body">
                 ${renderQuoteLineDetail(row, index)}
             </div>
+            ${quoteLineOrdenProductoMarkup(row)}
             <div class="quote-master-line-right">
                 <span class="quote-master-line-total">${escapeHtml(formatMoney(row.subtotal1))}</span>
                 <div class="quote-line-actions row-tools row-tools-row-end">
@@ -2609,7 +2756,7 @@ function renderQuoteLineCard(row, index, totalLines, treeOptions = {}) {
                                 ${canCreateProduct ? `<button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="create-product" data-line-id="${row.id}">${lineMenuIconMarkup('product', 'Convertir en Producto', '▣')}<span>Convertir en Producto</span></button>` : ''}
                                 <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="create-quote" data-line-id="${row.id}">${lineMenuIconMarkup('createQuote', 'Crear en Nuevo Cálculo', '▣')}<span>Crear en Nuevo Cálculo</span></button>
                                 <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="front-back" data-line-id="${row.id}">${lineMenuIconMarkup('frontBack', 'Frente/Dorso', 'FD')}<span>${frontBackGroup ? 'Editar Frente/Dorso' : 'Crear Frente/Dorso'}</span></button>
-                                ${row.finalizadaOrden && !isFrontBackElement ? `<button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="create-production-order" data-line-id="${row.id}">${lineMenuIconMarkup('createOrder', 'Crear Orden de Producción', '⚒')}<span>Crear Orden de Producción</span></button>` : ''}
+                                ${row.finalizadaOrden && !isFrontBackElement && !row.ordenCodigo ? `<button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="create-production-order" data-line-id="${row.id}">${lineMenuIconMarkup('createOrder', 'Crear Orden de Producción', '⚒')}<span>Crear Orden de Producción</span></button>` : ''}
                                 <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="export" data-line-id="${row.id}">${lineMenuIconMarkup('export', 'Exportar Línea a Excel', '⭳')}<span>Exportar Línea a Excel</span></button>
                                 <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="attachments" data-line-id="${row.id}">${lineMenuIconMarkup('attachments', 'Ver Adjuntos', '📎')}<span>Ver Adjuntos</span></button>
                                 <div class="row-action-menu-section-divider" aria-hidden="true"></div>
@@ -2661,14 +2808,18 @@ function renderQuoteLinesPanel(quoteCode) {
 }
 
 function quoteStatusInfo(item = {}) {
-    const raw = normalizeText([item.status, item.line_statuses].filter(Boolean).join(' ')).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-    if (['pendiente', 'solicitud', 'solicitad', 'vendedor'].some((token) => raw.includes(token))) {
-        return { label: 'Solicitada', state: 'pending' };
+    const totalLineas = Math.max(0, Number(item.line_count || 0));
+    const faltantes = Array.isArray(item.lineas_sin_cotizar) ? item.lineas_sin_cotizar.filter(Boolean) : [];
+    if (totalLineas === 0) {
+        return { label: 'Sin l\u00edneas de c\u00e1lculo', state: 'warn' };
     }
-    if (['finaliz', 'proforma', 'enviad', 'cerrad', 'produccion'].some((token) => raw.includes(token)) || /\bcotizada\b/.test(raw)) {
+    if (!faltantes.length) {
         return { label: 'Cotizada', state: 'quoted' };
     }
-    return { label: 'No enviado', state: 'unsent' };
+    if (faltantes.length === 1) {
+        return { label: 'Falta cotizar', state: 'warn', lineCode: String(faltantes[0]) };
+    }
+    return { label: `Faltan ${faltantes.length} l\u00edneas por cotizar`, state: 'warn' };
 }
 
 function renderQuoteParentRow(item) {
@@ -2678,7 +2829,7 @@ function renderQuoteParentRow(item) {
     const lineCount = Math.max(0, Number(item.line_count || cachedLines.length || 0));
     const total = cachedLines.length
         ? formatMoney(quoteTotalFromLines(cachedLines))
-        : (lineCount > 0 ? formatMoney(item.quote_total) : '—');
+        : (lineCount > 0 ? formatMoney(item.quote_total) : '');
     const toggleConf = getResolvedIcon([isExpanded ? 'quoteCollapse' : 'quoteExpand'], isExpanded ? 'quoteCollapse' : 'quoteExpand');
     const openConf = getResolvedIcon(['browserOpen', 'tableOpen'], 'tableOpen');
     const openColor = loadedConfig?.general?.iconColorBrowserOpen || loadedConfig?.general?.iconColorTableOpen || '#0b81b8';
@@ -2690,6 +2841,8 @@ function renderQuoteParentRow(item) {
     const deleteSize = Number(loadedConfig?.general?.iconSizeLineDelete) || deleteConf.size || 18;
     const customerName = item.customer_name || '';
     const customerCode = item.customer_code || '';
+    const salespersonName = item.salesperson_name || '';
+    const showVendorLine = canSeeCotizadorSeguimiento() && salespersonName;
     const statusInfo = quoteStatusInfo(item);
     const createdOn = formatDate(item.created_on);
     const dueOn = formatDate(item.due_on);
@@ -2708,9 +2861,12 @@ function renderQuoteParentRow(item) {
                 <div class="quote-master-info-block">
                     <span class="quote-master-info-name">${escapeHtml(customerName)}</span>
                     ${customerCode ? `<span class="quote-master-info-code">${escapeHtml(customerCode)}</span>` : ''}
-                    <span class="quote-status-chip" data-state="${escapeHtml(statusInfo.state)}">${escapeHtml(statusInfo.label)}</span>
+                    <span class="quote-status-chip" data-state="${escapeHtml(statusInfo.state)}">${escapeHtml(statusInfo.label)}${statusInfo.lineCode ? ` <a class="quote-status-chip-link" href="#" data-jump-line-code="${escapeHtml(statusInfo.lineCode)}" data-jump-quote="${escapeHtml(quoteCode)}">${escapeHtml(statusInfo.lineCode)}</a>` : ''}</span>
                 </div>
+                ${showVendorLine ? `<span class="quote-master-info-vendor">Vendedor: ${escapeHtml(salespersonName)}</span>` : ''}
             </td>
+            <td class="quote-master-td-ref" aria-hidden="true"></td>
+            <td class="quote-master-td-ref" aria-hidden="true"></td>
             <td class="quote-master-td-date" title="${escapeHtml(item.created_at_tz || item.created_on || '')}">${escapeHtml(createdOn)}</td>
             <td class="quote-master-td-date" title="${escapeHtml(item.due_on || '')}">${escapeHtml(dueOn)}</td>
             <td class="quote-master-td-total">${escapeHtml(total)}</td>
@@ -2723,7 +2879,7 @@ function renderQuoteParentRow(item) {
                 </div>
             </td>
         </tr>
-        ${isExpanded ? `<tr class="quote-master-lines-row"><td colspan="7">${renderQuoteLinesPanel(quoteCode)}</td></tr>` : ''}
+        ${isExpanded ? `<tr class="quote-master-lines-row"><td colspan="9">${renderQuoteLinesPanel(quoteCode)}</td></tr>` : ''}
     `;
 }
 
@@ -2904,6 +3060,8 @@ async function createProductFromLine(row) {
         row.raw_data['CODIGO PRODUCTO'] = productCode;
         if (row.raw_data.line_summary) row.raw_data.line_summary.product_code = productCode;
     }
+    if (productCode) row.productId = productCode;
+    await refreshQuoteLines(row.quoteId);
     setStatus(productCode ? `Producto ${productCode} creado.` : 'Producto registrado.', 'saved');
     return payload;
 }
@@ -3000,10 +3158,151 @@ async function unlinkFrontBackGroup() {
     setStatus('Grupo frente/dorso eliminado.', 'saved');
 }
 
+function confirmarFabricacionTroquelDialog(mensaje) {
+    return new Promise((resolve) => {
+        document.querySelector('.ct-fabricacion-confirm-dialog')?.remove();
+        document.body.classList.add('popover-open');
+        const overlay = document.createElement('div');
+        overlay.className = 'quote-order-quantity-dialog ct-fabricacion-confirm-dialog';
+        overlay.innerHTML = `<div class="quote-order-quantity-panel" role="dialog" aria-modal="true" aria-label="Solicitud de Fabricación de Troquel">
+      <div class="quote-order-quantity-title">Troquel Nuevo Requerido</div>
+      <p style="font-size:13px;color:var(--app-text-muted,#94a3b8);line-height:1.5;">${escapeHtml(mensaje)}</p>
+      <div class="quote-order-quantity-actions">
+        <button type="button" class="action-btn" data-action="no-continuar">No Continuar por Ahora</button>
+        <button type="button" class="action-btn action-btn-primary" data-action="continuar">Continuar con la Fabricación</button>
+      </div>
+    </div>`;
+        document.body.appendChild(overlay);
+        const cerrar = (resultado) => {
+            overlay.remove();
+            document.body.classList.remove('popover-open');
+            resolve(resultado);
+        };
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay || event.target.closest("[data-action='no-continuar']")) {
+                cerrar(false);
+                return;
+            }
+            if (event.target.closest("[data-action='continuar']")) {
+                cerrar(true);
+            }
+        });
+    });
+}
+
+function preguntarDestinoContactoDialog() {
+    return new Promise((resolve) => {
+        document.querySelector('.contact-destino-dialog')?.remove();
+        document.body.classList.add('popover-open');
+        const overlay = document.createElement('div');
+        overlay.className = 'quote-order-quantity-dialog contact-destino-dialog';
+        overlay.innerHTML = `<div class="quote-order-quantity-panel" role="dialog" aria-modal="true" aria-label="Guardar Contacto en el Socio">
+      <div class="quote-order-quantity-title">Guardar Contacto en el Socio</div>
+      <p style="font-size:13px;color:var(--app-text-muted,#94a3b8);line-height:1.5;">¿Dónde quieres guardar este contacto?</p>
+      <div class="quote-order-quantity-actions">
+        <button type="button" class="action-btn" data-action="contactos">Solo en Contactos</button>
+        <button type="button" class="action-btn action-btn-primary" data-action="principal">También en Contacto Principal</button>
+        <button type="button" class="action-btn" data-action="cancelar">Cancelar</button>
+      </div>
+    </div>`;
+        document.body.appendChild(overlay);
+        const cerrar = (resultado) => {
+            overlay.remove();
+            document.body.classList.remove('popover-open');
+            resolve(resultado);
+        };
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) {
+                cerrar(null);
+                return;
+            }
+            const accion = event.target.closest('[data-action]')?.dataset?.action;
+            if (accion === 'contactos') cerrar('contactos');
+            if (accion === 'principal') cerrar('principal');
+            if (accion === 'cancelar') cerrar(null);
+        });
+    });
+}
+
+async function verificarLicenciaCrearOrden() {
+    try {
+        const r = await fetch('/api/licenciamiento/estado', { headers: { 'Accept': 'application/json' } });
+        if (!r.ok) return;
+        const d = await r.json();
+        if (d && d.permiteCrearOrden === false) {
+            throw new Error('La creación de órdenes está deshabilitada porque la licencia venció. Contacta a tu proveedor para renovarla.');
+        }
+    } catch (e) {
+        if (e instanceof Error && /licencia venci/i.test(e.message)) throw e;
+        // cualquier otro error de red: fail-open, el servidor valida de todos modos
+    }
+}
+
+async function postOrdenProduccionConTroquel(quoteId, linea, body) {
+    await verificarLicenciaCrearOrden();
+    const url = QUOTES_ENDPOINT + '/' + encodeURIComponent(quoteId) + '/lineas/' + encodeURIComponent(linea) + '/orden-produccion';
+    const doPost = (payloadBody) => fetchJson(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadBody)
+    });
+    let payload = await doPost(body);
+    if (payload.requiere_confirmacion_troquel) {
+        const continuar = await confirmarFabricacionTroquelDialog(payload.mensaje || 'Esta cotización requiere un nuevo troquel. ¿Desea continuar con la solicitud de fabricación del troquel?');
+        payload = await doPost({ ...body, confirmar_fabricacion_troquel: continuar });
+    }
+    return payload;
+}
+
+function separarMensajesBloqueo(texto) {
+    return String(texto || '')
+        .split(/\r?\n|(?<=[.!?])\s+|\s*[·•]\s*/)
+        .map((parte) => parte.trim())
+        .filter(Boolean);
+}
+
+function mostrarErroresCrearOrden(row, mensajes) {
+    const existente = document.querySelector('.quote-order-quantity-dialog');
+    if (existente) existente.remove();
+    document.body.classList.add('popover-open');
+    const lista = (Array.isArray(mensajes) ? mensajes : separarMensajesBloqueo(mensajes)).filter(Boolean);
+    const itemsHtml = lista.length
+        ? '<ul class="quote-order-error-list">' + lista.map((m) => `<li>${escapeHtml(m)}</li>`).join('') + '</ul>'
+        : '<p class="quote-order-error-empty">La línea tiene datos pendientes en el cálculo.</p>';
+    const overlay = document.createElement('div');
+    overlay.className = 'quote-order-quantity-dialog';
+    overlay.innerHTML = '<div class="quote-order-quantity-panel" role="dialog" aria-modal="true" aria-label="No se puede crear la orden todavía">' +
+        '<div class="quote-order-quantity-title">No se puede crear la orden todavía</div>' +
+        '<div class="quote-order-quantity-note">Completá lo siguiente en el cálculo de la línea antes de crear la orden de producción:</div>' +
+        itemsHtml +
+        '<div class="quote-order-quantity-actions">' +
+            '<button type="button" class="action-btn" data-error-action="close">Cerrar</button>' +
+            '<button type="button" class="action-btn action-btn-primary" data-error-action="open-calc">Ir al Cálculo</button>' +
+        '</div>' +
+    '</div>';
+    const cerrar = () => {
+        overlay.remove();
+        document.body.classList.remove('popover-open');
+    };
+    overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) { cerrar(); return; }
+        const accion = event.target.closest('[data-error-action]')?.dataset.errorAction;
+        if (accion === 'close') cerrar();
+        if (accion === 'open-calc') { cerrar(); openLineCalculation(row); }
+    });
+    document.body.appendChild(overlay);
+    overlay.querySelector('[data-error-action="open-calc"]')?.focus();
+}
+
 async function createProductionOrder(row) {
-    ensureLineReadyForOrder(row);
+    const bloqueo = stripNonBlockingSapAccountingWarnings(row?.calculationBlockMessage || '');
+    if (bloqueo) {
+        mostrarErroresCrearOrden(row, separarMensajesBloqueo(bloqueo));
+        return;
+    }
     if (!row?.finalizadaOrden) {
-        throw new Error('Debes marcar la línea como finalizada antes de crear la orden de producción.');
+        mostrarErroresCrearOrden(row, ['Debes marcar la línea como finalizada antes de crear la orden de producción.']);
+        return;
     }
     var quantities = [];
     try {
@@ -3026,11 +3325,14 @@ async function createProductionOrder(row) {
     }
     var body = {};
     if (selectedQuantity && selectedQuantity > 0) body.quantity = selectedQuantity;
-    var payload = await fetchJson(QUOTES_ENDPOINT + '/' + encodeURIComponent(row.quoteId) + '/lineas/' + encodeURIComponent(row.linea) + '/orden-produccion', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-    });
+    var payload;
+    try {
+        payload = await postOrdenProduccionConTroquel(row.quoteId, row.linea, body);
+    } catch (error) {
+        const detalle = stripNonBlockingSapAccountingWarnings(error?.message || '') || (error?.message || '');
+        mostrarErroresCrearOrden(row, separarMensajesBloqueo(detalle));
+        return;
+    }
     if (payload.orden?.order_code) {
         setStatus('Orden ' + payload.orden.order_code + ' creada.', 'saved');
         var route = '/orden-produccion/' + encodeURIComponent(payload.orden.order_code);
@@ -3188,7 +3490,9 @@ function renderQuotesTable(items) {
     visibleQuotesCount = Array.isArray(items) ? items.length : 0;
     quoteLineLookup.clear();
     if (!sorted.length) {
-        rowsBody.innerHTML = '<tr><td colspan="7">No hay cotizaciones.</td></tr>';
+        rowsBody.innerHTML = cotizacionesCargadas
+            ? '<tr><td colspan="9">No hay cotizaciones.</td></tr>'
+            : '<tr><td colspan="9">Cargando las cotizaciones desde el servidor, un momento por favor…</td></tr>';
         requestAnimationFrame(updateQuotesScrollBottomIndicator);
         publishBdfgContext();
         return;
@@ -3198,18 +3502,39 @@ function renderQuotesTable(items) {
     publishBdfgContext();
 }
 
+function quoteNotSentToCotizar(item = {}) {
+    return String(item.status || '').trim().toLowerCase() === 'borrador';
+}
+
 function getFilteredQuotes() {
-    const term = normalizeText(quotesSearchInput?.value).toLowerCase();
-    if (!term) return quoteCatalog;
-    return quoteCatalog.filter((item) => [item.quote_code, item.customer_code, item.customer_name, item.contact_name, item.salesperson_name]
-        .some((value) => String(value || '').toLowerCase().includes(term)));
+    let items = quoteCatalog;
+    if (canUseQuoteQuickFilters() && quotesQuickFilter !== 'todas') {
+        if (quotesQuickFilter === 'crear-orden') {
+            items = items.filter((item) => item.has_pending_order_line === true);
+        } else if (quotesQuickFilter === 'sin-enviar') {
+            items = items.filter((item) => quoteNotSentToCotizar(item));
+        } else {
+            items = items.filter((item) => quoteStatusInfo(item).state === 'warn');
+        }
+    }
+    return items;
 }
 
 async function loadQuotes() {
     const params = new URLSearchParams({ limit: '200' });
     const search = normalizeText(quotesSearchInput?.value);
     if (search) params.set('q', search);
-    const payload = await fetchJson(`${QUOTES_ENDPOINT}?${params.toString()}`, { headers: sessionHeader() });
+    let payload;
+    try {
+        payload = await fetchJson(`${QUOTES_ENDPOINT}?${params.toString()}`, { headers: sessionHeader() });
+    } catch (error) {
+        const mensajeSinRespuesta = 'No pudimos traer las cotizaciones en este momento. Revisa la conexión e intenta de nuevo.';
+        if (!cotizacionesCargadas && rowsBody) {
+            rowsBody.innerHTML = `<tr><td colspan="9">${mensajeSinRespuesta}</td></tr>`;
+        }
+        throw new Error(error?.name === 'TypeError' ? mensajeSinRespuesta : (error?.message || mensajeSinRespuesta));
+    }
+    cotizacionesCargadas = true;
     quoteCatalog = Array.isArray(payload.cotizaciones) ? payload.cotizaciones : [];
     if (selectedQuoteContextCode && !quoteCatalog.some((item) => item.quote_code === selectedQuoteContextCode)) {
         selectedQuoteContextCode = '';
@@ -3253,6 +3578,7 @@ function applyQuoteConfig(config) {
     renderRequestQuantityRepeater();
     syncFixedSizeTrigger();
     renderRequestProductTypeOptions();
+    loadRequestProductTypesCatalogo();
     renderShapePicker();
     if (quoteCatalog.length) {
         renderQuotesTable(getFilteredQuotes());
@@ -3336,8 +3662,7 @@ function renderInlineSuggestionList(panel, items, emptyMessage) {
     panel.hidden = false;
 }
 
-function showMaterialSuggestions() {
-    const term = normalizeText(materialInput?.value).toLowerCase();
+function showMaterialSuggestions(term = normalizeText(materialInput?.value).toLowerCase()) {
     const items = materialItems
         .filter((item) => !term || `${item.name || ''} ${item.code || ''}`.toLowerCase().includes(term))
         .slice(0, 12);
@@ -3345,9 +3670,8 @@ function showMaterialSuggestions() {
     positionMaterialSuggestionsPanel();
 }
 
-function renderTextOptionSuggestions(panel, input, items, emptyMessage) {
+function renderTextOptionSuggestions(panel, input, items, emptyMessage, term = normalizeText(input?.value).toLowerCase()) {
     if (!panel || !input) return;
-    const term = normalizeText(input.value).toLowerCase();
     const source = (items || []).map((item) => normalizeText(item)).filter(Boolean);
     const filtered = source
         .filter((item) => !term || item.toLowerCase().includes(term))
@@ -3360,12 +3684,12 @@ function renderTextOptionSuggestions(panel, input, items, emptyMessage) {
     positionSurfaceSuggestionsPanel(panel, input);
 }
 
-function showSurfaceSuggestions() {
-    renderTextOptionSuggestions(surfaceSuggestions, surfaceInput, applicationItems, 'No hay aplicaciones disponibles.');
+function showSurfaceSuggestions(term) {
+    renderTextOptionSuggestions(surfaceSuggestions, surfaceInput, applicationItems, 'No hay aplicaciones disponibles.', term);
 }
 
-function showSurfaceTypeSuggestions() {
-    renderTextOptionSuggestions(surfaceTypeSuggestions, surfaceTypeInput, surfaceTypeItems, 'No hay tipos de superficie disponibles.');
+function showSurfaceTypeSuggestions(term) {
+    renderTextOptionSuggestions(surfaceTypeSuggestions, surfaceTypeInput, surfaceTypeItems, 'No hay tipos de superficie disponibles.', term);
 }
 
 function hideInlinePanels() {
@@ -3458,6 +3782,24 @@ function resetContactSelect(select, message = 'Selecciona un cliente') {
     if (!select) return;
     select.innerHTML = `<option value="">${escapeHtml(message)}</option>`;
     select.disabled = true;
+    const manual = MANUAL_CONTACT_REFS[select.id];
+    if (manual?.block) {
+        manual.block.hidden = true;
+        if (manual.name) manual.name.value = '';
+        if (manual.email) manual.email.value = '';
+        if (manual.phone) manual.phone.value = '';
+        if (manual.save) manual.save.checked = false;
+    }
+}
+
+function showManualContactPanel(select, hint) {
+    const manual = MANUAL_CONTACT_REFS[select?.id];
+    if (!manual?.block) return;
+    if (hint) {
+        const hintNode = manual.block.querySelector('.quote-request-manual-contact-hint');
+        if (hintNode) hintNode.textContent = hint;
+    }
+    manual.block.hidden = false;
 }
 
 function contactOptionLabel(contact = {}) {
@@ -3476,6 +3818,7 @@ function renderContactOptions(select, contacts = []) {
     })).filter((item) => item.name);
     if (!items.length) {
         resetContactSelect(select, 'Sin contactos asociados');
+        showManualContactPanel(select, 'Este cliente no tiene contactos registrados. Ingresa los datos para continuar.');
         return;
     }
     select.disabled = false;
@@ -3490,8 +3833,14 @@ async function loadRequestContacts(partnerCode) {
     if (!partnerCode) return;
     requestContactAbort?.abort();
     requestContactAbort = new AbortController();
-    const payload = await fetchJson(`${PARTNERS_ENDPOINT}/${encodeURIComponent(partnerCode)}/contactos`, { signal: requestContactAbort.signal });
-    renderContactOptions(customerContactSelect, Array.isArray(payload.contactos) ? payload.contactos : []);
+    try {
+        const payload = await fetchJson(`${PARTNERS_ENDPOINT}/${encodeURIComponent(partnerCode)}/contactos`, { signal: requestContactAbort.signal });
+        renderContactOptions(customerContactSelect, Array.isArray(payload.contactos) ? payload.contactos : []);
+    } catch (error) {
+        if (error.name === 'AbortError') throw error;
+        showManualContactPanel(customerContactSelect, 'No fue posible cargar los contactos del socio. Ingresa los datos para continuar.');
+        throw error;
+    }
 }
 
 async function loadNewCalcContacts(partnerCode) {
@@ -3499,8 +3848,14 @@ async function loadNewCalcContacts(partnerCode) {
     if (!partnerCode) return;
     newCalcContactAbort?.abort();
     newCalcContactAbort = new AbortController();
-    const payload = await fetchJson(`${PARTNERS_ENDPOINT}/${encodeURIComponent(partnerCode)}/contactos`, { signal: newCalcContactAbort.signal });
-    renderContactOptions(newCalcContactSelect, Array.isArray(payload.contactos) ? payload.contactos : []);
+    try {
+        const payload = await fetchJson(`${PARTNERS_ENDPOINT}/${encodeURIComponent(partnerCode)}/contactos`, { signal: newCalcContactAbort.signal });
+        renderContactOptions(newCalcContactSelect, Array.isArray(payload.contactos) ? payload.contactos : []);
+    } catch (error) {
+        if (error.name === 'AbortError') throw error;
+        showManualContactPanel(newCalcContactSelect, 'No fue posible cargar los contactos del socio. Ingresa los datos para continuar.');
+        throw error;
+    }
 }
 
 function applyPartnerSelection(code, name) {
@@ -3523,11 +3878,49 @@ function applyNewCalcPartnerSelection(code, name) {
 
 function selectedContactPayload(select) {
     const option = select?.selectedOptions?.[0];
+    if (normalizeText(select?.value)) {
+        return {
+            contact_name: normalizeText(select?.value),
+            email: normalizeText(option?.dataset?.email),
+            phone: normalizeText(option?.dataset?.phone)
+        };
+    }
+    const manual = MANUAL_CONTACT_REFS[select?.id];
     return {
-        contact_name: normalizeText(select?.value),
-        email: normalizeText(option?.dataset?.email),
-        phone: normalizeText(option?.dataset?.phone)
+        contact_name: normalizeText(manual?.name?.value),
+        email: normalizeText(manual?.email?.value),
+        phone: normalizeText(manual?.phone?.value)
     };
+}
+
+async function saveManualContactToPartner(select) {
+    const manual = MANUAL_CONTACT_REFS[select?.id];
+    if (!manual?.block || manual.block.hidden || !manual.save?.checked) return;
+    const name = normalizeText(manual.name?.value);
+    const codeInput = select.id === customerContactSelect?.id ? customerCodeInput : newCalcCustomerCodeInput;
+    const code = normalizeText(codeInput?.value);
+    if (!name || !code) return;
+    const destino = await preguntarDestinoContactoDialog();
+    if (!destino) return;
+    try {
+        await fetchJson(`${PARTNERS_ENDPOINT}/${encodeURIComponent(code)}/contactos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...sessionHeader() },
+            body: JSON.stringify({
+                contactName: name,
+                email: normalizeText(manual.email?.value),
+                phone: normalizeText(manual.phone?.value),
+                guardarComoPrincipal: destino === 'principal'
+            })
+        });
+        if (select.id === customerContactSelect?.id) {
+            loadRequestContacts(code).catch(() => {});
+        } else {
+            loadNewCalcContacts(code).catch(() => {});
+        }
+    } catch (error) {
+        console.error('No fue posible guardar el contacto en el socio.', error);
+    }
 }
 
 function syncToggleChipState(scope = document) {
@@ -3777,6 +4170,8 @@ function renderAttachments() {
 function formHasContent() {
     if (!form) return false;
     if (readRequestedQuantities().length > 0) return true;
+    if (requestDirectColors.length > 0) return true;
+    if (normalizeText(requestReferenciaInput?.value)) return true;
     const data = new FormData(form);
     for (const [key, value] of data.entries()) {
         if (key === 'customer_code') continue;
@@ -3790,6 +4185,7 @@ function resetFormState() {
     form?.querySelectorAll('input[name="numbering"]').forEach((input) => {
         input.checked = false;
     });
+    syncTroquelTriggerDisplay();
     customerCodeInput.value = '';
     resetContactSelect(customerContactSelect, 'Selecciona un cliente');
     if (materialInput) materialInput.dataset.materialCode = '';
@@ -3804,6 +4200,18 @@ function resetFormState() {
     hideInlinePanels();
     setStatus('');
     syncToggleChipState();
+    requestDirectColors = [];
+    renderDirectColorList();
+    hideDirectColorMenu();
+    if (requestUseCmykInput) requestUseCmykInput.checked = true;
+    if (requestNoPrintInput) requestNoPrintInput.checked = false;
+    syncInkGroupState();
+    syncOutputTypePreview();
+    if (requestReferenciaInput) requestReferenciaInput.value = '';
+    if (requestReferenciaComentario) requestReferenciaComentario.value = '';
+    syncReferenciaChangesVisibility();
+    closeRequestReferenciaModal();
+    closeRequestArteModal();
     applyConfiguredIcons();
     syncFixedSizeTrigger();
     renderRequestProductTypeOptions();
@@ -3836,6 +4244,737 @@ function setDefaultLauncherPosition() {
     launcherWrap.style.top = `${top}px`;
     launcherWrap.style.right = 'auto';
     launcherWrap.style.bottom = 'auto';
+}
+
+let cotizacionesTroquelesCatalog = null;
+let cotizacionesBarnizOptions = null;
+let cotizacionesEstampadoOptions = null;
+let cotizacionesLaminadoOptions = null;
+
+async function loadTroquelesCatalog() {
+    if (cotizacionesTroquelesCatalog) return cotizacionesTroquelesCatalog;
+    try {
+        const data = await fetchJson('/api/catalogs');
+        cotizacionesTroquelesCatalog = Array.isArray(data?.troqueles) ? data.troqueles : [];
+    } catch (error) {
+        cotizacionesTroquelesCatalog = [];
+    }
+    return cotizacionesTroquelesCatalog;
+}
+
+async function loadVarnishMaterialOptions() {
+    if (!requestVarnishMaterialSelect) return;
+    if (!cotizacionesBarnizOptions) {
+        try {
+            const data = await fetchJson('/api/costos-config');
+            cotizacionesBarnizOptions = Array.isArray(data?.acabados?.barniz) ? data.acabados.barniz : [];
+        } catch (error) {
+            cotizacionesBarnizOptions = [];
+        }
+    }
+    const current = requestVarnishMaterialSelect.value;
+    requestVarnishMaterialSelect.innerHTML = ['<option value="">Sin Barniz</option>']
+        .concat(cotizacionesBarnizOptions.filter((item) => item?.nombre).map((item) => `<option value="${escapeHtml(item.nombre)}">${escapeHtml(item.nombre)}</option>`))
+        .join('');
+    if (current && cotizacionesBarnizOptions.some((item) => item.nombre === current)) requestVarnishMaterialSelect.value = current;
+}
+
+async function loadStampingOptions() {
+    if (!requestStampingMaterialSelect) return;
+    if (!cotizacionesEstampadoOptions) {
+        try {
+            const data = await fetchJson('/api/costos-config');
+            cotizacionesEstampadoOptions = Array.isArray(data?.acabados?.estampado) ? data.acabados.estampado : [];
+        } catch (error) {
+            cotizacionesEstampadoOptions = [];
+        }
+    }
+    const current = requestStampingMaterialSelect.value;
+    requestStampingMaterialSelect.innerHTML = ['<option value="">Ninguno</option>']
+        .concat(cotizacionesEstampadoOptions.filter((item) => item?.tipoFoil).map((item) => `<option value="${escapeHtml(item.tipoFoil)}">${escapeHtml(item.tipoFoil)}</option>`))
+        .join('');
+    if (current && cotizacionesEstampadoOptions.some((item) => item.tipoFoil === current)) requestStampingMaterialSelect.value = current;
+}
+
+async function loadLaminadoOptions() {
+    if (!requestLaminadoMaterialSelect) return;
+    if (!cotizacionesLaminadoOptions) {
+        try {
+            const data = await fetchJson('/api/costos-config');
+            cotizacionesLaminadoOptions = Array.isArray(data?.acabados?.laminado) ? data.acabados.laminado : [];
+        } catch (error) {
+            cotizacionesLaminadoOptions = [];
+        }
+    }
+    const current = requestLaminadoMaterialSelect.value;
+    requestLaminadoMaterialSelect.innerHTML = ['<option value="">Sin Laminado</option>']
+        .concat(cotizacionesLaminadoOptions.filter((item) => item?.nombre).map((item) => `<option value="${escapeHtml(item.nombre)}">${escapeHtml(item.nombre)}</option>`))
+        .join('');
+    if (current && cotizacionesLaminadoOptions.some((item) => item.nombre === current)) requestLaminadoMaterialSelect.value = current;
+}
+
+function findBarnizOptionByName(name) {
+    const value = normalizeText(name);
+    if (!value) return null;
+    return (cotizacionesBarnizOptions || []).find((item) => item?.nombre === value) || null;
+}
+
+function findLaminadoOptionByName(name) {
+    const value = normalizeText(name);
+    if (!value) return null;
+    return (cotizacionesLaminadoOptions || []).find((item) => item?.nombre === value) || null;
+}
+
+function findEstampadoOptionByName(name) {
+    const value = normalizeText(name);
+    if (!value) return null;
+    return (cotizacionesEstampadoOptions || []).find((item) => item?.tipoFoil === value) || null;
+}
+
+function resolveTroquelImageUrl(die) {
+    const source = String(die?.imageUrl || die?.image_url || '').trim();
+    if (!source) return '';
+    if (/^(data:image\/|https?:\/\/|blob:|\/)/i.test(source)) return source;
+    return `/${source.replace(/^\.?\//, '')}`;
+}
+
+// ===========================================================================
+// NUEVA SOLICITUD · Tintas: CMYK / Sin Impresión / Colores Directos
+// ===========================================================================
+let requestDirectColors = [];
+let requestDirectColorSources = null;
+
+function isValidHexColor(value) {
+    return /^#?[0-9a-f]{3}([0-9a-f]{3})?$/i.test(String(value || '').trim());
+}
+
+function normalizeHexColor(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const withHash = raw.startsWith('#') ? raw : `#${raw}`;
+    return isValidHexColor(withHash) ? withHash : '';
+}
+
+function directColorSwatchStyle(hex) {
+    const clean = normalizeHexColor(hex);
+    if (clean) return `background:${clean}`;
+    return 'background:repeating-linear-gradient(135deg,#e3ecf2 0 4px,#f4f8fb 4px 8px)';
+}
+
+async function loadDirectColorSources() {
+    if (requestDirectColorSources) return requestDirectColorSources;
+    const [bibliotecaRes, recetasRes] = await Promise.allSettled([
+        fetchJson('/api/tintas/pantones/biblioteca'),
+        fetchJson('/api/tintas/pantones/recetas?estado=VIGENTE')
+    ]);
+    const biblioteca = bibliotecaRes.status === 'fulfilled' && Array.isArray(bibliotecaRes.value) ? bibliotecaRes.value : [];
+    const recetas = recetasRes.status === 'fulfilled' && Array.isArray(recetasRes.value) ? recetasRes.value : [];
+    const merged = [];
+    const seen = new Set();
+    const push = (nombre, sub, hex, origen) => {
+        const name = normalizeText(nombre);
+        if (!name) return;
+        const key = name.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        merged.push({ nombre: name, sub: normalizeText(sub), hex: normalizeHexColor(hex), origen });
+    };
+    biblioteca.forEach((row) => push(row?.codigo_pantone || row?.nombre, row?.nombre, row?.color_hex, 'Pantone'));
+    recetas.forEach((row) => push(row?.nombre || row?.codigo_interno, row?.codigo_pantone, row?.color_hex, 'Fórmula'));
+    merged.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+    requestDirectColorSources = merged;
+    return merged;
+}
+
+function renderDirectColorList() {
+    if (!requestDirectColorList) return;
+    if (!requestDirectColors.length) {
+        requestDirectColorList.innerHTML = '';
+        return;
+    }
+    const deleteIcon = getResolvedIcon(['quantity.delete', 'quantityDelete', 'icons.quantity.delete'], 'quantity.delete');
+    requestDirectColorList.innerHTML = requestDirectColors.map((color, index) => `
+        <div class="quote-request-color-chip" data-direct-color-index="${index}">
+            <span class="quote-request-color-swatch" style="${directColorSwatchStyle(color.hex)}"></span>
+            <span class="quote-request-color-chip-name" title="${escapeHtml(color.nombre)}">${escapeHtml(color.nombre)}</span>
+            ${color.origen ? `<span class="quote-request-color-chip-tag">${escapeHtml(color.origen)}</span>` : ''}
+            <button type="button" class="quote-request-color-chip-remove" data-remove-direct-color="${index}" title="Quitar color" aria-label="Quitar ${escapeHtml(color.nombre)}" style="--icon-color:${escapeHtml(deleteIcon.color)};--icon-hover-color:${escapeHtml(deleteIcon.hover)};--config-icon-size:${escapeHtml(String(deleteIcon.size || 16))}px;">${iconMarkup(deleteIcon.value, 'Quitar color', 'table-icon-media')}</button>
+        </div>
+    `).join('');
+}
+
+function addDirectColor(nombre, hex = '', origen = 'Manual') {
+    const name = normalizeText(nombre);
+    if (!name) return;
+    if (requestDirectColors.some((color) => color.nombre.toLowerCase() === name.toLowerCase())) {
+        hideDirectColorMenu();
+        if (requestDirectColorInput) requestDirectColorInput.value = '';
+        return;
+    }
+    requestDirectColors.push({ nombre: name, hex: normalizeHexColor(hex), origen });
+    renderDirectColorList();
+    if (requestDirectColorInput) requestDirectColorInput.value = '';
+    hideDirectColorMenu();
+    updateQuickRequestWizard();
+    requestDirectColorInput?.focus();
+}
+
+function removeDirectColor(index) {
+    if (index < 0 || index >= requestDirectColors.length) return;
+    requestDirectColors.splice(index, 1);
+    renderDirectColorList();
+    updateQuickRequestWizard();
+}
+
+function hideDirectColorMenu() {
+    if (!requestDirectColorMenu) return;
+    requestDirectColorMenu.hidden = true;
+    requestDirectColorInput?.setAttribute('aria-expanded', 'false');
+}
+
+// El desplegable de Colores Directos se saca del flujo del modal (position:fixed +
+// reparent a <body>) para que no lo recorte el scroll del contenedor, igual que los
+// demás desplegables de esta ventana (Sustrato, Aplicación, etc.).
+function positionDirectColorMenu() {
+    if (!requestDirectColorMenu || !requestDirectColorInput || requestDirectColorMenu.hidden) return;
+    if (requestDirectColorMenu.parentElement !== document.body) document.body.appendChild(requestDirectColorMenu);
+    const rect = requestDirectColorInput.getBoundingClientRect();
+    const gap = 8;
+    const width = Math.min(Math.max(rect.width, 260), window.innerWidth - gap * 2);
+    const left = Math.min(Math.max(gap, rect.left), window.innerWidth - width - gap);
+    const top = rect.bottom + 4;
+    const maxHeight = Math.max(160, Math.min(360, window.innerHeight - top - gap));
+    requestDirectColorMenu.style.setProperty('--qr-color-menu-left', `${left}px`);
+    requestDirectColorMenu.style.setProperty('--qr-color-menu-top', `${top}px`);
+    requestDirectColorMenu.style.setProperty('--qr-color-menu-width', `${width}px`);
+    requestDirectColorMenu.style.setProperty('--qr-color-menu-max-height', `${maxHeight}px`);
+}
+
+async function showDirectColorMenu(term = '') {
+    if (!requestDirectColorMenu || !requestDirectColorInput) return;
+    if (requestNoPrintInput?.checked) { hideDirectColorMenu(); return; }
+    const sources = requestDirectColorSources || await loadDirectColorSources().catch(() => []);
+    const query = normalizeText(term).toLowerCase();
+    const chosen = new Set(requestDirectColors.map((color) => color.nombre.toLowerCase()));
+    const matches = sources
+        .filter((item) => !chosen.has(item.nombre.toLowerCase()))
+        .filter((item) => !query || `${item.nombre} ${item.sub}`.toLowerCase().includes(query))
+        .slice(0, 60);
+    const exact = matches.some((item) => item.nombre.toLowerCase() === query);
+    const rows = [];
+    if (query && !exact) {
+        rows.push(`<button type="button" class="quote-request-color-option is-create" data-direct-color-name="${escapeHtml(term.trim())}" data-direct-color-origin="Manual">
+            <span class="quote-request-color-swatch" style="${directColorSwatchStyle('')}"></span>
+            <span class="quote-request-color-option-name">Agregar &laquo;${escapeHtml(term.trim())}&raquo;</span>
+        </button>`);
+    }
+    matches.forEach((item) => {
+        rows.push(`<button type="button" class="quote-request-color-option" data-direct-color-name="${escapeHtml(item.nombre)}" data-direct-color-hex="${escapeHtml(item.hex)}" data-direct-color-origin="${escapeHtml(item.origen)}">
+            <span class="quote-request-color-swatch" style="${directColorSwatchStyle(item.hex)}"></span>
+            <span class="quote-request-color-option-name">${escapeHtml(item.nombre)}${item.sub ? ` <span class="quote-request-color-option-tag">${escapeHtml(item.sub)}</span>` : ''}</span>
+            <span class="quote-request-color-option-tag">${escapeHtml(item.origen)}</span>
+        </button>`);
+    });
+    if (!rows.length) {
+        rows.push(`<div class="quote-request-color-empty">${sources.length ? 'Sin coincidencias. Escribe para agregar un color libre.' : 'No hay Pantones ni fórmulas en el catálogo.'}</div>`);
+    }
+    requestDirectColorMenu.innerHTML = rows.join('');
+    requestDirectColorMenu.hidden = false;
+    requestDirectColorInput.setAttribute('aria-expanded', 'true');
+    positionDirectColorMenu();
+}
+
+function moveDirectColorActive(direction) {
+    if (!requestDirectColorMenu || requestDirectColorMenu.hidden) return;
+    const options = Array.from(requestDirectColorMenu.querySelectorAll('.quote-request-color-option'));
+    if (!options.length) return;
+    const currentIndex = options.findIndex((option) => option.classList.contains('is-active'));
+    let nextIndex = currentIndex + direction;
+    if (nextIndex < 0) nextIndex = options.length - 1;
+    if (nextIndex >= options.length) nextIndex = 0;
+    options.forEach((option) => option.classList.remove('is-active'));
+    options[nextIndex].classList.add('is-active');
+    options[nextIndex].scrollIntoView({ block: 'nearest' });
+}
+
+function commitDirectColorFromInput() {
+    const active = requestDirectColorMenu && !requestDirectColorMenu.hidden
+        ? requestDirectColorMenu.querySelector('.quote-request-color-option.is-active')
+        : null;
+    if (active) {
+        addDirectColor(active.dataset.directColorName, active.dataset.directColorHex || '', active.dataset.directColorOrigin || 'Manual');
+        return;
+    }
+    addDirectColor(requestDirectColorInput?.value || '', '', 'Manual');
+}
+
+function syncCmykToggleVisual() {
+    requestUseCmykInput?.closest('.quote-request-ink-toggle')?.classList.toggle('is-on', !!requestUseCmykInput?.checked);
+    requestNoPrintInput?.closest('.quote-request-ink-toggle')?.classList.toggle('is-on', !!requestNoPrintInput?.checked);
+}
+
+function syncInkGroupState() {
+    if (requestInkGroup) requestInkGroup.classList.toggle('is-noprint', !!requestNoPrintInput?.checked);
+    if (requestNoPrintInput?.checked) hideDirectColorMenu();
+    syncCmykToggleVisual();
+}
+
+// ===========================================================================
+// NUEVA SOLICITUD · Tipo de Salida con imagen
+// ===========================================================================
+let requestOutputTypeCatalog = null;
+
+function resolveOutputTypeImageUrl(source) {
+    const value = String(source || '').trim();
+    if (!value) return '';
+    if (/^(data:image\/|https?:\/\/|blob:|\/)/i.test(value)) return value;
+    return `/${value.replace(/^\.?\//, '')}`;
+}
+
+async function loadOutputTypeOptions() {
+    if (!requestOutputTypeSelect) return;
+    if (!requestOutputTypeCatalog) {
+        try {
+            const data = await fetchJson('/api/catalogs');
+            requestOutputTypeCatalog = (Array.isArray(data?.outputTypes) ? data.outputTypes : []).map((item) => ({
+                id: String(item.id || item.codigo || item.nombre || '').trim(),
+                label: normalizeText(item.nombre || item.name || item.codigo || item.id),
+                image: resolveOutputTypeImageUrl(item.imageUrl || item.image_url || ''),
+                active: item.activo !== false && item.active !== false
+            })).filter((item) => item.id && item.active);
+            requestOutputTypeCatalog.sort((a, b) => a.label.localeCompare(b.label, 'es', { sensitivity: 'base' }));
+        } catch (error) {
+            requestOutputTypeCatalog = [];
+        }
+    }
+    const current = requestOutputTypeSelect.value;
+    requestOutputTypeSelect.innerHTML = ['<option value="" selected disabled hidden>Selecciona un tipo</option>']
+        .concat(requestOutputTypeCatalog.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.label)}</option>`))
+        .join('');
+    if (current && requestOutputTypeCatalog.some((item) => item.id === current)) requestOutputTypeSelect.value = current;
+    syncOutputTypePreview();
+}
+
+function syncOutputTypePreview() {
+    if (!requestOutputTypeFrame) return;
+    const selected = (requestOutputTypeCatalog || []).find((item) => item.id === requestOutputTypeSelect?.value);
+    requestOutputTypeFrame.innerHTML = selected && selected.image
+        ? `<img src="${escapeHtml(selected.image)}" alt="${escapeHtml(selected.label)}" loading="lazy" decoding="async">`
+        : '<span>Sin imagen</span>';
+}
+
+// ===========================================================================
+// NUEVA SOLICITUD · Referencia: campo + modal de búsqueda + Ver Arte
+// (mismo comportamiento que el Cálculo: /api/flexo/referencias-por-cliente)
+// ===========================================================================
+const requestRefState = { items: [], filter: '', sortDir: 'desc', tipoFilter: 'todo' };
+const requestArteState = { open: false, tipo: '', codigo: '', nombre: '', images: [], index: 0, loading: false };
+const REQ_REF_TIPO_LABEL = { orden: 'Orden', producto: 'SKU' };
+
+function syncReferenciaChangesVisibility() {
+    if (!requestReferenciaChanges) return;
+    requestReferenciaChanges.hidden = !normalizeText(requestReferenciaInput?.value);
+}
+
+async function fetchRequestReferenciaResults() {
+    const customerCode = normalizeText(customerCodeInput?.value);
+    if (!customerCode) return [];
+    try {
+        const payload = await fetchJson(`/api/flexo/referencias-por-cliente?customerCode=${encodeURIComponent(customerCode)}`);
+        return Array.isArray(payload?.items) ? payload.items : [];
+    } catch (error) {
+        return [];
+    }
+}
+
+function renderRequestRefRows() {
+    const term = normalizeText(requestRefState.filter).toLowerCase();
+    let items = requestRefState.items.filter((item) => {
+        if (requestRefState.tipoFilter !== 'todo' && item.tipo !== requestRefState.tipoFilter) return false;
+        if (!term) return true;
+        return [REQ_REF_TIPO_LABEL[item.tipo] || item.tipo, item.codigo, item.sku, item.nombre].filter(Boolean).join(' ').toLowerCase().includes(term);
+    });
+    items = items.slice().sort((a, b) => {
+        const da = new Date(a.fecha || 0).getTime();
+        const db = new Date(b.fecha || 0).getTime();
+        return requestRefState.sortDir === 'asc' ? da - db : db - da;
+    });
+    if (!items.length) {
+        return `<div class="qr-ref-empty">${requestRefState.filter || requestRefState.tipoFilter !== 'todo' ? 'Ninguna referencia coincide con el filtro.' : 'Este cliente no tiene órdenes ni SKU registrados.'}</div>`;
+    }
+    return items.map((item) => {
+        const code = item.sku || item.codigo || '—';
+        const art = Number(item.artCount || 0) > 0
+            ? `<button type="button" class="qr-ref-art" data-req-ref-arte data-tipo="${escapeHtml(item.tipo)}" data-codigo="${escapeHtml(item.codigo)}" data-nombre="${escapeHtml(item.nombre || '')}" title="Ver arte (${Number(item.artCount)})">🖼 <span>${Number(item.artCount)}</span></button>`
+            : '';
+        return `<div class="qr-ref-row" data-req-ref-select data-tipo="${escapeHtml(item.tipo)}" data-codigo="${escapeHtml(item.codigo)}" data-sku="${escapeHtml(item.sku || '')}" data-nombre="${escapeHtml(item.nombre || '')}" role="button" tabindex="0">
+            <span class="qr-ref-chip${item.tipo === 'orden' ? ' is-orden' : ''}">${escapeHtml(REQ_REF_TIPO_LABEL[item.tipo] || item.tipo)}</span>
+            <span class="qr-ref-code">${escapeHtml(code)}</span>
+            <span class="qr-ref-name">${escapeHtml(item.nombre || 'Sin nombre')}</span>
+            <span class="qr-ref-date">Producido el ${escapeHtml(formatDateLabel(item.fecha) || '—')}</span>
+            ${art}
+        </div>`;
+    }).join('');
+}
+
+function formatDateLabel(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('es-GT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function renderRequestRefModal() {
+    const overlay = document.getElementById('qrRefOverlay');
+    if (!overlay) return;
+    const sortIcon = requestRefState.sortDir === 'asc' ? '▲' : '▼';
+    const tipoBtn = (value, label) => `<button type="button" class="qr-ref-tipo-btn${requestRefState.tipoFilter === value ? ' is-active' : ''}" data-req-ref-tipo="${value}">${label}</button>`;
+    overlay.querySelector('.qr-ref-modal').innerHTML = `
+        <div class="qr-ref-head"><h3>Buscar Referencia del Cliente</h3><button type="button" class="qr-ref-close" data-req-ref-close aria-label="Cerrar">&times;</button></div>
+        <div class="qr-ref-toolbar">
+            <input type="text" id="qrRefInput" placeholder="Buscar por tipo, código, SKU o nombre…" value="${escapeHtml(requestRefState.filter)}">
+            <button type="button" class="qr-ref-tipo-btn" data-req-ref-sort title="Ordenar por fecha">Fecha ${sortIcon}</button>
+        </div>
+        <div class="qr-ref-tipos">${tipoBtn('todo', 'Todo')}${tipoBtn('orden', 'Órdenes')}${tipoBtn('producto', 'SKU')}</div>
+        <div class="qr-ref-body">${renderRequestRefRows()}</div>`;
+}
+
+async function openRequestReferenciaModal() {
+    const customerCode = normalizeText(customerCodeInput?.value);
+    if (!customerCode) {
+        setStatus('Primero elige el cliente para buscar sus referencias.', 'error');
+        return;
+    }
+    let overlay = document.getElementById('qrRefOverlay');
+    if (!overlay) {
+        document.body.insertAdjacentHTML('beforeend', '<div id="qrRefOverlay" class="qr-ref-overlay" style="display:none"><div class="qr-ref-modal"></div></div>');
+        overlay = document.getElementById('qrRefOverlay');
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay || event.target.closest('[data-req-ref-close]')) { closeRequestReferenciaModal(); return; }
+            if (event.target.closest('[data-req-ref-sort]')) { requestRefState.sortDir = requestRefState.sortDir === 'asc' ? 'desc' : 'asc'; renderRequestRefModal(); return; }
+            const tipo = event.target.closest('[data-req-ref-tipo]');
+            if (tipo) { requestRefState.tipoFilter = tipo.dataset.reqRefTipo || 'todo'; renderRequestRefModal(); setTimeout(() => document.getElementById('qrRefInput')?.focus(), 20); return; }
+            const arte = event.target.closest('[data-req-ref-arte]');
+            if (arte) { event.stopPropagation(); openRequestArteModal(arte.dataset.tipo || '', arte.dataset.codigo || '', arte.dataset.nombre || ''); return; }
+            const row = event.target.closest('[data-req-ref-select]');
+            if (row) selectRequestReferencia(row.dataset.tipo || '', row.dataset.codigo || '', row.dataset.sku || '', row.dataset.nombre || '');
+        });
+        overlay.addEventListener('input', (event) => {
+            if (event.target.id === 'qrRefInput') {
+                requestRefState.filter = event.target.value || '';
+                const body = overlay.querySelector('.qr-ref-body');
+                if (body) body.innerHTML = renderRequestRefRows();
+            }
+        });
+    }
+    requestRefState.filter = '';
+    requestRefState.sortDir = 'desc';
+    requestRefState.tipoFilter = 'todo';
+    overlay.style.display = 'flex';
+    overlay.querySelector('.qr-ref-modal').innerHTML = '<div class="qr-ref-empty">Buscando referencias del cliente…</div>';
+    requestRefState.items = await fetchRequestReferenciaResults();
+    renderRequestRefModal();
+    setTimeout(() => document.getElementById('qrRefInput')?.focus(), 30);
+}
+
+function closeRequestReferenciaModal() {
+    const overlay = document.getElementById('qrRefOverlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+function selectRequestReferencia(tipo, codigo, sku, nombre) {
+    if (!requestReferenciaInput) return;
+    const shown = sku || codigo;
+    requestReferenciaInput.value = nombre ? `${shown} — ${nombre}` : shown;
+    syncReferenciaChangesVisibility();
+    invalidateQuickRequestPreview();
+    closeRequestReferenciaModal();
+}
+
+async function openRequestArteModal(tipo, codigo, nombre) {
+    requestArteState.open = true;
+    requestArteState.tipo = tipo;
+    requestArteState.codigo = codigo;
+    requestArteState.nombre = nombre || '';
+    requestArteState.images = [];
+    requestArteState.index = 0;
+    requestArteState.loading = true;
+    let overlay = document.getElementById('qrArteOverlay');
+    if (!overlay) {
+        document.body.insertAdjacentHTML('beforeend', '<div id="qrArteOverlay" class="qr-arte-overlay" style="display:none"><div class="qr-arte-modal"></div></div>');
+        overlay = document.getElementById('qrArteOverlay');
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay || event.target.closest('[data-qr-arte-close]')) { closeRequestArteModal(); return; }
+            const nav = event.target.closest('[data-qr-arte-nav]');
+            if (nav && requestArteState.images.length) {
+                const dir = Number(nav.dataset.qrArteNav || 0);
+                requestArteState.index = (requestArteState.index + dir + requestArteState.images.length) % requestArteState.images.length;
+                renderRequestArteModal();
+                return;
+            }
+            const thumb = event.target.closest('[data-qr-arte-thumb]');
+            if (thumb) { requestArteState.index = Number(thumb.dataset.qrArteThumb || 0); renderRequestArteModal(); }
+        });
+    }
+    overlay.style.display = 'flex';
+    renderRequestArteModal();
+    try {
+        const key = tipo === 'orden' ? 'orden' : 'producto';
+        const payload = await fetchJson(`/api/adjuntos-producto?${key}=${encodeURIComponent(codigo)}`);
+        const items = Array.isArray(payload?.items) ? payload.items : [];
+        requestArteState.images = items
+            .filter((item) => String(item.mime || '').toLowerCase().startsWith('image/'))
+            .map((item) => {
+                const base = item.descargarUrl || `/api/adjuntos-producto/${item.id}/descargar`;
+                return { url: `${base}${base.includes('?') ? '&' : '?'}inline=1`, name: item.nombre || item.nombre_archivo || 'Arte' };
+            });
+    } catch (error) {
+        requestArteState.images = [];
+    }
+    requestArteState.loading = false;
+    if (requestArteState.open) renderRequestArteModal();
+}
+
+function renderRequestArteModal() {
+    const overlay = document.getElementById('qrArteOverlay');
+    if (!overlay) return;
+    const modal = overlay.querySelector('.qr-arte-modal');
+    const { images, index, loading, nombre, codigo } = requestArteState;
+    const current = images[index];
+    const title = nombre ? `${nombre} · ${codigo}` : codigo;
+    let body;
+    if (loading) {
+        body = '<div class="qr-arte-empty">Cargando artes…</div>';
+    } else if (!images.length) {
+        body = '<div class="qr-arte-empty">Esta referencia no tiene artes cargados.</div>';
+    } else {
+        body = `<div class="qr-arte-stage">
+            ${images.length > 1 ? '<button type="button" class="qr-arte-nav prev" data-qr-arte-nav="-1" aria-label="Anterior">‹</button>' : ''}
+            <img src="${escapeHtml(current.url)}" alt="${escapeHtml(current.name)}">
+            ${images.length > 1 ? '<button type="button" class="qr-arte-nav next" data-qr-arte-nav="1" aria-label="Siguiente">›</button>' : ''}
+          </div>
+          <div class="qr-arte-caption">${escapeHtml(current.name)}${images.length > 1 ? ` · ${index + 1} de ${images.length}` : ''}</div>
+          ${images.length > 1 ? `<div class="qr-arte-thumbs">${images.map((img, i) => `<button type="button" class="qr-arte-thumb${i === index ? ' is-active' : ''}" data-qr-arte-thumb="${i}"><img src="${escapeHtml(img.url)}" alt=""></button>`).join('')}</div>` : ''}`;
+    }
+    modal.innerHTML = `<div class="qr-arte-head"><h3>Arte — ${escapeHtml(title)}</h3><button type="button" class="qr-ref-close" data-qr-arte-close aria-label="Cerrar">&times;</button></div>
+        <div class="qr-arte-body">${body}</div>
+        <div class="qr-arte-hint">Arrastra la esquina para ampliar la ventana.</div>`;
+}
+
+function closeRequestArteModal() {
+    requestArteState.open = false;
+    const overlay = document.getElementById('qrArteOverlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+function computeTroquelFallbackDescription(die) {
+    const clasificacion = String(die?.clasificacion || die?.classification || '').trim();
+    const forma = String(die?.formato || die?.forma_troquel || die?.formaTroquel || '').trim();
+    return [clasificacion, forma].filter(Boolean).join(' ');
+}
+
+function extractDieShapeToken(die) {
+    const raw = String(die?.clasificacion || die?.classification || die?.formaTroquel || die?.forma_troquel || die?.formato || die?.tipoTroquel2 || die?.tipo_troquel_2 || '').toLowerCase();
+    const normalized = raw.normalize('NFD').replace(/[̀-ͯ]/g, '');
+    if (normalized.includes('circular') || normalized.includes('redond')) return 'Circular';
+    if (normalized.includes('cuadrad')) return 'Cuadrado';
+    if (normalized.includes('rectangul')) return 'Rectangular';
+    if (normalized.includes('ovalad')) return 'Ovalado';
+    if (normalized.includes('butt')) return 'Butt Cut';
+    return normalized ? 'Especial' : '';
+}
+
+function syncTroquelTriggerDisplay() {
+    if (!requestTroquelTrigger) return;
+    const code = normalizeText(requestTroquelCodeInput?.value);
+    const description = normalizeText(requestTroquelDescriptionInput?.value);
+    const codeEl = requestTroquelTrigger.querySelector('[data-troquel-code]');
+    const descEl = requestTroquelTrigger.querySelector('[data-troquel-desc]');
+    const metricsEl = requestTroquelTrigger.querySelector('[data-troquel-metrics]');
+    requestTroquelTrigger.classList.toggle('is-empty', !code);
+    if (codeEl) codeEl.textContent = code || 'Buscar troquel…';
+    if (descEl) descEl.textContent = code && description ? `· ${description}` : '';
+    if (metricsEl) metricsEl.textContent = '';
+    // El resumen de medidas se guarda en el title (hover), no como línea extra, para
+    // que el campo mantenga la misma altura y tipografía que el resto.
+    const die = code ? (cotizacionesTroquelesCatalog || []).find((item) => String(item.codigoTroquel || item.codigo || item.id || '') === code) : null;
+    if (die) {
+        const parts = [];
+        const lW = die.anchoEtiquetaIn != null ? Number(die.anchoEtiquetaIn).toFixed(2) : null;
+        const lH = die.largoEtiquetaIn != null ? Number(die.largoEtiquetaIn).toFixed(2) : null;
+        const dW = die.anchoTroquel != null ? Number(die.anchoTroquel).toFixed(2) : null;
+        const dH = die.largoTroquel != null ? Number(die.largoTroquel).toFixed(2) : null;
+        if (lW && lH) parts.push(`Etiqueta: ${lW}″ x ${lH}″`);
+        if (dW && dH) parts.push(`Troquel: ${dW}″ x ${dH}″`);
+        requestTroquelTrigger.title = [code, description, parts.join(' · ')].filter(Boolean).join(' — ');
+    } else {
+        requestTroquelTrigger.title = code ? [code, description].filter(Boolean).join(' — ') : 'Buscar troquel';
+    }
+}
+
+function selectTroquelFromCatalog(dieCode) {
+    const die = (cotizacionesTroquelesCatalog || []).find((item) => String(item.codigoTroquel || item.codigo || item.id || '') === String(dieCode));
+    if (!die) return;
+    const code = String(die.codigoTroquel || die.codigo || die.id || '');
+    const description = String(die.descripcion || die.description || '').trim() || computeTroquelFallbackDescription(die);
+    if (requestTroquelCodeInput) requestTroquelCodeInput.value = code;
+    if (requestTroquelDescriptionInput) requestTroquelDescriptionInput.value = description;
+    if (requestTroquelShapeInput) requestTroquelShapeInput.value = extractDieShapeToken(die);
+    syncTroquelTriggerDisplay();
+    closeTroquelCatalogModal();
+}
+
+function renderTroquelCatalogRow(die) {
+    const code = escapeHtml(die.codigoTroquel || die.codigo || die.id || '');
+    const description = escapeHtml(die.descripcion || computeTroquelFallbackDescription(die));
+    const imageUrl = resolveTroquelImageUrl(die);
+    const imageHtml = imageUrl ? `<div class="troquel-catalog-img"><img src="${escapeHtml(imageUrl)}" alt="${code}" loading="lazy"></div>` : '';
+    const labelW = die.anchoEtiquetaIn != null ? Number(die.anchoEtiquetaIn).toFixed(2) : null;
+    const labelH = die.largoEtiquetaIn != null ? Number(die.largoEtiquetaIn).toFixed(2) : null;
+    const dieW = die.anchoTroquel != null ? Number(die.anchoTroquel).toFixed(2) : null;
+    const dieH = die.largoTroquel != null ? Number(die.largoTroquel).toFixed(2) : null;
+    let metricsHtml = '';
+    const metrics = [];
+    if (labelW && labelH) metrics.push(`<span>Etiqueta: ${labelW}″ x ${labelH}″</span>`);
+    if (dieW && dieH) metrics.push(`<span>Troquel: ${dieW}″ x ${dieH}″</span>`);
+    if (metrics.length) metricsHtml = `<div class="troquel-catalog-metrics">${metrics.join('')}</div>`;
+    return `<div class="troquel-catalog-item" data-die-code="${escapeHtml(die.codigoTroquel || die.codigo || die.id || '')}">${imageHtml}<div class="troquel-catalog-info"><div class="troquel-catalog-code">${code}</div><div class="troquel-catalog-desc">${description || 'Sin descripción'}</div>${metricsHtml}</div><div class="troquel-catalog-action"><button type="button" class="troquel-catalog-select-btn" title="Seleccionar troquel" aria-label="Seleccionar troquel">${iconMarkup('+', 'Seleccionar troquel', 'troquel-catalog-select-icon')}</button></div></div>`;
+}
+
+const troquelCatalogFilters = { shape: '' };
+
+function renderTroquelShapeChips() {
+    const shapes = getShapeOptions();
+    const allChip = `<button type="button" class="troquel-catalog-shape-chip${troquelCatalogFilters.shape ? '' : ' is-active'}" data-shape-filter="">Todas</button>`;
+    const shapeChips = shapes.map((shape) => `<button type="button" class="troquel-catalog-shape-chip${troquelCatalogFilters.shape === shape.value ? ' is-active' : ''}" data-shape-filter="${escapeHtml(shape.value)}">${escapeHtml(shape.label)}</button>`).join('');
+    return allChip + shapeChips;
+}
+
+function renderTroquelCatalogModal(dies) {
+    const rows = dies.length ? dies.map((die) => renderTroquelCatalogRow(die)).join('') : '<div class="troquel-catalog-empty">No hay troqueles disponibles en el catálogo.</div>';
+    return `<div id="troquelCatalogOverlay" class="troquel-catalog-overlay"><div class="troquel-catalog-modal"><div class="troquel-catalog-head"><h3>Catálogo de Troqueles</h3><button type="button" class="troquel-catalog-close" data-close-troquel-catalog aria-label="Cerrar">&times;</button></div><div class="troquel-catalog-shapes" id="troquelCatalogShapes">${renderTroquelShapeChips()}</div><div class="troquel-catalog-search"><div class="troquel-catalog-search-input-wrap"><input type="text" id="troquelCatalogSearch" placeholder="Buscar por código, descripción o medida (ej. 2x2)…"><span class="troquel-catalog-search-icon">&#128269;</span></div><button type="button" id="troquelCatalogSimilarBtn" class="troquel-catalog-similar-btn" title="Buscar troqueles con medidas similares a las del producto">Medidas Similares</button><button type="button" id="troquelCatalogClearBtn" class="troquel-catalog-clear-btn" hidden title="Limpiar filtros">Limpiar Filtros &times;</button></div><div class="troquel-catalog-body"><div class="troquel-catalog-list">${rows}</div><div id="troquelCatalogNoMatches" class="troquel-catalog-empty" hidden>Ningún troquel coincide con el filtro aplicado.</div></div></div></div>`;
+}
+
+async function openTroquelCatalogModal() {
+    const dies = await loadTroquelesCatalog();
+    let overlay = document.getElementById('troquelCatalogOverlay');
+    if (overlay) overlay.remove();
+    troquelCatalogFilters.shape = normalizeText(requestTroquelShapeInput?.value) || '';
+    document.body.insertAdjacentHTML('beforeend', renderTroquelCatalogModal(dies));
+    overlay = document.getElementById('troquelCatalogOverlay');
+    overlay.addEventListener('click', (event) => {
+        if (event.target === overlay || event.target.closest('[data-close-troquel-catalog]')) {
+            closeTroquelCatalogModal();
+            return;
+        }
+        const shapeChip = event.target.closest('[data-shape-filter]');
+        if (shapeChip) {
+            troquelCatalogFilters.shape = shapeChip.dataset.shapeFilter || '';
+            document.querySelectorAll('.troquel-catalog-shape-chip').forEach((chip) => chip.classList.toggle('is-active', chip === shapeChip));
+            applyTroquelCatalogFilters();
+            return;
+        }
+        if (event.target.closest('#troquelCatalogSimilarBtn')) {
+            applyTroquelSimilarSizeSearch();
+            return;
+        }
+        if (event.target.closest('#troquelCatalogClearBtn')) {
+            clearTroquelCatalogFilters();
+            return;
+        }
+        const item = event.target.closest('.troquel-catalog-item');
+        if (item) selectTroquelFromCatalog(item.dataset.dieCode);
+    });
+    const searchInput = document.getElementById('troquelCatalogSearch');
+    searchInput?.addEventListener('input', () => applyTroquelCatalogFilters());
+    document.body.classList.add('popover-open');
+    setTimeout(() => searchInput?.focus(), 100);
+}
+
+function closeTroquelCatalogModal() {
+    const overlay = document.getElementById('troquelCatalogOverlay');
+    if (!overlay) return;
+    overlay.remove();
+    document.body.classList.remove('popover-open');
+}
+
+function parseTroquelDimsQuery(term) {
+    const match = String(term || '').trim().match(/^(\d+(?:[.,]\d+)?)[\sx×*]+(\d+(?:[.,]\d+)?)$/i);
+    if (!match) return null;
+    const a = parseFloat(match[1].replace(',', '.'));
+    const b = parseFloat(match[2].replace(',', '.'));
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+    return { a, b };
+}
+
+function dieMatchesDimsQuery(die, dims, tolerance = 0.15) {
+    const labelW = die.anchoEtiquetaIn != null ? Number(die.anchoEtiquetaIn) : null;
+    const labelH = die.largoEtiquetaIn != null ? Number(die.largoEtiquetaIn) : null;
+    const dieW = die.anchoTroquel != null ? Number(die.anchoTroquel) : null;
+    const dieH = die.largoTroquel != null ? Number(die.largoTroquel) : null;
+    const close = (x, y) => x != null && Number.isFinite(x) && Math.abs(x - y) <= tolerance;
+    return (close(labelW, dims.a) && close(labelH, dims.b))
+        || (close(labelW, dims.b) && close(labelH, dims.a))
+        || (close(dieW, dims.a) && close(dieH, dims.b))
+        || (close(dieW, dims.b) && close(dieH, dims.a));
+}
+
+function applyTroquelCatalogFilters() {
+    const searchInput = document.getElementById('troquelCatalogSearch');
+    const term = String(searchInput?.value || '').trim();
+    const lowerTerm = term.toLowerCase();
+    const dims = parseTroquelDimsQuery(term);
+    const dies = cotizacionesTroquelesCatalog || [];
+    let anyVisible = false;
+    document.querySelectorAll('.troquel-catalog-item').forEach((item) => {
+        const code = item.dataset.dieCode;
+        const die = dies.find((d) => String(d.codigoTroquel || d.codigo || d.id || '') === code);
+        let visible = true;
+        if (troquelCatalogFilters.shape) visible = die ? extractDieShapeToken(die) === troquelCatalogFilters.shape : false;
+        if (visible && term) {
+            if (dims) visible = die ? dieMatchesDimsQuery(die, dims) : false;
+            else visible = (item.textContent || '').toLowerCase().includes(lowerTerm);
+        }
+        item.style.display = visible ? '' : 'none';
+        if (visible) anyVisible = true;
+    });
+    const noMatches = document.getElementById('troquelCatalogNoMatches');
+    if (noMatches) noMatches.hidden = anyVisible || dies.length === 0;
+    const clearBtn = document.getElementById('troquelCatalogClearBtn');
+    if (clearBtn) clearBtn.hidden = !(term || troquelCatalogFilters.shape);
+}
+
+function clearTroquelCatalogFilters() {
+    troquelCatalogFilters.shape = '';
+    document.querySelectorAll('.troquel-catalog-shape-chip').forEach((chip) => chip.classList.toggle('is-active', !chip.dataset.shapeFilter));
+    const searchInput = document.getElementById('troquelCatalogSearch');
+    if (searchInput) searchInput.value = '';
+    applyTroquelCatalogFilters();
+}
+
+function getCurrentRequestDims() {
+    const isCustomSize = fixedSizeSelect?.value === 'custom';
+    const selectedSize = fixedSizeSelect?.selectedOptions?.[0];
+    const customWidth = Number(customWidthInput?.value || 0) || 0;
+    const customHeight = Number(customHeightInput?.value || 0) || 0;
+    const circular = isCircularRequestShape();
+    const width = isCustomSize ? customWidth : (Number(selectedSize?.dataset.width || 0) || 0);
+    const length = circular ? width : (isCustomSize ? customHeight : (Number(selectedSize?.dataset.length || 0) || 0));
+    if (!width || !length) return null;
+    return { width, length };
+}
+
+function applyTroquelSimilarSizeSearch() {
+    const dims = getCurrentRequestDims();
+    const searchInput = document.getElementById('troquelCatalogSearch');
+    if (!dims) {
+        setStatus('Selecciona primero las medidas del producto para buscar troqueles similares.', 'error');
+        return;
+    }
+    if (searchInput) {
+        searchInput.value = `${dims.width}x${dims.length}`;
+        applyTroquelCatalogFilters();
+    }
 }
 
 function getShapeOptions() {
@@ -3976,7 +5115,9 @@ function renderShapePicker() {
 }
 
 function collectRequestPayload() {
-    const selectedShape = getSelectedShapeInput()?.value || '';
+    const selectedShape = normalizeText(requestTroquelShapeInput?.value);
+    const dieCode = normalizeText(requestTroquelCodeInput?.value);
+    const dieDescription = normalizeText(requestTroquelDescriptionInput?.value);
     const selectedSize = fixedSizeSelect?.selectedOptions?.[0];
     const isCustomSize = fixedSizeSelect?.value === 'custom';
     const customWidth = Number(customWidthInput?.value || 0) || 0;
@@ -3990,16 +5131,32 @@ function collectRequestPayload() {
             ? (widthInches && lengthInches ? `Medida especial: ${widthInches} in x ${lengthInches} in` : 'Medida especial')
             : normalizeText(selectedSize?.textContent || fixedSizeSelect?.value));
     const numbering = getSelectedNumberingValue();
-    const stamping = form.querySelector('input[name="stamping"]:checked')?.value || '';
-    const lamination = form.querySelector('input[name="lamination"]:checked')?.value || '';
-    const varnish = form.querySelector('input[name="varnish"]:checked')?.value || '';
-    const stampingWidth = normalizeText(stampingWidthInput?.value);
-    const placement = form.querySelector('input[name="placement"]:checked')?.value || '';
+    const stamping = normalizeText(requestStampingMaterialSelect?.value);
+    const lamination = normalizeText(requestLaminadoMaterialSelect?.value);
+    const varnish = normalizeText(requestVarnishMaterialSelect?.value);
+    const outputTypeValue = normalizeText(requestOutputTypeSelect?.value);
+    const labelingType = normalizeText(requestLabelingTypeSelect?.value);
+    const clientSku = normalizeText(requestClientSkuInput?.value);
+    const useCmyk = !!requestUseCmykInput?.checked;
+    const noPrint = !!requestNoPrintInput?.checked;
+    const insumosCliente = [
+        requestInsumoArteDigital?.checked ? 'Arte Digital' : '',
+        requestInsumoMuestrasFisicas?.checked ? 'Muestras Físicas' : '',
+        requestInsumoEnvase?.checked ? 'Envase' : ''
+    ].filter(Boolean);
+    const directColors = requestDirectColors.map((color) => ({ nombre: color.nombre, hex: color.hex || '', origen: color.origen || '' }));
+    const referenciaText = normalizeText(requestReferenciaInput?.value);
+    const referenciaCambios = [
+        requestRefCambioMedidas?.checked ? 'Medidas' : '',
+        requestRefCambioArte?.checked ? 'Arte' : '',
+        requestRefCambioTextos?.checked ? 'Textos' : '',
+        requestRefCambioOtros?.checked ? 'Otros' : ''
+    ].filter(Boolean);
+    const referenciaComentario = normalizeText(requestReferenciaComentario?.value);
     const productType = requestProductTypeSelect?.value || '';
     const processType = normalizeText(requestProcessTypeInput?.value) || 'Convencional';
     const quantities = readRequestedQuantities();
     const contact = selectedContactPayload(customerContactSelect);
-    const varnishZonificado = document.getElementById('varnishSonified')?.checked ? 'Si' : 'No';
     const numberingIsConsecutive = isConsecutiveNumbering(numbering);
     const numberingFrom = numberingIsConsecutive ? normalizeText(numberingRangeStartInput?.value) : '';
     const numberingTo = numberingIsConsecutive ? normalizeText(numberingRangeEndInput?.value) : '';
@@ -4009,6 +5166,23 @@ function collectRequestPayload() {
     const numberingSummary = numbering
         ? [getNumberingLabel(numbering), numberingFrom || numberingTo ? `Desde ${numberingFrom || '...'} hasta ${numberingTo || '...'}` : '', numberingDetail].filter(Boolean).join(' | ')
         : '';
+    const barnizOption = findBarnizOptionByName(varnish);
+    const laminadoOption = findLaminadoOptionByName(lamination);
+    const estampadoOption = findEstampadoOptionByName(stamping);
+    const acabadosMeta = {
+        'REQ | Barniz BCM Anilox': barnizOption ? String(barnizOption.bcmAnilox ?? '') : '',
+        'REQ | Barniz Cobertura %': barnizOption ? String(barnizOption.porcentajeCobertura ?? '') : '',
+        'REQ | Barniz Factor Transferencia': barnizOption ? String(barnizOption.factorTransferencia ?? '') : '',
+        'REQ | Barniz Densidad': barnizOption ? String(barnizOption.densidad ?? '') : '',
+        'REQ | Barniz Costo por Kilo': barnizOption ? String(barnizOption.costoPorKilo ?? '') : '',
+        'REQ | Barniz Viscosidad': barnizOption ? String(barnizOption.visc ?? '') : '',
+        'REQ | Barniz Potencia UV': barnizOption ? String(barnizOption.potencia ?? '') : '',
+        'REQ | Barniz Temp UV': barnizOption ? String(barnizOption.temp ?? '') : '',
+        'REQ | Laminado Costo por Metro Lineal': laminadoOption ? String(laminadoOption.costoPorMetroLineal ?? '') : '',
+        'REQ | Laminado Tiempo Montaje': laminadoOption ? String(laminadoOption.tiempoMontaje ?? '') : '',
+        'REQ | Estampado Costo por Metro Lineal': estampadoOption ? String(estampadoOption.costoPorMetroLineal ?? '') : '',
+        'REQ | Estampado Tiempo Montaje': estampadoOption ? String(estampadoOption.tiempoMontaje ?? '') : ''
+    };
 
     return {
         customer_code: normalizeText(customerCodeInput.value),
@@ -4026,31 +5200,49 @@ function collectRequestPayload() {
         applicationType: normalizeText(surfaceInput?.value),
         applicationEnvironment: normalizeText(surfaceInput?.value),
         surfaceType: normalizeText(surfaceTypeInput?.value),
-        outputType: placement,
+        outputType: outputTypeValue,
+        labelingType,
+        client_sku: clientSku,
+        use_cmyk: useCmyk,
+        no_print: noPrint,
+        insumos_cliente: insumosCliente,
+        direct_colors: directColors,
         widthInches,
         lengthInches,
+        die_code: dieCode,
+        die_description: dieDescription,
         request_meta: {
             'REQ | Tipo de Producto': normalizeText(productType),
             'REQ | Cantidades': quantities.map((item) => formatNumber(item)).join(', '),
             'REQ | Ruta Solicitada': 'Automática',
             'REQ | Cliente Contacto': contact.contact_name,
             'REQ | Forma': selectedShape,
+            'REQ | Troquel Codigo': dieCode,
+            'REQ | Troquel Descripcion': dieDescription,
             'REQ | Barniz': varnish,
-            'REQ | Barniz Zonificado': varnishZonificado,
             'REQ | Laminado': lamination,
             'REQ | Estampado': stamping,
-            'REQ | Estampado Ancho': stampingWidth,
+            ...acabadosMeta,
             'REQ | Numeracion': numbering,
             'REQ | Numeracion Desde': numberingFrom,
             'REQ | Numeracion Hasta': numberingTo,
             'REQ | Numeracion Detalle': numberingDetail,
             'REQ | Numeracion Resumen': numberingSummary,
             'REQ | Numeracion Adjunto': numberingAttachment?.fileName || '',
-            'REQ | Embosado': document.getElementById('finishEmbossed')?.checked ? 'Si' : 'No',
-            'REQ | Troquelado': document.getElementById('finishDieCut')?.checked ? 'Si' : 'No',
+            'REQ | Embosado': 'No',
+            'REQ | Troquelado': 'Si',
             'REQ | Superficie': normalizeText(surfaceInput?.value),
             'REQ | Tipo Superficie': normalizeText(surfaceTypeInput?.value),
-            'REQ | Colocacion': placement,
+            'REQ | Tipo de Salida': outputTypeValue,
+            'REQ | Tipo de Etiquetado': labelingType,
+            'REQ | SKU Cliente': clientSku,
+            'REQ | Referencia': referenciaText,
+            'REQ | Referencia Cambios': referenciaCambios.join(', '),
+            'REQ | Referencia Comentario': referenciaComentario,
+            'REQ | CMYK': useCmyk ? 'Si' : 'No',
+            'REQ | Sin Impresion': noPrint ? 'Si' : 'No',
+            'REQ | Colores Directos': directColors.map((color) => color.nombre).join(', '),
+            'REQ | Insumos Cliente': insumosCliente.join(', '),
             'REQ | Comentarios': normalizeText(document.getElementById('requestComments')?.value),
             'REQ | Medida Fija': sizeLabel,
             'REQ | Numeracion Aviso': numbering ? 'Revisar proceso adicional de impresion para numerado.' : '',
@@ -4062,8 +5254,20 @@ function collectRequestPayload() {
                 productType: normalizeText(productType),
                 quantities,
                 dieShape: selectedShape,
+                dieCode,
+                dieDescription,
                 widthInches,
                 lengthInches,
+                outputType: outputTypeValue,
+                labelingType,
+                clientSku,
+                useCmyk,
+                noPrint,
+                insumosCliente,
+                directColors,
+                referencia: referenciaText,
+                referenciaCambios,
+                referenciaComentario,
                 header: {
                     customerName: normalizeText(customerNameInput.value),
                     contactName: contact.contact_name
@@ -4077,11 +5281,8 @@ function collectRequestPayload() {
                 },
                 finishes: {
                     varnish,
-                    varnishZonificado,
-                    varnishSonified: varnishZonificado,
                     laminado: lamination,
-                    stamping,
-                    stampingWidth
+                    stamping
                 }
             }
         }
@@ -4127,8 +5328,8 @@ function markQuickRequestInvalid(element, errors, label) {
     if (label) errors.push(label);
 }
 
-function getPlacementField() {
-    return form?.querySelector('input[name="placement"]')?.closest('.quote-request-field') || null;
+function getOutputTypeField() {
+    return requestOutputTypeSelect?.closest('.quote-request-output-row') || requestOutputTypeSelect?.closest('.quote-request-field') || null;
 }
 
 function validateQuickRequestStep(stepNumber) {
@@ -4139,7 +5340,10 @@ function validateQuickRequestStep(stepNumber) {
 
     if (stepNumber === 1) {
         if (!payload.customer_name) markQuickRequestInvalid(customerNameInput, errors, 'Nombre del cliente');
-        if (!payload.contact_name) markQuickRequestInvalid(customerContactSelect, errors, 'Contacto');
+        if (!payload.contact_name) {
+            markQuickRequestInvalid(customerContactSelect, errors, 'Contacto');
+            markQuickRequestInvalid(requestManualContactName, errors);
+        }
         if (!payload.job_name) markQuickRequestInvalid(document.getElementById('requestJobName'), errors, 'Nombre del producto');
         if (!payload.product_type) markQuickRequestInvalid(requestProductTypeSelect, errors, 'Tipo de producto');
         if (!payload.quantities.length) {
@@ -4149,21 +5353,15 @@ function validateQuickRequestStep(stepNumber) {
     }
 
     if (stepNumber === 2) {
+        if (!payload.die_code) markQuickRequestInvalid(requestTroquelTrigger, errors, 'Troquel');
         if (!fixedSizeSelect?.value) markQuickRequestInvalid(fixedSizeTrigger || fixedSizeSelect, errors, 'Medida');
         if (fixedSizeSelect?.value === 'custom') {
             if (!payload.widthInches || payload.widthInches <= 0) markQuickRequestInvalid(customWidthInput, errors, isCircularRequestShape() ? 'Diámetro' : 'Ancho especial');
             if (!isCircularRequestShape() && (!payload.lengthInches || payload.lengthInches <= 0)) markQuickRequestInvalid(customHeightInput, errors, 'Alto especial');
         }
-        const selectedShape = getSelectedShapeInput()?.value || '';
-        if (!selectedShape) {
-            markQuickRequestInvalid(shapePicker, errors, 'Forma');
-        }
         if (!payload.material_name) markQuickRequestInvalid(materialInput, errors, 'Sustrato');
-    }
-
-    if (stepNumber === 4) {
+        if (!payload.outputType) markQuickRequestInvalid(getOutputTypeField(), errors, 'Tipo de Salida');
         if (!payload.applicationType) markQuickRequestInvalid(surfaceInput, errors, 'Aplicación');
-        if (!payload.outputType) markQuickRequestInvalid(getPlacementField(), errors, 'Colocación');
     }
 
     if (errors.length > 0) {
@@ -4179,7 +5377,6 @@ function validateQuickRequest(forAdvanced) {
     payload.quantities = parseRequestedQuantities(payload.quantities);
     const errors = [];
     clearQuickRequestValidationState();
-    const selectedShape = getSelectedShapeInput()?.value || '';
 
     const check = (value, el, name) => {
         if (!value) {
@@ -4189,7 +5386,11 @@ function validateQuickRequest(forAdvanced) {
     };
 
     check(payload.customer_name, customerNameInput, 'Nombre del cliente');
-    check(payload.contact_name, customerContactSelect, 'Contacto');
+    if (!payload.contact_name) {
+        customerContactSelect?.classList.add('is-invalid');
+        requestManualContactName?.classList.add('is-invalid');
+        errors.push('Contacto');
+    }
     check(payload.job_name, document.getElementById('requestJobName'), 'Nombre del producto');
     check(payload.product_type, requestProductTypeSelect, 'Tipo de producto');
     if (!payload.quantities.length) {
@@ -4202,7 +5403,7 @@ function validateQuickRequest(forAdvanced) {
     }
 
     if (!forAdvanced) {
-        check(selectedShape, shapePicker, 'Forma');
+        check(payload.die_code, requestTroquelTrigger, 'Troquel');
         check(payload.material_name, materialInput, 'Sustrato');
         check(payload.applicationType, surfaceInput, 'Aplicación');
         check(fixedSizeSelect?.value, fixedSizeTrigger || fixedSizeSelect, 'Medida');
@@ -4212,7 +5413,7 @@ function validateQuickRequest(forAdvanced) {
         }
     }
 
-    check(payload.outputType, getPlacementField(), 'Colocación');
+    check(payload.outputType, getOutputTypeField(), 'Tipo de Salida');
     if (errors.length > 0) {
         showQuickRequestErrors(errors);
         throw new Error(`Faltan: ${errors.join(', ')}.`);
@@ -4231,7 +5432,13 @@ function buildQuickRequestFingerprint(payload) {
         material: payload.material_name,
         surface: payload.applicationType,
         surfaceType: payload.surfaceType,
-        placement: payload.outputType,
+        outputType: payload.outputType,
+        labelingType: payload.labelingType,
+        clientSku: payload.client_sku,
+        useCmyk: payload.use_cmyk,
+        noPrint: payload.no_print,
+        insumos: (payload.insumos_cliente || []).join(','),
+        directColors: (payload.direct_colors || []).map((color) => color.nombre).join(','),
         width: payload.widthInches,
         length: payload.lengthInches,
         productType: payload.product_type,
@@ -4306,7 +5513,9 @@ async function createQuickQuoteDraft(payload, options = {}) {
             quantityProducts: baseQuantity,
             material_name: payload.material_name,
             material_code: payload.material_code || payload.material_name,
-            applicationType: payload.applicationType,
+            die_code: payload.die_code,
+            die_description: payload.die_description,
+            applicationType: payload.labelingType || payload.applicationType,
             applicationEnvironment: payload.applicationEnvironment,
             surfaceType: payload.surfaceType,
             outputType: payload.outputType,
@@ -4361,9 +5570,13 @@ function renderQuickRequestSummary(payload, proformaData) {
         ['Forma', technical.shapesText || payload.request_meta?.['REQ | Forma'] || ''],
         ['Medida', technical.measuresText || measureText],
         ['Material', technical.materialsText || payload.material_name],
-        ['Aplicación', technical.applicationsText || payload.applicationType],
+        ['Aplicación', technical.applicationsText || payload.applicationEnvironment || payload.applicationType],
         ['Tipo de Superficie', payload.surfaceType],
-        ['Colocación', technical.placementsText || payload.outputType],
+        ['Tipo de Salida', technical.placementsText || payload.outputType],
+        ['Tipo de Etiquetado', payload.labelingType],
+        ['SKU Cliente', payload.client_sku],
+        ['Tintas', payload.no_print ? 'Sin impresión' : [payload.use_cmyk ? 'CMYK' : '', (payload.direct_colors || []).map((color) => color.nombre).join(', ')].filter(Boolean).join(' + ')],
+        ['Insumos del Cliente', (payload.insumos_cliente || []).join(', ')],
         ['Acabados', technical.finishesText || 'Sin acabados especiales'],
         ['Numeración', technical.numberingText || 'Sin numeración'],
         ['Rutas', technical.routesText || 'Pendiente']
@@ -4461,7 +5674,6 @@ function updateQuickRequestWizard() {
     if (wizardBackButton) wizardBackButton.hidden = currentStep === 1;
     if (wizardNextButton) wizardNextButton.hidden = currentStep === totalSteps;
     if (wizardPrintButton) wizardPrintButton.hidden = currentStep !== totalSteps;
-    if (wizardAdvancedButton) wizardAdvancedButton.hidden = currentStep !== totalSteps;
 }
 
 async function goToQuickRequestStep(targetStep) {
@@ -4496,9 +5708,10 @@ async function uploadPendingAttachments(quoteCode, lineCode) {
 async function submitQuoteRequest(forAdvanced = false) {
     if (quoteRequestSubmitInFlight) return;
     quoteRequestSubmitInFlight = true;
-    const busyButtons = [forAdvanced ? advancedButton : createButton, forAdvanced ? wizardAdvancedButton : wizardPrintButton].filter(Boolean);
+    const busyButtons = [forAdvanced ? advancedButton : createButton, forAdvanced ? null : wizardPrintButton].filter(Boolean);
     try {
         const payload = validateQuickRequest(forAdvanced);
+        await saveManualContactToPartner(customerContactSelect);
         const fingerprint = buildQuickRequestFingerprint(payload);
         const requestKey = buildQuickRequestKey(payload);
         busyButtons.forEach((button) => setButtonBusy(button, true, forAdvanced ? 'Preparando...' : 'Creando...'));
@@ -4554,6 +5767,13 @@ function openPopover() {
     toggleShapePickerPanel(false);
     syncToggleChipState();
     markDieCutWhenShapeSelected();
+    syncTroquelTriggerDisplay();
+    loadVarnishMaterialOptions().catch(() => {});
+    loadStampingOptions().catch(() => {});
+    loadLaminadoOptions().catch(() => {});
+    loadOutputTypeOptions().catch(() => {});
+    loadDirectColorSources().catch(() => {});
+    syncInkGroupState();
     updateQuickRequestWizard();
     setTimeout(() => customerNameInput?.focus(), 30);
 }
@@ -4577,7 +5797,7 @@ function closePopover(force = false) {
     form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
 }
 
-function openNewCalcPopover() {
+function openNewCalcPopover(prefill) {
     if (!newCalcPopover) return;
     newCalcForm?.reset();
     if (newCalcCustomerCodeInput) newCalcCustomerCodeInput.value = '';
@@ -4585,7 +5805,24 @@ function openNewCalcPopover() {
     setNewCalcStatus('');
     toggleNewCalcFrontBackFields();
     newCalcPopover.hidden = false;
-    setTimeout(() => newCalcCustomerNameInput?.focus(), 30);
+    if (prefill?.code) {
+        applyNewCalcPartnerSelection(prefill.code, prefill.name || '');
+        setTimeout(() => newCalcContactSelect?.focus(), 30);
+    } else {
+        setTimeout(() => newCalcCustomerNameInput?.focus(), 30);
+    }
+}
+
+function checkAutoOpenNewCalcFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('nuevoCalculoClienteCodigo');
+    if (!code) return;
+    const name = params.get('nuevoCalculoClienteNombre') || '';
+    openNewCalcPopover({ code, name });
+    params.delete('nuevoCalculoClienteCodigo');
+    params.delete('nuevoCalculoClienteNombre');
+    const query = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (query ? `?${query}` : ''));
 }
 
 function toggleNewCalcFrontBackFields() {
@@ -4600,7 +5837,7 @@ function toggleNewCalcFrontBackFields() {
 
 function closeNewCalcPopover(force = false) {
     if (!newCalcPopover) return;
-    const hasContent = normalizeText(newCalcCustomerNameInput?.value) || normalizeText(newCalcContactSelect?.value) || normalizeText(newCalcFrenteNombreInput?.value) || normalizeText(newCalcDorsoNombreInput?.value);
+    const hasContent = normalizeText(newCalcCustomerNameInput?.value) || normalizeText(newCalcContactSelect?.value) || normalizeText(newCalcManualContactName?.value) || normalizeText(newCalcFrenteNombreInput?.value) || normalizeText(newCalcDorsoNombreInput?.value);
     if (!force && hasContent && !window.confirm('Hay datos sin guardar. ¿Quieres cerrar?')) return;
     newCalcPopover.hidden = true;
     newCalcForm?.reset();
@@ -4626,6 +5863,7 @@ async function submitNewCalculation() {
     }
     if (!contact.contact_name) {
         newCalcContactSelect?.classList.add('is-invalid');
+        newCalcManualContactName?.classList.add('is-invalid');
         errors.push('Contacto');
     }
     if (format === 'frente_dorso') {
@@ -4641,6 +5879,7 @@ async function submitNewCalculation() {
     if (errors.length) {
         throw new Error(`Faltan: ${errors.join(', ')}.`);
     }
+    await saveManualContactToPartner(newCalcContactSelect);
     setButtonBusy(newCalcSubmitButton, true, 'Creando...');
     setNewCalcStatus('Creando cálculo...', 'saving');
     try {
@@ -4847,6 +6086,11 @@ function bindEvents() {
             loadQuotes().catch((error) => setStatus(error.message, 'error'));
         }, 240);
     });
+    document.getElementById('quotesQuickFilterRow')?.addEventListener('click', (event) => {
+        const btn = event.target.closest('.quote-quickfilter-btn');
+        if (!btn) return;
+        setQuotesQuickFilter(btn.dataset.quickFilter);
+    });
     rowsBody?.closest('table')?.querySelector('thead')?.addEventListener('click', (event) => {
         const th = event.target.closest('th[data-sort-key]');
         if (!th) return;
@@ -4911,20 +6155,6 @@ function bindEvents() {
     });
     wizardPrintButton?.addEventListener('click', () => {
         submitQuoteRequest(false).catch((error) => setStatus(error.message, 'error'));
-    });
-    wizardAdvancedButton?.addEventListener('click', async () => {
-        try {
-            const previewState = await ensureQuickRequestPreview();
-            previewState.keepPreviewQuote = true;
-            const route = `/cotizaciones/documento?codigo=${encodeURIComponent(previewState.previewQuoteCode)}`;
-            await loadQuotes();
-            if (!openRouteInShell(route, `Cotizacion ${previewState.previewQuoteCode}`)) {
-                window.location.href = route;
-            }
-            closePopover(true);
-        } catch (error) {
-            setStatus(error.message, 'error');
-        }
     });
     popover?.addEventListener('click', (event) => {
         if (event.target?.dataset?.closeQuoteCreate === 'true') closePopover();
@@ -5049,6 +6279,13 @@ function bindEvents() {
         }
         if (!event.target.closest('.quote-request-product-type-wrap') && !event.target.closest('#requestProductTypePanel')) {
             toggleRequestProductTypePanel(false);
+        }
+        if (!event.target.closest('[data-inline-suggestions="material"]') && !event.target.closest('#materialSuggestions')
+            && !event.target.closest('[data-inline-suggestions="surface"]') && !event.target.closest('#surfaceSuggestions')
+            && !event.target.closest('[data-inline-suggestions="surface-type"]') && !event.target.closest('#surfaceTypeSuggestions')) {
+            if (materialSuggestions) materialSuggestions.hidden = true;
+            if (surfaceSuggestions) surfaceSuggestions.hidden = true;
+            if (surfaceTypeSuggestions) surfaceTypeSuggestions.hidden = true;
         }
         if (numberingPopover && !numberingPopover.hidden) {
             if (event.target === numberingPopoverTrigger || numberingPopoverTrigger?.contains(event.target)) return;
@@ -5249,8 +6486,12 @@ function repositionOpenQuoteLineMenu() {
         if (event.target.matches('.quote-request-toggle-chip input, .quote-request-shape-card input')) {
             syncToggleChipState();
         }
-        if (event.target.matches('input[name="placement"]')) {
-            getPlacementField()?.classList.remove('is-invalid');
+        if (event.target === requestOutputTypeSelect) {
+            getOutputTypeField()?.classList.remove('is-invalid');
+            syncOutputTypePreview();
+        }
+        if (event.target === requestNoPrintInput || event.target === requestUseCmykInput) {
+            syncInkGroupState();
         }
         if (event.target.matches('input[name="numbering"]')) {
             renderNumberingSummary();
@@ -5272,10 +6513,11 @@ function repositionOpenQuoteLineMenu() {
     customerNameInput?.addEventListener('input', (e) => {
         if (customerCodeInput) customerCodeInput.value = '';
         resetContactSelect(customerContactSelect, 'Selecciona un cliente');
+        showManualContactPanel(customerContactSelect, 'Ingresa el nombre del contacto para continuar.');
         searchPartners(e.target.value).catch(console.error);
     });
     customerNameInput?.addEventListener('focus', () => {
-        searchPartners(customerNameInput.value).catch(console.error);
+        searchPartners('').catch(console.error);
     });
     customerNameInput?.addEventListener('blur', () => {
         setTimeout(() => {
@@ -5287,12 +6529,13 @@ function repositionOpenQuoteLineMenu() {
     newCalcCustomerNameInput?.addEventListener('input', (event) => {
         if (newCalcCustomerCodeInput) newCalcCustomerCodeInput.value = '';
         resetContactSelect(newCalcContactSelect, 'Selecciona un cliente');
+        showManualContactPanel(newCalcContactSelect, 'Ingresa el nombre del contacto para continuar.');
         searchNewCalcPartners(event.target.value).catch((error) => {
             if (error.name !== 'AbortError') setNewCalcStatus(error.message, 'error');
         });
     });
     newCalcCustomerNameInput?.addEventListener('focus', () => {
-        searchNewCalcPartners(newCalcCustomerNameInput.value).catch((error) => {
+        searchNewCalcPartners('').catch((error) => {
             if (error.name !== 'AbortError') setNewCalcStatus(error.message, 'error');
         });
     });
@@ -5311,6 +6554,7 @@ function repositionOpenQuoteLineMenu() {
         positionMaterialSuggestionsPanel();
         positionSurfacePanels();
         positionShapePickerPanel();
+        positionDirectColorMenu();
         renderRequestQuantityRepeater();
     });
     window.addEventListener('scroll', () => {
@@ -5321,6 +6565,7 @@ function repositionOpenQuoteLineMenu() {
         positionMaterialSuggestionsPanel();
         positionSurfacePanels();
         positionShapePickerPanel();
+        positionDirectColorMenu();
     }, true);
     customerLookupResults?.addEventListener('click', (e) => {
         const item = e.target.closest('.quote-request-lookup-item');
@@ -5330,6 +6575,8 @@ function repositionOpenQuoteLineMenu() {
         const item = e.target.closest('.quote-request-lookup-item');
         if (item) applyNewCalcPartnerSelection(item.dataset.partnerCode, item.dataset.partnerName);
     });
+    requestTroquelTrigger?.addEventListener('click', () => openTroquelCatalogModal().catch(() => {}));
+    document.getElementById('requestTroquelAddButton')?.addEventListener('click', () => openTroquelCatalogModal().catch(() => {}));
     fixedSizeTrigger?.addEventListener('click', () => toggleFixedSizePanel());
     fixedSizePanel?.addEventListener('click', (e) => {
         const item = e.target.closest('[data-fixed-size-value]');
@@ -5361,7 +6608,7 @@ function repositionOpenQuoteLineMenu() {
         materialInput.dataset.materialCode = '';
         showMaterialSuggestions();
     });
-    materialInput?.addEventListener('focus', showMaterialSuggestions);
+    materialInput?.addEventListener('focus', () => showMaterialSuggestions(''));
     materialSuggestions?.addEventListener('click', (e) => {
         const item = e.target.closest('.quote-request-lookup-item');
         if (item) {
@@ -5372,8 +6619,8 @@ function repositionOpenQuoteLineMenu() {
         }
     });
 
-    surfaceInput?.addEventListener('input', showSurfaceSuggestions);
-    surfaceInput?.addEventListener('focus', showSurfaceSuggestions);
+    surfaceInput?.addEventListener('input', () => showSurfaceSuggestions());
+    surfaceInput?.addEventListener('focus', () => showSurfaceSuggestions(''));
     surfaceSuggestions?.addEventListener('click', (e) => {
         const item = e.target.closest('.quote-request-lookup-item');
         if (item) {
@@ -5382,8 +6629,8 @@ function repositionOpenQuoteLineMenu() {
             invalidateQuickRequestPreview();
         }
     });
-    surfaceTypeInput?.addEventListener('input', showSurfaceTypeSuggestions);
-    surfaceTypeInput?.addEventListener('focus', showSurfaceTypeSuggestions);
+    surfaceTypeInput?.addEventListener('input', () => showSurfaceTypeSuggestions());
+    surfaceTypeInput?.addEventListener('focus', () => showSurfaceTypeSuggestions(''));
     surfaceTypeSuggestions?.addEventListener('click', (e) => {
         const item = e.target.closest('.quote-request-lookup-item');
         if (item) {
@@ -5391,6 +6638,32 @@ function repositionOpenQuoteLineMenu() {
             hideInlinePanels();
             invalidateQuickRequestPreview();
         }
+    });
+    requestReferenciaSearchBtn?.addEventListener('click', () => { openRequestReferenciaModal().catch(() => {}); });
+    requestReferenciaInput?.addEventListener('input', () => { syncReferenciaChangesVisibility(); });
+    requestDirectColorInput?.addEventListener('input', () => { showDirectColorMenu(requestDirectColorInput.value); });
+    requestDirectColorInput?.addEventListener('focus', () => { showDirectColorMenu(requestDirectColorInput.value); });
+    requestDirectColorInput?.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowDown') { event.preventDefault(); moveDirectColorActive(1); }
+        else if (event.key === 'ArrowUp') { event.preventDefault(); moveDirectColorActive(-1); }
+        else if (event.key === 'Enter') { event.preventDefault(); commitDirectColorFromInput(); }
+        else if (event.key === 'Escape') { hideDirectColorMenu(); }
+    });
+    requestDirectColorAdd?.addEventListener('click', () => { commitDirectColorFromInput(); });
+    requestDirectColorMenu?.addEventListener('click', (event) => {
+        const option = event.target.closest('.quote-request-color-option');
+        if (!option) return;
+        addDirectColor(option.dataset.directColorName, option.dataset.directColorHex || '', option.dataset.directColorOrigin || 'Manual');
+    });
+    requestDirectColorList?.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-remove-direct-color]');
+        if (!button) return;
+        removeDirectColor(Number(button.dataset.removeDirectColor));
+    });
+    document.addEventListener('click', (event) => {
+        if (!requestDirectColorMenu || requestDirectColorMenu.hidden) return;
+        if (event.target.closest('.quote-request-color-field, .quote-request-color-menu')) return;
+        hideDirectColorMenu();
     });
     customWidthInput?.addEventListener('input', () => {
         if (isCircularRequestShape() && customHeightInput) customHeightInput.value = customWidthInput.value;
@@ -5435,6 +6708,40 @@ if (menuToggle) {
             return;
         }
 
+        const jumpLineLink = e.target.closest('[data-jump-line-code]');
+        if (jumpLineLink) {
+            e.preventDefault();
+            e.stopPropagation();
+            const jumpCode = jumpLineLink.dataset.jumpQuote;
+            const jumpLine = jumpLineLink.dataset.jumpLineCode;
+            if (!jumpCode || !jumpLine) return;
+            const revealLine = () => {
+                const target = [...quoteLineLookup.values()].find((row) => String(row.quoteId) === String(jumpCode)
+                    && (String(row.linea) === String(jumpLine) || String(row.originalLinea) === String(jumpLine)));
+                if (!target) return;
+                const card = rowsBody.querySelector(`.quote-master-line[data-line-id="${target.id}"]`);
+                if (!card) return;
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                card.classList.add('is-line-flash');
+                setTimeout(() => card.classList.remove('is-line-flash'), 1600);
+            };
+            if (expandedQuoteCodes.has(jumpCode)) {
+                requestAnimationFrame(revealLine);
+                return;
+            }
+            selectedQuoteContextCode = jumpCode;
+            selectedQuoteContextLineId = 0;
+            expandedQuoteCodes.add(jumpCode);
+            renderQuotesTable(getFilteredQuotes());
+            fetchQuoteLines(jumpCode)
+                .then(() => {
+                    renderQuotesTable(getFilteredQuotes());
+                    requestAnimationFrame(revealLine);
+                })
+                .catch((error) => setStatus(error.message, 'error'));
+            return;
+        }
+
         const toggleButton = e.target.closest('[data-toggle-quote]');
         if (toggleButton) {
             const code = toggleButton.dataset.toggleQuote;
@@ -5471,6 +6778,26 @@ if (menuToggle) {
             if (!code) return;
             runQuoteActionWithFeedback(addLineButton, null, () => createQuoteLineAndOpenCalculation(code))
                 .catch((error) => setStatus(error.message, 'error'));
+            return;
+        }
+        const abrirOrdenLink = e.target.closest('[data-open-order]');
+        if (abrirOrdenLink) {
+            e.preventDefault();
+            e.stopPropagation();
+            const codigoOrden = abrirOrdenLink.dataset.openOrder;
+            if (!codigoOrden) return;
+            const route = '/orden-produccion/' + encodeURIComponent(codigoOrden);
+            if (!openRouteInShell(route, 'Orden ' + codigoOrden)) window.location.href = route;
+            return;
+        }
+        const abrirProductoLink = e.target.closest('[data-open-product]');
+        if (abrirProductoLink) {
+            e.preventDefault();
+            e.stopPropagation();
+            const codigoProducto = abrirProductoLink.dataset.openProduct;
+            if (!codigoProducto) return;
+            const route = '/producto-documento?codigo=' + encodeURIComponent(codigoProducto);
+            if (!openRouteInShell(route, 'Producto ' + codigoProducto)) window.location.href = route;
             return;
         }
         const lineActionButton = e.target.closest('[data-line-action]');
@@ -5617,6 +6944,8 @@ async function init() {
     syncToggleChipState();
     loadSapTemplate();
     await Promise.all([loadConfig(), loadTrackingUserPhotos(), loadQuotes(), loadSmartCatalogs()]);
+    updateQuotesQuickFilterButtons();
+    checkAutoOpenNewCalcFromUrl();
 
     if (launcherWrap) {
         if (disableQuoteRequestLauncherDrag) {
@@ -5653,6 +6982,22 @@ function initLineDragDrop() {
     if (lineDragDropInitialized) return;
     lineDragDropInitialized = true;
 
+    const clearLineDraggable = () => {
+        rowsBody.querySelectorAll('.quote-master-line[draggable="true"]').forEach((el) => {
+            el.draggable = false;
+        });
+    };
+
+    // La línea solo es arrastrable mientras se presiona su asa de reordenamiento;
+    // el resto del tiempo permanece no-arrastrable para poder seleccionar y copiar su texto.
+    rowsBody.addEventListener('mousedown', (e) => {
+        const handle = e.target.closest('.quote-master-line-order');
+        if (!handle) return;
+        const article = handle.closest('.quote-master-line');
+        if (article) article.draggable = true;
+    });
+    document.addEventListener('mouseup', clearLineDraggable);
+
     rowsBody.addEventListener('dragstart', (e) => {
         const article = e.target.closest('.quote-master-line[draggable]');
         if (!article) return;
@@ -5669,6 +7014,7 @@ function initLineDragDrop() {
     rowsBody.addEventListener('dragend', (e) => {
         rowsBody.querySelectorAll('.quote-master-line').forEach((el) => {
             el.classList.remove('is-dragging', 'drag-over-top', 'drag-over-bottom');
+            el.draggable = false;
         });
         lineDragState = null;
     });

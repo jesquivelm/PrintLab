@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <title>Reporter&iacute;a &mdash; Rentabilidad</title>
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <link rel="stylesheet" href="/reporteria.css?v=20260908c3-kpis-flexo">
+</head>
+<body class="report-body">
+    <main class="report-shell">
+        <header class="report-header">
+            <div>
+                <h1>Rentabilidad de Cotizaciones</h1>
+                <p>Estructura econ&oacute;mica por l&iacute;nea: precio, costo, materia prima, utilidad bruta y markup.</p>
+            </div>
+            <form id="reportFilters" class="report-filters">
+                <label><span>Desde</span><input id="dateFrom" type="date"></label>
+                <label><span>Hasta</span><input id="dateTo" type="date"></label>
+                <label><span>Vendedor</span><input id="vendedor" type="text" placeholder="Nombre exacto"></label>
+                <label><span>Cliente</span><input id="cliente" type="text" placeholder="Nombre o c&oacute;digo"></label>
+                <label><span>Producto</span><input id="producto" type="text" placeholder="C&oacute;digo"></label>
+                <button type="submit">Actualizar</button>
+            </form>
+        </header>
+
+        <section id="reportStatus" class="report-status">Cargando reporter&iacute;a...</section>
+        <section id="kpiGrid" class="report-kpis"></section>
+
+        <section class="report-grid">
+            <article class="report-panel report-panel-chart">
+                <div class="report-panel-head"><h2>Estructura Econ&oacute;mica</h2><span>Promedio del periodo</span></div>
+                <div id="estructuraStack" class="report-metric-stack"></div>
+            </article>
+            <article class="report-panel report-panel-chart">
+                <div class="report-panel-head"><h2>Evoluci&oacute;n de la Utilidad Bruta</h2><span>% mensual</span></div>
+                <div id="margenMesChart" class="report-chart"></div>
+            </article>
+            <article class="report-panel report-panel-wide">
+                <div class="report-panel-head"><h2>Evoluci&oacute;n Mensual</h2><span>Venta, costo y utilidad bruta</span></div>
+                <div id="mesTable" class="report-table"></div>
+            </article>
+            <article class="report-panel report-panel-wide">
+                <div class="report-panel-head"><h2>Mayor Utilidad Bruta</h2><span>Top 10 l&iacute;neas</span></div>
+                <div id="rankingTopTable" class="report-table"></div>
+            </article>
+            <article class="report-panel report-panel-wide">
+                <div class="report-panel-head"><h2>Menor Utilidad Bruta</h2><span>10 l&iacute;neas m&aacute;s bajas</span></div>
+                <div id="rankingBottomTable" class="report-table"></div>
+            </article>
+            <article class="report-panel report-panel-wide">
+                <div class="report-panel-head"><h2>Detalle por L&iacute;nea</h2><span>&Uacute;ltimas 300</span></div>
+                <div id="lineasTable" class="report-table"></div>
+            </article>
+        </section>
+    </main>
+    <script src="/access-control.js?v=20260923-mensajes-carga"></script>
+    <script src="/reporteria/rentabilidad.js?v=20260922-utilidad-bruta"></script>
+</body>
+</html>

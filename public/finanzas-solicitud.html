@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <title>Solicitud de Cliente</title>
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <link rel="stylesheet" href="/finanzas-solicitud.css?v=20260821-1">
+</head>
+<body>
+    <main class="finanzas-solicitud-main">
+        <section class="finanzas-solicitud-card">
+            <div id="finanzasSolicitudLoading" class="finanzas-solicitud-loading">Cargando solicitud...</div>
+            <div id="finanzasSolicitudError" class="finanzas-solicitud-error" hidden></div>
+
+            <div id="finanzasSolicitudContent" hidden>
+                <div class="finanzas-solicitud-header">
+                    <h1 id="finanzasSolicitudPartnerName"></h1>
+                    <span id="finanzasSolicitudPartnerCode" class="finanzas-solicitud-code"></span>
+                </div>
+                <span id="finanzasSolicitudEstadoPill" class="finanzas-solicitud-pill"></span>
+
+                <div class="finanzas-solicitud-grid">
+                    <div>
+                        <span class="finanzas-solicitud-label">Identificación</span>
+                        <p id="finanzasSolicitudTaxId"></p>
+                    </div>
+                    <div>
+                        <span class="finanzas-solicitud-label">Contacto</span>
+                        <p id="finanzasSolicitudContacto"></p>
+                    </div>
+                    <div>
+                        <span class="finanzas-solicitud-label">Correo / Teléfono</span>
+                        <p id="finanzasSolicitudCorreoTelefono"></p>
+                    </div>
+                    <div>
+                        <span class="finanzas-solicitud-label">Dirección</span>
+                        <p id="finanzasSolicitudDireccion"></p>
+                    </div>
+                </div>
+
+                <div class="finanzas-solicitud-docs">
+                    <span class="finanzas-solicitud-label">Documentos</span>
+                    <ul id="finanzasSolicitudDocsList" class="finanzas-solicitud-docs-list"></ul>
+                </div>
+
+                <div id="finanzasSolicitudAccionesPendiente" class="finanzas-solicitud-acciones">
+                    <label class="finanzas-solicitud-field">
+                        <span>Tu nombre</span>
+                        <input id="finanzasSolicitudResueltoPor" type="text" placeholder="Nombre completo">
+                    </label>
+                    <label class="finanzas-solicitud-field" id="finanzasSolicitudMotivoField" hidden>
+                        <span>Motivo del rechazo</span>
+                        <textarea id="finanzasSolicitudMotivo" rows="2" placeholder="Explica por qué se rechaza"></textarea>
+                    </label>
+                    <div class="finanzas-solicitud-botones">
+                        <button type="button" id="finanzasSolicitudRechazarBtn" class="finanzas-solicitud-btn finanzas-solicitud-btn-reject">Rechazar</button>
+                        <button type="button" id="finanzasSolicitudAprobarBtn" class="finanzas-solicitud-btn finanzas-solicitud-btn-approve">Aprobar y crear en SAP</button>
+                    </div>
+                    <span id="finanzasSolicitudAccionStatus" class="finanzas-solicitud-status"></span>
+                </div>
+
+                <div id="finanzasSolicitudResuelto" class="finanzas-solicitud-resuelto" hidden></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/finanzas-solicitud.js?v=20260821-1"></script>
+</body>
+</html>

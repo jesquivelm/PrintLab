@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
     <title>Cotizaciones</title>
-    <link rel="stylesheet" href="/styles.css?v=20260519-1806">
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
 </head>
 <body class="quote-detail-page">
     <div class="app-shell">
@@ -29,6 +29,7 @@
                         <a href="/inventario-troqueles" class="menu-link">Inventario Troqueles</a>
                         <a href="/inventario-maquinas" class="menu-link">Inventario M&aacute;quinas</a>
                         <a href="/inventario-procesos" class="menu-link">Inventario Procesos</a>
+                        <a href="/inventario-cilindros" class="menu-link">Inventario Cilindros</a>
                         <a href="/calculo-flexografia" class="menu-link">C&aacute;lculo de Flexograf&iacute;a</a>
                     </div>
                 </div>
@@ -51,10 +52,11 @@
                         <div class="field field-contacto">
                             <label for="dirigidoA">Contacto</label>
                             <div class="inline-fields inline-fields-contact-triple">
-                                <input id="dirigidoA" name="dirigidoA" type="text" value="Area Compras" placeholder="Nombre">
+                                <input id="dirigidoA" name="dirigidoA" type="text" value="Area Compras" placeholder="Nombre" list="cotizacionContactosDatalist" autocomplete="off">
                                 <input id="telefonoCliente" name="telefonoCliente" type="text" value="24373254" placeholder="Telefono">
                                 <input id="correoCliente" name="correoCliente" type="email" value="rperza@dospinos.com" placeholder="Correo">
                             </div>
+                            <datalist id="cotizacionContactosDatalist"></datalist>
                         </div>
 
                         <div class="field field-vendedor">
@@ -206,7 +208,7 @@
         </section>
     </div>
 
-    <script src="/access-control.js"></script>
-    <script src="/app.js?v=20260628-1900"></script>
+    <script src="/access-control.js?v=20260923-mensajes-carga"></script>
+    <script src="/app.js?v=20260907-orden-producto"></script>
 </body>
 </html>

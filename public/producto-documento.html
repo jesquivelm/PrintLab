@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
     <title>Producto</title>
-    <link rel="stylesheet" href="/styles.css?v=20260519-1714">
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <link rel="stylesheet" href="/orden-produccion.css?v=20260907-comparativa">
+    <link rel="stylesheet" href="/adjuntos-producto.css?v=20260921-tarjetas">
 </head>
 <body>
     <script>
@@ -45,140 +47,103 @@
                             </div>
                         </section>
 
-                        <section class="socios-section">
-                            <div class="section-caption product-doc-section-caption">Producto</div>
-                            <div class="product-doc-body">
-                                <div class="product-doc-codes-row">
-                                    <span id="productDocCodes" class="production-order-code"></span>
-                                    <strong id="productDocName" class="product-doc-name-inline"></strong>
+                        <section class="socios-section production-tracking-section product-doc-tracking-section">
+                            <div class="production-tracking-body">
+                                <div class="production-tracking-left">
+                                    <span class="production-summary-label">Producto</span>
+                                    <strong id="productDocName" class="production-jobname"></strong>
+                                    <div id="productDocTipoProductoRow" class="production-summary-item" hidden>
+                                        <span class="production-summary-label">Tipo de Producto</span>
+                                        <strong id="productDocTipoProducto" class="production-summary-value"></strong>
+                                    </div>
+                                    <div id="productDocSkuClienteRow" class="production-summary-item" hidden>
+                                        <span class="production-summary-label">Código SKU Cliente</span>
+                                        <strong id="productDocSkuCliente" class="production-summary-value"></strong>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="product-doc-footer">
-                                <button type="button" id="productDocQuoteButton" class="action-btn quote-browser-action-btn">Cotizar</button>
+                                <div class="production-tracking-right">
+                                    <span class="production-summary-label">SKU</span>
+                                    <strong id="productDocCodes" class="production-order-code"></strong>
+                                    <div id="productDocSourceLinks" class="production-source-link-group" aria-label="Origen del producto"></div>
+                                    <div class="production-tracking-icons-row product-doc-actions-row">
+                                        <button type="button" id="productDocQuoteButton" class="action-btn quote-browser-action-btn">Cotizar</button>
+                                        <button type="button" id="productDocMenuButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Detalle del producto" title="Detalle"></button>
+                                    </div>
+                                </div>
                             </div>
                         </section>
 
                         </div>
                         </div>
 
-                        <section class="socios-section production-shared-config">
-                            <div class="section-caption">Configuración de Producción</div>
-                            <div class="production-summary-stack">
-                                <div class="production-subgroup">
-                                    <div id="productDocPrintingGrid" class="production-shared-printing-grid">
-                                        <div class="production-shared-printing-col">
-                                            <div class="production-summary-item"><span class="production-summary-label">Máquina</span><span id="productDocPrintMachine" class="production-summary-value"></span></div>
-                                            <div class="production-summary-item"><span class="production-summary-label">Sustrato</span><span id="productDocPrintMaterial" class="production-summary-value"></span></div>
-                                            <div class="production-summary-item"><span class="production-summary-label">Dimensiones</span><span id="productDocMeasure" class="production-summary-value"></span></div>
-                                        </div>
-                                        <div class="production-shared-printing-col">
-                                            <div class="production-summary-item production-summary-item-full"><span class="production-summary-label">Tintas</span><span id="productDocInkConfigText" class="production-summary-value"></span></div>
-                                            <div id="productDocPantonesRow" class="production-summary-item" hidden><span class="production-summary-label">Pantones</span><span id="productDocPantonesText" class="production-summary-value"></span></div>
-                                        </div>
-                                        <div class="production-shared-printing-col">
-                                            <div class="production-summary-label">Acabados</div>
-                                            <div id="productDocFinishes" class="production-chip-list"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="production-config-bottom-row">
-                                <div class="production-subgroup production-config-bottom-col">
-                                    <div class="production-subgroup-title">Especificación del Rollo</div>
-                                    <div class="production-summary-grid production-summary-grid-five production-roll-grid">
-                                        <div class="production-summary-item">
-                                            <span class="production-summary-label">Ancho de Core</span>
-                                            <span id="productDocCoreWidthText" class="production-summary-value"></span>
-                                        </div>
-                                        <div class="production-summary-item">
-                                            <span class="production-summary-label">Diámetro de Core</span>
-                                            <span id="productDocCoreDiameterText" class="production-summary-value"></span>
-                                        </div>
-                                        <div class="production-summary-item">
-                                            <span class="production-summary-label">Etiquetas por Rollo</span>
-                                            <span id="productDocRollLabelsText" class="production-summary-value"></span>
-                                        </div>
-                                        <div class="production-summary-item">
-                                            <span class="production-summary-label">Tipo de Salida</span>
-                                            <span class="production-output-type-wrap">
-                                                <span id="productDocOutputTypeText" class="production-summary-value"></span>
-                                                <span id="productDocOutputTypeImage" class="production-output-type-img"></span>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                                </div>
-                            </div>
+                        <section id="productDocArteSection" class="socios-section production-shared-config">
+                            <div class="section-caption">Información de Arte</div>
+                            <div id="productDocArteBody" class="production-summary-stack"></div>
                         </section>
 
-                        <section class="socios-section">
-                            <div class="section-caption">Detalle</div>
-                            <div class="standard-module-tabs product-doc-tabs" role="tablist" aria-label="Detalle del producto">
-                                <button type="button" class="standard-module-tab is-active" data-product-doc-tab="cotizaciones">Cotizaciones</button>
-                                <button type="button" class="standard-module-tab" data-product-doc-tab="ordenes">Órdenes</button>
-                                <button type="button" class="standard-module-tab" data-product-doc-tab="adjuntos">Adjuntos</button>
-                                <button type="button" class="standard-module-tab" data-product-doc-tab="origen">Datos del Cálculo</button>
+                        <section id="productDocImpresionModule" class="socios-section">
+                            <div class="section-caption">Impresión</div>
+                            <section id="productDocMaquinaSection" class="socios-section production-shared-config" hidden>
+                                <div class="section-caption">Máquina de Impresión</div>
+                                <div id="productDocMaquinaBody" class="production-summary-grid"></div>
+                            </section>
+                            <div id="productDocMotivosTableWrap"></div>
+                        </section>
+
+                        <div id="productDocAcabadosFlex" class="production-acabados-flex production-ficha-tecnica">
+                            <section id="productDocEtiquetaSection" class="socios-section production-shared-config production-acabados-flex-item" hidden>
+                                <div class="section-caption">Especificación de Etiqueta</div>
+                                <div id="productDocEtiquetaBody" class="production-summary-grid"></div>
+                            </section>
+                            <section id="productDocSustratoSection" class="socios-section production-shared-config production-acabados-flex-item" hidden>
+                                <div class="section-caption">Sustrato</div>
+                                <div id="productDocSustratoBody" class="production-summary-grid"></div>
+                            </section>
+                            <section id="productDocBarnizSection" class="socios-section production-shared-config production-acabados-flex-item" hidden>
+                                <div class="section-caption">Barniz</div>
+                                <div id="productDocBarnizBody" class="production-summary-grid"></div>
+                            </section>
+                            <section id="productDocEstampadoSection" class="socios-section production-shared-config production-acabados-flex-item" hidden>
+                                <div class="section-caption">Estampado</div>
+                                <div id="productDocEstampadoBody" class="production-summary-grid"></div>
+                            </section>
+                            <section id="productDocLaminadoSection" class="socios-section production-shared-config production-acabados-flex-item" hidden>
+                                <div class="section-caption">Laminado</div>
+                                <div id="productDocLaminadoBody" class="production-summary-grid"></div>
+                            </section>
+                            <div id="productDocPlateDieCol" class="production-acabados-flex-item production-plate-die-col">
+                                <section id="productDocSellosSection" class="socios-section production-shared-config" hidden>
+                                    <div class="section-caption">Sellos</div>
+                                    <div id="productDocSellosBody" class="production-summary-grid"></div>
+                                </section>
+                                <section id="productDocTroqueladoSection" class="socios-section production-shared-config" hidden>
+                                    <div class="section-caption">Troquelado</div>
+                                    <div id="productDocTroqueladoBody" class="production-summary-grid"></div>
+                                </section>
                             </div>
-                            <div class="product-doc-panel is-active" data-product-doc-panel="cotizaciones">
-                                <div class="copy-popover-table-wrap quote-browser-table-wrap">
-                                    <table class="copy-popover-table quote-browser-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Cotización</th>
-                                                <th>Línea</th>
-                                                <th>Cliente</th>
-                                                <th>Trabajo</th>
-                                                <th>Fecha</th>
-                                                <th></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="productDocHistoryTableBody"></tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            <div class="product-doc-panel" data-product-doc-panel="ordenes" hidden>
-                                <div class="copy-popover-table-wrap quote-browser-table-wrap">
-                                    <table class="copy-popover-table quote-browser-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Orden</th>
-                                                <th>Cotización</th>
-                                                <th>Línea</th>
-                                                <th>Máquina</th>
-                                                <th>Fecha</th>
-                                                <th></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="productDocOrdersTableBody"></tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            <div class="product-doc-panel" data-product-doc-panel="adjuntos" hidden>
-                                <div class="production-subgroup-head">
-                                    <div class="production-subgroup-title">Adjuntos</div>
-                                    <div class="production-summary-stack">
-                                        <input id="productDocAttachmentInput" type="file" hidden>
-                                        <button type="button" id="productDocAttachmentAddButton" class="action-btn">Agregar Adjunto</button>
+                            <section id="productDocRebobinadoSection" class="socios-section production-shared-config production-acabados-flex-item" hidden>
+                                <div class="production-rebobinado-layout">
+                                    <div class="production-rebobinado-main">
+                                        <div class="section-caption">Rebobinado</div>
+                                        <div id="productDocRebobinadoBody" class="production-summary-grid"></div>
                                     </div>
+                                    <div id="productDocOutputTypeImage" class="production-rebobinado-image"></div>
                                 </div>
-                                <div class="copy-popover-table-wrap quote-browser-table-wrap">
-                                    <table class="copy-popover-table quote-browser-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Archivo</th>
-                                                <th>Cotización</th>
-                                                <th>Línea</th>
-                                                <th>Origen</th>
-                                                <th>Fecha</th>
-                                                <th></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="productDocAttachmentsTableBody"></tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            <div class="product-doc-panel" data-product-doc-panel="origen" hidden>
-                                <div id="productDocRaw" class="product-raw-grid"></div>
-                            </div>
+                            </section>
+                            <section id="productDocEmpaqueSection" class="socios-section production-shared-config production-acabados-flex-item" hidden>
+                                <div class="section-caption">Empaque</div>
+                                <div id="productDocEmpaqueBody" class="production-summary-grid"></div>
+                            </section>
+                        </div>
+
+                        <section id="productDocProcesosAdicionalesSection" class="socios-section production-shared-config" hidden>
+                            <div class="section-caption">Procesos Adicionales</div>
+                            <div id="productDocProcesosAdicionalesList" class="production-summary-stack"></div>
+                        </section>
+
+                        <section id="productDocObservacionesSection" class="socios-section production-observations-section" hidden>
+                            <div class="section-caption">Observaciones</div>
+                            <div id="productDocObservacionesBody" class="production-summary-stack"></div>
                         </section>
 
                     </div>
@@ -186,7 +151,93 @@
             </section>
         </main>
     </div>
-    <script src="/access-control.js?v=20260424g"></script>
-    <script src="/producto-documento.js?v=20260511a"></script>
+
+    <div id="productDocDetailPopover" class="calc-popover" hidden>
+        <div class="calc-popover-backdrop" data-close-popover="productDocDetailPopover"></div>
+        <div class="calc-popover-panel calc-popover-panel-compact-detail" style="width: 900px !important; height: 580px !important; min-width: 0 !important; max-width: calc(100vw - 32px) !important; max-height: calc(100vh - 32px) !important; top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important; transform: translate(-50%, -50%) !important;">
+            <button type="button" class="calc-popover-close" data-close-popover="productDocDetailPopover" aria-label="Cerrar">×</button>
+            <div class="production-order-popover-body">
+                <div class="standard-module-tabs product-doc-tabs" role="tablist" aria-label="Detalle del producto">
+                    <button type="button" class="standard-module-tab is-active" data-product-doc-tab="cotizaciones">Cotizaciones</button>
+                    <button type="button" class="standard-module-tab" data-product-doc-tab="ordenes">Órdenes</button>
+                    <button type="button" class="standard-module-tab" data-product-doc-tab="adjuntos">Adjuntos</button>
+                    <button type="button" class="standard-module-tab" data-product-doc-tab="comparativa">Comparativa</button>
+                    <button type="button" class="standard-module-tab" data-product-doc-tab="origen">Datos del Cálculo</button>
+                </div>
+                <div class="product-doc-panel is-active" data-product-doc-panel="cotizaciones">
+                    <div class="copy-popover-table-wrap quote-browser-table-wrap">
+                        <table class="copy-popover-table quote-browser-table">
+                            <thead>
+                                <tr>
+                                    <th>Cotización</th>
+                                    <th>Línea</th>
+                                    <th>Cliente</th>
+                                    <th>Trabajo</th>
+                                    <th>Fecha</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="productDocHistoryTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="product-doc-panel" data-product-doc-panel="ordenes" hidden>
+                    <div class="copy-popover-table-wrap quote-browser-table-wrap">
+                        <table class="copy-popover-table quote-browser-table">
+                            <thead>
+                                <tr>
+                                    <th>Orden</th>
+                                    <th>Cotización</th>
+                                    <th>Línea</th>
+                                    <th>Máquina</th>
+                                    <th>Fecha</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="productDocOrdersTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="product-doc-panel" data-product-doc-panel="adjuntos" hidden>
+                    <div id="productDocAdjuntosProducto"></div>
+                    <div hidden>
+                        <input id="productDocAttachmentFileInput" type="file" hidden>
+                        <label id="productDocAttachmentUploadButton" for="productDocAttachmentFileInput"></label>
+                        <button type="button" id="productDocAudioRecordButton" data-recording="false"></button>
+                        <div id="productDocAudioRecordIndicator" hidden></div>
+                        <div id="productDocAttachmentsPopoverBody"></div>
+                    </div>
+                </div>
+                <div class="product-doc-panel" data-product-doc-panel="comparativa" hidden>
+                    <p class="production-menu-panel-hint">Lo que se calculó al cotizar frente a lo que producción capturó realmente en cada proceso.</p>
+                    <div class="cmp-legend">
+                        <span class="cmp-legend-item cmp-legend-cotizado"><span class="cmp-legend-dot"></span>Cotizado <em>— del cálculo de la cotización</em></span>
+                        <span class="cmp-legend-item cmp-legend-produccion"><span class="cmp-legend-dot"></span>En Producción <em>— capturado por planta (valores reales)</em></span>
+                    </div>
+                    <div id="productDocComparativaBody" class="production-creation-summary-body"></div>
+                </div>
+                <div class="product-doc-panel" data-product-doc-panel="origen" hidden>
+                    <div id="productDocRaw" class="product-raw-grid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="productDocAttachmentPreviewPopover" class="calc-popover" hidden>
+        <div class="calc-popover-backdrop" data-close-popover="productDocAttachmentPreviewPopover"></div>
+        <div class="calc-popover-panel calc-popover-panel-narrow attachment-preview-popover-panel">
+            <button type="button" class="calc-popover-close" data-close-popover="productDocAttachmentPreviewPopover" aria-label="Cerrar">×</button>
+            <div class="calc-popover-body attachment-preview-popover-body">
+                <div class="copy-popover-header">
+                    <h2 id="productDocAttachmentPreviewTitle">Adjunto</h2>
+                </div>
+                <div id="productDocAttachmentPreviewBody" class="attachment-preview-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/access-control.js?v=20260923-mensajes-carga"></script>
+    <script src="/adjuntos-producto.js?v=20260921-tarjetas"></script>
+    <script src="/producto-documento.js?v=20260923-volteadora"></script>
 </body>
 </html>

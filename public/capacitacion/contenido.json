@@ -1,0 +1,585 @@
+{
+    "categorias": [
+        {
+            "id": "login",
+            "nombre": "Inicio de Sesión",
+            "descripcion": "Cómo entrar y salir de PrintLab",
+            "icono": "🔑",
+            "orden": 1
+        },
+        {
+            "id": "socios",
+            "nombre": "Socios",
+            "descripcion": "Gestionar clientes y proveedores",
+            "icono": "👥",
+            "orden": 2
+        },
+        {
+            "id": "productos",
+            "nombre": "SKU / Productos",
+            "descripcion": "Catálogo de productos",
+            "icono": "📦",
+            "orden": 3
+        },
+        {
+            "id": "cotizaciones",
+            "nombre": "Cotizaciones",
+            "descripcion": "Crear y enviar precios a clientes",
+            "icono": "📝",
+            "orden": 4
+        },
+        {
+            "id": "costos",
+            "nombre": "Costos",
+            "descripcion": "Configurar costos de producción",
+            "icono": "💰",
+            "orden": 5
+        },
+        {
+            "id": "ordenes",
+            "nombre": "Órdenes",
+            "descripcion": "Crear y gestionar órdenes",
+            "icono": "🏭",
+            "orden": 6
+        },
+        {
+            "id": "produccion",
+            "nombre": "Producción",
+            "descripcion": "Ejecutar y seguir la producción",
+            "icono": "⚙️",
+            "orden": 7
+        },
+        {
+            "id": "calidad",
+            "nombre": "Calidad",
+            "descripcion": "Control de calidad e incidencias",
+            "icono": "✅",
+            "orden": 8
+        },
+        {
+            "id": "tintas",
+            "nombre": "Tintas",
+            "descripcion": "Catálogo, recetas y calculadora",
+            "icono": "🎨",
+            "orden": 9
+        },
+        {
+            "id": "planificacion",
+            "nombre": "Planificación",
+            "descripcion": "Organizar la producción en el tiempo",
+            "icono": "📅",
+            "orden": 10
+        },
+        {
+            "id": "facturacion",
+            "nombre": "Facturación FEL",
+            "descripcion": "Facturación electrónica",
+            "icono": "🧾",
+            "orden": 11
+        },
+        {
+            "id": "reporteria",
+            "nombre": "Reportería",
+            "descripcion": "Reportes y números importantes",
+            "icono": "📊",
+            "orden": 12
+        },
+        {
+            "id": "inventarios",
+            "nombre": "Inventarios",
+            "descripcion": "Materia prima, troqueles y más",
+            "icono": "📋",
+            "orden": 13
+        },
+        {
+            "id": "notificaciones",
+            "nombre": "Notificaciones",
+            "descripcion": "Avisos y mensajes del sistema",
+            "icono": "🔔",
+            "orden": 14
+        },
+        {
+            "id": "configuracion",
+            "nombre": "Configuración",
+            "descripcion": "Ajustes generales y SAP",
+            "icono": "⚙️",
+            "orden": 15
+        }
+    ],
+    "articulos": [
+        {
+            "id": "login-como-entrar",
+            "categoria": "login",
+            "titulo": "¿Cómo entro a PrintLab?",
+            "subtitulo": "Los primeros pasos para usar el sistema",
+            "orden": 1,
+            "contenido": "<h2>¿Qué es PrintLab?</h2><p>PrintLab es como una computadora dentro de la computadora. Es un programa donde trabajamos todo lo que tiene que ver con los pedidos de nuestros clientes: los precios, los productos, la producción y mucho más.</p><h2>Paso 1: Abrir el navegador</h2><p>Busca el icono de <strong>Google Chrome</strong> (es un círculo de colores) en tu escritorio o en el menú de tu computadora. Haz doble clic para abrirlo.</p><h2>Paso 2: Escribir la dirección</h2><p>Arriba, en la barra blanca donde dice algo como \"https://...\", escribe la dirección que te dieron para entrar a PrintLab. Puede ser algo como <code>printlab.tuempresa.com</code> o una dirección con números como <code>192.168.1.100:3000</code>.</p><p>Después presiona la tecla <strong>Enter</strong> (la tecla grande del teclado).</p>{{img:0}}<h2>Paso 3: Ver la pantalla de inicio</h2><p>Si todo salió bien, vas a ver una pantalla bonita con:</p><ul><li>El logo de la empresa (una imagen arriba)</li><li>Un recuadro que dice <strong>Usuario</strong></li><li>Un recuadro que dice <strong>Contraseña</strong></li><li>Un botón azul que dice <strong>Entrar</strong></li></ul><h2>Paso 4: Escribir tu usuario</h2><p>En el recuadro de <strong>Usuario</strong>, escribe el nombre de usuario que te dio tu jefe o la persona que maneja el sistema. Es algo como <code>jesquiv</code> o tu nombre.</p><h2>Paso 5: Escribir tu contraseña</h2><p>En el recuadro de <strong>Contraseña</strong>, escribe tu contraseña secreta. Es como un código que solo tú sabes. Si escribes mal, no te va a dejar entrar.</p><p><strong>Consejo:</strong> Las letras se ven como puntos negros (●●●●●) para que nadie vea tu contraseña.</p><h2>Paso 6: Presionar Entrar</h2><p>Haz clic en el botón azul que dice <strong>Entrar</strong>. Si todo está bien, vas a pasar a la pantalla principal de PrintLab donde están todos los módulos.</p><h2>¿Qué pasa si no puedo entrar?</h2><p>Si ves un mensaje que dice <strong>\"Usuario o contraseña incorrectos\"</strong>, puede ser:</p><ul><li>Que escribiste mal tu usuario (revisa las mayúsculas y minúsculas)</li><li>Que escribiste mal tu contraseña</li><li>Que tu usuario todavía no existe en el sistema</li></ul><p>Si no puedes entrar, habla con tu jefe o con la persona que maneja PrintLab para que te ayude.</p><h2>Login con PIN</h2><p>Algunas empresas usan un <strong>PIN</strong> en vez de contraseña. Un PIN es un código de 4 números, como el de tu tarjeta del banco. Si tu empresa usa PIN, vas a ver un recuadro que dice <strong>PIN</strong> en vez de contraseña. Ahí escribes tus 4 números y presionas Entrar.</p>",
+            "imagenes": [
+                {
+                    "ruta": "imagenes/login/pantalla-login.png",
+                    "descripcion": "Pantalla de inicio de sesión de PrintLab",
+                    "tipo": "screenshot"
+                }
+            ],
+            "videos": []
+        },
+        {
+            "id": "socios-que-es",
+            "categoria": "socios",
+            "titulo": "¿Qué es un Socio?",
+            "subtitulo": "Conoce qué significa esta palabra en PrintLab",
+            "orden": 1,
+            "contenido": "<h2>¿Qué significa Socio?</h2><p>En PrintLab, la palabra <strong>Socio</strong> significa <strong>cliente</strong>. Es la empresa o persona que nos pide que le imprimamos sus productos.</p><p>Por ejemplo: si una empresa de snacks nos pide que le imprimamos 10,000 bolsas de papas, esa empresa es un <strong>socio</strong> nuestro.</p><h2>¿Qué tipos de Socios hay?</h2><p>Hay dos tipos:</p><ul><li><strong>Empresa:</strong> Es una sociedad anónima, una empresa con nombre formal. Ejemplo: \"Distribuidora XYZ S.A.\"</li><li><strong>Persona:</strong> Es una persona individual, alguien que trabaja por su cuenta. Ejemplo: \"Juan Pérez\"</li></ul><h2>¿Qué es el Código de Socio?</h2><p>Cada socio tiene un código único, como un número de cédula. Se ve así: <strong>CL00001</strong>, <strong>CL00002</strong>, <strong>CL00003</strong>...</p><p>El sistema automáticamente le pone el código cuando creas un socio nuevo. Tú no tienes que inventarlo.</p><h2>¿Qué estados tiene un Socio?</h2><p>Un socio puede estar en diferentes estados, como diferentes etapas de su vida:</p><ul><li><strong>PROSPECTO:</strong> Es alguien que todavía no es cliente oficial. Es como un\"interesado\".</li><li><strong>PENDIENTE DE APROBACIÓN:</strong> Ya llenaste los datos, pero falta que un jefe revise y diga \"está bien\".</li><li><strong>CLIENTE APROBADO:</strong> ¡Listo! Ya es cliente oficial. Ya puede hacer pedidos.</li><li><strong>ERROR DE SINCRONIZACIÓN:</strong> Algo falló cuando el sistema intentó conectarse con SAP (el sistema grande de la empresa). Hay que revisar.</li></ul><h2>¿Qué es el vendedor asignado?</h2><p>Cada socio tiene un <strong>vendedor</strong> que es el responsable de atenderlo. Es la persona que le habla al cliente, le toma los pedidos y le ayuda con lo que necesite.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "productos-que-es",
+            "categoria": "productos",
+            "titulo": "¿Qué es un SKU?",
+            "subtitulo": "El código único de cada producto",
+            "orden": 1,
+            "contenido": "<h2>¿Qué significa SKU?</h2><p>SKU significa <strong>\"Unidad de Mantenimiento de Stock\"</strong> (en inglés: Stock Keeping Unit). Pero no te preocupes por el nombre raro.</p><p>Un SKU es simplemente un <strong>código único</strong> que le ponemos a cada producto diferente que vendemos. Es como la cédula de identidad de un producto.</p><h2>¿Por qué es importante?</h2><p>Imagina que tienes 50 productos diferentes: bolsas grandes, bolsas pequeñas, etiquetas, cajas... Si no tuvieran código, ¿cómo sabrías cuál es cuál? Sería un desastre.</p><p>Con el SKU, cada producto tiene su nombre único y el sistema sabe exactamente de cuál estás hablando.</p><h2>Ejemplo</h2><p>Si vendes bolsas para snacks:</p><ul><li>Bolsa grande de 30cm → SKU: <strong>BOL-001</strong></li><li>Bolsa mediana de 20cm → SKU: <strong>BOL-002</strong></li><li>Bolsa pequeña de 10cm → SKU: <strong>BOL-003</strong></li></ul><h2>¿Qué información tiene un producto?</h2><p>Cada producto en PrintLab tiene:</p><ul><li><strong>Nombre:</strong> Cómo se llama (ej: \"Bolsa Snacks 30cm\")</li><li><strong>Código:</strong> El SKU único</li><li><strong>Descripción:</strong> Detalles del producto</li><li><strong>Máquinas:</strong> En qué máquinas se puede producir</li><li><strong>Materiales:</strong> Qué materiales se necesitan</li><li><strong>Costos:</strong> Cuánto cuesta producirlo</li></ul>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "cotizaciones-que-es",
+            "categoria": "cotizaciones",
+            "titulo": "¿Qué es una Cotización?",
+            "subtitulo": "El precio que le damos al cliente",
+            "orden": 1,
+            "contenido": "<h2>¿Qué es una cotización?</h2><p>Una cotización es como una <strong>\"carta de precio\"</strong> que le mandamos al cliente. Le decimos: \"Si usted nos pide X cantidad de productos, le va a costar Y dinero\".</p><p>Es el primer paso para hacer un negocio. Primero se cotiza, después el cliente dice \"sí, quiero\", y ahí se crea la orden de producción.</p><h2>¿Qué tiene una cotización?</h2><ul><li><strong>El cliente (socio):</strong> A quién le estamos cotizando</li><li><strong>Las líneas:</strong> Los productos que el cliente quiere, con sus cantidades y especificaciones</li><li><strong>Los precios:</strong> Cuánto cuesta cada producto</li><li><strong>Los totales:</strong> La suma de todo</li></ul><h2>Estados de una cotización</h2><p>Una cotización pasa por diferentes etapas:</p><ul><li><strong>Borrador:</strong> La estamos armando, todavía no está lista</li><li><strong>Pendiente:</strong> Ya está armada, esperando revisión</li><li><strong>Aprobada:</strong> Un jefe dijo \"está bien, envíenla\"</li><li><strong>Enviada:</strong> Ya se la mandamos al cliente</li><li><strong>Aceptada:</strong> El cliente dijo \"sí, quiero\"</li><li><strong>Rechazada:</strong> El cliente dijo \"no, gracias\"</li></ul>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "costos-que-es",
+            "categoria": "costos",
+            "titulo": "¿Qué es la configuración de Costos?",
+            "subtitulo": "Los precios que usa el sistema para calcular",
+            "orden": 1,
+            "contenido": "<h2>¿Para qué sirve?</h2><p>Cuando cotizas un producto, el sistema necesita saber <strong>cuánto cuesta</strong> producirlo. Para eso usa los costos que se configuraron.</p><p>Es como una calculadora que necesita saber los precios de los materiales, cuánto cuesta la máquina por hora, cuánto gana el operador, etc.</p><h2>¿Dónde se configuran?</h2><p>En el dashboard, haz clic en <strong>\"Costos\"</strong>. Ahí vas a ver varias pestañas:</p><ul><li><strong>General:</strong> Costos básicos como tipo de cambio</li><li><strong>Tipos de Producto:</strong> Diferentes categorías de productos</li><li><strong>Convencional:</strong> Costos de impresión convencional</li><li><strong>Digital:</strong> Costos de impresión digital</li><li><strong>Acabados:</strong> Costos de barniz, laminado, etc.</li><li><strong>Turnos:</strong> Horarios y costos por turno</li><li><strong>Tipo de Cambio:</strong> Precio del dólar</li></ul><h2>¿Quién lo configura?</h2><p>Generalmente es la persona de <strong>costos</strong> o un administrador. Los usuarios normales no cambian estos valores.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "ordenes-que-es",
+            "categoria": "ordenes",
+            "titulo": "¿Qué es una Orden de Producción?",
+            "subtitulo": "De cotización a fábrica",
+            "orden": 1,
+            "contenido": "<h2>¿Qué es una orden?</h2><p>Una orden de producción es como una <strong>\"receta de cocina\"</strong> para la fábrica. Le dice a los operadores: \"Produzcan estos productos, con estas máquinas, usando estos materiales\".</p><p>La orden nace cuando una cotización se aprueba y el cliente acepta comprar.</p><h2>¿Qué tiene una orden?</h2><ul><li><strong>El cliente:</strong> Para quién es</li><li><strong>Los productos:</strong> Qué se va a producir</li><li><strong>Las cantidades:</strong> Cuántas unidades</li><li><strong>Las máquinas:</strong> En qué máquinas se va a hacer</li><li><strong>Los materiales:</strong> Qué se necesita</li><li><strong>Las fechas:</strong> Cuándo empezar y cuándo terminar</li></ul><h2>Estados de una orden</h2><ul><li><strong>Pendiente:</strong> Se creó pero todavía no empieza</li><li><strong>En proceso:</strong> Ya está produciéndose</li><li><strong>Completada:</strong> Ya terminó de producirse</li><li><strong>Cancelada:</strong> Se canceló por algún motivo</li></ul>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "produccion-que-es",
+            "categoria": "produccion",
+            "titulo": "¿Qué es Producción?",
+            "subtitulo": "Cuando la fábrica empieza a trabajar",
+            "orden": 1,
+            "contenido": "<h2>¿Qué es producción?</h2><p>Producción es cuando la <strong>fábrica empieza a fabricar</strong> los productos. Es el momento en que las máquinas trabajan, los operadores vigilan y los productos van saliendo.</p><h2>Diferencia entre Orden y Producción</h2><ul><li>La <strong>Orden</strong> es el plan: \"Vamos a hacer 10,000 bolsas\"</li><li>La <strong>Producción</strong> es la acción: \"Ya estamos haciendo las bolsas\"</li></ul><h2>¿Qué se ve en Producción?</h2><p>En la pantalla de Producción puedes ver:</p><ul><li>Las órdenes que se están produciendo ahora mismo</li><li>En qué máquinas están</li><li>Cómo van avanzando</li></ul>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "calidad-que-es",
+            "categoria": "calidad",
+            "titulo": "¿Qué es Calidad en PrintLab?",
+            "subtitulo": "Controlar que todo salga bien",
+            "orden": 1,
+            "contenido": "<h2>¿Para qué sirve Calidad?</h2><p>El módulo de Calidad es para <strong>asegurarse de que los productos salgan bien</strong>. Si algo sale mal (un color diferente, una impresión borrosa, una mancha), se registra aquí para que se arregle.</p><h2>¿Qué se controla?</h2><ul><li>Que los colores sean los correctos</li><li>Que la impresión esté nítida (no borrosa)</li><li>Que los materiales sean los correctos</li><li>Que los productos cumplan con lo que el cliente pidió</li></ul><h2>Herramientas de Calidad</h2><ul><li><strong>Órdenes de calidad:</strong> Trabajo de revisión para una orden específica</li><li><strong>Incidencias:</strong> Registrar cuando algo sale mal</li><li><strong>Certificados:</strong> Documentos que certifican que la calidad está bien</li><li><strong>Fichas técnicas:</strong> Documentos con los detalles técnicos de la impresión</li></ul>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "tintas-que-es",
+            "categoria": "tintas",
+            "titulo": "¿Qué es el módulo de Tintas?",
+            "subtitulo": "Gestionar los colores de impresión",
+            "orden": 1,
+            "contenido": "<h2>¿Qué son las tintas?</h2><p>Las tintas son los <strong>colores que usamos para imprimir</strong>. Sin tintas, no hay impresión. Cada producto puede necesitar colores diferentes.</p><h2>Qué hay en este módulo</h2><ul><li><strong>Catálogo:</strong> Lista de todas las tintas que tenemos</li><li><strong>Recetas:</strong> Cómo se mezclan las tintas para obtener un color</li><li><strong>Pantones:</strong> Los códigos de color estándar</li><li><strong>Lotes:</strong> Los lotes de tinta que hemos comprado</li><li><strong>Color Similares:</strong> Colores parecidos por si no tenemos el exacto</li><li><strong>Calculadora:</strong> Cuánta tinta se necesita para un trabajo</li></ul>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "planificacion-que-es",
+            "categoria": "planificacion",
+            "titulo": "¿Qué es Planificación?",
+            "subtitulo": "Organizar la producción en el tiempo",
+            "orden": 1,
+            "contenido": "<h2>¿Para qué planificar?</h2><p>Planificar es como hacer un <strong>calendario de la fábrica</strong>. Sirve para saber qué se va a producir y cuándo, para que todo fluya bien y no haya sobresaltos.</p><h2>Herramientas de Planificación</h2><ul><li><strong>Seguimiento:</strong> Ver cómo van las órdenes en tiempo real</li><li><strong>Diagrama de Gantt:</strong> Un grafico de barras que muestra qué máquina trabaja cuándo</li><li><strong>Línea de tiempo:</strong> Una vista cronológica de todo lo que va a pasar</li><li><strong>Capacidad:</strong> Cuánto puede producir cada máquina</li><li><strong>Recursos:</strong> Qué personas y máquinas están disponibles</li><li><strong>Preturno:</strong> Planificar los trabajos antes de que empiece la producción</li></ul>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "facturacion-que-es",
+            "categoria": "facturacion",
+            "titulo": "¿Qué es Facturación FEL?",
+            "subtitulo": "Facturación electrónica en Guatemala",
+            "orden": 1,
+            "contenido": "<h2>¿Qué es FEL?</h2><p>FEL significa <strong>\"Facturación Electrónica\"</strong>. En Guatemala, todas las empresas están obligadas a facturar electrónicamente. Esto significa que las facturas se envían por internet al gobierno, no en papel.</p><h2>¿Qué necesitas para facturar?</h2><ul><li><strong>Datos del cliente:</strong> NIT, nombre, dirección</li><li><strong>Los productos:</strong> Qué se vendió</li><li><strong>Los precios:</strong> Cuánto cuesta cada cosa</li><li><strong>Los impuestos:</strong> El IVA (12% en Guatemala)</li></ul><h2>¿Cómo funciona en PrintLab?</h2><p>PrintLab se conecta con el sistema de facturación electrónica. Tú llenas los datos y el sistema genera la factura y la envía automáticamente al gobierno.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "reporteria-que-ver",
+            "categoria": "reporteria",
+            "titulo": "¿Qué puedo ver en Reportería?",
+            "subtitulo": "Números importantes del negocio",
+            "orden": 1,
+            "contenido": "<h2>¿Qué es Reportería?</h2><p>Reportería es donde ves todos los <strong>números importantes</strong> del negocio: cuánto se vendió, cuánto se ganó, cuánto se produjo, qué clientes son los más importantes.</p><h2>Qué reportes hay</h2><ul><li><strong>KPIs:</strong> Números clave como ventas totales, órdenes completadas, ticket promedio</li><li><strong>Rentabilidad:</strong> Cuánto se ganó realmente (ingresos menos costos)</li><li><strong>Materia Prima:</strong> Cuánto material se usó y cuánto cuesta</li></ul>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "inventarios-que-hay",
+            "categoria": "inventarios",
+            "titulo": "¿Qué hay en Inventarios?",
+            "subtitulo": "Todo lo que tiene la fábrica",
+            "orden": 1,
+            "contenido": "<h2>¿Qué es un inventario?</h2><p>Un inventario es como una <strong>lista de todo lo que tiene la fábrica</strong>: los materiales, las máquinas, las herramientas, los productos terminados.</p><h2>Tipos de inventario en PrintLab</h2><ul><li><strong>Materia Prima:</strong> Los materiales que usamos para producir (substrate, tinta, barniz)</li><li><strong>Troqueles:</strong> Las planchas con formas que cortan los productos</li><li><strong>Sellos:</strong> Herramientas para marcar los productos</li><li><strong>Cilindros:</strong> Partes de las máquinas de impresión</li><li><strong>Anilox:</strong> Rodillos que aplican la tinta</li><li><strong>Producto Terminado:</strong> Los productos ya fabricados, listos para entregar</li></ul>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "notificaciones-como-funcionan",
+            "categoria": "notificaciones",
+            "titulo": "¿Cómo funcionan las Notificaciones?",
+            "subtitulo": "Avisos importantes del sistema",
+            "orden": 1,
+            "contenido": "<h2>¿Qué son las notificaciones?</h2><p>Las notificaciones son como <strong>avisos o mensajes</strong> que el sistema te manda cuando algo importante pasa. Por ejemplo: \"Tu cotización fue aprobada\" o \"Hay una incidencia de calidad\".</p><h2>¿Dónde las veo?</h2><p>En el dashboard, arriba a la derecha, hay un icono de <strong>campanita 🔔</strong>. Si tiene un númeroito rojo, significa que tienes notificaciones nuevas.</p><h2>¿Qué tipos de notificación hay?</h2><ul><li><strong>Aprobaciones:</strong> Cuando algo que pediste fue aprobado</li><li><strong>Asignaciones:</strong> Cuando te asignaron un trabajo</li><li><strong>Alertas:</strong> Cuando algo necesita atención urgente</li><li><strong>Actualizaciones:</strong> Cuando algo que estabas viendo cambió</li></ul><h2>¿Cómo las marco como leídas?</h2><p>Haz clic en la campanita y verás la lista. Al hacer clic en una notificación, se marca como leída y el número rojo baja.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "configuracion-basica",
+            "categoria": "configuracion",
+            "titulo": "Configuración General — Lo básico",
+            "subtitulo": "Los ajustes más importantes",
+            "orden": 1,
+            "contenido": "<h2>¿Qué se puede configurar?</h2><p>En Configuración General puedes cambiar cosas básicas del sistema. Pero ojo: solo las personas con <strong>permisos de administrador</strong> pueden entrar aquí.</p><h2>Lo que se puede cambiar</h2><ul><li><strong>Nombre de la empresa:</strong> Cómo se llama tu empresa en el sistema</li><li><strong>Logo:</strong> La imagen del logo que aparece arriba</li><li><strong>Moneda por defecto:</strong> En qué moneda trabaja la mayoría de los clientes</li><li><strong>Correo electrónico:</strong> El correo que usa el sistema para enviar cosas</li></ul><h2>Lo que NO se debe cambiar sin saber</h2><ul><li>Configuración de SAP (eso lo maneja el equipo de TI)</li><li>Permisos de usuarios (eso lo maneja el administrador)</li><li>Parámetros avanzados de base de datos</li></ul>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "login-cerrar-sesion",
+            "categoria": "login",
+            "titulo": "¿Cómo cierro sesión?",
+            "subtitulo": "Salir de PrintLab correctamente",
+            "orden": 2,
+            "contenido": "<h2>¿Por qué debo cerrar sesión?</h2><p>Cerrar sesión es como cerrar la puerta de tu casa cuando te vas. Si no lo haces, cualquiera que se siente en tu computadora puede ver todo lo que estabas haciendo: los pedidos, los precios, la información de los clientes.</p><h2>Paso 1: Buscar tu nombre</h2><p>Arriba a la derecha de la pantalla, vas a ver tu nombre o un icono de persona. Haz clic ahí.</p><h2>Paso 2: Clic en Cerrar Sesión</h2><p>Se va a abrir un pequeño menú. Ahí busca la opción que dice <strong>\"Cerrar sesión\"</strong> y haz clic.</p><h2>Paso 3: Listo</h2><p>El sistema te va a mandar de vuelta a la pantalla de inicio (donde está el usuario y la contraseña). Ya puedes cerrar el navegador.</p><h2>¿Qué pasa si no cierro sesión?</h2><p>PrintLab tiene un sistema de seguridad que cierra tu sesión automáticamente si no haces nada por <strong>4 horas</strong>. Es como si el sistema dijera: \"Esta persona se olvidó, mejor cierro todo por seguridad\".</p><p>Pero no dependas de eso. Siempre es mejor cerrar sesión cuando te vayas, especialmente si te vas a alejar de la computadora o si otras personas usan la misma máquina.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "socios-ver-lista",
+            "categoria": "socios",
+            "titulo": "¿Cómo veo la lista de Socios?",
+            "subtitulo": "Buscar, ordenar y encontrar un socio",
+            "orden": 2,
+            "contenido": "<h2>Paso 1: Entrar a Socios</h2><p>En la pantalla principal de PrintLab (el dashboard), vas a ver una tarjeta que dice <strong>\"Socios\"</strong> con un icono de personas. Haz clic ahí.</p><h2>Paso 2: La tabla de socios</h2><p>Se va a abrir una tabla con todos los socios registrados. Las columnas son:</p><ul><li><strong>Código:</strong> El número único del socio (ej: CL00001)</li><li><strong>Nombre del socio:</strong> El nombre de la empresa o persona</li><li><strong>Vendedor:</strong> Quién es el vendedor responsable</li><li><strong>Correo:</strong> El correo electrónico del socio</li><li><strong>Sector:</strong> A qué se dedica (alimentos, farmacéutica, etc.)</li><li><strong>Creación:</strong> Cuándo se creó en el sistema</li><li><strong>Estado:</strong> Si está aprobado, pendiente, etc.</li></ul><h2>Paso 3: Buscar un socio</h2><p>Arriba a la derecha hay un recuadro que dice <strong>\"Buscar por código, nombre, vendedor o correo\"</strong>. Ahí puedes escribir:</p><ul><li>El nombre del socio: \"Distribuidora\"</li><li>El código: \"CL00001\"</li><li>El nombre del vendedor: \"Carlos\"</li><li>Un correo: \"ventas@empresa.com\"</li></ul><p>La tabla se va a filtrar automáticamente mientras escribes.</p><h2>Paso 4: Ordenar la tabla</h2><p>Si haces clic en el nombre de cualquier columna (como \"Nombre\" o \"Creación\"), la tabla se reordena. Primero de la A a la Z, y si vuelves a clic, de la Z a la A.</p><h2>Paso 5: Ver más socios</h2><p>Si hay muchos socios, la tabla muestra los primeros 200. Cuando llegas al final de la lista, se cargan automáticamente 200 más. Es como ir desenrollando un papel largo.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "productos-ver-buscar",
+            "categoria": "productos",
+            "titulo": "¿Cómo veo y busco productos?",
+            "subtitulo": "Encontrar el producto que necesitas",
+            "orden": 2,
+            "contenido": "<h2>Paso 1: Entrar a SKU</h2><p>En el dashboard, haz clic en la tarjeta que dice <strong>\"SKU\"</strong>.</p><h2>Paso 2: La tabla de productos</h2><p>Vas a ver una tabla con todos los productos. Las columnas muestran:</p><ul><li><strong>Código:</strong> El SKU del producto</li><li><strong>Nombre:</strong> Cómo se llama</li><li><strong>Descripción:</strong> Un detalle breve</li><li><strong>Estado:</strong> Si está activo o no</li></ul><h2>Paso 3: Buscar</h2><p>En el recuadro de búsqueda, escribe el nombre o código del producto que buscas. La tabla se filtra solo.</p><h2>Paso 4: Ver detalles</h2><p>Haz clic en un producto para ver toda su información: costos, materiales, máquinas, etc.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "cotizaciones-crear",
+            "categoria": "cotizaciones",
+            "titulo": "¿Cómo creo una Cotización?",
+            "subtitulo": "Paso a paso para armar una cotización",
+            "orden": 2,
+            "contenido": "<h2>Paso 1: Entrar a Cotizaciones</h2><p>En el dashboard, haz clic en <strong>\"Cotizaciones\"</strong>.</p><h2>Paso 2: Clic en Nueva</h2><p>Busca el botón <strong>\"Nueva\"</strong> o <strong>\"Crear Cotización\"</strong> y haz clic.</p>{{img:0}}<h2>Paso 3: Seleccionar el socio (cliente)</h2><p>El sistema te va a pedir que selecciones el cliente. Escribes el nombre y seleccionas de la lista.</p><h2>Paso 4: Agregar líneas (productos)</h2><p>Por cada producto que el cliente quiere, agregas una <strong>línea</strong>. En cada línea pones:</p><ul><li><strong>Producto:</strong> ¿Qué producto es?</li><li><strong>Cantidad:</strong> Cuántas unidades quiere</li><li><strong>Especificaciones:</strong> Detalles especiales (tamaño, color, material)</li></ul><p>Puedes agregar muchas líneas si el cliente quiere varios productos diferentes.</p>{{img:1}}<h2>Paso 5: El sistema calcula</h2><p>Una vez que pones el producto y la cantidad, el sistema automáticamente calcula cuánto cuesta. Usa los precios y costos que ya están configurados.</p><h2>Paso 6: Revisar y guardar</h2><p>Revisa que todo esté bien: los productos, las cantidades, los precios. Si está todo correcto, guarda la cotización.</p>",
+            "imagenes": [
+                {
+                    "ruta": "imagenes/cotizaciones/crear-cotizacion.gif",
+                    "descripcion": "Paso a paso para crear una cotización nueva",
+                    "tipo": "gif"
+                },
+                {
+                    "ruta": "imagenes/cotizaciones/agregar-linea.gif",
+                    "descripcion": "Cómo agregar una línea de producto a la cotización",
+                    "tipo": "gif"
+                }
+            ],
+            "videos": []
+        },
+        {
+            "id": "costos-configuracion",
+            "categoria": "costos",
+            "titulo": "Configuración General y Tipos de Producto",
+            "subtitulo": "Los costos básicos del sistema",
+            "orden": 2,
+            "contenido": "<h2>Pestaña: General</h2><p>Aquí se configuran los costos más básicos:</p><ul><li><strong>Tipo de cambio:</strong> ¿Cuánto vale un dólar en quetzales? Este precio se usa cuando el cliente paga en dólares.</li><li><strong>Costos por defecto:</strong> Valores que se usan si no se especifica algo diferente</li></ul><h2>Pestaña: Tipos de Producto</h2><p>Aquí se definen las diferentes categorías de productos. Cada categoría tiene sus propios costos.</p><p>Por ejemplo:</p><ul><li><strong>Bolsas:</strong> Tienen ciertos materiales y máquinas</li><li><strong>Etiquetas:</strong> Son diferentes, usan otras máquinas</li><li><strong>Cajas:</strong> Tienen otro proceso de producción</li></ul><h2>Pestaña: Convencional</h2><p>La impresión <strong>convencional</strong> es la que usa planchas metálicas. Aquí se configuran los costos de:</p><ul><li>Máquinas de impresión</li><li>Preparación (setup)</li><li>Velocidad de producción</li><li>Costo por hora de máquina</li><li>Costo por hora de operador</li></ul><h2>Pestaña: Digital</h2><p>La impresión <strong>digital</strong> es la que no usa planchas. Es más rápida para cantidades pequeñas. Los costos son diferentes a la convencional.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "ordenes-crear",
+            "categoria": "ordenes",
+            "titulo": "¿Cómo creo y gestiono Órdenes?",
+            "subtitulo": "Crear una orden desde una cotización",
+            "orden": 2,
+            "contenido": "<h2>Crear desde cotización</h2><p>La forma más común es crear una orden directamente desde una cotización aprobada:</p><ol><li>Ve a la cotización aprobada</li><li>Haz clic en <strong>\"Crear Orden\"</strong> o <strong>\"Convertir en Orden\"</strong></li><li>El sistema copia todos los datos de la cotización a la orden</li><li>Revisa y confirma</li></ol><h2>Crear manualmente</h2><p>También puedes crear una orden desde cero en la pantalla de Órdenes de Producción, pero es menos común.</p><h2>Asignar máquinas</h2><p>Cuando creas la orden, el sistema te sugiere en qué máquinas producir cada producto. Puedes cambiar la máquina si es necesario.</p><h2>Estaciones de trabajo</h2><p>Cada máquina tiene <strong>estaciones</strong>. Las estaciones son los diferentes pasos del proceso de impresión:</p><ul><li>Estación 1: Impresión (las tintas)</li><li>Estación 2: Barniz</li><li>Estación 3: Secado</li><li>Estación 4: Troquelado</li></ul><p>En cada estación se pueden configurar parámetros como temperatura, velocidad, etc.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "produccion-estaciones",
+            "categoria": "produccion",
+            "titulo": "¿Cómo registro datos en Producción?",
+            "subtitulo": "Los parámetros que se guardan en cada máquina",
+            "orden": 2,
+            "contenido": "<h2>¿Qué son las estaciones?</h2><p>Cada máquina de impresión tiene varias <strong>estaciones</strong>. Cada estación es un paso del proceso. Por ejemplo:</p><ul><li>Estación 1: Imprime en color cyan</li><li>Estación 2: Imprime en color magenta</li><li>Estación 3: Imprime en color amarillo</li><li>Estación 4: Imprime en color negro</li></ul><h2>¿Qué datos se registran?</h2><p>En cada estación, el operador puede registrar:</p><ul><li><strong>Tipo de tinta:</strong> Qué tinta se está usando</li><li><strong>Viscosidad:</strong> Qué tan espesa está la tinta (un número)</li><li><strong>Temperatura:</strong> A qué temperatura está la máquina</li><li><strong>Código de anilox:</strong> El rodillo que aplica la tinta</li><li><strong>Referencia Pantone:</strong> El color exacto que se está imprimiendo</li></ul><h2>¿Por qué se registra esto?</h2><p>Para que si algo sale mal (el color no quedó bien, la tinta se espesó), se pueda <strong>rastrear</strong> qué pasó y corregirlo para la próxima vez.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "calidad-incidencias",
+            "categoria": "calidad",
+            "titulo": "Órdenes de Calidad e Incidencias",
+            "subtitulo": "Cuando algo sale mal",
+            "orden": 2,
+            "contenido": "<h2>¿Qué es una Incidencia?</h2><p>Una incidencia es cuando <strong>algo sale mal</strong> en la producción. Por ejemplo: el color no quedó como el cliente pidió, la impresión salió borrosa, el material tenía un defecto.</p><h2>¿Cómo creo una incidencia?</h2><ol><li>Entra al módulo de Calidad</li><li>Haz clic en <strong>\"Incidencias\"</strong></li><li>Haz clic en <strong>\"Nueva Incidencia\"</strong></li><li>Llena los datos: qué pasó, en qué orden, quién la detectó</li><li>Guarda</li></ol><h2>¿Qué datos se registran?</h2><ul><li><strong>Descripción:</strong> Qué fue lo que falló</li><li><strong>Orden afectada:</strong> A qué orden de producción le pasó</li><li><strong>Severidad:</strong> Qué tan grave es (leve, media, grave)</li><li><strong>Acción correctiva:</strong> Qué se hizo para arreglarlo</li></ul><h2>¿Qué es una Orden de Calidad?</h2><p>Es un trabajo asignado para <strong>revisar la calidad</strong> de una orden de producción específica. Es como decirle a alguien: \"Ve y revisa que todo esté bien con esta orden\".</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "tintas-lotes-similares",
+            "categoria": "tintas",
+            "titulo": "Lotes y Color Similares",
+            "subtitulo": "Manejar existencias de tinta",
+            "orden": 2,
+            "contenido": "<h2>¿Qué es un Lote?</h2><p>Un lote es un <strong>envase de tinta</strong> que compramos. Cada lote tiene un código, una fecha de compra y una cantidad.</p><p>Por ejemplo: Lote #001 — 5 litros de tinta cyan, comprados el 15 de marzo.</p><h2>¿Por qué es importante?</h2><p>Si un cliente se queja de que el color no quedó bien, podemos rastrear qué lote de tinta se usó y ver si ese lote tiene algún problema.</p><h2>¿Qué son los Color Similares?</h2><p>A veces un cliente pide un color muy específico que no tenemos. El sistema nos muestra <strong>colores parecidos</strong> que sí tenemos en catálogo.</p><p>Por ejemplo: si el cliente pide \"Pantone 285 C\" y no lo tenemos, el sistema nos dice: \"Este color es parecido al Pantone 286 C que sí tenemos\".</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "planificacion-gantt",
+            "categoria": "planificacion",
+            "titulo": "Seguimiento y Gantt",
+            "subtitulo": "Ver la producción como un calendario",
+            "orden": 2,
+            "contenido": "<h2>¿Qué es un Diagrama de Gantt?</h2><p>Es un <strong>gráfico de barras</strong> donde cada barra representa un trabajo. Las barras largas significan trabajos largos, las cortas significan trabajos cortos.</p><p>Si ves que dos barras se cruzan en el mismo tiempo, significa que dos trabajos se están haciendo al mismo tiempo en la misma máquina (¡eso no puede ser!).</p><h2>¿Cómo se lee?</h2><ul><li><strong>Arriba:</strong> Los días de la semana (lunes, martes, miércoles...)</li><li><strong>Izquierda:</strong> Las máquinas</li><li><strong>Las barras:</strong> Los trabajos asignados a cada máquina</li></ul><h2>Producciones Suspendidas</h2><p>A veces un trabajo se <strong>detiene</strong> porque falta material, porque algo se dañó, o porque el cliente cambió de opinión. El módulo de planificación muestra cuáles están suspendidas y por qué.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "facturacion-crear",
+            "categoria": "facturacion",
+            "titulo": "¿Cómo creo una Factura?",
+            "subtitulo": "Paso a paso para facturar",
+            "orden": 2,
+            "contenido": "<h2>Paso 1: Entrar a Facturación</h2><p>En el dashboard, busca <strong>\"Contabilidad\"</strong> o <strong>\"Facturación FEL\"</strong>.</p><h2>Paso 2: Clic en Nueva Factura</h2><p>Busca el botón <strong>\"Crear\"</strong> o <strong>\"Nueva Factura\"</strong>.</p><h2>Paso 3: Seleccionar la orden o cotización</h2><p>El sistema te va a pedir que selecciones qué orden o cotización quieres facturar. Esto llena automáticamente los productos y precios.</p><h2>Paso 4: Datos fiscales</h2><p>Revisa los datos del cliente (NIT, nombre, dirección). Estos datos deben estar correctos porque la factura es un documento legal.</p><h2>Paso 5: Enviar</h2><p>Cuando todo esté bien, haz clic en <strong>\"Enviar Factura\"</strong>. El sistema la envía electrónicamente al gobierno y te devuelve un número de factura.</p><h2>¿Qué pasa después?</h2><p>La factura queda registrada en el sistema. Puedes verla, imprimirla o enviarla al cliente por correo.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "reporteria-leer",
+            "categoria": "reporteria",
+            "titulo": "Cómo leer los reportes",
+            "subtitulo": "Entender los números",
+            "orden": 2,
+            "contenido": "<h2>¿Qué son los KPIs?</h2><p>KPI significa <strong>\"Indicador Clave de Rendimiento\"</strong>. Son como las señales de tráfico del negocio: si están en verde, todo va bien. Si están en rojo, hay un problema.</p><h2>Números importantes</h2><ul><li><strong>Ventas totales:</strong> Cuánto dinero se facturó este mes</li><li><strong>Órdenes completadas:</strong> Cuántos trabajos se terminaron</li><li><strong>Ticket promedio:</strong> Cuánto gasta cada cliente en promedio</li><li><strong>Margen:</strong> Cuánto se ganó después de pagar los costos</li></ul><h2>Gráficas</h2><p>Los reportes usan <strong>gráficas</strong> (barras, líneas, círculos) para que sea más fácil entender los números. Las barras más altas significan más ventas. Las líneas que suben significan que las cosas van mejor.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "inventarios-troqueles",
+            "categoria": "inventarios",
+            "titulo": "Troqueles, Sellos y Cilindros",
+            "subtitulo": "Las herramientas especiales",
+            "orden": 2,
+            "contenido": "<h2>¿Qué es un Troquel?</h2><p>Un troquel es como un <strong>cortador de galletas</strong>. Es una plancha metálica con una forma específica que se usa para cortar los productos. Por ejemplo, si vendes bolsas con forma de estrella, el troquel tiene la forma de estrella.</p><h2>¿Qué es un Sello?</h2><p>Un sello es una herramienta que <strong>marca</strong> los productos. Puede poner un número de lote, una fecha, o un código de barras.</p><h2>¿Qué es un Cilindro?</h2><p>Un cilindro es una parte de la máquina de impresión. Es como un rodillo grande que tiene la imagen que se va a imprimir.</p><h2>¿Cómo se gestionan?</h2><p>En el módulo de Inventarios puedes ver todos los troqueles, sellos y cilindros que tienes, en qué máquina están, y si están disponibles o no.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "configuracion-sap",
+            "categoria": "configuracion",
+            "titulo": "Conexión con SAP",
+            "subtitulo": "Cómo PrintLab se conecta con el sistema grande",
+            "orden": 2,
+            "contenido": "<h2>¿Qué es SAP?</h2><p>Recordá que SAP es el <strong>sistema grande</strong> donde la empresa guarda todo: clientes, productos, facturas, dinero.</p><h2>¿Cómo se conecta PrintLab con SAP?</h2><p>Hay dos formas:</p><ul><li><strong>Service Layer:</strong> PrintLab se conecta directamente con SAP por internet (como cuando entras a un sitio web)</li><li><strong>DI-API:</strong> PrintLab se conecta con un programa intermedio (un \"conector\") que luego habla con SAP</li></ul><h2>¿Qué se necesita para la conexión?</h2><ul><li><strong>Servidor:</strong> La dirección donde está SAP (ej: https://sap.miempresa.com)</li><li><strong>Usuario:</strong> Un usuario de SAP con permisos</li><li><strong>Contraseña:</strong> La contraseña de ese usuario</li></ul><h2>¿Qué tablas se sincronizan?</h2><ul><li><strong>Clientes:</strong> Se traen de SAP y se guardan en PrintLab</li><li><strong>Productos:</strong> Se traen de SAP y se guardan en PrintLab</li><li><strong>Órdenes de venta:</strong> Se envían de PrintLab a SAP cuando el cliente acepta una cotización</li></ul><h2>¿Cómo sé si la conexión está funcionando?</h2><p>En Configuración → SAP hay un botón que dice <strong>\"Probar Conexión\"</strong>. Si todo está bien, sale un mensaje verde que dice \"Conexión exitosa\". Si algo está mal, sale un mensaje rojo con el error.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "socios-crear",
+            "categoria": "socios",
+            "titulo": "¿Cómo creo un nuevo Socio?",
+            "subtitulo": "Paso a paso para registrar un cliente nuevo",
+            "orden": 3,
+            "contenido": "<h2>Paso 1: Clic en Nuevo</h2><p>En la pantalla de Socios, arriba a la izquierda, hay un botón azul que dice <strong>\"Nuevo\"</strong>. Haz clic ahí.</p>{{img:0}}<h2>Paso 2: El asistente (wizard)</h2><p>Se va a abrir una ventanita grande con varios pasos. Es como un formulario que te va guiando paso a paso.</p><h3>Paso 2a: Información de Identificación</h3><p>Aquí llenas los datos básicos:</p><ul><li><strong>Tipo de prospecto:</strong> ¿Es una Empresa o una Persona individual? Selecciona la opción correcta.</li><li><strong>Tipo de identificación:</strong> ¿Qué tipo de documento tiene? NIT, DPI, Pasaporte u Otro.</li><li><strong>Número de identificación:</strong> El número del documento (ej: 1234567-8).</li></ul><p><strong>¡Ojo!</strong> Si escribes un número de identificación que ya existe, el sistema te va a avisar: \"Ya existe un socio con esta identificación\". No se van a crear dos socios iguales.</p><ul><li><strong>Nombre:</strong> Si es empresa, escribe el nombre completo (ej: \"Distribuidora XYZ S.A.\"). Si es persona, escribe el nombre completo (ej: \"Juan Pérez García\").</li></ul><h3>Paso 2b: Contacto Principal</h3><p>Aquí pones los datos de la persona que nos contacta:</p><ul><li><strong>Nombre:</strong> El nombre de la persona</li><li><strong>Apellido:</strong> El apellido</li><li><strong>Celular:</strong> Un número de celular</li><li><strong>Teléfono:</strong> Un número de teléfono fijo</li><li><strong>Correo:</strong> Su correo electrónico</li><li><strong>Cargo:</strong> Qué hace en la empresa (ej: \"Gerente de Compras\")</li></ul><p>También puedes marcar si es <strong>Representante Legal</strong> (la persona que firma contratos).</p>{{img:1}}<h3>Paso 2c: Dirección</h3><p>¿Dónde está la empresa o persona?</p><ul><li><strong>País:</strong> Generalmente Guatemala</li><li><strong>Departamento:</strong> Selecciona el departamento (ej: Guatemala, Sacatepéquez)</li><li><strong>Municipio:</strong> Selecciona el municipio (ej: Ciudad de Guatemala, Antigua)</li><li><strong>Zona:</strong> La zona de la dirección</li><li><strong>Detalle:</strong> Escribe la dirección completa (ej: \"5ª Avenida 12-34, Zona 10\")</li></ul>{{img:2}}<h3>Paso 2d: Moneda y Condiciones Comerciales</h3><ul><li><strong>Moneda:</strong> ¿En qué moneda va a pagar? GTQ (quetzales) o USD (dólares)</li><li><strong>Días de crédito:</strong> Cuántos días tiene para pagar después de recibir el producto (ej: 30 días, 60 días)</li><li><strong>Socio Exento:</strong> Si está exento de impuestos, marca esta casilla</li></ul><h3>Paso 2e: Potencial Comercial</h3><p>Aquí estimas cuánto dinero podría darnos este cliente. Es como una predicción:</p><ul><li><strong>Descripción:</strong> Qué producto va a comprar (ej: \"Bolsas para snacks\")</li><li><strong>Volumen:</strong> Cuántas unidades va a comprar (ej: 10,000)</li><li><strong>Unidad:</strong> En qué unidad se mide (ej: unidades, kg, metros)</li><li><strong>Frecuencia:</strong> Cada cuánto compra (ej: mensual, trimestral)</li><li><strong>Precio estimado:</strong> Cuánto creemos que va a costar cada unidad</li></ul><p>El sistema automáticamente calcula el <strong>potencial anual estimado</strong> (cuánto dinero podría darnos en un año).</p><h3>Paso 2f: Revisión y Guardado</h3><p>Revisa que todo esté bien. El sistema te muestra un resumen de todo lo que llenaste. Si está correcto, haz clic en <strong>\"Guardar\"</strong>.</p><h2>¿Qué pasa después?</h2><p>Cuando guardas, el socio queda en estado <strong>PROSPECTO</strong>. Esto significa que todavía no es cliente oficial. Un jefe o administrador tiene que revisar los datos y aprobarlo para que se convierta en un cliente de verdad.</p>",
+            "imagenes": [
+                {
+                    "ruta": "imagenes/socios/boton-nuevo.png",
+                    "descripcion": "Botón 'Nuevo' para crear un socio",
+                    "tipo": "screenshot"
+                },
+                {
+                    "ruta": "imagenes/socios/wizard-paso-1.gif",
+                    "descripcion": "Cómo llenar el paso 1 del wizard de socios",
+                    "tipo": "gif"
+                },
+                {
+                    "ruta": "imagenes/socios/wizard-paso-2-contacto.gif",
+                    "descripcion": "Llenando los datos del contacto principal",
+                    "tipo": "gif"
+                },
+                {
+                    "ruta": "imagenes/socios/wizard-paso-3-direccion.gif",
+                    "descripcion": "Seleccionando la dirección del socio",
+                    "tipo": "gif"
+                }
+            ],
+            "videos": []
+        },
+        {
+            "id": "productos-crear",
+            "categoria": "productos",
+            "titulo": "¿Cómo creo un producto?",
+            "subtitulo": "Registrar un nuevo SKU en el sistema",
+            "orden": 3,
+            "contenido": "<h2>Paso 1: Clic en Nuevo</h2><p>En la pantalla de SKU, busca el botón <strong>\"Nuevo\"</strong> y haz clic.</p><h2>Paso 2: Llenar los datos</h2><p>El formulario te pide:</p><ul><li><strong>Nombre del producto:</strong> Ej: \"Bolsa Snacks 30cm Camión\"</li><li><strong>Código:</strong> El SKU (el sistema puede generar uno automáticamente)</li><li><strong>Descripción:</strong> Detalles técnicos (material, tamaño, color)</li><li><strong>Cliente:</strong> ¿Para qué socio es este producto?</li></ul><h2>Paso 3: Asociar con máquinas</h2><p>Selecciona en qué máquinas se puede producir este producto. No todos los productos se pueden hacer en todas las máquinas.</p><h2>Paso 4: Asociar con materiales</h2><p>¿Qué materiales necesita? (ej: substrate, tinta, barniz). El sistema ya tiene los materiales registrados.</p><h2>Paso 5: Guardar</h2><p>Haz clic en <strong>\"Guardar\"</strong>. El producto ya está listo para usar en cotizaciones.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "cotizaciones-enviar",
+            "categoria": "cotizaciones",
+            "titulo": "¿Cómo envío la Cotización?",
+            "subtitulo": "Enviar el precio al cliente",
+            "orden": 3,
+            "contenido": "<h2>Paso 1: Generar proforma</h2><p>Una proforma es como un <strong>PDF bonito</strong> con todo el detalle de la cotización: productos, cantidades, precios, condiciones. Es el documento que le vas a mandar al cliente.</p><p>En la cotización, busca el botón que dice <strong>\"Generar Proforma\"</strong> o <strong>\"Ver Proforma\"</strong>.</p><h2>Paso 2: Revisar el PDF</h2><p>Se va a abrir una ventana con el documento. Revísalo bien: que el nombre del cliente esté correcto, que los precios estén bien, que los productos sean los correctos.</p><h2>Paso 3: Enviar por correo</h2><p>Si todo está bien, puedes enviarlo directamente por correo electrónico desde el sistema. El sistema le manda el PDF al correo del cliente.</p><h2>Paso 4: Cambiar el estado</h2><p>Después de enviar, cambia el estado de la cotización a <strong>\"Enviada\"</strong>. Así todos saben que ya se le mandó al cliente.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "costos-acabados-turnos",
+            "categoria": "costos",
+            "titulo": "Acabados, Turnos y Tipo de Cambio",
+            "subtitulo": "Los toques finales y la configuración del tiempo",
+            "orden": 3,
+            "contenido": "<h2>¿Qué son los Acabados?</h2><p>Los acabados son los <strong>toques finales</strong> que se le dan a un producto después de imprimirlo. Por ejemplo:</p><ul><li><strong>Barniz:</strong> Una capa transparente que protege la impresión</li><li><strong>Laminado:</strong> Una lámina plástica que hace el producto más resistente</li><li><strong>Troquelado:</strong> Cortar el producto en una forma específica</li><li><strong>Hot stamping:</strong> Poner una capa metálica (dorado, plateado)</li></ul><p>Cada acabado tiene su propio costo que se configura aquí.</p><h2>¿Qué son los Turnos?</h2><p>Los turnos son los <strong>horarios de trabajo</strong>. En PrintLab se puede trabajar en diferentes turnos:</p><ul><li><strong>Turno diurno:</strong> 7:00 AM a 3:00 PM</li><li><strong>Turno nocturno:</strong> 3:00 PM a 11:00 PM</li><li><strong>Turno mixto:</strong> Combinación de ambos</li></ul><p>Cada turno puede tener un costo diferente (por ejemplo, el turno nocturno puede ser más caro porque se paga extra).</p><h2>¿Qué es el Tipo de Cambio?</h2><p>El tipo de cambio es <strong>cuánto vale un dólar</strong> en quetzales. Si un producto cuesta $100 dólares y el tipo de cambio es 7.70, el costo en quetzales es 770 GTQ.</p><p>Este precio se actualiza periódicamente (generalmente diario o semanal).</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "ordenes-seguimiento",
+            "categoria": "ordenes",
+            "titulo": "Seguimiento de Órdenes",
+            "subtitulo": "Ver cómo va el trabajo",
+            "orden": 3,
+            "contenido": "<h2>¿Cómo veo el progreso?</h2><p>En la pantalla de Órdenes de Producción, puedes ver todas las órdenes y su estado.</p><h2>Filtrar órdenes</h2><p>Puedes filtrar por:</p><ul><li><strong>Estado:</strong> Solo ver las pendientes, o solo las en proceso</li><li><strong>Fecha:</strong> Ver las de hoy, de esta semana, de este mes</li><li><strong>Cliente:</strong> Ver las órdenes de un cliente específico</li></ul><h2>Ver detalles</h2><p>Haz clic en una orden para ver todos los detalles: qué productos tiene, qué máquinas se están usando, qué materiales se necesitan.</p><h2>Cambiar estado</h2><p>Cuando un operador termina de producir algo, cambia el estado de la orden o de la estación. Así todos se enteran de que ya avanzó.</p><h2>Marcar como completada</h2><p>Cuando todo el trabajo de la orden está terminado, se marca como <strong>\"Completada\"</strong>. Esto significa que los productos ya están listos para entregar.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "calidad-certificados",
+            "categoria": "calidad",
+            "titulo": "Certificados y Fichas Técnicas",
+            "subtitulo": "Documentos que prueban la calidad",
+            "orden": 3,
+            "contenido": "<h2>¿Qué es un Certificado de Calidad?</h2><p>Un certificado es un <strong>documento que dice</strong>: \"Este producto pasó todas las pruebas de calidad y está bien\". Se lo damos al cliente para que sepa que su producto está bien hecho.</p><h2>¿Qué es una Ficha Técnica?</h2><p>Una ficha técnica es un <strong>documento con todos los detalles</strong> de cómo se imprimió un producto: qué máquinas se usaron, qué tintas, qué materiales, a qué temperatura, etc.</p><h2>¿Qué es una Cartilla de Color?</h2><p>Es un documento que muestra los <strong>colores exactos</strong> que se usaron en la impresión. Se usa para que el cliente vea que los colores son los correctos.</p><h2>¿Cómo se generan?</h2><p>En la pantalla de Calidad, buscas la orden que quieres documentar y generas el certificado o ficha que necesitas. El sistema saca toda la información de la orden automáticamente.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "tintas-calculadora",
+            "categoria": "tintas",
+            "titulo": "Calculadora de Tintas",
+            "subtitulo": "Saber cuánta tinta necesitas",
+            "orden": 3,
+            "contenido": "<h2>¿Para qué sirve?</h2><p>La calculadora te dice <strong>cuánta tinta necesitas</strong> para un trabajo específico. Así sabes cuánto comprar y cuánto vas a gastar.</p><h2>¿Cómo se usa?</h2><ol><li>Selecciona el producto que vas a producir</li><li>Escribe la cantidad de unidades</li><li>El sistema calcula cuánta tinta de cada color necesitas</li></ol><h2>¿Qué información te da?</h2><ul><li>Cuántos litros de tinta cyan necesitas</li><li>Cuántos litros de tinta magenta</li><li>Cuántos litros de tinta amarillo</li><li>Cuántos litros de tinta negro</li><li>El costo total de la tinta para ese trabajo</li></ul>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "planificacion-capacidad",
+            "categoria": "planificacion",
+            "titulo": "Capacidad y Recursos",
+            "subtitulo": "Cuánto puede la fábrica",
+            "orden": 3,
+            "contenido": "<h2>¿Qué es Capacidad?</h2><p>Capacidad es <strong>cuánto puede producir</strong> cada máquina en un día. Por ejemplo, una máquina puede producir 5,000 bolsas por día.</p><h2>¿Por qué es importante?</h2><p>Si un cliente pide 50,000 bolsas y solo tenemos una máquina que produce 5,000 por día, necesitamos 10 días para completar el pedido. Si tenemos 5 máquinas, solo necesitamos 2 días.</p><h2>¿Qué son los Recursos?</h2><p>Los recursos son todo lo que necesitamos para producir:</p><ul><li><strong>Máquinas:</strong> Las impresoras, laminadoras, etc.</li><li><strong>Operadores:</strong> Las personas que trabajan en las máquinas</li><li><strong>Materiales:</strong> La tinta, el substrate, el barniz</li></ul><h2>Preturno</h2><p>El preturno es todo lo que hay que hacer <strong>antes</strong> de empezar a producir: preparar la máquina, mezclar la tinta, ajustar los colores. Si el preturno es largo, la producción empieza más tarde.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "inventarios-producto-terminado",
+            "categoria": "inventarios",
+            "titulo": "Producto Terminado",
+            "subtitulo": "Los productos ya fabricados",
+            "orden": 3,
+            "contenido": "<h2>¿Qué es Producto Terminado?</h2><p>Es todo lo que ya se <strong>fabricó y está listo</strong> para entregar al cliente. Son las cajas de bolsas, los rollos de etiquetas, etc.</p><h2>¿Por qué es importante?</h2><p>Saber cuánto producto terminado tenemos nos ayuda a:</p><ul><li>Saber si podemos entregar un pedido de inmediato</li><li>Saber si necesitamos producir más</li><li>Saber cuánto espacio tenemos en el almacén</li></ul><h2>¿Cómo se consulta?</h2><p>En el módulo de Inventarios, busca <strong>\"Producto Terminado\"</strong>. Ahí ves una lista de todo lo que está listo, con cantidades y ubicaciones.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "socios-editar",
+            "categoria": "socios",
+            "titulo": "¿Cómo edito un Socio?",
+            "subtitulo": "Cambiar la información de un cliente",
+            "orden": 4,
+            "contenido": "<h2>Paso 1: Encontrar al socio</h2><p>En la tabla de Socios, busca el socio que quieres editar. Puedes usar el recuadro de búsqueda.</p><h2>Paso 2: Hacer clic en el socio</h2><p>Cuando lo encuentres, haz clic en cualquier parte de su fila (o en el nombre). Se va a abrir la pantalla de detalles del socio.</p><h2>Paso 3: Las tres pestañas</h2><p>Arriba vas a ver tres pestañas:</p><ul><li><strong>Datos del Cliente:</strong> Aquí está toda la información principal (nombre, identificación, contacto, dirección, calidad)</li><li><strong>Manejo y Entrega:</strong> Cómo se maneja el exceso, anticipos, faltantes y otras opciones de entrega</li><li><strong>Información SAP:</strong> Los datos que vienen del sistema SAP (solo lectura, no se pueden cambiar aquí)</li></ul><h2>Paso 4: Cambiar lo que necesites</h2><p>Haz clic en el campo que quieres cambiar y escribe el nuevo dato. Por ejemplo:</p><ul><li>Cambiar el correo electrónico</li><li>Actualizar el teléfono</li><li>Cambiar la dirección</li><li>Actualizar el vendedor asignado</li></ul><h2>Paso 5: Guardar cambios</h2><p>Los cambios se guardan automáticamente cuando sales del campo o cuando presionas <strong>Enter</strong>. No hay botón de \"Guardar\" — el sistema lo hace solo.</p><h2>Contactos adicionales</h2><p>Si necesitas agregar más personas de contacto (además del contacto principal), busca la sección de <strong>Contactos</strong> dentro de la pestaña \"Datos del Cliente\". Ahí puedes agregar, editar o eliminar contactos.</p><h2>Direcciones adicionales</h2><p>Si el socio tiene varias direcciones (ej: una para facturación y otra para entrega), puedes agregar más direcciones en la sección correspondiente.</p>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "cotizaciones-aprobar",
+            "categoria": "cotizaciones",
+            "titulo": "¿Cómo apruebo una Cotización?",
+            "subtitulo": "Dar el visto bueno para enviarla",
+            "orden": 4,
+            "contenido": "<h2>¿Quién puede aprobar?</h2><p>No todos pueden aprobar cotizaciones. Solo las personas que tienen <strong>permisos de aprobación</strong> (generalmente gerentes o supervisores).</p><h2>Paso 1: Revisar la cotización</h2><p>Antes de aprobar, revisa bien todo:</p><ul><li>¿El cliente es correcto?</li><li>¿Los productos son los que el cliente pidió?</li><li>¿Las cantidades están bien?</li><li>¿Los precios son correctos?</li><li>¿El margen de ganancia es aceptable?</li></ul><h2>Paso 2: Aprobar</h2><p>Si todo está bien, busca el botón <strong>\"Aprobar\"</strong>. El sistema te va a preguntar si estás seguro. Confirmas y listo.</p><h2>¿Qué pasa después de aprobar?</h2><p>Después de aprobar, la cotización puede:</p><ul><li>Enviarse al cliente (como vimos antes)</li><li>Convertirse en una <strong>orden de producción</strong> si el cliente ya aceptó</li></ul>",
+            "imagenes": [],
+            "videos": []
+        },
+        {
+            "id": "socios-sap",
+            "categoria": "socios",
+            "titulo": "SAP y los Socios — ¿Qué se conecta?",
+            "subtitulo": "Cómo PrintLab se comunica con SAP",
+            "orden": 5,
+            "contenido": "<h2>¿Qué es SAP?</h2><p>SAP es como el <strong>gran libro de contabilidad</strong> de la empresa. Es un sistema muy grande y serio donde se guarda todo: los clientes, los productos, las facturas, el dinero, las existencias.</p><p>PrintLab se conecta con SAP para que la información esté sincronizada. No tenemos que escribir lo mismo en dos lugares.</p>{{img:0}}<h2>¿Qué información se TRAE de SAP?</h2><p>Cuando le damos al botón <strong>\"Actualizar desde SAP\"</strong>, el sistema trae toda esta información:</p><ul><li><strong>Datos del cliente:</strong> Nombre, dirección, teléfono, correo, número de identificación</li><li><strong>Contactos:</strong> Las personas de contacto del cliente</li><li><strong>Direcciones:</strong> Todas las direcciones del cliente (facturación, entrega)</li><li><strong>Grupo de vendedor:</strong> Quién es el vendedor asignado en SAP</li><li><strong>Moneda:</strong> En qué moneda trabaja el cliente</li><li><strong>Condiciones de pago:</strong> Cuántos días de crédito tiene</li></ul><p>Todo esto viene de SAP y se guarda automáticamente en PrintLab.</p>{{img:1}}<h2>¿Qué información se ENVÍA a SAP?</h2><p>Cuando creas un socio nuevo en PrintLab y lo aprueban, el sistema puede enviarlo a SAP para que también exista ahí. Lo que se envía es:</p><ul><li>Nombre del cliente</li><li>Número de identificación (NIT o DPI)</li><li>Dirección</li><li>Correo electrónico</li><li>Teléfono</li><li>Grupo de vendedor</li><li>Moneda</li><li>Condiciones de pago</li></ul><p>SAP le asigna un código (llamado <strong>CardCode</strong>) y se lo devuelve a PrintLab.</p>{{img:2}}<h2>¿Cuándo ocurre la sincronización?</h2><p>Hay tres momentos principales:</p><ol><li><strong>\"Actualizar desde SAP\" (botón):</strong> Cuando presionas este botón en la pantalla de Socios, el sistema va a SAP y trae todos los clientes que existen allá. Es como decirle al sistema: \"Dame todo lo nuevo de SAP\".</li><li><strong>Crear socio nuevo → Aprobar → Enviar a SAP:</strong> Cuando creas un socio en PrintLab y un jefe lo aprueba, el sistema automáticamente intenta enviarlo a SAP.</li><li><strong>\"Pendientes de SAP\" (botón):</strong> Este botón te muestra todos los socios que todavía no se han enviado a SAP. Es como una lista de espera.</li></ol><h2>¿Qué pasa si SAP no responde?</h2><p>A veces SAP puede estar apagado, congestinado o con problemas. Si eso pasa, PrintLab guarda el socio de todos modos pero le pone un estado que dice <strong>\"ERROR DE SINCRONIZACIÓN\"</strong>. Esto significa: \"Intenté enviarlo a SAP pero no pude\".</p><p>Cuando SAP vuelva a funcionar, se puede intentar de nuevo con el botón <strong>\"Pendientes de SAP\"</strong>.</p><h2>Diagrama simple</h2><p>Imagina esto como una conversación por teléfono:</p><p><strong>PrintLab dice:</strong> \"Oye SAP, tengo un cliente nuevo llamado Distribuidora XYZ\"</p><p><strong>SAP responde:</strong> \"Ok, le puse el código CL-2345. Ya quedó guardado\"</p><p><strong>Printlab dice:</strong> \"Gracias, ya le puse ese código a mi cliente\"</p>",
+            "imagenes": [
+                {
+                    "ruta": "imagenes/socios/boton-actualizar-sap.png",
+                    "descripcion": "Botón 'Actualizar desde SAP' en la pantalla de Socios",
+                    "tipo": "screenshot"
+                },
+                {
+                    "ruta": "imagenes/socios/pantalla-sap-info.png",
+                    "descripcion": "Pestaña de Información SAP en el detalle del socio",
+                    "tipo": "screenshot"
+                },
+                {
+                    "ruta": "imagenes/socios/flujo-sap.gif",
+                    "descripcion": "Diagrama animado del flujo de datos entre PrintLab y SAP",
+                    "tipo": "gif"
+                }
+            ],
+            "videos": []
+        },
+        {
+            "id": "socios-contactos-direcciones",
+            "categoria": "socios",
+            "titulo": "Contactos y Direcciones de un Socio",
+            "subtitulo": "Gestionar las personas y lugares de un cliente",
+            "orden": 6,
+            "contenido": "<h2>¿Qué es un Contacto?</h2><p>Un contacto es una <strong>persona</strong> que trabaja en la empresa del socio. Por ejemplo, si el socio es \"Distribuidora XYZ\", un contacto podría ser \"María López\" que es la gerente de compras.</p><p>Un socio puede tener varios contactos: el gerente, el asistente, el de logística, etc.</p><h2>Agregar un contacto nuevo</h2><ol><li>Entra al detalle del socio (haz clic en él desde la lista)</li><li>En la pestaña <strong>\"Datos del Cliente\"</strong>, busca la sección de Contactos</li><li>Haz clic en el botón <strong>\"Agregar contacto\"</strong> (o un botón con un +)</li><li>Llena los datos: nombre, apellido, celular, correo, cargo</li><li>Guarda</li></ol><h2>Editar o eliminar un contacto</h2><p>Junto a cada contacto hay botones para:</p><ul><li><strong>Editar:</strong> Cambiar los datos del contacto</li><li><strong>Eliminar:</strong> Borrar el contacto (el sistema te pregunta si estás seguro)</li></ul><h2>¿Qué es una Dirección?</h2><p>Una dirección es un <strong>lugar</strong> donde el socio recibe sus productos o donde factura. Algunas empresas tienen varias direcciones: una para recibir mercadería y otra para facturar.</p><h2>Agregar una dirección nueva</h2><ol><li>En el mismo detalle del socio, busca la sección de Direcciones</li><li>Haz clic en <strong>\"Agregar dirección\"</strong></li><li>Llena: país, departamento, municipio, zona, detalle de la dirección</li><li>Selecciona el tipo (entrega o facturación)</li><li>Guarda</li></ol><h2>El mapa</h2><p>Cuando pones una dirección, el sistema intenta mostrar un mapita de dónde queda. Si la dirección está bien escrita, vas a ver un mapa con un marcador. También hay un botón para abrir la ubicación en Google Maps.</p>",
+            "imagenes": [],
+            "videos": []
+        }
+    ]
+}

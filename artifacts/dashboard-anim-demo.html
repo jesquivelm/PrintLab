@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demo · Animación Dashboard</title>
+<style>
+    :root {
+        --app-bg: #f2f6f9;
+        --app-surface: #ffffff;
+        --app-border: #dbe4ec;
+        --app-text: #2b3c49;
+        --app-text-muted: #7b8894;
+        --app-primary: #0b81b8;
+        --app-primary-hover: #17abdf;
+        --app-shadow-sm: 0 2px 8px rgba(19, 39, 54, 0.06);
+        --app-shadow-md: 0 12px 28px rgba(19, 39, 54, 0.12);
+        --app-shadow-lg: 0 24px 60px rgba(19, 39, 54, 0.22);
+        /* Valores controlables desde las perillas */
+        --fade-ms: 140ms;
+        --grow-ms: 260ms;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background:
+            radial-gradient(1200px 600px at 50% -10%, rgba(11, 129, 184, 0.08), transparent 60%),
+            var(--app-bg);
+        color: var(--app-text);
+        min-height: 100vh;
+        overflow: hidden;
+    }
+
+    /* ---------- Perillas de velocidad ---------- */
+    .perillas {
+        position: fixed;
+        top: 14px;
+        right: 14px;
+        z-index: 50;
+        display: grid;
+        gap: 8px;
+        padding: 12px 14px;
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(6px);
+        border: 1px solid var(--app-border);
+        border-radius: 14px;
+        box-shadow: var(--app-shadow-sm);
+        font-size: 11px;
+        color: var(--app-text-muted);
+    }
+    .perillas label { display: grid; gap: 3px; font-weight: 600; }
+    .perillas .valor { color: var(--app-primary); font-variant-numeric: tabular-nums; }
+    .perillas input[type="range"] {
+        width: 170px;
+        accent-color: var(--app-primary);
+    }
+    .perillas .titulo-perillas {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        color: var(--app-text);
+    }
+
+    /* ---------- Escenario del dashboard ---------- */
+    .escenario {
+        position: relative;
+        width: 100%;
+        height: 100vh;
+        display: grid;
+        place-items: center;
+    }
+
+    .rejilla-modulos {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(150px, 200px));
+        gap: 18px;
+        transition: opacity var(--fade-ms) ease, transform var(--fade-ms) ease;
+    }
+    .rejilla-modulos.oculta {
+        opacity: 0;
+        transform: scale(0.985);
+        pointer-events: none;
+    }
+
+    .tarjeta-modulo {
+        display: grid;
+        justify-items: center;
+        align-content: center;
+        gap: 12px;
+        aspect-ratio: 1 / 1;
+        padding: 18px;
+        border: 1px solid var(--app-border);
+        border-radius: 24px;
+        background: var(--app-surface);
+        cursor: pointer;
+        text-align: center;
+        font: inherit;
+        color: var(--app-text);
+        box-shadow: var(--app-shadow-sm);
+        transition:
+            transform 0.18s ease,
+            box-shadow 0.18s ease,
+            border-color 0.18s ease,
+            opacity var(--fade-ms) ease,
+            filter var(--fade-ms) ease;
+    }
+    .tarjeta-modulo:hover,
+    .tarjeta-modulo:focus-visible {
+        transform: translateY(-2px);
+        box-shadow: var(--app-shadow-md);
+        border-color: rgba(11, 129, 184, 0.35);
+        outline: none;
+    }
+    .tarjeta-modulo .icono { font-size: 38px; line-height: 1; color: var(--app-primary); }
+    .tarjeta-modulo .titulo { font-size: 13px; font-weight: 500; color: var(--app-text-muted); }
+    .tarjeta-modulo:hover .titulo, .tarjeta-modulo:focus-visible .titulo { color: var(--app-text); }
+
+    /* Desvanecimiento individual de cada botón */
+    .tarjeta-modulo.desvanecida {
+        opacity: 0;
+        transform: scale(0.94);
+        pointer-events: none;
+    }
+    /* El botón que se tocó se queda un instante como semilla */
+    .tarjeta-modulo.semilla {
+        border-color: rgba(11, 129, 184, 0.45);
+        box-shadow: 0 0 0 4px rgba(11, 129, 184, 0.12), var(--app-shadow-md);
+    }
+
+    /* ---------- Ventana que nace desde el centro ---------- */
+    .ventana-modulo {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: min(920px, calc(100vw - 48px));
+        height: min(640px, calc(100vh - 90px));
+        transform: translate(-50%, -50%) scale(0.55);
+        opacity: 0;
+        border-radius: 18px;
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        box-shadow: var(--app-shadow-lg);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        pointer-events: none;
+    }
+    .ventana-modulo.abierta {
+        transition: transform var(--grow-ms) cubic-bezier(0.2, 0.9, 0.25, 1), opacity var(--grow-ms) ease;
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .ventana-modulo.cerrando {
+        transition: transform var(--grow-ms) ease-in, opacity var(--grow-ms) ease-in;
+        transform: translate(-50%, -50%) scale(0.55);
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .ventana-cabecera {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        background: linear-gradient(135deg, #0b81b8, #17abdf);
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 600;
+    }
+    .ventana-cabecera .cerrar {
+        border: 0;
+        background: rgba(255, 255, 255, 0.18);
+        color: #ffffff;
+        width: 28px;
+        height: 28px;
+        border-radius: 9px;
+        font-size: 15px;
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+    .ventana-cabecera .cerrar:hover { background: rgba(255, 255, 255, 0.32); }
+
+    .ventana-cuerpo {
+        flex: 1;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+        font-size: 13px;
+        color: var(--app-text-muted);
+        text-align: center;
+    }
+    .ventana-cuerpo .cargando { display: grid; gap: 10px; justify-items: center; }
+    .ventana-cuerpo .anillo {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: 3px solid rgba(11, 129, 184, 0.2);
+        border-top-color: var(--app-primary);
+        animation: girar 0.8s linear infinite;
+    }
+    @keyframes girar { to { transform: rotate(360deg); } }
+
+    .ventana-cuerpo .contenido-demo { display: grid; gap: 12px; justify-items: center; animation: aparecer 0.3s ease; }
+    @keyframes aparecer { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .contenido-demo .fila {
+        width: 100%;
+        max-width: 560px;
+        height: 40px;
+        border: 1px solid var(--app-border);
+        border-radius: 10px;
+        background: #f8fafc;
+    }
+
+    /* ---------- Barra de menús desplegables ---------- */
+    .barra-menu {
+        position: fixed;
+        top: 14px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 40;
+        display: flex;
+        gap: 8px;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(6px);
+        border: 1px solid var(--app-border);
+        border-radius: 14px;
+        box-shadow: var(--app-shadow-sm);
+    }
+    .menu-boton {
+        border: 0;
+        background: transparent;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--app-text-muted);
+        padding: 8px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease;
+    }
+    .menu-boton:hover, .menu-boton:focus-visible { background: rgba(11, 129, 184, 0.1); color: var(--app-primary); outline: none; }
+    .menu-boton.activo { background: rgba(11, 129, 184, 0.14); color: var(--app-primary); }
+
+    .menu-panel {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 50%;
+        min-width: 210px;
+        padding: 8px;
+        border: 1px solid var(--app-border);
+        border-radius: 14px;
+        background: var(--app-surface);
+        box-shadow: var(--app-shadow-lg);
+        opacity: 0;
+        visibility: hidden;
+        z-index: 45;
+    }
+    .menu-item {
+        display: block;
+        width: 100%;
+        text-align: left;
+        border: 0;
+        background: transparent;
+        font: inherit;
+        font-size: 13px;
+        color: var(--app-text);
+        padding: 9px 12px;
+        border-radius: 9px;
+        cursor: pointer;
+        opacity: 0;
+        transition: background 0.15s ease, color 0.15s ease, transform var(--menu-ms, 220ms) ease, opacity var(--menu-ms, 220ms) ease;
+    }
+    .menu-item:hover { background: rgba(11, 129, 184, 0.1); color: var(--app-primary); }
+
+    /* Estado abierto: el panel baja por detrás del botón */
+    .menu-panel.abierto {
+        opacity: 1;
+        visibility: visible;
+        transition: transform var(--menu-ms, 220ms) cubic-bezier(0.2, 0.9, 0.25, 1), opacity var(--menu-ms, 220ms) ease;
+    }
+    .menu-panel.cerrando {
+        opacity: 0;
+        visibility: hidden;
+        transition: transform 140ms ease-in, opacity 140ms ease-in;
+    }
+
+    /* Estilo 1 · Slide suave: baja ligeramente mientras aparece */
+    .menu-panel[data-estilo="slide"] { transform: translate(-50%, -8px); }
+    .menu-panel[data-estilo="slide"].abierto { transform: translate(-50%, 0); }
+    .menu-panel[data-estilo="slide"].cerrando { transform: translate(-50%, -8px); }
+
+    /* Estilo 2 · Despliegue: se desdobla desde arriba, como un papel */
+    .menu-panel[data-estilo="despliegue"] { transform: translate(-50%, 0) scale(1, 0.85); transform-origin: top center; }
+    .menu-panel[data-estilo="despliegue"].abierto { transform: translate(-50%, 0) scale(1, 1); }
+    .menu-panel[data-estilo="despliegue"].cerrando { transform: translate(-50%, 0) scale(1, 0.85); }
+
+    /* Estilo 3 · Cascada: el panel baja y cada opción entra escalonada */
+    .menu-panel[data-estilo="cascada"] { transform: translate(-50%, -10px); }
+    .menu-panel[data-estilo="cascada"].abierto { transform: translate(-50%, 0); }
+    .menu-panel[data-estilo="cascada"].cerrando { transform: translate(-50%, -10px); }
+    .menu-panel[data-estilo="cascada"] .menu-item { transform: translateY(-6px); }
+    .menu-panel[data-estilo="cascada"].abierto .menu-item { opacity: 1; transform: none; }
+    .menu-panel[data-estilo="cascada"].abierto .menu-item:nth-child(1) { transition-delay: 0ms; }
+    .menu-panel[data-estilo="cascada"].abierto .menu-item:nth-child(2) { transition-delay: 25ms; }
+    .menu-panel[data-estilo="cascada"].abierto .menu-item:nth-child(3) { transition-delay: 50ms; }
+    .menu-panel[data-estilo="cascada"].abierto .menu-item:nth-child(4) { transition-delay: 75ms; }
+    .menu-panel[data-estilo="cascada"].abierto .menu-item:nth-child(5) { transition-delay: 100ms; }
+
+    /* Los estilos slide y despliegue dejan las opciones visibles junto con el panel */
+    .menu-panel[data-estilo="slide"] .menu-item,
+    .menu-panel[data-estilo="despliegue"] .menu-item { opacity: 1; }
+    .menu-panel.abierto .menu-item,
+    .menu-panel:not(.cerrando) .menu-item { }
+
+    /* Movimiento reducido */
+    @media (prefers-reduced-motion: reduce) {
+        .rejilla-modulos, .tarjeta-modulo, .ventana-modulo, .menu-panel, .menu-item { transition: none !important; }
+        .ventana-cuerpo .anillo { animation-duration: 1.6s; }
+    }
+</style>
+</head>
+<body>
+
+<aside class="perillas" aria-label="Controles de velocidad de la animación">
+    <span class="titulo-perillas">Velocidad de la animación</span>
+    <label>Desvanecimiento de botones
+        <input type="range" id="perillaDesvanecer" min="60" max="400" step="10" value="140">
+        <span class="valor"><span id="textoDesvanecer">140</span> ms</span>
+    </label>
+    <label>Crecimiento de la ventana
+        <input type="range" id="perillaCrecer" min="100" max="600" step="10" value="260">
+        <span class="valor"><span id="textoCrecer">260</span> ms</span>
+    </label>
+    <label>Demora simulada del servidor
+        <input type="range" id="perillaDemora" min="0" max="1500" step="50" value="300">
+        <span class="valor"><span id="textoDemora">300</span> ms</span>
+    </label>
+    <label>Desplegables
+        <input type="range" id="perillaMenu" min="80" max="500" step="10" value="220">
+        <span class="valor"><span id="textoMenu">220</span> ms</span>
+    </label>
+    <label>Estilo del desplegable
+        <select id="selectorEstiloMenu" style="font: inherit; padding: 4px; border: 1px solid var(--app-border); border-radius: 8px;">
+            <option value="slide">Slide suave</option>
+            <option value="despliegue">Despliegue</option>
+            <option value="cascada">Cascada</option>
+        </select>
+    </label>
+</aside>
+
+<nav class="barra-menu" id="barraMenu" aria-label="Menús de prueba"></nav>
+
+<main class="escenario">
+    <section class="rejilla-modulos" id="rejilla" aria-label="Módulos"></section>
+    <section class="ventana-modulo" id="ventana" role="dialog" aria-modal="true" aria-hidden="true">
+        <header class="ventana-cabecera">
+            <span id="ventanaTitulo">Módulo</span>
+            <button type="button" class="cerrar" id="botonCerrar" aria-label="Cerrar ventana">✕</button>
+        </header>
+        <div class="ventana-cuerpo" id="ventanaCuerpo"></div>
+    </section>
+</main>
+
+<script>
+    const MODULOS = [
+        { nombre: 'Socios', icono: '👥' },
+        { nombre: 'SKU', icono: '📦' },
+        { nombre: 'Cotizaciones', icono: '📄' },
+        { nombre: 'Costos', icono: '💰' },
+        { nombre: 'Reportería', icono: '📊' },
+        { nombre: 'Inventarios', icono: '🗂️' },
+        { nombre: 'Configuración', icono: '⚙️' },
+        { nombre: 'Capacitación', icono: '🎓' },
+        { nombre: 'Órdenes', icono: '🏭' },
+        { nombre: 'Calidad', icono: '✅' },
+        { nombre: 'Tintas', icono: '🎨' },
+        { nombre: 'Tesorería', icono: '🏦' }
+    ];
+
+    const rejilla = document.getElementById('rejilla');
+    const ventana = document.getElementById('ventana');
+    const ventanaTitulo = document.getElementById('ventanaTitulo');
+    const ventanaCuerpo = document.getElementById('ventanaCuerpo');
+    const botonCerrar = document.getElementById('botonCerrar');
+
+    let demoraServidorMs = 300;
+    let temporizadorCarga = null;
+    let ventanaAbierta = false;
+
+    MODULOS.forEach((modulo) => {
+        const boton = document.createElement('button');
+        boton.type = 'button';
+        boton.className = 'tarjeta-modulo';
+        boton.innerHTML = `<span class="icono" aria-hidden="true">${modulo.icono}</span><span class="titulo">${modulo.nombre}</span>`;
+        boton.addEventListener('click', () => abrirModulo(modulo, boton));
+        rejilla.appendChild(boton);
+    });
+
+    function abrirModulo(modulo, botonOrigen) {
+        if (ventanaAbierta) return;
+        ventanaAbierta = true;
+
+        // 1) Los botones que no se tocaron se desvanecen; el tocado queda como semilla.
+        rejilla.querySelectorAll('.tarjeta-modulo').forEach((tarjeta) => {
+            if (tarjeta !== botonOrigen) tarjeta.classList.add('desvanecida');
+        });
+        botonOrigen.classList.add('semilla');
+
+        // 2) La ventana nace desde el centro mientras el resto se apaga.
+        ventanaTitulo.textContent = modulo.nombre;
+        ventanaCuerpo.innerHTML = `
+            <div class="cargando">
+                <span class="anillo" aria-hidden="true"></span>
+                <span>Trayendo los datos de ${modulo.nombre} desde el servidor…</span>
+            </div>`;
+        ventana.setAttribute('aria-hidden', 'false');
+        requestAnimationFrame(() => ventana.classList.add('abierta'));
+
+        // 3) Cuando el "servidor" responde, aparece el contenido.
+        clearTimeout(temporizadorCarga);
+        temporizadorCarga = setTimeout(() => {
+            ventanaCuerpo.innerHTML = `
+                <div class="contenido-demo">
+                    <strong style="color: var(--app-text); font-size: 15px;">${modulo.nombre}</strong>
+                    <span>Aquí iría la información real del módulo.</span>
+                    <div class="fila"></div>
+                    <div class="fila"></div>
+                    <div class="fila"></div>
+                </div>`;
+        }, demoraServidorMs);
+    }
+
+    function cerrarModulo() {
+        if (!ventanaAbierta) return;
+        clearTimeout(temporizadorCarga);
+        ventana.classList.remove('abierta');
+        ventana.classList.add('cerrando');
+        ventana.setAttribute('aria-hidden', 'true');
+        rejilla.classList.remove('oculta');
+        rejilla.querySelectorAll('.tarjeta-modulo').forEach((tarjeta) => {
+            tarjeta.classList.remove('desvanecida', 'semilla');
+        });
+        setTimeout(() => {
+            ventana.classList.remove('cerrando');
+            ventanaAbierta = false;
+        }, obtenerDuracion('crecer'));
+    }
+
+    botonCerrar.addEventListener('click', cerrarModulo);
+    document.addEventListener('keydown', (evento) => {
+        if (evento.key === 'Escape') cerrarModulo();
+    });
+
+    // ---------- Perillas ----------
+    function obtenerDuracion(cual) {
+        return cual === 'crecer'
+            ? Number(document.getElementById('perillaCrecer').value)
+            : Number(document.getElementById('perillaDesvanecer').value);
+    }
+
+    function conectarPerilla(idPerilla, idTexto, variableCss) {
+        const perilla = document.getElementById(idPerilla);
+        const texto = document.getElementById(idTexto);
+        perilla.addEventListener('input', () => {
+            texto.textContent = perilla.value;
+            if (variableCss) document.documentElement.style.setProperty(variableCss, `${perilla.value}ms`);
+            if (idPerilla === 'perillaDemora') demoraServidorMs = Number(perilla.value);
+        });
+    }
+
+    conectarPerilla('perillaDesvanecer', 'textoDesvanecer', '--fade-ms');
+    conectarPerilla('perillaCrecer', 'textoCrecer', '--grow-ms');
+    conectarPerilla('perillaDemora', 'textoDemora', null);
+    conectarPerilla('perillaMenu', 'textoMenu', '--menu-ms');
+
+    // ---------- Barra de menús desplegables ----------
+    const MENUS = [
+        { nombre: 'Sistema', opciones: ['Usuarios', 'Permisos', 'Vendedor SAP', 'Auditoría', 'Licenciamiento'] },
+        { nombre: 'Diseño', opciones: ['Presentación General', 'Iconos', 'Colores de Tabs', 'Transiciones'] },
+        { nombre: 'Documentos', opciones: ['Cotizaciones', 'Proformas', 'Órdenes', 'Facturación'] },
+        { nombre: 'Catálogos', opciones: ['Clientes', 'Productos', 'Máquinas', 'Tintas'] }
+    ];
+
+    const barraMenu = document.getElementById('barraMenu');
+    const selectorEstiloMenu = document.getElementById('selectorEstiloMenu');
+    let panelAbierto = null;
+    let temporizadorCierre = null;
+
+    MENUS.forEach((menu) => {
+        const contenedor = document.createElement('div');
+        contenedor.style.position = 'relative';
+
+        const boton = document.createElement('button');
+        boton.type = 'button';
+        boton.className = 'menu-boton';
+        boton.textContent = menu.nombre;
+
+        const panel = document.createElement('div');
+        panel.className = 'menu-panel';
+        panel.dataset.estilo = selectorEstiloMenu.value;
+        menu.opciones.forEach((opcion) => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'menu-item';
+            item.textContent = opcion;
+            panel.appendChild(item);
+        });
+
+        boton.addEventListener('click', () => {
+            if (panelAbierto && panelAbierto.panel === panel) {
+                cerrarMenu();
+                return;
+            }
+            cerrarMenu();
+            abrirMenu(boton, panel);
+        });
+
+        contenedor.appendChild(boton);
+        contenedor.appendChild(panel);
+        barraMenu.appendChild(contenedor);
+    });
+
+    function abrirMenu(boton, panel) {
+        clearTimeout(temporizadorCierre);
+        panel.classList.remove('cerrando');
+        panel.classList.add('abierto');
+        boton.classList.add('activo');
+        panelAbierto = { boton, panel };
+    }
+
+    function cerrarMenu() {
+        if (!panelAbierto) return;
+        const { boton, panel } = panelAbierto;
+        panel.classList.remove('abierto');
+        panel.classList.add('cerrando');
+        boton.classList.remove('activo');
+        panelAbierto = null;
+        temporizadorCierre = setTimeout(() => panel.classList.remove('cerrando'), 160);
+    }
+
+    selectorEstiloMenu.addEventListener('change', () => {
+        document.querySelectorAll('.menu-panel').forEach((panel) => {
+            panel.dataset.estilo = selectorEstiloMenu.value;
+        });
+    });
+
+    document.addEventListener('click', (evento) => {
+        if (!evento.target.closest('#barraMenu')) cerrarMenu();
+    });
+
+    document.addEventListener('keydown', (evento) => {
+        if (evento.key === 'Escape') cerrarMenu();
+    });
+</script>
+</body>
+</html>

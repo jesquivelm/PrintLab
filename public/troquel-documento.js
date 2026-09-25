@@ -96,6 +96,23 @@ function formatDisplayNumber(value) {
     }).format(numeric);
 }
 
+const TROQUEL_DOC_SUFFIXES = {
+    ancho_etiqueta_in: 'in',
+    largo_etiqueta_in: 'in',
+    ancho_material_in: 'in',
+    desarrollo_in: 'in',
+    dientes: '',
+    elongacion_pct: '%',
+    cantidad_filas: '',
+    repeticiones: '',
+    area_etiqueta_in: 'in²',
+    area_etiqueta_excesos_in: 'in²',
+    area_troquel_in2: 'in²',
+    vida_util_golpes_total: 'golpes',
+    vida_util_golpes_usados: 'golpes',
+    vida_util_golpes_restantes: 'golpes'
+};
+
 function setDirectValue(id, value, isCheckbox = false, numeric = false) {
     const element = document.getElementById(id) || troquelForm.elements.namedItem(id);
     if (!element) return;
@@ -107,7 +124,13 @@ function setDirectValue(id, value, isCheckbox = false, numeric = false) {
         element.value = value ?? '';
         return;
     }
-    element.value = numeric ? formatDisplayNumber(value) : (value ?? '');
+    const displayValue = numeric ? formatDisplayNumber(value) : (value ?? '');
+    element.value = displayValue;
+    const mask = element.closest('.display-input-wrap')?.querySelector('.display-input-mask');
+    if (mask) {
+        const suffix = TROQUEL_DOC_SUFFIXES[element.name] || '';
+        mask.textContent = displayValue ? (suffix ? `${displayValue} ${suffix}` : String(displayValue)) : '';
+    }
 }
 
 function renderImagePreview(url, code) {

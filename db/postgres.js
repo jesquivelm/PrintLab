@@ -52,6 +52,10 @@ const pool = new Pool({
     enableChannelBinding: shouldEnableChannelBinding(connectionString)
 });
 
+pool.on('error', (error) => {
+    console.error('Conexión de PostgreSQL en reposo falló; el pool se recuperará:', error.message);
+});
+
 /**
  * Ejecuta una consulta simple
  */

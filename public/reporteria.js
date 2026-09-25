@@ -148,9 +148,9 @@
         const y = reports.yields || {};
         els.yieldMeter.innerHTML = renderYieldMeter(y.yieldPct);
         els.yields.innerHTML = table([
-            { Indicador: 'Pies consumidos', Valor: num(y.feet_consumed, 2) },
-            { Indicador: 'Pies útiles', Valor: num(y.useful_feet, 2) },
-            { Indicador: 'Merma', Valor: num(y.waste_feet, 2) },
+            { Indicador: 'Metros Consumidos', Valor: num(y.metros_consumidos, 2) },
+            { Indicador: 'Metros Útiles', Valor: num(y.metros_utiles, 2) },
+            { Indicador: 'Merma', Valor: num(y.merma_metros, 2) },
             { Indicador: 'Rendimiento', Valor: `${num(y.yieldPct, 2)}%` }
         ]);
 

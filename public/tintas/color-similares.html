@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <title>Similitud de Color - PrintLab</title>
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <link rel="stylesheet" href="/tintas/styles.css?v=20260905-sellos">
+    <style>
+        .csim-form { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; margin-bottom: 18px; }
+        .csim-field { display: flex; flex-direction: column; gap: 4px; }
+        .csim-field > span { font-size: 12px; font-weight: 600; color: var(--app-text-muted); }
+        .csim-field input[type="text"],
+        .csim-field input[type="number"] { width: 130px; }
+        .csim-hexrow { display: flex; align-items: center; gap: 8px; }
+        .csim-hexrow input[type="color"] { width: 40px; height: 34px; padding: 2px; border: 1px solid var(--app-border); border-radius: 6px; background: var(--app-surface); cursor: pointer; }
+        .csim-detected { display: flex; align-items: center; gap: 14px; margin: 8px 0 20px; padding: 14px 16px; border: 1px solid var(--app-border); border-radius: 10px; background: var(--app-surface-2, var(--app-surface)); }
+        .csim-detected-swatch { width: 56px; height: 56px; border-radius: 8px; border: 1px solid var(--app-border); flex: 0 0 auto; }
+        .csim-detected-meta { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+        .csim-detected-meta strong { font-size: 16px; letter-spacing: 0.02em; }
+        .csim-detected-meta span { color: var(--app-text-muted); }
+        .csim-section-title { margin: 20px 0 8px; font-size: 14px; font-weight: 700; }
+        .csim-band { display: inline-flex; align-items: center; min-height: 22px; padding: 0 10px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: capitalize; }
+        .csim-band-alta { background: rgba(22, 163, 74, 0.12); color: var(--app-success); }
+        .csim-band-media { background: rgba(180, 130, 20, 0.12); color: var(--app-warning); }
+        .csim-band-baja { background: rgba(100, 116, 139, 0.12); color: var(--app-text-muted); }
+        .csim-num { text-align: right; font-variant-numeric: tabular-nums; }
+        .csim-empty { padding: 14px; color: var(--app-text-muted); font-size: 13px; }
+        .csim-row-actions { display: flex; gap: 6px; white-space: nowrap; }
+        .csim-mini-btn { border: 1px solid var(--app-border); background: var(--app-surface); color: var(--app-text); border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 600; cursor: pointer; }
+        .csim-mini-btn:hover { border-color: var(--app-primary); }
+        .csim-mini-btn-primary { background: rgba(22, 163, 74, 0.12); color: var(--app-success); border-color: transparent; }
+        #csimCapture { margin: 4px 0 18px; }
+        .csim-ack { margin: 10px 0; padding: 8px 12px; border-radius: 8px; font-size: 12px; background: rgba(11, 129, 184, 0.10); color: var(--app-primary); }
+    </style>
+</head>
+<body>
+    <main class="workspace workspace-quote quote-browser-main tintas-shell">
+        <section class="quote-card quote-card-clean quote-browser-card tintas-card">
+            <div class="tintas-toolbar">
+                <h2>Similitud de Color</h2>
+            </div>
+            <p class="csim-empty">Pagina de prueba de captura de color de pantalla + buscador de tintas. Captura un color (cuentagotas, selector del sistema o HEX manual) y el sistema busca recetas y pantones de la biblioteca por cercania perceptual (CIEDE2000). Anade <code>?diag=1</code> a la URL para ver el diagnostico de capacidades.</p>
+
+            <input id="csimHex" type="hidden" value="#FE5000">
+            <div id="csimCapture"></div>
+
+            <div class="csim-form">
+                <label class="csim-field">
+                    <span>Limite por seccion</span>
+                    <input id="csimLimite" type="number" min="1" max="100" value="10">
+                </label>
+                <label class="csim-field">
+                    <span>Umbral alta (&Delta;E)</span>
+                    <input id="csimUmbralAlta" type="number" min="0" step="0.1" placeholder="2.0">
+                </label>
+                <label class="csim-field">
+                    <span>Umbral media (&Delta;E)</span>
+                    <input id="csimUmbralMedia" type="number" min="0" step="0.1" placeholder="5.0">
+                </label>
+                <button type="button" class="tintas-btn" onclick="csimBuscar()">Buscar</button>
+            </div>
+
+            <div id="csimDetected" hidden></div>
+            <div id="csimResultado"></div>
+        </section>
+    </main>
+
+    <script src="/tintas/color-capture.js?v=20260906-colorcapture2"></script>
+    <script>
+        var API = '/api/tintas';
+
+        function csimEsc(v) {
+            return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+        function csimHexValido(v) { return /^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(String(v || '').trim()); }
+        function csimNormHex(v) {
+            var h = String(v || '').trim().replace(/^#/, '');
+            if (/^[0-9a-fA-F]{3}$/.test(h)) h = h.split('').map(function (c) { return c + c; }).join('');
+            return '#' + h.toUpperCase();
+        }
+
+        // Placeholder: el cableado real (usar formula existente / crear solicitud de formulacion)
+        // pertenece a los sub-proyectos B y C. Aqui solo se confirma la eleccion y se emite un evento.
+        function csimAccion(tipo, referencia) {
+            var color = window.csimColorActual || document.getElementById('csimHex').value;
+            var texto = tipo === 'usar-formula'
+                ? 'Se usaria la formula ' + referencia + ' para el color ' + color + ' (pendiente de cablear en sub-proyecto C).'
+                : 'Se abriria una solicitud de nueva formulacion para el color ' + color + ' partiendo de ' + referencia + ' (pendiente de cablear en sub-proyecto B).';
+            var out = document.getElementById('csimResultado');
+            var ack = document.getElementById('csimAck');
+            if (!ack) { ack = document.createElement('div'); ack.id = 'csimAck'; ack.className = 'csim-ack'; out.parentNode.insertBefore(ack, out); }
+            ack.textContent = texto;
+            document.dispatchEvent(new CustomEvent('csim:accion', { detail: { tipo: tipo, referencia: referencia, color: color } }));
+        }
+
+        function csimBandaHtml(banda) {
+            var b = String(banda || '').toLowerCase();
+            var cls = b === 'alta' ? 'csim-band-alta' : (b === 'media' ? 'csim-band-media' : 'csim-band-baja');
+            return '<span class="csim-band ' + cls + '">' + csimEsc(b || '-') + '</span>';
+        }
+        function csimSwatch(hex) {
+            return '<span class="tintas-color-swatch" style="background:' + csimEsc(hex || 'transparent') + '"></span>';
+        }
+
+        function csimTablaRecetas(filas) {
+            if (!filas || !filas.length) return '<div class="csim-empty">Sin recetas con color de referencia.</div>';
+            var html = '<div class="tintas-table-wrap"><table class="tintas-table"><thead><tr>'
+                + '<th>Color</th><th>Nombre</th><th>Referencia</th><th>Pantone</th><th>Estado</th>'
+                + '<th class="csim-num">&Delta;E2000</th><th class="csim-num">&Delta;E76</th><th class="csim-num">Similitud</th><th>Coincidencia</th><th>Accion</th>'
+                + '</tr></thead><tbody>';
+            filas.forEach(function (r) {
+                var ref = csimEsc(r.codigo_interno || '');
+                html += '<tr>'
+                    + '<td>' + csimSwatch(r.color_hex) + csimEsc(r.color_hex || '') + '</td>'
+                    + '<td>' + csimEsc(r.nombre || '') + '</td>'
+                    + '<td>' + ref + '</td>'
+                    + '<td>' + csimEsc(r.codigo_pantone || '') + '</td>'
+                    + '<td><span class="tintas-badge tintas-badge-' + csimEsc(r.estado || '') + '">' + csimEsc(r.estado || '') + '</span>'
+                    + (r.es_vigente ? ' <span class="tintas-badge tintas-badge-VIGENTE">vigente</span>' : '') + '</td>'
+                    + '<td class="csim-num">' + Number(r.delta_e2000).toFixed(2) + '</td>'
+                    + '<td class="csim-num">' + Number(r.delta_e76).toFixed(2) + '</td>'
+                    + '<td class="csim-num">' + Number(r.similitud).toFixed(1) + ' %</td>'
+                    + '<td>' + csimBandaHtml(r.banda) + '</td>'
+                    + '<td><span class="csim-row-actions">'
+                    + '<button type="button" class="csim-mini-btn csim-mini-btn-primary" onclick="csimAccion(\'usar-formula\', \'' + ref + '\')">Usar esta formula</button>'
+                    + '<button type="button" class="csim-mini-btn" onclick="csimAccion(\'solicitar-formulacion\', \'' + ref + '\')">Solicitar nueva formulacion</button>'
+                    + '</span></td>'
+                    + '</tr>';
+            });
+            return html + '</tbody></table></div>';
+        }
+
+        function csimTablaBiblioteca(filas) {
+            if (!filas || !filas.length) return '<div class="csim-empty">Sin pantones de biblioteca con color de referencia.</div>';
+            var html = '<div class="tintas-table-wrap"><table class="tintas-table"><thead><tr>'
+                + '<th>Color</th><th>Codigo</th><th>Nombre</th>'
+                + '<th class="csim-num">&Delta;E2000</th><th class="csim-num">&Delta;E76</th><th class="csim-num">Similitud</th><th>Coincidencia</th><th>Accion</th>'
+                + '</tr></thead><tbody>';
+            filas.forEach(function (r) {
+                var cod = csimEsc(r.codigo_pantone || '');
+                html += '<tr>'
+                    + '<td>' + csimSwatch(r.color_hex) + csimEsc(r.color_hex || '') + '</td>'
+                    + '<td>' + cod + '</td>'
+                    + '<td>' + csimEsc(r.nombre || '') + '</td>'
+                    + '<td class="csim-num">' + Number(r.delta_e2000).toFixed(2) + '</td>'
+                    + '<td class="csim-num">' + Number(r.delta_e76).toFixed(2) + '</td>'
+                    + '<td class="csim-num">' + Number(r.similitud).toFixed(1) + ' %</td>'
+                    + '<td>' + csimBandaHtml(r.banda) + '</td>'
+                    + '<td><span class="csim-row-actions">'
+                    + '<button type="button" class="csim-mini-btn" onclick="csimAccion(\'solicitar-formulacion\', \'Pantone ' + cod + '\')">Solicitar nueva formulacion</button>'
+                    + '</span></td>'
+                    + '</tr>';
+            });
+            return html + '</tbody></table></div>';
+        }
+
+        function csimRenderDetected(objetivo, umbrales) {
+            var el = document.getElementById('csimDetected');
+            if (!objetivo) { el.hidden = true; el.innerHTML = ''; return; }
+            el.hidden = false;
+            el.className = 'csim-detected';
+            el.innerHTML = '<span class="csim-detected-swatch" style="background:' + csimEsc(objetivo.hex) + '"></span>'
+                + '<span class="csim-detected-meta">'
+                + '<strong>' + csimEsc(objetivo.hex) + '</strong>'
+                + '<span>Lab: L ' + objetivo.lab.L.toFixed(2) + '  a ' + objetivo.lab.a.toFixed(2) + '  b ' + objetivo.lab.b.toFixed(2) + '</span>'
+                + '<span>Umbrales: alta &le; ' + umbrales.alta + '  ·  media &le; ' + umbrales.media + '  ·  baja &gt; ' + umbrales.media + '</span>'
+                + '</span>';
+        }
+
+        async function csimBuscar() {
+            var hex = document.getElementById('csimHex').value.trim();
+            var out = document.getElementById('csimResultado');
+            if (!csimHexValido(hex)) {
+                csimRenderDetected(null);
+                out.innerHTML = '<div class="tintas-warning">Introduce un HEX valido, por ejemplo #FE5000.</div>';
+                return;
+            }
+            var params = new URLSearchParams();
+            params.set('hex', hex);
+            var limite = document.getElementById('csimLimite').value;
+            if (limite) params.set('limite', limite);
+            var ua = document.getElementById('csimUmbralAlta').value;
+            var um = document.getElementById('csimUmbralMedia').value;
+            if (ua !== '') params.set('umbralAlta', ua);
+            if (um !== '') params.set('umbralMedia', um);
+
+            out.innerHTML = '<div class="tintas-loading">Buscando...</div>';
+            try {
+                var resp = await fetch(API + '/color/similares?' + params.toString());
+                var data = await resp.json();
+                if (!resp.ok) {
+                    csimRenderDetected(null);
+                    out.innerHTML = '<div class="tintas-warning">' + csimEsc(data.error || 'Error en la busqueda.') + '</div>';
+                    return;
+                }
+                csimRenderDetected(data.objetivo, data.umbrales);
+                out.innerHTML = '<div class="csim-section-title">Recetas y formulas similares</div>'
+                    + csimTablaRecetas(data.recetas)
+                    + '<div class="csim-section-title">Biblioteca Pantone</div>'
+                    + csimTablaBiblioteca(data.biblioteca);
+            } catch (e) {
+                csimRenderDetected(null);
+                out.innerHTML = '<div class="tintas-warning">No fue posible contactar el servidor.</div>';
+            }
+        }
+
+        // Control compacto de captura de color. Al obtener un color se dispara la busqueda.
+        var csimCapture = ColorCapture.crear('#csimCapture', {
+            onColor: function (color) {
+                window.csimColorActual = color.hex;
+                document.getElementById('csimHex').value = color.hex;
+                csimBuscar();
+            }
+        });
+        csimCapture.setColor('#FE5000');
+    </script>
+</body>
+</html>

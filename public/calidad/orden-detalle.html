@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orden de Calidad - PrintLab</title>
+<link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+<link rel="stylesheet" href="/orden-produccion.css">
+<link rel="stylesheet" href="/calidad/styles.css?v=20260905-sellos">
+<script src="/theme.js"></script>
+<script src="/desplegable.js?v=20260924-desplegable-v5"></script>
+<style>
+body { margin:0; background:transparent; padding:24px 24px 60px; }
+.calidad-form-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px 16px; }
+.calidad-form-grid label.production-summary-item { display:flex; flex-direction:column; gap:5px; min-width:0; }
+.calidad-form-grid input, .calidad-form-grid select, .calidad-form-grid textarea {
+    border:1px solid var(--order-panel-border,#d4e1ea); border-radius:10px; background:var(--order-panel-soft,#fbfdff);
+    color:var(--ink,#203746); font-size:13px; padding:0 10px; min-height:34px; font-family:inherit;
+}
+.calidad-form-grid textarea { grid-column:1 / -1; min-height:60px; padding:8px 10px; resize:vertical; }
+.calidad-linea-card { margin:0 0 14px; }
+.calidad-linea-card h3 { margin:0 0 12px; font-size:14px; font-weight:700; color:#577086; }
+.calidad-linea-card h4 { margin:14px 0 8px; font-size:11px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:#70808d; }
+.calidad-linea-card:last-child { margin-bottom:0; }
+.calidad-defecto-row { display:grid; grid-template-columns:2fr 1fr 1fr 1fr auto; gap:8px; margin-bottom:8px; align-items:center; }
+.calidad-defecto-row select, .calidad-defecto-row input {
+    border:1px solid var(--order-panel-border,#d4e1ea); border-radius:8px; background:var(--order-panel-soft,#fff); color:var(--ink,#203746);
+    font-size:13px; min-height:32px; padding:0 8px; font-family:inherit;
+}
+.calidad-defecto-row button {
+    border:1px solid var(--order-panel-border,#d4e1ea); background:var(--order-panel-soft,#fff); border-radius:8px; width:32px; height:32px;
+    cursor:pointer; color:#a74343;
+}
+.calidad-actions { display:flex; gap:10px; align-items:center; margin-top:20px; }
+.calidad-actions select {
+    border:1px solid var(--order-panel-border,#d4e1ea); border-radius:10px; background:var(--order-panel-soft,#fff); color:var(--ink,#203746);
+    font-size:13px; min-height:38px; padding:0 10px; font-family:inherit;
+}
+html[data-theme="dark"] .calidad-linea-card h3 { color:var(--ink-3,#9fb0c8); }
+html[data-theme="dark"] .calidad-linea-card h4 { color:var(--ink-4,#7f8aa0); }
+</style>
+</head>
+<body>
+<main class="workspace workspace-quote">
+    <section class="quote-card quote-card-clean production-order-card">
+        <section class="socios-section">
+            <div class="production-tracking-body">
+                <div class="production-tracking-left">
+                    <div class="production-tracking-head-row">
+                        <strong id="calTituloOrden" class="production-jobname">Nueva Orden de Calidad</strong>
+                        <div class="production-tracking-state-row">
+                            <strong id="calEstadoPill" class="production-order-state production-state-pill production-state-pill-inline" hidden></strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="socios-section">
+            <div class="section-caption">Datos Generales</div>
+            <div class="calidad-form-grid">
+                <label class="production-summary-item"><span class="production-summary-label">Orden de Producción (opcional)</span><input type="text" id="calOrdenProduccion" placeholder="OP-000009"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Código de Cliente</span><input type="text" id="calClienteCodigo"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Nombre de Cliente</span><input type="text" id="calClienteNombre"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Fecha de Detección</span><input type="date" id="calFechaDeteccion"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Detectado Por</span><input type="text" id="calDetectadoPor"></label>
+                <label class="production-summary-item" style="grid-column:1 / -1"><span class="production-summary-label">Descripción General</span><textarea id="calDescripcionGeneral"></textarea></label>
+            </div>
+        </section>
+
+        <section class="socios-section">
+            <div class="section-caption">Líneas y Productos Afectados</div>
+            <div id="calLineasContainer"></div>
+            <button type="button" class="action-btn" id="calAgregarLinea">+ Agregar Línea/Producto Afectado</button>
+        </section>
+
+        <section class="socios-section" id="calAccionCorrectivaBlock" hidden>
+            <div class="section-caption">Acción Correctiva</div>
+            <div class="calidad-form-grid">
+                <label class="production-summary-item" style="grid-column:1 / -1"><span class="production-summary-label">Acción Correctiva</span><textarea id="calAccionCorrectiva"></textarea></label>
+                <label class="production-summary-item" style="grid-column:1 / -1"><span class="production-summary-label">Acción Preventiva</span><textarea id="calAccionPreventiva"></textarea></label>
+                <label class="production-summary-item"><span class="production-summary-label">Responsable de la Acción</span><input type="text" id="calResponsableAccion"></label>
+                <label class="production-summary-item"><span class="production-summary-label">Fecha Límite</span><input type="date" id="calFechaLimiteAccion"></label>
+            </div>
+        </section>
+
+        <div class="calidad-actions">
+            <button type="button" class="action-btn action-btn-primary" id="calGuardar">Guardar Orden de Calidad</button>
+            <select id="calCambiarEstado" style="display:none;">
+                <option value="">Cambiar Estado...</option>
+                <option value="EN_INVESTIGACION">En Investigación</option>
+                <option value="ACCION_CORRECTIVA_DEFINIDA">Acción Correctiva Definida</option>
+                <option value="CERRADA">Cerrada</option>
+            </select>
+        </div>
+    </section>
+</main>
+
+<script>
+const ESTADO_INFO = {
+    ABIERTA: { etiqueta: 'Abierta', clase: 'is-alert' },
+    EN_INVESTIGACION: { etiqueta: 'En Investigación', clase: 'is-pending' },
+    ACCION_CORRECTIVA_DEFINIDA: { etiqueta: 'Acción Correctiva Definida', clase: 'is-progress' },
+    CERRADA: { etiqueta: 'Cerrada', clase: 'is-complete' }
+};
+const codigoActual = window.location.pathname.split('/').pop();
+const esNueva = codigoActual === 'nueva';
+let tiposDefecto = [];
+let lineas = [];
+
+function calEscapar(text) {
+    const d = document.createElement('div');
+    d.textContent = text == null ? '' : String(text);
+    return d.innerHTML;
+}
+function calEscaparAtributo(text) {
+    return calEscapar(text).replace(/"/g, '&quot;');
+}
+
+function calMostrarLineas() {
+    const cont = document.getElementById('calLineasContainer');
+    cont.innerHTML = lineas.map(function(linea, i) {
+        const defectosHtml = (linea.defectos || []).map(function(d, j) {
+            const opcionesConSeleccion = tiposDefecto.map(function(t) {
+                const seleccionado = String(t.id) === String(d.tipo_defecto_id || '') ? ' selected' : '';
+                return '<option value="' + t.id + '"' + seleccionado + '>' + calEscapar(t.nombre) + '</option>';
+            }).join('');
+            return '<div class="calidad-defecto-row">' +
+                '<select data-linea="' + i + '" data-defecto="' + j + '" data-campo="tipo_defecto_id" onchange="calActualizarDefecto(this)"><option value="">Tipo de defecto...</option>' + opcionesConSeleccion + '</select>' +
+                '<input type="text" placeholder="Descripción" value="' + calEscaparAtributo(d.descripcion) + '" data-linea="' + i + '" data-defecto="' + j + '" data-campo="descripcion" oninput="calActualizarDefecto(this)">' +
+                '<input type="text" placeholder="Área Responsable" value="' + calEscaparAtributo(d.area_responsable) + '" data-linea="' + i + '" data-defecto="' + j + '" data-campo="area_responsable" oninput="calActualizarDefecto(this)">' +
+                '<input type="text" placeholder="Persona Responsable" value="' + calEscaparAtributo(d.persona_responsable) + '" data-linea="' + i + '" data-defecto="' + j + '" data-campo="persona_responsable" oninput="calActualizarDefecto(this)">' +
+                '<button type="button" onclick="calQuitarDefecto(' + i + ',' + j + ')">✕</button>' +
+            '</div>';
+        }).join('');
+        return '<div class="calidad-linea-card production-subgroup">' +
+            '<h3>Línea ' + (i + 1) + '</h3>' +
+            '<div class="calidad-form-grid">' +
+                '<label class="production-summary-item"><span class="production-summary-label">Código de Producto</span><input type="text" value="' + calEscaparAtributo(linea.producto_codigo) + '" data-linea="' + i + '" data-campo="producto_codigo" oninput="calActualizarLinea(this)"></label>' +
+                '<label class="production-summary-item"><span class="production-summary-label">Código de Línea</span><input type="text" value="' + calEscaparAtributo(linea.linea_codigo) + '" data-linea="' + i + '" data-campo="linea_codigo" oninput="calActualizarLinea(this)"></label>' +
+                '<label class="production-summary-item"><span class="production-summary-label">Sustrato</span><input type="text" value="' + calEscaparAtributo(linea.sustrato) + '" data-linea="' + i + '" data-campo="sustrato" oninput="calActualizarLinea(this)"></label>' +
+            '</div>' +
+            '<h4>Defectos Encontrados</h4>' + defectosHtml +
+            '<button type="button" class="action-btn" onclick="calAgregarDefecto(' + i + ')">+ Agregar Defecto</button>' +
+        '</div>';
+    }).join('');
+}
+
+function calActualizarLinea(input) {
+    lineas[Number(input.dataset.linea)][input.dataset.campo] = input.value;
+}
+function calActualizarDefecto(input) {
+    const linea = lineas[Number(input.dataset.linea)];
+    linea.defectos[Number(input.dataset.defecto)][input.dataset.campo] = input.value;
+}
+function calAgregarDefecto(i) {
+    lineas[i].defectos = lineas[i].defectos || [];
+    lineas[i].defectos.push({ tipo_defecto_id: '', descripcion: '', area_responsable: '', persona_responsable: '' });
+    calMostrarLineas();
+}
+function calQuitarDefecto(i, j) {
+    lineas[i].defectos.splice(j, 1);
+    calMostrarLineas();
+}
+document.getElementById('calAgregarLinea').addEventListener('click', function() {
+    lineas.push({ producto_codigo: '', linea_codigo: '', sustrato: '', pantones: [], defectos: [] });
+    calMostrarLineas();
+});
+
+document.getElementById('calGuardar').addEventListener('click', async function() {
+    const payload = {
+        orden_produccion_codigo: document.getElementById('calOrdenProduccion').value.trim() || null,
+        cliente_codigo: document.getElementById('calClienteCodigo').value.trim() || null,
+        cliente_nombre: document.getElementById('calClienteNombre').value.trim() || null,
+        fecha_deteccion: document.getElementById('calFechaDeteccion').value || null,
+        detectado_por: document.getElementById('calDetectadoPor').value.trim() || null,
+        descripcion_general: document.getElementById('calDescripcionGeneral').value.trim() || null,
+        lineas: lineas.map(function(l) {
+            return {
+                producto_codigo: l.producto_codigo || null,
+                linea_codigo: l.linea_codigo || null,
+                sustrato: l.sustrato || null,
+                pantones: l.pantones || [],
+                defectos: (l.defectos || []).filter(function(d) { return d.descripcion || d.tipo_defecto_id; })
+            };
+        })
+    };
+    if (!payload.lineas.length) { alert('Agregue al menos una línea afectada.'); return; }
+    const respuesta = await fetch('/api/calidad/ordenes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const resultado = await respuesta.json();
+    if (!respuesta.ok) { alert('Error: ' + resultado.error); return; }
+    window.location.href = '/calidad/orden/' + encodeURIComponent(resultado.codigo);
+});
+
+document.getElementById('calCambiarEstado').addEventListener('change', async function() {
+    if (!this.value) return;
+    const respuesta = await fetch('/api/calidad/ordenes/' + encodeURIComponent(codigoActual), {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado: this.value })
+    });
+    if (!respuesta.ok) { alert('Error al cambiar estado.'); return; }
+    window.location.reload();
+});
+
+function calMostrarEstado(estado) {
+    const pill = document.getElementById('calEstadoPill');
+    const info = ESTADO_INFO[estado] || { etiqueta: estado, clase: 'is-pending' };
+    pill.textContent = info.etiqueta;
+    pill.className = 'production-order-state production-state-pill production-state-pill-inline ' + info.clase;
+    pill.hidden = false;
+}
+
+async function calCargarInicial() {
+    const respuestaTipos = await fetch('/api/calidad/tipos-defecto');
+    tiposDefecto = await respuestaTipos.json();
+
+    if (!esNueva) {
+        const respuesta = await fetch('/api/calidad/ordenes/' + encodeURIComponent(codigoActual));
+        const orden = await respuesta.json();
+        if (!respuesta.ok) { alert('Error: ' + orden.error); return; }
+        document.getElementById('calTituloOrden').textContent = 'Orden de Calidad ' + orden.codigo;
+        calMostrarEstado(orden.estado);
+        document.getElementById('calOrdenProduccion').value = orden.orden_produccion_codigo || '';
+        document.getElementById('calClienteCodigo').value = orden.cliente_codigo || '';
+        document.getElementById('calClienteNombre').value = orden.cliente_nombre || '';
+        document.getElementById('calFechaDeteccion').value = (orden.fecha_deteccion || '').slice(0, 10);
+        document.getElementById('calDetectadoPor').value = orden.detectado_por || '';
+        document.getElementById('calDescripcionGeneral').value = orden.descripcion_general || '';
+        document.getElementById('calGuardar').style.display = 'none';
+        document.getElementById('calCambiarEstado').style.display = orden.estado === 'CERRADA' ? 'none' : 'inline-block';
+        document.getElementById('calAccionCorrectivaBlock').hidden = false;
+        document.getElementById('calAccionCorrectiva').value = orden.accion_correctiva || '';
+        document.getElementById('calAccionPreventiva').value = orden.accion_preventiva || '';
+        document.getElementById('calResponsableAccion').value = orden.responsable_accion || '';
+        document.getElementById('calFechaLimiteAccion').value = (orden.fecha_limite_accion || '').slice(0, 10);
+        lineas = orden.lineas || [];
+        document.getElementById('calAgregarLinea').style.display = 'none';
+    }
+    calMostrarLineas();
+}
+calCargarInicial();
+</script>
+</body>
+</html>

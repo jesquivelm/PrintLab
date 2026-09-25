@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
+    <title>Configuración FEL - PrintLab</title>
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <link rel="stylesheet" href="/facturacion-fel/styles.css?v=20260905-sellos">
+</head>
+<body>
+    <main class="workspace workspace-quote quote-browser-main factfel-shell">
+        <section class="quote-card quote-card-clean quote-browser-card factfel-card">
+            <div class="factfel-toolbar">
+                <h2>Configuración de Facturación FEL</h2>
+            </div>
+
+            <div class="factfel-tabs">
+                <button class="factfel-tab is-active" data-tab="emisor">Emisor</button>
+                <button class="factfel-tab" data-tab="certificador">Certificador</button>
+                <button class="factfel-tab" data-tab="frases">Frases Fiscales</button>
+            </div>
+
+            <!-- ── Emisor ── -->
+            <div class="factfel-tab-panel" data-panel="emisor">
+                <div class="factfel-hint">Datos fiscales de PrintLab que se usan como emisor en cada DTE.</div>
+                <div class="factfel-form-grid">
+                    <label><span>NIT del Emisor *</span><input id="eNit" type="text"></label>
+                    <label><span>Nombre del Emisor (Razón Social) *</span><input id="eNombre" type="text"></label>
+                    <label><span>Nombre Comercial</span><input id="eComercial" type="text"></label>
+                    <label><span>Afiliación IVA</span>
+                        <select id="eAfiliacion">
+                            <option value="GEN">General</option>
+                            <option value="PEQ">Pequeño Contribuyente</option>
+                        </select>
+                    </label>
+                    <label><span>Código de Establecimiento</span><input id="eEstablecimiento" type="text"></label>
+                    <label><span>Correo del Emisor</span><input id="eCorreo" type="email"></label>
+                    <label class="factfel-span-2"><span>Dirección</span><input id="eDireccion" type="text"></label>
+                    <label><span>Código Postal</span><input id="eCP" type="text"></label>
+                    <label><span>Municipio</span><input id="eMunicipio" type="text"></label>
+                    <label><span>Departamento</span><input id="eDepartamento" type="text"></label>
+                    <label><span>País (código ISO)</span><input id="ePais" type="text" maxlength="2"></label>
+                </div>
+                <div class="factfel-actions-bar">
+                    <button type="button" class="factfel-btn" id="btnGuardarEmisor">Guardar Emisor</button>
+                </div>
+            </div>
+
+            <!-- ── Certificador ── -->
+            <div class="factfel-tab-panel" data-panel="certificador" hidden>
+                <div class="factfel-hint">Datos de conexión con el certificador FEL autorizado por la SAT que elijan (Infile, Megaprint, G4S, etc.). Aún no hay envío automático — esto solo guarda la configuración para cuando se active la integración.</div>
+                <div class="factfel-form-grid">
+                    <label><span>Proveedor</span>
+                        <select id="cProveedor">
+                            <option value="">Sin seleccionar</option>
+                            <option value="SAT">SAT (Agencia Virtual, gratuito)</option>
+                            <option value="INFILE">Infile</option>
+                            <option value="MEGAPRINT">Megaprint</option>
+                            <option value="G4S">G4S</option>
+                            <option value="DIGIFACT">Digifact</option>
+                            <option value="OTRO">Otro</option>
+                        </select>
+                    </label>
+                    <label><span>Modo</span>
+                        <select id="cModo">
+                            <option value="pendiente">Pendiente de configurar</option>
+                            <option value="pruebas">Pruebas</option>
+                            <option value="produccion">Producción</option>
+                        </select>
+                    </label>
+                    <label class="factfel-span-2"><span>URL de la API</span><input id="cUrl" type="text" placeholder="https://..."></label>
+                    <label><span>Usuario API</span><input id="cUsuario" type="text"></label>
+                    <label><span>Clave API</span><input id="cClave" type="password"></label>
+                    <label><span>API Key</span><input id="cApiKey" type="password"></label>
+                    <label><span>Correo de Notificaciones</span><input id="cCorreo" type="email"></label>
+                    <label class="factfel-span-2"><span>Notas</span><textarea id="cNotas"></textarea></label>
+                </div>
+                <div class="factfel-actions-bar">
+                    <button type="button" class="factfel-btn" id="btnGuardarCertificador">Guardar Certificador</button>
+                </div>
+            </div>
+
+            <!-- ── Frases Fiscales ── -->
+            <div class="factfel-tab-panel" data-panel="frases" hidden>
+                <div class="factfel-hint">Frases obligatorias del DTE según el régimen fiscal (confirmar con el contador cuáles aplican). Cada línea de aquí se incluye en el XML como &lt;dte:Frase&gt;.</div>
+                <div class="factfel-lineas-wrap">
+                    <div class="factfel-lineas-head" style="grid-template-columns: 100px 100px minmax(0,2fr) 80px 32px;">
+                        <span>Código Escenario</span><span>Tipo Frase</span><span>Descripción</span><span>Activa</span><span></span>
+                    </div>
+                    <div id="frasesBody"></div>
+                </div>
+                <div class="factfel-actions-bar">
+                    <button type="button" class="factfel-btn-ghost" id="btnAgregarFrase">+ Agregar Frase</button>
+                </div>
+            </div>
+
+            <div id="msgBox" class="factfel-hint" style="display:none;"></div>
+        </section>
+    </main>
+
+    <script>
+        const API = '/api/facturacion-fel';
+
+        function escapeHtml(text) {
+            const d = document.createElement('div');
+            d.textContent = text == null ? '' : text;
+            return d.innerHTML;
+        }
+
+        function mostrarMensaje(msg, esError) {
+            const box = document.getElementById('msgBox');
+            box.textContent = msg;
+            box.style.display = msg ? 'block' : 'none';
+            box.style.color = esError ? 'var(--app-danger)' : 'var(--app-success)';
+            if (msg) setTimeout(() => { box.style.display = 'none'; }, 4000);
+        }
+
+        document.querySelectorAll('.factfel-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.factfel-tab').forEach(t => t.classList.remove('is-active'));
+                document.querySelectorAll('.factfel-tab-panel').forEach(p => p.hidden = true);
+                tab.classList.add('is-active');
+                document.querySelector(`.factfel-tab-panel[data-panel="${tab.dataset.tab}"]`).hidden = false;
+            });
+        });
+
+        async function cargarEmisor() {
+            const r = await fetch(`${API}/emisor`);
+            const e = await r.json();
+            document.getElementById('eNit').value = e.nit_emisor || '';
+            document.getElementById('eNombre').value = e.nombre_emisor || '';
+            document.getElementById('eComercial').value = e.nombre_comercial || '';
+            document.getElementById('eAfiliacion').value = e.afiliacion_iva || 'GEN';
+            document.getElementById('eEstablecimiento').value = e.codigo_establecimiento || '1';
+            document.getElementById('eCorreo').value = e.correo_emisor || '';
+            document.getElementById('eDireccion').value = e.direccion || '';
+            document.getElementById('eCP').value = e.codigo_postal || '';
+            document.getElementById('eMunicipio').value = e.municipio || '';
+            document.getElementById('eDepartamento').value = e.departamento || '';
+            document.getElementById('ePais').value = e.pais || 'GT';
+        }
+
+        document.getElementById('btnGuardarEmisor').addEventListener('click', async () => {
+            const payload = {
+                nit_emisor: document.getElementById('eNit').value,
+                nombre_emisor: document.getElementById('eNombre').value,
+                nombre_comercial: document.getElementById('eComercial').value,
+                afiliacion_iva: document.getElementById('eAfiliacion').value,
+                codigo_establecimiento: document.getElementById('eEstablecimiento').value,
+                correo_emisor: document.getElementById('eCorreo').value,
+                direccion: document.getElementById('eDireccion').value,
+                codigo_postal: document.getElementById('eCP').value,
+                municipio: document.getElementById('eMunicipio').value,
+                departamento: document.getElementById('eDepartamento').value,
+                pais: document.getElementById('ePais').value
+            };
+            try {
+                const r = await fetch(`${API}/emisor`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!r.ok) throw new Error((await r.json()).error);
+                mostrarMensaje('Configuración del emisor guardada.', false);
+            } catch (e) { mostrarMensaje(e.message || 'Error al guardar.', true); }
+        });
+
+        async function cargarCertificador() {
+            const r = await fetch(`${API}/certificador`);
+            const c = await r.json();
+            document.getElementById('cProveedor').value = c.proveedor || '';
+            document.getElementById('cModo').value = c.modo || 'pendiente';
+            document.getElementById('cUrl').value = c.api_url || '';
+            document.getElementById('cUsuario').value = c.usuario_api || '';
+            document.getElementById('cClave').value = c.clave_api || '';
+            document.getElementById('cApiKey').value = c.api_key || '';
+            document.getElementById('cCorreo').value = c.correo_notificaciones || '';
+            document.getElementById('cNotas').value = c.notas || '';
+        }
+
+        document.getElementById('btnGuardarCertificador').addEventListener('click', async () => {
+            const payload = {
+                proveedor: document.getElementById('cProveedor').value,
+                modo: document.getElementById('cModo').value,
+                api_url: document.getElementById('cUrl').value,
+                usuario_api: document.getElementById('cUsuario').value,
+                clave_api: document.getElementById('cClave').value,
+                api_key: document.getElementById('cApiKey').value,
+                correo_notificaciones: document.getElementById('cCorreo').value,
+                notas: document.getElementById('cNotas').value
+            };
+            try {
+                const r = await fetch(`${API}/certificador`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!r.ok) throw new Error((await r.json()).error);
+                mostrarMensaje('Configuración del certificador guardada.', false);
+            } catch (e) { mostrarMensaje(e.message || 'Error al guardar.', true); }
+        });
+
+        let frases = [];
+        async function cargarFrases() {
+            const r = await fetch(`${API}/frases`);
+            const data = await r.json();
+            frases = data.rows || [];
+            renderFrases();
+        }
+
+        function renderFrases() {
+            const body = document.getElementById('frasesBody');
+            if (!frases.length) { body.innerHTML = '<div class="factfel-empty">Sin frases configuradas.</div>'; return; }
+            body.innerHTML = frases.map(f => `
+                <div class="factfel-linea-row" style="grid-template-columns: 100px 100px minmax(0,2fr) 80px 32px;" data-id="${f.id}">
+                    <input type="text" class="fCodigo" value="${escapeHtml(f.codigo_escenario)}">
+                    <input type="text" class="fTipo" value="${escapeHtml(f.tipo_frase)}">
+                    <input type="text" class="fDescripcion" value="${escapeHtml(f.descripcion)}">
+                    <input type="checkbox" class="fActivo" ${f.activo ? 'checked' : ''} style="width:18px; height:18px;">
+                    <button type="button" class="factfel-linea-remove" title="Eliminar">&times;</button>
+                </div>
+            `).join('');
+            body.querySelectorAll('.factfel-linea-row').forEach(row => {
+                const id = row.dataset.id;
+                const guardar = async () => {
+                    const payload = {
+                        codigo_escenario: row.querySelector('.fCodigo').value,
+                        tipo_frase: row.querySelector('.fTipo').value,
+                        descripcion: row.querySelector('.fDescripcion').value,
+                        activo: row.querySelector('.fActivo').checked
+                    };
+                    await fetch(`${API}/frases/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    mostrarMensaje('Frase actualizada.', false);
+                };
+                row.querySelectorAll('input[type="text"], input[type="checkbox"]').forEach(inp => inp.addEventListener('change', guardar));
+                row.querySelector('.factfel-linea-remove').addEventListener('click', async () => {
+                    await fetch(`${API}/frases/${id}`, { method: 'DELETE' });
+                    cargarFrases();
+                });
+            });
+        }
+
+        document.getElementById('btnAgregarFrase').addEventListener('click', async () => {
+            const r = await fetch(`${API}/frases`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ codigo_escenario: '1', tipo_frase: '', descripcion: '', activo: true, orden: frases.length + 1 })
+            });
+            if (r.ok) cargarFrases();
+        });
+
+        cargarEmisor();
+        cargarCertificador();
+        cargarFrases();
+    </script>
+</body>
+</html>

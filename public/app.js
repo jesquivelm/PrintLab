@@ -1,5 +1,6 @@
 const CONFIG_ENDPOINT = '/api/config/shell';
 const QUOTES_ENDPOINT = '/api/cotizaciones';
+const PARTNERS_ENDPOINT = '/api/socios';
 
 const GENERAL_CONFIG_CACHE_KEY = 'erp-general-config-cache';
 const GENERAL_CONFIG_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
@@ -64,6 +65,8 @@ const headerFieldMap = {
 
 let nextSequence = 1000;
 let activeRowId = null;
+let quoteContactsByName = new Map();
+let quoteContactsAbort = null;
 let topIconPalette = {
     back: { primary: '#9ba2ab', secondary: '#ffffff', hover: '#0b81b8', size: 20 },
     search: { primary: '#9ba2ab', secondary: '#ffffff', hover: '#0b81b8', size: 20 },
@@ -550,7 +553,7 @@ const PROFORMA_BLOCK_PROCESS_LABELS = [
     { key: 'sustrato', label: 'Sustrato' },
     { key: 'diseno', label: 'Diseño' },
     { key: 'preprensa', label: 'Preprensa' },
-    { key: 'planchas', label: 'Planchas' },
+    { key: 'sellos', label: 'Sellos' },
     { key: 'impresion', label: 'Impresión' },
     { key: 'empaque', label: 'Empaque' },
     { key: 'adicionales', label: 'Procesos adicionales' }
@@ -598,7 +601,7 @@ function proformaBlockIssuesFromLine(line = {}) {
                 return allowed.includes(String(issue.processKey || '').split('-')[0]);
             }
             const key = String(issue.processKey || '').split('-')[0];
-            return key !== 'planchas' && !normalizeProformaIssueText(issue.message || '').includes('plancha');
+            return key !== 'sellos' && !normalizeProformaIssueText(issue.message || '').includes('sello');
         });
 }
 
@@ -657,6 +660,19 @@ async function openProformaForCurrentQuote() {
 }
 
 document.addEventListener('click', (event) => {
+    const refLink = event.target.closest?.('[data-open-order], [data-open-product]');
+    if (refLink) {
+        event.preventDefault();
+        event.stopPropagation();
+        const codigoOrden = refLink.dataset.openOrder;
+        const codigoProducto = refLink.dataset.openProduct;
+        const route = codigoOrden
+            ? '/orden-produccion/' + encodeURIComponent(codigoOrden)
+            : '/producto-documento?codigo=' + encodeURIComponent(codigoProducto);
+        const label = codigoOrden ? 'Orden ' + codigoOrden : 'Producto ' + codigoProducto;
+        if (!openRouteInShell(route, label)) window.location.href = route;
+        return;
+    }
     const closeMessage = event.target.closest?.('.calc-center-message [data-close-calc-message]');
     if (closeMessage) {
         event.preventDefault();
@@ -953,6 +969,53 @@ function setFieldTitle(id, value) {
     field.title = String(value || '').trim();
 }
 
+function contactOptionLabel(contact = {}) {
+    return String(contact.contact_name || '').trim()
+        || [contact.first_name, contact.last_name].filter(Boolean).join(' ').trim()
+        || String(contact.email || '').trim();
+}
+
+async function loadQuoteContacts(partnerCode) {
+    quoteContactsAbort?.abort();
+    quoteContactsByName = new Map();
+    const datalist = document.getElementById('cotizacionContactosDatalist');
+    if (datalist) datalist.innerHTML = '';
+    if (!partnerCode) return;
+    quoteContactsAbort = new AbortController();
+    try {
+        const response = await fetch(`${PARTNERS_ENDPOINT}/${encodeURIComponent(partnerCode)}/contactos`, { signal: quoteContactsAbort.signal });
+        const payload = await response.json().catch(() => ({ contactos: [] }));
+        if (!response.ok) throw new Error(payload.error || 'No fue posible cargar los contactos del socio.');
+        const contacts = Array.isArray(payload.contactos) ? payload.contactos : [];
+        contacts.forEach((contact) => {
+            const name = contactOptionLabel(contact);
+            if (!name) return;
+            quoteContactsByName.set(name.toLowerCase(), {
+                name,
+                phone: String(contact.phone || contact.mobile || '').trim(),
+                email: String(contact.email || '').trim()
+            });
+        });
+        if (datalist) {
+            datalist.innerHTML = [...quoteContactsByName.values()]
+                .map((contact) => `<option value="${escapeHtml(contact.name)}"></option>`)
+                .join('');
+        }
+    } catch (error) {
+        if (error.name === 'AbortError') return;
+        console.error('No fue posible cargar los contactos del socio.', error);
+    }
+}
+
+function applyContactSelection() {
+    const dirigidoAField = document.getElementById('dirigidoA');
+    const contact = quoteContactsByName.get(String(dirigidoAField?.value || '').trim().toLowerCase());
+    if (!contact) return;
+    if (contact.phone) setFieldValue('telefonoCliente', contact.phone);
+    if (contact.email) setFieldValue('correoCliente', contact.email);
+    scheduleQuoteSave();
+}
+
 function setHeaderLockState(hasLines) {
     CLIENT_LOCK_FIELDS.forEach((id) => {
         const field = document.getElementById(id);
@@ -1123,7 +1186,12 @@ function buildQuoteLineFinishParts(row) {
     const raw = row.rawData || {};
     const parts = [];
     const barniz = firstQuoteDetail(raw, ['REQ | Barniz', 'BARNIZ', 'CONV | BARNIZ | TIPO']);
-    if (barniz) parts.push(`Barniz ${barniz}`);
+    if (barniz) {
+        const barnizReservado = ['si', 'sí', 'yes', 'true', '1'].includes(
+            normalizeSummaryValue(raw['REQ | Barniz Zonificado'] || raw['CONV | BARNIZ | ZONIFICADO']).toLowerCase()
+        );
+        parts.push(`Barniz ${barniz}${barnizReservado ? ' reservado' : ''}`);
+    }
     const laminado = firstQuoteDetail(raw, ['REQ | Laminado', 'LAMINADO', 'CONV | LAMINADO | TIPO']);
     if (laminado) parts.push(`Laminado ${laminado}`);
     const estampado = firstQuoteDetail(raw, ['REQ | Estampado', 'ESTAMPADO', 'CONV | ESTAMPADO | FOIL']);
@@ -1210,26 +1278,31 @@ function frontBackDetailChipMarkup(row) {
     return `<div class="quote-master-line-badges"><span class="quote-line-auto-chip">Frente/Dorso · ${escapeHtml(role)}</span></div>`;
 }
 
+function formatQuoteLineMeasure(row) {
+    const raw = row.rawData || {};
+    const width = String(raw['DIMENSIONES ETIQUETA | ANCHO'] ?? '').trim();
+    const length = String(raw['DIMENSIONES ETIQUETA | LARGO'] ?? '').trim();
+    if (isCircularQuoteRow(row)) {
+        return width ? `Diámetro ${width}` : String(row.medida ?? '').trim();
+    }
+    if (width && length) return `${width} x ${length}`;
+    return String(row.medida ?? '').trim();
+}
+
 function renderLineSummary(row, index) {
     const raw = row.rawData || {};
     const lineCode = cleanQuoteDetail(row.linea || row.originalLinea || `LC${String(index + 1).padStart(5, '0')}`);
-    const productId = cleanQuoteDetail(row.productId);
     const title = cleanQuoteDetail(row.nombreTrabajo) || 'Sin nombre';
-    const measure = cleanQuoteDetail(row.medida);
+    const measure = cleanQuoteDetail(formatQuoteLineMeasure(row));
     const quantities = formatQuoteLineQuantities(row);
     const material = cleanQuoteDetail(row.material || raw['REQ | Sustrato'] || raw['SUSTRATO'] || raw['MATERIAL']);
-    const machine = cleanQuoteDetail(row.machineName);
     const die = formatQuoteLineDie(row);
     const finishParts = buildQuoteLineFinishParts(row);
-    const noPrint = isQuoteLineNoPrint(row);
     const secondLine = [
         quantities ? `Cantidad: ${quantities}` : '',
         material
     ].filter(Boolean).join(' | ');
-    const thirdLine = [
-        machine ? escapeHtml(machine) : (noPrint ? '' : '<span class="is-warning">Sin máquina</span>'),
-        die ? escapeHtml(die) : ''
-    ].filter(Boolean).join(' - ');
+    const thirdLine = die ? escapeHtml(die) : '';
     const fourthLine = finishParts.length
         ? finishParts.map((part) => escapeHtml(part)).join(' - ')
         : (die ? '' : '<span class="is-warning">Sin acabados</span>');
@@ -1241,13 +1314,24 @@ function renderLineSummary(row, index) {
                 <span class="quote-master-line-product">${escapeHtml(title)}</span>
                 ${measure ? `<span class="quote-master-line-measure">(${escapeHtml(measure)})</span>` : ''}
             </div>
-            ${productId && productId !== lineCode ? `<div class="quote-master-line-detail-row">Producto: ${escapeHtml(productId)}</div>` : ''}
             ${secondLine ? `<div class="quote-master-line-detail-row">${escapeHtml(secondLine)}</div>` : ''}
             ${thirdLine ? `<div class="quote-master-line-detail-row">${thirdLine}</div>` : ''}
             ${fourthLine ? `<div class="quote-master-line-detail-row">${fourthLine}</div>` : ''}
             ${frontBackDetailChipMarkup(row)}
         </div>
     `;
+}
+
+function renderLineRefCells(row) {
+    const ordenCodigo = String(row?.ordenCodigo || '').trim();
+    const productos = Array.isArray(row?.productoCodigos) ? row.productoCodigos.filter(Boolean) : [];
+    const ordenHtml = ordenCodigo
+        ? `<a class="quote-line-reflink" href="/orden-produccion/${encodeURIComponent(ordenCodigo)}" data-open-order="${escapeHtml(ordenCodigo)}" data-route="/orden-produccion/${encodeURIComponent(ordenCodigo)}" data-label="Orden ${escapeHtml(ordenCodigo)}" title="Abrir orden de producción">${escapeHtml(ordenCodigo)}</a>`
+        : '<span class="quote-line-refempty" aria-hidden="true">—</span>';
+    const productoHtml = productos.length
+        ? productos.map((codigo) => `<a class="quote-line-reflink" href="/producto-documento?codigo=${encodeURIComponent(codigo)}" data-open-product="${escapeHtml(codigo)}" data-route="/producto-documento?codigo=${encodeURIComponent(codigo)}" data-label="Producto ${escapeHtml(codigo)}" title="Abrir producto">${escapeHtml(codigo)}</a>`).join('<br>')
+        : '<span class="quote-line-refempty" aria-hidden="true">—</span>';
+    return `<td class="quote-line-ref-cell">${ordenHtml}</td><td class="quote-line-ref-cell">${productoHtml}</td>`;
 }
 
 function subtotalFieldKeys() {
@@ -1293,6 +1377,7 @@ function renderDataRow(row, index, subtotalKeys) {
             </td>
             <td>${quoteCellMarkup(row.linea)}</td>
             <td>${renderLineSummary(row, index)}</td>
+            ${renderLineRefCells(row)}
             <td class="quote-detail-date-cell is-created">${quoteCellMarkup(formatDate(row.createdOn))}</td>
             <td class="quote-detail-date-cell">${quoteCellMarkup(formatDate(row.dueOn))}</td>
             ${renderSubtotalCells(row, subtotalKeys)}
@@ -1334,6 +1419,7 @@ function renderDetailDataRow(node, displayIndex, subtotalKeys, totalNodes) {
             </td>
             <td>${quoteCellMarkup(row.linea)}</td>
             <td>${renderLineSummary(row, displayIndex)}</td>
+            ${renderLineRefCells(row)}
             <td class="quote-detail-date-cell is-created">${quoteCellMarkup(formatDate(row.createdOn))}</td>
             <td class="quote-detail-date-cell">${quoteCellMarkup(formatDate(row.dueOn))}</td>
             ${renderSubtotalCells(row, subtotalKeys)}
@@ -1354,7 +1440,7 @@ function renderBlankRow(isFirstBlank, subtotalColumnCount) {
         <tr class="draft-row">
             <td class="row-number"></td>
             <td><div class="row-tools row-tools-compact row-tools-leading row-tools-add-row"></div></td>
-            <td></td><td></td><td></td><td></td>${blankSubtotalCells}<td></td>
+            <td></td><td></td><td></td><td></td><td></td><td></td>${blankSubtotalCells}<td></td>
         </tr>
     `;
 }
@@ -1374,6 +1460,8 @@ function renderRows() {
             <th class="col-actions"></th>
             <th>L&iacute;nea</th>
             <th>Descripci&oacute;n</th>
+            <th class="quote-detail-ref-head">Orden</th>
+            <th class="quote-detail-ref-head">Producto</th>
             <th class="quote-detail-created-head">Creación</th>
             <th>Vencimiento</th>
             ${renderSubtotalHeaderCells(subtotalKeys)}
@@ -1483,7 +1571,7 @@ function getRowActionDefinitions() {
 }
 
 function getRowActionDefinitionsForRow(row) {
-    const canCreateOrder = Boolean(row?.finalizadaOrden);
+    const canCreateOrder = Boolean(row?.finalizadaOrden) && !row?.ordenCodigo;
     return [
         { key: 'duplicate', label: 'Duplicar Línea', icon: rowIcons.duplicate, action: 'duplicate-line' },
         { key: 'copy', label: 'Copiar Línea a Otra Cotización', icon: rowIcons.copy, action: 'copy-line' },
@@ -1851,9 +1939,127 @@ async function uploadSelectedAttachments() {
     setStatus('Adjuntos actualizados.', 'saved');
 }
 
+function confirmarFabricacionTroquelDialog(mensaje) {
+    return new Promise((resolve) => {
+        document.querySelector('.ct-fabricacion-confirm-dialog')?.remove();
+        document.body.classList.add('popover-open');
+        const overlay = document.createElement('div');
+        overlay.className = 'quote-order-quantity-dialog ct-fabricacion-confirm-dialog';
+        overlay.innerHTML = `<div class="quote-order-quantity-panel" role="dialog" aria-modal="true" aria-label="Solicitud de Fabricación de Troquel">
+      <div class="quote-order-quantity-title">Troquel Nuevo Requerido</div>
+      <p style="font-size:13px;color:var(--app-text-muted,#94a3b8);line-height:1.5;">${escapeHtml(mensaje)}</p>
+      <div class="quote-order-quantity-actions">
+        <button type="button" class="action-btn" data-action="no-continuar">No Continuar por Ahora</button>
+        <button type="button" class="action-btn action-btn-primary" data-action="continuar">Continuar con la Fabricación</button>
+      </div>
+    </div>`;
+        document.body.appendChild(overlay);
+        const cerrar = (resultado) => {
+            overlay.remove();
+            document.body.classList.remove('popover-open');
+            resolve(resultado);
+        };
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay || event.target.closest("[data-action='no-continuar']")) {
+                cerrar(false);
+                return;
+            }
+            if (event.target.closest("[data-action='continuar']")) {
+                cerrar(true);
+            }
+        });
+    });
+}
+
+async function verificarLicenciaCrearOrden() {
+    try {
+        const r = await fetch('/api/licenciamiento/estado', { headers: { 'Accept': 'application/json' } });
+        if (!r.ok) return;
+        const d = await r.json();
+        if (d && d.permiteCrearOrden === false) {
+            throw new Error('La creación de órdenes está deshabilitada porque la licencia venció. Contacta a tu proveedor para renovarla.');
+        }
+    } catch (e) {
+        if (e instanceof Error && /licencia venci/i.test(e.message)) throw e;
+        // cualquier otro error de red: fail-open, el servidor valida de todos modos
+    }
+}
+
+async function postOrdenProduccionConTroquel(quoteId, linea, body) {
+    await verificarLicenciaCrearOrden();
+    const url = QUOTES_ENDPOINT + '/' + encodeURIComponent(quoteId) + '/lineas/' + encodeURIComponent(linea) + '/orden-produccion';
+    const doPost = async (payloadBody) => {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payloadBody)
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'No se pudo crear la orden de producción.');
+        return payload;
+    };
+    let payload = await doPost(body);
+    if (payload.requiere_confirmacion_troquel) {
+        const continuar = await confirmarFabricacionTroquelDialog(payload.mensaje || 'Esta cotización requiere un nuevo troquel. ¿Desea continuar con la solicitud de fabricación del troquel?');
+        payload = await doPost({ ...body, confirmar_fabricacion_troquel: continuar });
+    }
+    return payload;
+}
+
+function separarMensajesBloqueo(texto) {
+    return String(texto || '')
+        .split(/\r?\n|(?<=[.!?])\s+|\s*[·•]\s*/)
+        .map((parte) => parte.trim())
+        .filter(Boolean);
+}
+
+function bloqueoCrearOrdenDeLinea(row) {
+    const issues = proformaBlockIssuesFromLine({ raw_data: row?.rawData || {} });
+    return issues.map((issue) => issue.message).filter(Boolean);
+}
+
+function mostrarErroresCrearOrden(row, mensajes) {
+    const existente = document.querySelector('.quote-order-quantity-dialog');
+    if (existente) existente.remove();
+    document.body.classList.add('popover-open');
+    const lista = (Array.isArray(mensajes) ? mensajes : separarMensajesBloqueo(mensajes)).filter(Boolean);
+    const itemsHtml = lista.length
+        ? '<ul class="quote-order-error-list">' + lista.map((m) => `<li>${escapeHtml(m)}</li>`).join('') + '</ul>'
+        : '<p class="quote-order-error-empty">La línea tiene datos pendientes en el cálculo.</p>';
+    const overlay = document.createElement('div');
+    overlay.className = 'quote-order-quantity-dialog';
+    overlay.innerHTML = '<div class="quote-order-quantity-panel" role="dialog" aria-modal="true" aria-label="No se puede crear la orden todavía">' +
+        '<div class="quote-order-quantity-title">No se puede crear la orden todavía</div>' +
+        '<div class="quote-order-quantity-note">Completá lo siguiente en el cálculo de la línea antes de crear la orden de producción:</div>' +
+        itemsHtml +
+        '<div class="quote-order-quantity-actions">' +
+            '<button type="button" class="action-btn" data-error-action="close">Cerrar</button>' +
+            '<button type="button" class="action-btn action-btn-primary" data-error-action="open-calc">Ir al Cálculo</button>' +
+        '</div>' +
+    '</div>';
+    const cerrar = () => {
+        overlay.remove();
+        document.body.classList.remove('popover-open');
+    };
+    overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) { cerrar(); return; }
+        const accion = event.target.closest('[data-error-action]')?.dataset.errorAction;
+        if (accion === 'close') cerrar();
+        if (accion === 'open-calc') { cerrar(); openCalc(row.id); }
+    });
+    document.body.appendChild(overlay);
+    overlay.querySelector('[data-error-action="open-calc"]')?.focus();
+}
+
 async function createProductionOrder(row) {
+    const bloqueo = bloqueoCrearOrdenDeLinea(row);
+    if (bloqueo.length) {
+        mostrarErroresCrearOrden(row, bloqueo);
+        return;
+    }
     if (!row?.finalizadaOrden) {
-        throw new Error('Debes marcar la línea como finalizada antes de crear la orden de producción.');
+        mostrarErroresCrearOrden(row, ['Debes marcar la línea como finalizada antes de crear la orden de producción.']);
+        return;
     }
     var quantities = [];
     try {
@@ -1876,13 +2082,13 @@ async function createProductionOrder(row) {
     }
     var body = {};
     if (selectedQuantity && selectedQuantity > 0) body.quantity = selectedQuantity;
-    var response = await fetch(QUOTES_ENDPOINT + '/' + encodeURIComponent(row.quoteId) + '/lineas/' + encodeURIComponent(row.linea) + '/orden-produccion', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-    });
-    var payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || 'No se pudo crear la orden de producción.');
+    var payload;
+    try {
+        payload = await postOrdenProduccionConTroquel(row.quoteId, row.linea, body);
+    } catch (error) {
+        mostrarErroresCrearOrden(row, separarMensajesBloqueo(error?.message || ''));
+        return;
+    }
     if (payload.orden?.order_code) {
         setStatus('Orden ' + payload.orden.order_code + ' creada.', 'saved');
         var route = '/orden-produccion/' + encodeURIComponent(payload.orden.order_code);
@@ -2117,15 +2323,13 @@ function buildCalcUrl(row) {
 }
 
 function updateSummary(quote, resumen) {
-    const raw = quote?.raw_data || {};
     const summaryStrip = document.querySelector('.summary-strip-quote');
     if (!summaryStrip) return;
     summaryStrip.innerHTML = `
         <div>Compra: <span id="summaryCompra">${quote?.exchange_buy ? `¢${formatMoney(quote.exchange_buy)}` : '¢457'}</span></div>
         <div>Venta: <span id="summaryVenta">${quote?.exchange_sale ? `¢${formatMoney(quote.exchange_sale)}` : '¢471'}</span></div>
-        <div>Creación: ${escapeHtml(raw['PIE COTIZACION | DETALLE COTIZACION | FECHAS'] || formatDate(quote?.created_on))}</div>
+        <div>Creación: ${escapeHtml(quote?.footer_dates || formatDate(quote?.created_on))}</div>
         <div>Vencimiento: ${escapeHtml(formatDate(quote?.due_on))}</div>
-        <div>Revisión Avanzada: ${escapeHtml(raw['PIE COTIZACION | REVISION AVANZADA'] || '')}</div>
     `;
 }
 
@@ -2135,12 +2339,13 @@ function applyQuotePayload(payload) {
     const resumen = payload?.resumen || {};
     currentQuote = quote;
 
-    setFieldValue('numeroCotizacion', quote?.quote_code || '');
-    setFieldValue('clienteCodigo', firstFilled(
+    const customerCode = firstFilled(
         quote?.customer_code,
         quote?.customer_id,
         quote?.card_code
-    ));
+    );
+    setFieldValue('numeroCotizacion', quote?.quote_code || '');
+    setFieldValue('clienteCodigo', customerCode);
     setFieldValue('clienteNombre', quote?.customer_name || '');
     setFieldValue('dirigidoA', quote?.contact_name || '');
     setFieldValue('correoCliente', quote?.email || '');
@@ -2152,6 +2357,7 @@ function applyQuotePayload(payload) {
         .join(' | ');
     setFieldTitle('telefonoCliente', phoneTooltip);
     syncQuoteNumberFieldAppearance();
+    loadQuoteContacts(customerCode);
 
     quoteRows = lines.map((line, index) => ({
         autoSelection: line.raw_data?.['Seleccion_Automatica'] || {},
@@ -2182,6 +2388,8 @@ function applyQuotePayload(payload) {
         autoWarningsText: '',
         materialCode: line.material_code || '',
         finalizadaOrden: Boolean(line.finalized_for_order),
+        ordenCodigo: String(line.order_code || '').trim(),
+        productoCodigos: Array.isArray(line.product_codes) ? line.product_codes.filter(Boolean) : [],
         estado: line.status || 'Cotizada',
         subtotal1: line.subtotal_1 ?? '',
         subtotal2: line.subtotal_2 ?? '',
@@ -3198,6 +3406,7 @@ Object.keys(headerFieldMap).forEach((id) => {
     if (!element || id === 'numeroCotizacion') return;
     element.addEventListener('input', scheduleQuoteSave);
 });
+document.getElementById('dirigidoA')?.addEventListener('change', applyContactSelection);
 
 document.addEventListener('click', (event) => {
     if (!menuPanel || menuPanel.hidden) return;

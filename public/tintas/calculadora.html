@@ -4,32 +4,635 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
-    <title>Calculadora de Producción - Tintas</title>
-    <link rel="stylesheet" href="/styles.css">
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
+    <title>Calculadora de Color - PrintLab</title>
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <link rel="stylesheet" href="/tintas/styles.css?v=20260920-calculadora4">
+    <style>
+        /* ── Calculadora de Color · rediseño 2026-09-21 ─────────────────────────── */
+
+        .calc-color-shell { max-width: 1080px; }
+
+        /* Encabezado propio del módulo */
+        .cc-encabezado {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 14px;
+            padding: 0 2px;
+            margin-bottom: 14px;
+        }
+        .cc-encabezado h2 { margin: 0; font-size: 19px; font-weight: 700; color: var(--app-text); }
+        .cc-encabezado p { margin: 2px 0 0; font-size: 12px; color: var(--app-text-muted); max-width: 60ch; }
+        .cc-muestra-grande {
+            width: 84px; height: 58px;
+            border-radius: 12px;
+            border: 1px solid var(--app-border);
+            box-shadow: inset 0 0 0 2px rgba(255,255,255,0.25), 0 3px 10px rgba(0,0,0,0.10);
+        }
+
+        /* Aviso de referencia vs colorimetría */
+        .calc-color-aviso {
+            display: flex; align-items: flex-start; gap: 10px;
+            margin: 0 0 16px;
+            padding: 10px 14px;
+            border: 1px solid rgba(11, 129, 184, 0.25);
+            border-radius: 12px;
+            font-size: 12px;
+            line-height: 1.5;
+            background: rgba(11, 129, 184, 0.08);
+            color: var(--app-text-soft);
+        }
+        .calc-color-aviso .cc-aviso-icono { flex: 0 0 auto; color: var(--app-primary); font-size: 15px; line-height: 1.4; }
+        .calc-color-aviso strong { color: var(--app-text); }
+
+        /* Layout principal: espacios (izq) + referencia (der) */
+        .cc-cuerpo {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 320px;
+            gap: 18px;
+            align-items: start;
+        }
+        @media (max-width: 900px) {
+            .cc-cuerpo { grid-template-columns: 1fr; }
+        }
+
+        /* Espacios de color: tarjetas */
+        .cc-espacios { display: grid; gap: 12px; min-width: 0; }
+        .cc-espacio {
+            border: 1px solid var(--app-border);
+            border-radius: 16px;
+            background: var(--app-surface);
+            padding: 12px 14px 14px;
+        }
+        .cc-espacio-cabecera { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+        .cc-espacio-nombre { font-size: 13px; font-weight: 700; color: var(--app-text); }
+        .cc-espacio-nota { font-size: 11px; color: var(--app-text-muted); }
+        .cc-espacio .calc-color-fila { margin-bottom: 0; }
+
+        .calc-color-fila { display: grid; gap: 12px; }
+        .calc-color-fila--3 { grid-template-columns: repeat(3, 1fr); }
+        .calc-color-fila--4 { grid-template-columns: repeat(4, 1fr); }
+        .calc-color-fila--2 { grid-template-columns: 1fr auto; align-items: end; }
+
+        .calc-color-campo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+        .calc-color-campo-label { display: flex; align-items: center; gap: 6px; }
+        .calc-color-campo-label span { font-size: 11px; font-weight: 600; color: var(--app-text-muted); white-space: nowrap; }
+        .calc-color-indicador { width: 18px; height: 18px; border-radius: 6px; border: 1px solid var(--app-border); flex: 0 0 auto; background: #ccc; }
+
+        .calc-color-fila .display-input-wrap { min-width: 0; width: 100%; }
+        .calc-color-fila .display-input { font-size: 13px; width: 100%; }
+
+        /* Selector visual: chip ancho con "Cualquier formato" */
+        .cc-picker-zona { display: flex; flex-direction: column; gap: 4px; }
+        .cc-picker-zona .calc-color-campo-label span { font-size: 11px; font-weight: 600; color: var(--app-text-muted); }
+        .cc-picker-chip {
+            display: flex; align-items: center; gap: 10px;
+            height: 40px; padding: 0 6px 0 4px;
+            border: 1px solid var(--app-border);
+            border-radius: 12px;
+            background: var(--app-surface);
+        }
+        .cc-picker-chip input[type="color"] {
+            width: 32px; height: 30px; padding: 0; border: none; border-radius: 8px;
+            background: none; cursor: pointer; flex: 0 0 auto;
+        }
+        .cc-picker-chip input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        .cc-picker-chip input[type="color"]::-webkit-color-swatch { border: none; border-radius: 8px; }
+        .cc-picker-chip input[type="color"]::-moz-color-swatch { border: none; border-radius: 8px; }
+        .cc-picker-texto { font-size: 12px; color: var(--app-text-muted); white-space: nowrap; padding-right: 4px; }
+
+        /* HEX */
+        .calc-color-hex { display: flex; flex-direction: column; gap: 4px; }
+        .calc-color-hex .display-input-wrap { width: 100%; }
+
+        /* display-input dentro de tintas */
+        .tintas-shell .display-input-mask { border-color: var(--app-border); background: var(--app-surface); color: var(--app-text); }
+        .tintas-shell .display-input { color: transparent; caret-color: var(--app-text); }
+        .tintas-shell .display-input:focus { color: var(--app-text); border-color: var(--app-primary); box-shadow: 0 0 0 3px var(--app-ring); }
+        .tintas-shell .display-input:focus + .display-input-mask { opacity: 0; }
+        html[data-theme="dark"] .tintas-shell .display-input-mask { background: var(--app-surface-soft); border-color: var(--app-border); color: var(--app-text); }
+        html[data-theme="dark"] .tintas-shell .display-input { caret-color: var(--app-text); }
+
+        /* ── Panel de referencia ─────────────────────────── */
+        .cc-referencia {
+            border: 1px solid var(--app-border);
+            border-radius: 16px;
+            background: var(--app-surface);
+            padding: 14px;
+            display: grid;
+            gap: 12px;
+        }
+        .cc-ref-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .cc-ref-cabecera h3 { margin: 0; font-size: 13px; font-weight: 700; color: var(--app-text); }
+        .cc-swatch {
+            width: 100%; height: 74px;
+            border-radius: 12px;
+            border: 1px solid var(--app-border);
+        }
+        .cc-ref-hex { text-align: center; font-size: 14px; font-weight: 700; letter-spacing: 0.04em; color: var(--app-text); }
+        .cc-ref-hex small { display: block; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; color: var(--app-text-muted); margin-bottom: 1px; }
+
+        .cc-ref-fila {
+            display: flex; align-items: center; justify-content: space-between; gap: 8px;
+            padding: 7px 4px;
+            border-top: 1px solid var(--app-border);
+            font-size: 12.5px;
+        }
+        .cc-ref-fila:first-of-type { border-top: 0; }
+        .cc-ref-etiqueta { color: var(--app-text-muted); font-weight: 600; font-size: 11px; letter-spacing: 0.03em; }
+        .cc-ref-valor { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--app-text); text-align: right; }
+
+        /* Cromaticidad destacada */
+        .cc-ref-crom {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+        }
+        .cc-ref-tarjetita {
+            border: 1px solid var(--app-border);
+            border-radius: 12px;
+            padding: 8px 10px;
+            text-align: center;
+        }
+        .cc-ref-tarjetita small { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: var(--app-text-muted); margin-bottom: 2px; }
+        .cc-ref-tarjetita strong { font-size: 15px; font-variant-numeric: tabular-nums; color: var(--app-text); }
+
+        /* Botón copiar */
+        .cc-btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+            width: 100%; height: 40px;
+            border: 0; border-radius: 999px;
+            background: linear-gradient(180deg, var(--app-primary), var(--app-primary-strong));
+            color: #fff; font-size: 13px; font-weight: 600;
+            cursor: pointer;
+        }
+        .cc-btn:hover { opacity: 0.93; }
+        .cc-btn:active { opacity: 0.86; }
+        .cc-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--app-ring); }
+        .cc-btn.is-copiado { background: linear-gradient(180deg, #16a34a, #128a3e); }
+        .cc-copiado-mensaje { font-size: 11px; color: var(--app-text-muted); text-align: center; min-height: 14px; }
+
+        /* ── Similares ─────────────────────────── */
+        .cc-similares { margin-top: 20px; min-width: 0; }
+        .cc-similares-cabecera {
+            display: flex; align-items: end; justify-content: space-between; gap: 14px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        .cc-similares-cabecera h3 { margin: 0; font-size: 14px; font-weight: 700; color: var(--app-text); }
+        .cc-limite { display: flex; align-items: center; gap: 8px; }
+        .cc-limite span { font-size: 11px; font-weight: 600; color: var(--app-text-muted); white-space: nowrap; }
+        .cc-limite .display-input-wrap { width: 80px; }
+        .cc-boton-similares {
+            height: 38px; padding: 0 20px; border: 0; border-radius: 999px;
+            background: linear-gradient(180deg, var(--app-primary), var(--app-primary-strong));
+            color: #fff; font-size: 12.5px; font-weight: 600; cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.10);
+        }
+        .cc-boton-similares:hover { opacity: 0.93; }
+        .cc-boton-similares:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--app-ring); }
+
+        /* Tabla de resultados con muestras de color */
+        .cc-tabla th { font-size: 11px; }
+        .cc-tabla td { font-variant-numeric: tabular-nums; }
+        .cc-tabla td:first-child { white-space: nowrap; }
+        .cc-tabla-muestra {
+            display: inline-block; width: 26px; height: 26px;
+            border-radius: 8px; border: 1px solid var(--app-border);
+            vertical-align: middle; margin-right: 8px;
+        }
+        .cc-tabla-hex { font-size: 11.5px; color: var(--app-text-muted); }
+
+        .calc-color-clasif { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+        .calc-color-clasif-1 { background: rgba(22, 163, 74, 0.14); color: var(--app-success, #16a34a); }
+        .calc-color-clasif-2 { background: rgba(22, 163, 74, 0.09); color: var(--app-success, #16a34a); }
+        .calc-color-clasif-3 { background: rgba(180, 130, 20, 0.12); color: var(--app-warning, #b4820f); }
+        .calc-color-clasif-4 { background: rgba(180, 130, 20, 0.08); color: var(--app-warning, #b4820f); }
+        .calc-color-clasif-5 { background: rgba(100, 116, 139, 0.12); color: var(--app-text-muted); }
+
+        .cc-vacio {
+            padding: 26px 18px;
+            border: 1px dashed var(--app-border);
+            border-radius: 14px;
+            text-align: center;
+            color: var(--app-text-muted);
+            font-size: 12.5px;
+            line-height: 1.6;
+        }
+    </style>
 </head>
 <body>
     <main class="workspace workspace-quote quote-browser-main tintas-shell">
-        <section class="quote-card quote-card-clean quote-browser-card tintas-card">
-            <div class="tintas-form" style="text-align:center;max-width:480px;margin:40px auto;">
-                <h3 style="margin-top:0">Esta calculadora se movió</h3>
-                <p style="color:var(--app-text-soft);font-size:13px;">
-                    La calculadora de fórmula ahora vive dentro de <strong>Recetas y Fórmulas</strong>,
-                    integrada al modal de "Nueva Fórmula" (pestaña "Compatibilidad y cálculo") y también
-                    disponible al presionar "Ver" sobre cualquier fórmula existente.
-                </p>
-                <button class="tintas-btn" style="margin-top:12px" onclick="irARecetas()">Ir a Recetas y Fórmulas</button>
+        <section class="quote-card quote-card-clean quote-browser-card tintas-card calc-color-shell">
+
+            <!-- Encabezado + muestra grande -->
+            <div class="cc-encabezado">
+                <div>
+                    <h2>Calculadora de Color</h2>
+                    <p>Ingresa el color en el espacio que prefieras: el sistema calcula los demás al instante.</p>
+                </div>
+                <div></div>
+                <div class="cc-muestra-grande" id="ccSwatch" title="Vista previa del color"></div>
             </div>
+
+            <div class="calc-color-aviso">
+                <span class="cc-aviso-icono" aria-hidden="true">✳</span>
+                <div>
+                    <strong>Referencia.</strong> RGB, HEX y CMYK son valores digitales de referencia; LAB y ΔE00
+                    son los que sirven para comparar colorimétricamente. La coincidencia en pantalla no reemplaza la
+                    validación física sobre el sustrato y bajo condiciones reales de impresión.
+                </div>
+            </div>
+
+            <div class="cc-cuerpo">
+
+                <!-- Columna izquierda: espacios de color -->
+                <div class="cc-espacios">
+
+                    <!-- Selector visual + HEX -->
+                    <div class="cc-espacio">
+                        <div class="cc-espacio-cabecera">
+                            <span class="cc-espacio-nombre">HEX</span>
+                            <span class="cc-espacio-nota">el punto de partida más común</span>
+                        </div>
+                        <div class="calc-color-fila calc-color-fila--2">
+                            <div class="calc-color-campo">
+                                <div class="calc-color-campo-label"><span class="calc-color-indicador" id="ccIndHex"></span><span>Código HEX</span></div>
+                                <span class="display-input-wrap"><input id="ccHex" class="display-input" type="text" placeholder="#C8102E" oninput="ccDesdeEntrada('hex'); ccSyncMasks()"><span class="display-input-mask"></span></span>
+                            </div>
+                            <div class="cc-picker-zona">
+                                <div class="calc-color-campo-label"><span>Cualquier formato</span></div>
+                                <div class="cc-picker-chip">
+                                    <input id="ccPicker" type="color" value="#C8102E" oninput="ccDesdePicker()" title="Selector visual">
+                                    <span class="cc-picker-texto">Selector visual</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RGB -->
+                    <div class="cc-espacio">
+                        <div class="cc-espacio-cabecera">
+                            <span class="cc-espacio-nombre">RGB</span>
+                            <span class="cc-espacio-nota">rojo · verde · azul (0–255)</span>
+                        </div>
+                        <div class="calc-color-fila calc-color-fila--3">
+                            <div class="calc-color-campo">
+                                <div class="calc-color-campo-label"><span class="calc-color-indicador" id="ccIndR"></span><span>R</span></div>
+                                <span class="display-input-wrap"><input id="ccR" class="display-input" type="number" min="0" max="255" step="1" oninput="ccDesdeEntrada('rgb'); ccSyncMasks()"><span class="display-input-mask"></span></span>
+                            </div>
+                            <div class="calc-color-campo">
+                                <div class="calc-color-campo-label"><span class="calc-color-indicador" id="ccIndG"></span><span>G</span></div>
+                                <span class="display-input-wrap"><input id="ccG" class="display-input" type="number" min="0" max="255" step="1" oninput="ccDesdeEntrada('rgb'); ccSyncMasks()"><span class="display-input-mask"></span></span>
+                            </div>
+                            <div class="calc-color-campo">
+                                <div class="calc-color-campo-label"><span class="calc-color-indicador" id="ccIndB"></span><span>B</span></div>
+                                <span class="display-input-wrap"><input id="ccB" class="display-input" type="number" min="0" max="255" step="1" oninput="ccDesdeEntrada('rgb'); ccSyncMasks()"><span class="display-input-mask"></span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CMYK -->
+                    <div class="cc-espacio">
+                        <div class="cc-espacio-cabecera">
+                            <span class="cc-espacio-nombre">CMYK</span>
+                            <span class="cc-espacio-nota">porcentajes de tinta (0–100)</span>
+                        </div>
+                        <div class="calc-color-fila calc-color-fila--4">
+                            <div class="calc-color-campo">
+                                <div class="calc-color-campo-label"><span class="calc-color-indicador" id="ccIndC"></span><span>C</span></div>
+                                <span class="display-input-wrap"><input id="ccC" class="display-input" type="number" min="0" max="100" step="0.1" oninput="ccDesdeEntrada('cmyk'); ccSyncMasks()"><span class="display-input-mask"></span></span>
+                            </div>
+                            <div class="calc-color-campo">
+                                <div class="calc-color-campo-label"><span class="calc-color-indicador" id="ccIndM"></span><span>M</span></div>
+                                <span class="display-input-wrap"><input id="ccM" class="display-input" type="number" min="0" max="100" step="0.1" oninput="ccDesdeEntrada('cmyk'); ccSyncMasks()"><span class="display-input-mask"></span></span>
+                            </div>
+                            <div class="calc-color-campo">
+                                <div class="calc-color-campo-label"><span class="calc-color-indicador" id="ccIndY"></span><span>Y</span></div>
+                                <span class="display-input-wrap"><input id="ccY" class="display-input" type="number" min="0" max="100" step="0.1" oninput="ccDesdeEntrada('cmyk'); ccSyncMasks()"><span class="display-input-mask"></span></span>
+                            </div>
+                            <div class="calc-color-campo">
+                                <div class="calc-color-campo-label"><span class="calc-color-indicador" id="ccIndK"></span><span>K</span></div>
+                                <span class="display-input-wrap"><input id="ccK" class="display-input" type="number" min="0" max="100" step="0.1" oninput="ccDesdeEntrada('cmyk'); ccSyncMasks()"><span class="display-input-mask"></span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LAB -->
+                    <div class="cc-espacio">
+                        <div class="cc-espacio-cabecera">
+                            <span class="cc-espacio-nombre">LAB</span>
+                            <span class="cc-espacio-nota">el espacio con el que se comparan tintas</span>
+                        </div>
+                        <div class="calc-color-fila calc-color-fila--3">
+                            <div class="calc-color-campo">
+                                <div class="calc-color-campo-label"><span>L*</span></div>
+                                <span class="display-input-wrap"><input id="ccL" class="display-input" type="number" step="0.1" oninput="ccDesdeEntrada('lab'); ccSyncMasks()"><span class="display-input-mask"></span></span>
+                            </div>
+                            <div class="calc-color-campo">
+                                <div class="calc-color-campo-label"><span>a*</span></div>
+                                <span class="display-input-wrap"><input id="ccA" class="display-input" type="number" step="0.1" oninput="ccDesdeEntrada('lab'); ccSyncMasks()"><span class="display-input-mask"></span></span>
+                            </div>
+                            <div class="calc-color-campo">
+                                <div class="calc-color-campo-label"><span>b*</span></div>
+                                <span class="display-input-wrap"><input id="ccBv" class="display-input" type="number" step="0.1" oninput="ccDesdeEntrada('lab'); ccSyncMasks()"><span class="display-input-mask"></span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Columna derecha: referencia del color -->
+                <aside class="cc-referencia" aria-label="Referencia del color actual">
+                    <div class="cc-ref-cabecera">
+                        <h3>Color Actual</h3>
+                    </div>
+                    <div class="cc-swatch" id="ccSwatchPanel"></div>
+                    <div class="cc-ref-hex"><small>HEX</small><span id="ccRefHex">#C8102E</span></div>
+
+                    <div class="cc-ref-fila"><span class="cc-ref-etiqueta">RGB</span><span class="cc-ref-valor" id="ccRefRgb"></span></div>
+                    <div class="cc-ref-fila"><span class="cc-ref-etiqueta">CMYK</span><span class="cc-ref-valor" id="ccRefCmyk"></span></div>
+                    <div class="cc-ref-fila"><span class="cc-ref-etiqueta">LAB</span><span class="cc-ref-valor" id="ccRefLab"></span></div>
+
+                    <div class="cc-ref-crom">
+                        <div class="cc-ref-tarjetita"><small>CROMA C*</small><strong id="ccRefC"></strong></div>
+                        <div class="cc-ref-tarjetita"><small>MATIZ h°</small><strong id="ccRefH"></strong></div>
+                    </div>
+
+                    <button type="button" class="cc-btn" id="ccBtnCopiar" onclick="ccCopiarReferencia()">Copiar Referencia</button>
+                    <div class="cc-copiado-mensaje" id="ccCopiadoMensaje"></div>
+                </aside>
+
+            </div>
+
+            <!-- Colores similares -->
+            <div class="cc-similares">
+                <div class="cc-similares-cabecera">
+                    <h3>Colores Similares <span style="font-weight:500;color:var(--app-text-muted);font-size:12px;">· ordenados por ΔE00</span></h3>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div class="cc-limite">
+                            <span>Límite por sección</span>
+                            <span class="display-input-wrap"><input id="ccLimite" class="display-input" type="number" min="1" max="50" value="8" oninput="ccSyncMasks()"><span class="display-input-mask"></span></span>
+                        </div>
+                        <button type="button" class="cc-boton-similares" onclick="ccBuscarSimilares()">Buscar Similares</button>
+                    </div>
+                </div>
+                <div id="ccResultados">
+                    <div class="cc-vacio">Ingresa un color y presiona <strong>Buscar Similares</strong> para comparar contra la Biblioteca Pantone, el Catálogo de Tintas y las Fórmulas existentes.</div>
+                </div>
+            </div>
+
         </section>
     </main>
+
+    <script src="/tintas/color-utils.js?v=20260919-colorimetria"></script>
     <script>
-    function irARecetas() {
-        var parent = window.parent;
-        if (parent && parent !== window) {
-            parent.postMessage({ type: 'erp-open-tab', route: '/tintas/recetas', label: 'Recetas y Fórmulas' }, window.location.origin);
-        } else {
-            window.location.href = '/tintas/recetas';
+    var API = '/api/tintas';
+
+    function ccEsc(v) {
+        return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
+    function ccDesdePicker() {
+        var hex = document.getElementById('ccPicker').value;
+        document.getElementById('ccHex').value = hex.toUpperCase();
+        ccDesdeEntrada('hex');
+        ccSyncMasks();
+    }
+
+    // Recalcula todos los campos a partir del formato que acaba de cambiar.
+    function ccDesdeEntrada(fuente) {
+        try {
+            var entrada = {};
+            if (fuente === 'hex') entrada.hex = document.getElementById('ccHex').value.trim();
+            else if (fuente === 'rgb') {
+                var r = document.getElementById('ccR').value, g = document.getElementById('ccG').value, b = document.getElementById('ccB').value;
+                if (r === '' || g === '' || b === '') return;
+                entrada.rgb = { r: Number(r), g: Number(g), b: Number(b) };
+            } else if (fuente === 'cmyk') {
+                var c = document.getElementById('ccC').value, m = document.getElementById('ccM').value, y = document.getElementById('ccY').value, k = document.getElementById('ccK').value;
+                if (c === '' || m === '' || y === '' || k === '') return;
+                entrada.cmyk = { c: Number(c), m: Number(m), y: Number(y), k: Number(k) };
+            } else if (fuente === 'lab') {
+                var L = document.getElementById('ccL').value, a = document.getElementById('ccA').value, bv = document.getElementById('ccBv').value;
+                if (L === '' || a === '' || bv === '') return;
+                ccDesdeLab(Number(L), Number(a), Number(bv));
+                return;
+            }
+            var calc = colorCompleto(entrada);
+            if (!calc || !calc.hex) return;
+            ccPintar(calc);
+        } catch (e) { /* entrada incompleta */ }
+    }
+
+    // LAB no siempre tiene HEX representable; se calcula C*/h° y HEX desde LAB aproximado.
+    function ccDesdeLab(L, a, b) {
+        var ch = colorLabACromatura({ L: L, a: a, b: b });
+        document.getElementById('ccL').value = L; document.getElementById('ccA').value = a; document.getElementById('ccBv').value = b;
+        ccReferencia({ lab: { L: L, a: a, b: b }, c: ch.c, h: ch.h });
+        window.ccLabActual = { L: L, a: a, b: b };
+        ccActualizarIndicadores(window.ccHexActual || '#C8102E');
+        ccSyncMasks();
+    }
+
+    function ccActualizarIndicadores(hex, rgb, cmyk) {
+        // RGB: cada indicador muestra solo su canal
+        if (rgb) {
+            document.getElementById('ccIndR').style.background = 'rgb(' + rgb.r + ', 0, 0)';
+            document.getElementById('ccIndG').style.background = 'rgb(0, ' + rgb.g + ', 0)';
+            document.getElementById('ccIndB').style.background = 'rgb(0, 0, ' + rgb.b + ')';
+        } else if (hex) {
+            var rh = parseInt(hex.slice(1, 3), 16);
+            var gh = parseInt(hex.slice(3, 5), 16);
+            var bh = parseInt(hex.slice(5, 7), 16);
+            document.getElementById('ccIndR').style.background = 'rgb(' + rh + ', 0, 0)';
+            document.getElementById('ccIndG').style.background = 'rgb(0, ' + gh + ', 0)';
+            document.getElementById('ccIndB').style.background = 'rgb(0, 0, ' + bh + ')';
+        }
+        // CMYK: cada indicador muestra la intensidad de su canal de tinta
+        if (cmyk) {
+            var c = cmyk.c / 100, m = cmyk.m / 100, y = cmyk.y / 100, k = cmyk.k / 100;
+            document.getElementById('ccIndC').style.background = 'rgba(0, 255, 255, ' + (0.3 + c * 0.7) + ')';
+            document.getElementById('ccIndM').style.background = 'rgba(255, 0, 255, ' + (0.3 + m * 0.7) + ')';
+            document.getElementById('ccIndY').style.background = 'rgba(255, 255, 0, ' + (0.3 + y * 0.7) + ')';
+            document.getElementById('ccIndK').style.background = 'rgba(0, 0, 0, ' + (0.3 + k * 0.7) + ')';
+        } else if (hex) {
+            document.getElementById('ccIndC').style.background = '#00ffff';
+            document.getElementById('ccIndM').style.background = '#ff00ff';
+            document.getElementById('ccIndY').style.background = '#ffff00';
+            document.getElementById('ccIndK').style.background = '#000000';
+        }
+        // HEX: muestra el color completo
+        if (hex) {
+            document.getElementById('ccIndHex').style.background = hex;
         }
     }
+
+    function ccReferencia(calc) {
+        var hex = calc.hex || window.ccHexActual || '';
+        if (calc.hex) {
+            document.getElementById('ccRefHex').textContent = calc.hex.toUpperCase();
+        }
+        document.getElementById('ccRefRgb').textContent = calc.rgb ? calc.rgb.r + ' · ' + calc.rgb.g + ' · ' + calc.rgb.b : '';
+        document.getElementById('ccRefCmyk').textContent = calc.cmyk ? calc.cmyk.c + ' · ' + calc.cmyk.m + ' · ' + calc.cmyk.y + ' · ' + calc.cmyk.k : '';
+        document.getElementById('ccRefLab').textContent = calc.lab ? calc.lab.L + ' · ' + calc.lab.a + ' · ' + calc.lab.b : '';
+        document.getElementById('ccRefC').textContent = calc.c != null ? calc.c : '';
+        document.getElementById('ccRefH').textContent = calc.h != null ? calc.h : '';
+        if (hex) {
+            document.getElementById('ccSwatch').style.background = hex;
+            document.getElementById('ccSwatchPanel').style.background = hex;
+        }
+    }
+
+    function ccPintar(calc) {
+        document.getElementById('ccHex').value = calc.hex;
+        document.getElementById('ccPicker').value = calc.hex;
+        if (calc.rgb) {
+            document.getElementById('ccR').value = calc.rgb.r;
+            document.getElementById('ccG').value = calc.rgb.g;
+            document.getElementById('ccB').value = calc.rgb.b;
+        }
+        if (calc.cmyk) {
+            document.getElementById('ccC').value = calc.cmyk.c;
+            document.getElementById('ccM').value = calc.cmyk.m;
+            document.getElementById('ccY').value = calc.cmyk.y;
+            document.getElementById('ccK').value = calc.cmyk.k;
+        }
+        if (calc.lab) {
+            document.getElementById('ccL').value = calc.lab.L;
+            document.getElementById('ccA').value = calc.lab.a;
+            document.getElementById('ccBv').value = calc.lab.b;
+        }
+        window.ccLabActual = calc.lab || null;
+        window.ccHexActual = calc.hex;
+        ccActualizarIndicadores(calc.hex, calc.rgb, calc.cmyk);
+        ccReferencia(calc);
+        ccSyncMasks();
+    }
+
+    function ccSyncMasks() {
+        document.querySelectorAll('.calc-color-fila .display-input, .calc-color-hex .display-input, .cc-limite .display-input').forEach(function(input) {
+            var wrap = input.closest('.display-input-wrap');
+            if (!wrap) return;
+            var mask = wrap.querySelector('.display-input-mask');
+            if (!mask) return;
+            var val = input.value;
+            if (input.type === 'number' && val !== '') {
+                var num = Number(val);
+                if (input.step && input.step !== '1' && input.step !== 'any') {
+                    mask.textContent = num.toFixed(1);
+                } else {
+                    mask.textContent = String(Math.round(num));
+                }
+            } else if (input.type === 'text') {
+                mask.textContent = val || '';
+            }
+        });
+    }
+
+    function ccCopiarReferencia() {
+        var partes = [];
+        var hex = document.getElementById('ccRefHex').textContent;
+        if (hex) partes.push('HEX: ' + hex);
+        var rgb = document.getElementById('ccRefRgb').textContent;
+        if (rgb) partes.push('RGB: ' + rgb);
+        var cmyk = document.getElementById('ccRefCmyk').textContent;
+        if (cmyk) partes.push('CMYK: ' + cmyk);
+        var lab = document.getElementById('ccRefLab').textContent;
+        if (lab) partes.push('LAB: ' + lab);
+        var c = document.getElementById('ccRefC').textContent;
+        if (c) partes.push('C*: ' + c);
+        var h = document.getElementById('ccRefH').textContent;
+        if (h) partes.push('h°: ' + h);
+        var texto = partes.join('\n');
+        var mensaje = document.getElementById('ccCopiadoMensaje');
+        var boton = document.getElementById('ccBtnCopiar');
+        function avisar() {
+            mensaje.textContent = 'Referencia copiada al portapapeles';
+            boton.classList.add('is-copiado');
+            boton.textContent = 'Copiado';
+            setTimeout(function() {
+                mensaje.textContent = '';
+                boton.classList.remove('is-copiado');
+                boton.textContent = 'Copiar Referencia';
+            }, 2000);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(texto).then(avisar, function() { fallbackCopiar(texto, avisar); });
+        } else {
+            fallbackCopiar(texto, avisar);
+        }
+    }
+
+    function fallbackCopiar(texto, avisar) {
+        var ta = document.createElement('textarea');
+        ta.value = texto;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); avisar(); } catch (e) {}
+        document.body.removeChild(ta);
+    }
+
+    function ccTablaSimilares(titulo, items) {
+        if (!items || !items.length) return '';
+        var filas = items.map(function (it) {
+            var de = Number(it.delta_e00);
+            var nivel = de <= 1 ? 1 : de <= 2 ? 2 : de <= 3 ? 3 : de <= 5 ? 4 : 5;
+            var hex = it.color_hex || '';
+            var muestra = hex ? '<span class="cc-tabla-muestra" style="background:' + ccEsc(hex) + '"></span>' : '';
+            var codigo = it.codigo_pantone || it.codigo_interno || '';
+            return '<tr>' +
+                '<td>' + muestra + '<span class="cc-tabla-hex">' + ccEsc(hex) + '</span></td>' +
+                '<td>' + Number(it.delta_e00).toFixed(2) + '</td>' +
+                '<td><span class="calc-color-clasif calc-color-clasif-' + nivel + '">' + ccEsc(it.clasificacion || colorClasificacionDE(de)) + '</span></td>' +
+                '<td>' + ccEsc(titulo) + '</td>' +
+                '<td>' + ccEsc(codigo) + '</td>' +
+                '<td><strong>' + ccEsc(it.nombre || '') + '</strong></td>' +
+                '</tr>';
+        }).join('');
+        return '<div class="tintas-table-wrap" style="max-height:300px;"><table class="tintas-table cc-tabla">' +
+            '<thead><tr><th>Color</th><th>ΔE00</th><th>Clasificación</th><th>Fuente</th><th>Código</th><th>Nombre</th></tr></thead>' +
+            '<tbody>' + filas + '</tbody></table></div>';
+    }
+
+    async function ccBuscarSimilares() {
+        var res = document.getElementById('ccResultados');
+        var limite = Number(document.getElementById('ccLimite').value) || 8;
+        var params = new URLSearchParams({ limite: String(limite) });
+        if (window.ccLabActual) {
+            params.set('lab_l', String(window.ccLabActual.L));
+            params.set('lab_a', String(window.ccLabActual.a));
+            params.set('lab_b', String(window.ccLabActual.b));
+        } else if (window.ccHexActual) {
+            params.set('hex', window.ccHexActual);
+        } else {
+            res.innerHTML = '<div class="cc-vacio">Primero ingresa un color objetivo en cualquier espacio (HEX, RGB, CMYK o LAB).</div>';
+            return;
+        }
+        res.innerHTML = '<p class="tintas-loading">Buscando colores similares...</p>';
+        try {
+            var r = await fetch(API + '/color/similares-ampliado?' + params.toString());
+            if (!r.ok) throw new Error(await r.text());
+            var data = await r.json();
+            var html =
+                '<div class="cc-similares-cabecera" style="margin-top:6px;"><h3 style="font-size:13px;">Biblioteca Pantone</h3></div>' + ccTablaSimilares('Biblioteca Pantone', data.biblioteca) +
+                '<div class="cc-similares-cabecera" style="margin-top:14px;"><h3 style="font-size:13px;">Catálogo de Tintas</h3></div>' + ccTablaSimilares('Catálogo de tintas', data.tintas) +
+                '<div class="cc-similares-cabecera" style="margin-top:14px;"><h3 style="font-size:13px;">Fórmulas Existentes</h3></div>' + ccTablaSimilares('Fórmula', data.recetas);
+            if (!html.replace(/<div class="cc-similares-cabecera"[^>]*>[\s\S]*?<\/div><\/div>/g, '').replace(/<h3[^>]*>[\s\S]*?<\/h3>/g, '').trim()) {
+                res.innerHTML = '<div class="cc-vacio">No hay colores registrados todavía para comparar. Agrega tintas o pantones a la biblioteca y vuelve a intentar.</div>';
+                return;
+            }
+            res.innerHTML = html;
+        } catch (e) {
+            res.innerHTML = '<p class="tintas-warning">Error: ' + ccEsc(e.message) + '</p>';
+        }
+    }
+
+    // Estado inicial: el color por defecto del selector.
+    ccDesdePicker();
     </script>
 </body>
 </html>

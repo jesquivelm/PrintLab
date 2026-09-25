@@ -151,3 +151,74 @@ CREATE TABLE IF NOT EXISTS product_lot_sequences (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ============================================================================
+-- 6. DEPARTAMENTO EN CÁLCULO / ORDEN / PRODUCTO
+-- ============================================================================
+-- El nombre del departamento viaja en la columna existente `department`.
+-- `departamento_codigo` guarda el código de 2 dígitos (ej. '11' = Flexografía)
+-- derivado de product_departments, para clasificar/filtrar sin depender del SKU.
+-- Un trigger BEFORE INSERT/UPDATE lo rellena automáticamente en las 3 tablas,
+-- de modo que todo queda identificado como Flexografía desde su creación.
+ALTER TABLE flexo_orders       ADD COLUMN IF NOT EXISTS department          TEXT;
+ALTER TABLE flexo_calculations ADD COLUMN IF NOT EXISTS departamento_codigo TEXT;
+ALTER TABLE flexo_orders       ADD COLUMN IF NOT EXISTS departamento_codigo TEXT;
+ALTER TABLE flexo_products     ADD COLUMN IF NOT EXISTS departamento_codigo TEXT;
+
+CREATE OR REPLACE FUNCTION flexo_set_departamento_codigo() RETURNS trigger AS $func$
+BEGIN
+    IF (NEW.departamento_codigo IS NULL OR NEW.departamento_codigo = '')
+       OR (TG_OP = 'UPDATE' AND NEW.department IS DISTINCT FROM OLD.department) THEN
+        SELECT pd.code INTO NEW.departamento_codigo
+          FROM product_departments pd
+         WHERE LOWER(TRANSLATE(pd.name, 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouAEIOUuUnN'))
+             = LOWER(TRANSLATE(COALESCE(NULLIF(NEW.department, ''), 'Flexografia'), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouAEIOUuUnN'))
+         LIMIT 1;
+        IF NEW.departamento_codigo IS NULL THEN
+            NEW.departamento_codigo := '11';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$func$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_flexo_calculations_departamento_codigo ON flexo_calculations;
+CREATE TRIGGER trg_flexo_calculations_departamento_codigo
+BEFORE INSERT OR UPDATE OF department, departamento_codigo ON flexo_calculations
+FOR EACH ROW EXECUTE FUNCTION flexo_set_departamento_codigo();
+
+DROP TRIGGER IF EXISTS trg_flexo_orders_departamento_codigo ON flexo_orders;
+CREATE TRIGGER trg_flexo_orders_departamento_codigo
+BEFORE INSERT OR UPDATE OF department, departamento_codigo ON flexo_orders
+FOR EACH ROW EXECUTE FUNCTION flexo_set_departamento_codigo();
+
+DROP TRIGGER IF EXISTS trg_flexo_products_departamento_codigo ON flexo_products;
+CREATE TRIGGER trg_flexo_products_departamento_codigo
+BEFORE INSERT OR UPDATE OF department, departamento_codigo ON flexo_products
+FOR EACH ROW EXECUTE FUNCTION flexo_set_departamento_codigo();
+
+-- Backfill de filas existentes
+UPDATE flexo_orders
+   SET department = COALESCE(NULLIF(raw_data->>'departamento', ''), NULLIF(raw_data->>'DEPARTAMENTO', ''), 'Flexografia')
+ WHERE department IS NULL OR department = '';
+
+UPDATE flexo_calculations fc SET departamento_codigo = COALESCE(
+    (SELECT pd.code FROM product_departments pd
+      WHERE LOWER(TRANSLATE(pd.name, 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouAEIOUuUnN'))
+          = LOWER(TRANSLATE(COALESCE(NULLIF(fc.department, ''), 'Flexografia'), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouAEIOUuUnN'))
+      LIMIT 1), '11')
+ WHERE fc.departamento_codigo IS NULL OR fc.departamento_codigo = '';
+
+UPDATE flexo_orders fo SET departamento_codigo = COALESCE(
+    (SELECT pd.code FROM product_departments pd
+      WHERE LOWER(TRANSLATE(pd.name, 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouAEIOUuUnN'))
+          = LOWER(TRANSLATE(COALESCE(NULLIF(fo.department, ''), 'Flexografia'), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouAEIOUuUnN'))
+      LIMIT 1), '11')
+ WHERE fo.departamento_codigo IS NULL OR fo.departamento_codigo = '';
+
+UPDATE flexo_products fp SET departamento_codigo = COALESCE(
+    (SELECT pd.code FROM product_departments pd
+      WHERE LOWER(TRANSLATE(pd.name, 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouAEIOUuUnN'))
+          = LOWER(TRANSLATE(COALESCE(NULLIF(fp.department, ''), 'Flexografia'), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouAEIOUuUnN'))
+      LIMIT 1), '11')
+ WHERE fp.departamento_codigo IS NULL OR fp.departamento_codigo = '';
+

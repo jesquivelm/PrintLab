@@ -317,9 +317,9 @@ async function load() {
 
 function openMes(routeId, processName) {
   const key = String(processName || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-  const isPlate = ['preprensa', 'planchas', 'diseno'].includes(key);
+  const isPlate = ['preprensa', 'sellos', 'diseno'].includes(key);
   const url = isPlate
-    ? `/planificacion/mes-planchas?routeId=${encodeURIComponent(routeId)}`
+    ? `/planificacion/mes-sellos?routeId=${encodeURIComponent(routeId)}`
     : `/planificacion/mes-operario?routeId=${encodeURIComponent(routeId)}`;
   window.location.href = url;
 }
@@ -330,7 +330,7 @@ function openGantt(orderCode) {
 
 load();
   const erpAccessScript = document.createElement('script');
-  erpAccessScript.src = '/access-control.js';
+  erpAccessScript.src = '/access-control.js?v=20260923-mensajes-carga';
   document.head.appendChild(erpAccessScript);
 </script>
 </body>

@@ -135,6 +135,7 @@ ALTER TABLE flexo_products ADD COLUMN IF NOT EXISTS empaque_costo_externo NUMERI
 ALTER TABLE flexo_products ADD COLUMN IF NOT EXISTS empaque_comentario TEXT;
 ALTER TABLE flexo_products ADD COLUMN IF NOT EXISTS empaque_horas NUMERIC(12,4);
 ALTER TABLE flexo_products ADD COLUMN IF NOT EXISTS empaque_costo_total NUMERIC(14,6);
+ALTER TABLE flexo_products ADD COLUMN IF NOT EXISTS empaque_kg_por_caja NUMERIC(14,4);
 
 -- TIEMPOS
 ALTER TABLE flexo_products ADD COLUMN IF NOT EXISTS tiempo_diseno_horas NUMERIC(12,4);

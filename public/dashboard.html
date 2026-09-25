@@ -5,7 +5,73 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
     <title>PrintLab</title>
-    <link rel="stylesheet" href="/styles.css?v=20260428-process-tray">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#118fc6">
+    <link rel="apple-touch-icon" href="/assets/bootstrap/branding-logoUrl.png">
+    <link rel="stylesheet" href="/styles.css?v=20260924-desplegables">
+    <style>
+        /* Impresion: el modulo activo vive en un <iframe> del shell. Al imprimir se retira
+           todo el cromo del shell y se aplana el layout (que normalmente fija el iframe al
+           viewport con scroll interno) para que el iframe activo fluya y el navegador
+           pueda paginar su contenido completo. El FORMATO del documento lo define el
+           @media print de la propia pagina embebida (p.ej. orden-produccion.html); aqui
+           NO se replica. dashboard.js fija la altura real del iframe en beforeprint. */
+        @page { size: letter portrait; margin: 8mm 9mm; }
+        @media print {
+            body > *:not(.app-shell) { display: none !important; }
+            .app-shell.dashboard-app-shell > *:not(.dashboard-workspace-shell) { display: none !important; }
+            .dashboard-workspace-shell > *:not(#dashboardWorkspace) { display: none !important; }
+            #dashboardWorkspace > .dashboard-frame-host:not(.is-print-target) { display: none !important; }
+            .dashboard-frame-host.is-print-target .dashboard-float-bar,
+            .dashboard-frame-host.is-print-target .dashboard-float-resize { display: none !important; }
+
+            html, body {
+                background: #fff !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .app-shell.dashboard-app-shell,
+            .dashboard-workspace-shell,
+            #dashboardWorkspace,
+            .dashboard-frame-host.is-print-target {
+                margin: 0 !important;
+                padding: 0 !important;
+                border: 0 !important;
+                min-height: 0 !important;
+                max-height: none !important;
+                height: auto !important;
+                overflow: visible !important;
+                background: #fff !important;
+                background-image: none !important;
+                break-before: auto !important;
+                break-after: auto !important;
+                page-break-before: auto !important;
+                page-break-after: auto !important;
+            }
+            .app-shell.dashboard-app-shell { display: block !important; }
+            .dashboard-workspace-shell { display: block !important; }
+            #dashboardWorkspace { position: static !important; }
+            .dashboard-frame-host.is-print-target {
+                position: static !important;
+                inset: auto !important;
+                display: block !important;
+            }
+            .dashboard-frame-host.is-print-target > .dashboard-frame {
+                position: static !important;
+                inset: auto !important;
+                display: block !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                min-height: 0 !important;
+                max-height: none !important;
+                border: 0 !important;
+                vertical-align: top !important;
+                /* la altura la fija dashboard.js en beforeprint (un <iframe> con
+                   height:auto mide 150px, no su contenido) */
+            }
+        }
+    </style>
 </head>
 <body class="dashboard-body">
     <div class="app-shell dashboard-app-shell">
@@ -30,9 +96,9 @@
                         <span class="dashboard-card-icon" data-icon-target="dashboardBusinessPartners"></span>
                         <span class="dashboard-card-title">Socios</span>
                     </button>
-                    <button type="button" class="dashboard-card" data-route="/productos" data-label="Productos" data-icon-key="dashboardProducts">
+                    <button type="button" class="dashboard-card" data-route="/productos" data-label="SKU" data-icon-key="dashboardProducts">
                         <span class="dashboard-card-icon" data-icon-target="dashboardProducts"></span>
-                        <span class="dashboard-card-title">Productos</span>
+                        <span class="dashboard-card-title">SKU</span>
                     </button>
                     <button type="button" class="dashboard-card" data-route="/cotizaciones" data-label="Cotizaciones" data-icon-key="dashboardQuotes">
                         <span class="dashboard-card-icon" data-icon-target="dashboardQuotes"></span>
@@ -54,9 +120,17 @@
                         <span class="dashboard-card-icon" data-icon-target="dashboardSettings"></span>
                         <span class="dashboard-card-title">Configuraci&oacute;n</span>
                     </button>
+                    <button type="button" class="dashboard-card" data-route="/capacitacion" data-label="Capacitaci&oacute;n" data-icon-key="dashboardCapacitacion">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardCapacitacion"></span>
+                        <span class="dashboard-card-title">Capacitaci&oacute;n</span>
+                    </button>
                     <button type="button" class="dashboard-card" data-route="/ordenes-produccion" data-label="&Oacute;rdenes" data-icon-key="dashboardOrders">
                         <span class="dashboard-card-icon" data-icon-target="dashboardOrders"></span>
                         <span class="dashboard-card-title">&Oacute;rdenes</span>
+                    </button>
+                    <button type="button" class="dashboard-card" data-route="/calidad" data-label="Calidad" data-icon-key="dashboardCalidad">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardCalidad"></span>
+                        <span class="dashboard-card-title">Calidad</span>
                     </button>
                     <button type="button" class="dashboard-card" data-route="/planificacion/seguimiento" data-label="Planificaci&oacute;n" data-icon-key="dashboardPlanning" data-open-mode="window">
                         <span class="dashboard-card-icon" data-icon-target="dashboardPlanning"></span>
@@ -70,21 +144,86 @@
                         <span class="dashboard-card-icon" data-icon-target="dashboardInks"></span>
                         <span class="dashboard-card-title">Tintas</span>
                     </button>
+                    <button type="button" class="dashboard-card" data-route="/facturacion-fel" data-label="Contabilidad" data-icon-key="dashboardFacturacionFel">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardFacturacionFel"></span>
+                        <span class="dashboard-card-title">Contabilidad</span>
+                    </button>
                     <button type="button" class="dashboard-card" data-route="/notificaciones.html" data-label="Notificaciones" data-icon-key="dashboardNotifications">
                         <span class="dashboard-card-icon" data-icon-target="dashboardNotifications"></span>
                         <span class="dashboard-card-title">Notificaciones</span>
                     </button>
                 </section>
-
-                <section id="dashboardSalesPipeline" class="dashboard-sales-pipeline" hidden>
-                    <h2 class="dashboard-section-title">Mi Pipeline de Cotizaciones</h2>
-                    <div id="dashboardSalesPipelineCounts" class="dashboard-sales-pipeline-counts"></div>
-                    <div id="dashboardSalesPipelineList" class="dashboard-sales-pipeline-list"></div>
-                </section>
             </section>
 
             <section id="dashboardWorkspace" class="dashboard-workspace" hidden></section>
         </main>
+
+        <div id="dvpHomeSlot" hidden>
+        <section id="dvpPanel" class="dvp-panel" hidden>
+                    <div class="dvp-strip" id="dvpStrip">
+                        <div class="dvp-strip-label"><span class="dvp-dot"></span>Tu actividad</div>
+                        <div class="dvp-strip-chips" id="dvpChips"></div>
+                        <button type="button" class="dvp-goto-btn" id="dvpGotoFullBtn" aria-label="Ver actividad completa" title="Ver actividad completa">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M7 17L17 7M7 7h10v10"/></svg>
+                        </button>
+                        <button type="button" class="dvp-expand-btn" id="dvpExpandBtn" aria-label="Expandir">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M6 9l6 6 6-6"/></svg>
+                        </button>
+                        <button type="button" class="dvp-close-btn" id="dvpCloseBtn" aria-label="Cerrar" title="Cerrar">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                        </button>
+                    </div>
+                    <div class="dvp-body" id="dvpBody">
+                        <div class="dvp-inner">
+                            <section id="dashboardSalesPipeline" class="dashboard-sales-pipeline" hidden>
+                                <h2 class="dashboard-section-title">Mi Pipeline de Cotizaciones</h2>
+                                <div id="dashboardSalesPipelinePreviewBanner" class="dashboard-sales-pipeline-preview-banner" hidden>
+                                    <span>Vista de prueba — viendo como vendedor</span>
+                                    <select id="dashboardSalesPipelineVendorSelect" class="dashboard-sales-pipeline-vendor-select"></select>
+                                </div>
+                                <div id="dashboardSalesPipelineCounts" class="dashboard-sales-pipeline-counts"></div>
+                                <div id="dashboardSalesPipelineList" class="dashboard-sales-pipeline-list"></div>
+                            </section>
+                            <div class="dvp-kpi-row" id="dvpKpiRow"></div>
+                            <div class="dvp-chart-card">
+                                <div class="dvp-chart-head">
+                                    <div>
+                                        <div class="dvp-chart-title">Ventas por mes</div>
+                                        <div class="dvp-chart-legend" id="dvpChartLegend"></div>
+                                    </div>
+                                    <div class="dvp-seg" id="dvpRangeSeg">
+                                        <button type="button" data-range="month" class="active">Mensual</button>
+                                        <button type="button" data-range="year">Anual</button>
+                                    </div>
+                                </div>
+                                <div class="dvp-chart-svg-wrap" id="dvpChartWrap"></div>
+                            </div>
+                            <div class="dvp-grid-2">
+                                <div class="dvp-list-card">
+                                    <div class="dvp-list-head"><span class="t">&Oacute;rdenes en proceso</span><span class="c" id="dvpOrdersCount"></span></div>
+                                    <div id="dvpOrdersList"></div>
+                                </div>
+                                <div class="dvp-list-card">
+                                    <div class="dvp-list-head"><span class="t">Facturas recientes</span><span class="c" id="dvpFacturasCount"></span></div>
+                                    <div id="dvpFacturasList"></div>
+                                </div>
+                            </div>
+                            <div class="dvp-list-card" style="margin-top:16px">
+                                <div class="dvp-list-head"><span class="t">Cotizaciones pendientes de cotizar</span><span class="c" id="dvpCotizadorCount"></span></div>
+                                <div id="dvpCotizadorList"></div>
+                            </div>
+                            <div class="dvp-list-card" style="margin-top:16px">
+                                <div class="dvp-list-head"><span class="t">Top clientes (12 meses)</span><span class="c" id="dvpTopCount"></span></div>
+                                <div id="dvpTopList"></div>
+                            </div>
+                            <div class="dvp-list-card" style="margin-top:16px">
+                                <div class="dvp-list-head"><span class="t">Leads (prospectos)</span><span class="c" id="dvpLeadsCount"></span></div>
+                                <div class="dvp-leads-strip" id="dvpLeadsStrip"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+        </div>
 
         <div id="dashboardBdfgShell" class="dashboard-bdfg-shell process-launcher-stack" data-placement="left">
             <div id="dashboardBdfgRadialBridge" class="process-launcher-bridge">
@@ -109,10 +248,13 @@
         </div>
     </div>
 
-    <script src="/access-control.js?v=20260528-cache-bust"></script>
-    <script src="/dashboard-floating-button.js?v=20260528-cache-bust"></script>
+    <script src="/access-control.js?v=20260923-mensajes-carga"></script>
+    <script src="/dashboard-floating-button.js?v=20260812-actividad-flotante"></script>
+    <script src="/trazabilidad-launcher.js?v=20260818-trazabilidad"></script>
     <script src="/notification-chat-widget.js?v=20260528-cache-bust"></script>
-    <script src="/dashboard.js?v=20260528-cache-bust"></script>
-    <script src="/topbar-tools.js?v=20260528-cache-bust"></script>
+    <script src="/dashboard.js?v=20260924-desplegables"></script>
+    <script src="/dashboard-vendedor-panel.js?v=20260921-modal-flotante-2"></script>
+    <script src="/topbar-tools.js?v=20260924-transiciones"></script>
+    <script src="/licencia-aviso.js?v=20260903-licenciamiento"></script>
 </body>
 </html>

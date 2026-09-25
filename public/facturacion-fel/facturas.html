@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
+    <title>Facturas FEL - PrintLab</title>
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <link rel="stylesheet" href="/facturacion-fel/styles.css?v=20260905-sellos">
+</head>
+<body>
+    <main class="workspace workspace-quote quote-browser-main factfel-shell">
+        <section class="quote-card quote-card-clean quote-browser-card factfel-card">
+            <div class="factfel-toolbar">
+                <h2>Facturas FEL</h2>
+                <div class="factfel-toolbar-actions">
+                    <input id="filtroTexto" class="factfel-search-input" type="search" placeholder="Buscar por número o cliente...">
+                    <button class="factfel-btn" onclick="cargar()">Buscar</button>
+                </div>
+            </div>
+            <div class="factfel-table-wrap">
+                <table class="factfel-table">
+                    <thead>
+                        <tr>
+                            <th>Número</th>
+                            <th>Fecha</th>
+                            <th>Cliente</th>
+                            <th>Despacho</th>
+                            <th>Moneda</th>
+                            <th>IVA</th>
+                            <th>Total</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaBody">
+                        <tr><td colspan="8" class="factfel-loading">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <div class="factfel-modal" id="detalleModal">
+        <div class="factfel-modal-backdrop" onclick="cerrarModal()"></div>
+        <div class="factfel-modal-panel">
+            <div class="factfel-modal-header">
+                <h2 id="detalleTitulo">Factura</h2>
+                <button class="factfel-modal-close" onclick="cerrarModal()" aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="factfel-tabs">
+                <button type="button" class="factfel-tab is-active" data-detalle-tab="factura">Factura</button>
+                <button type="button" class="factfel-tab" data-detalle-tab="xml">XML</button>
+            </div>
+
+            <div class="factfel-tab-panel" data-detalle-panel="factura">
+                <div class="factfel-actions-bar" style="justify-content:flex-start;">
+                    <button type="button" class="factfel-btn-ghost" id="btnImprimir">Imprimir / Ver Formato</button>
+                </div>
+                <div class="factfel-invoice-sheet" id="facturaVisual"></div>
+            </div>
+
+            <div class="factfel-tab-panel" data-detalle-panel="xml" hidden>
+                <div class="factfel-actions-bar" style="justify-content:flex-start;">
+                    <button type="button" class="factfel-btn-ghost" id="btnDescargarXml">Descargar XML</button>
+                </div>
+                <div class="factfel-xml-box">
+                    <pre id="detalleXml"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = '/api/facturacion-fel';
+
+        function escapeHtml(text) {
+            const d = document.createElement('div');
+            d.textContent = text == null ? '' : text;
+            return d.innerHTML;
+        }
+        function money(value) { return 'Q ' + (Number(value) || 0).toFixed(2); }
+        function fecha(value) {
+            if (!value) return '';
+            const d = new Date(value);
+            return d.toLocaleDateString('es-GT') + ' ' + d.toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        async function cargar() {
+            const body = document.getElementById('tablaBody');
+            body.innerHTML = '<tr><td colspan="8" class="factfel-loading">Cargando...</td></tr>';
+            try {
+                const r = await fetch(`${API}`);
+                const data = await r.json();
+                let rows = data.rows || [];
+                const texto = document.getElementById('filtroTexto').value.trim().toLowerCase();
+                if (texto) {
+                    rows = rows.filter(f =>
+                        String(f.numero_interno || '').toLowerCase().includes(texto) ||
+                        String(f.cliente_nombre || '').toLowerCase().includes(texto)
+                    );
+                }
+                if (!rows.length) {
+                    body.innerHTML = '<tr><td colspan="8" class="factfel-empty">Sin facturas registradas.</td></tr>';
+                    return;
+                }
+                body.innerHTML = rows.map(f => `
+                    <tr data-id="${f.id}">
+                        <td>${escapeHtml(f.numero_interno)}</td>
+                        <td>${fecha(f.fecha_emision)}</td>
+                        <td>${escapeHtml(f.cliente_nombre || '')}</td>
+                        <td>${escapeHtml(f.numero_despacho || '')}</td>
+                        <td>${escapeHtml(f.moneda)}</td>
+                        <td>${money(f.total_iva)}</td>
+                        <td>${money(f.gran_total)}</td>
+                        <td><span class="factfel-badge factfel-badge-${escapeHtml(f.estado)}">${escapeHtml(f.estado)}</span></td>
+                    </tr>
+                `).join('');
+                body.querySelectorAll('tr[data-id]').forEach(tr => {
+                    tr.addEventListener('click', () => verDetalle(tr.dataset.id));
+                });
+            } catch (e) {
+                body.innerHTML = '<tr><td colspan="8" class="factfel-empty">Error al cargar las facturas.</td></tr>';
+            }
+        }
+
+        let facturaActual = null;
+
+        async function verDetalle(id) {
+            try {
+                const r = await fetch(`${API}/${id}`);
+                const f = await r.json();
+                facturaActual = f;
+                const totalDescuento = (f.detalle || []).reduce((acc, l) => acc + Number(l.monto_descuento || 0), 0);
+                const hayDescuento = totalDescuento > 0.004;
+                document.getElementById('detalleTitulo').textContent = `Factura ${f.numero_interno}`;
+                document.getElementById('facturaVisual').innerHTML = `
+                    <div class="factfel-invoice-head">
+                        <div>
+                            <strong class="factfel-invoice-numero">${escapeHtml(f.numero_interno)}</strong>
+                            <span class="factfel-badge factfel-badge-${escapeHtml(f.estado)}">${escapeHtml(f.estado)}</span>
+                        </div>
+                        <div class="factfel-invoice-fecha">${fecha(f.fecha_emision)}</div>
+                    </div>
+                    <div class="factfel-invoice-parties">
+                        <div>
+                            <span>Cliente</span>
+                            <strong>${escapeHtml(f.cliente_nombre || '')}</strong>
+                            ${f.contacto_nombre ? `<div class="factfel-invoice-contact">Atención: ${escapeHtml(f.contacto_nombre)}</div>` : ''}
+                        </div>
+                        <div>
+                            <span>Despacho</span>
+                            <strong>${escapeHtml(f.numero_despacho || '')}</strong>
+                        </div>
+                        <div>
+                            <span>Moneda</span>
+                            <strong>${escapeHtml(f.moneda)}</strong>
+                        </div>
+                    </div>
+                    <table class="factfel-invoice-table">
+                        <thead><tr><th>Producto</th><th>Cantidad</th><th>Precio Unitario</th>${hayDescuento ? '<th>Descuento</th>' : ''}<th>Total</th></tr></thead>
+                        <tbody>
+                            ${(f.detalle || []).map(l => `
+                                <tr>
+                                    <td>${escapeHtml(l.descripcion)}</td>
+                                    <td>${Number(l.cantidad).toFixed(2)}</td>
+                                    <td>${money(l.precio_unitario)}</td>
+                                    ${hayDescuento ? `<td>${money(l.monto_descuento)}</td>` : ''}
+                                    <td>${money(l.monto_linea)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    ${f.notas ? `<div class="factfel-invoice-notas"><span>Notas</span><p>${escapeHtml(f.notas)}</p></div>` : ''}
+                    <div class="factfel-invoice-totales">
+                        ${hayDescuento ? `<div><span>Descuento</span><strong>${money(totalDescuento)}</strong></div>` : ''}
+                        <div><span>Subtotal Gravable</span><strong>${money(f.subtotal_gravable)}</strong></div>
+                        <div><span>IVA</span><strong>${money(f.total_iva)}</strong></div>
+                        <div class="factfel-invoice-total-final"><span>Total</span><strong>${money(f.gran_total)}</strong></div>
+                    </div>
+                    <div class="factfel-invoice-fel">
+                        <span>UUID de Autorización</span>
+                        <strong>${escapeHtml(f.uuid_autorizacion || 'Pendiente de certificar')}</strong>
+                    </div>
+                `;
+                document.getElementById('detalleXml').textContent = f.xml_dte || '';
+                document.querySelectorAll('.factfel-tab[data-detalle-tab]').forEach(t => t.classList.remove('is-active'));
+                document.querySelector('.factfel-tab[data-detalle-tab="factura"]').classList.add('is-active');
+                document.querySelectorAll('.factfel-tab-panel[data-detalle-panel]').forEach(p => p.hidden = true);
+                document.querySelector('.factfel-tab-panel[data-detalle-panel="factura"]').hidden = false;
+                document.getElementById('detalleModal').classList.add('is-open');
+            } catch (e) {
+                alert('No fue posible cargar el detalle de la factura.');
+            }
+        }
+
+        document.querySelectorAll('.factfel-tab[data-detalle-tab]').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.factfel-tab[data-detalle-tab]').forEach(t => t.classList.remove('is-active'));
+                document.querySelectorAll('.factfel-tab-panel[data-detalle-panel]').forEach(p => p.hidden = true);
+                tab.classList.add('is-active');
+                document.querySelector(`.factfel-tab-panel[data-detalle-panel="${tab.dataset.detalleTab}"]`).hidden = false;
+            });
+        });
+
+        document.getElementById('btnImprimir').addEventListener('click', () => {
+            if (!facturaActual) return;
+            window.open(`/facturacion-fel/imprimir?id=${facturaActual.id}`, '_blank', 'noopener');
+        });
+
+        document.getElementById('btnDescargarXml').addEventListener('click', () => {
+            if (!facturaActual) return;
+            const blob = new Blob([facturaActual.xml_dte || ''], { type: 'application/xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${facturaActual.numero_interno || 'factura'}.xml`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        });
+
+        function cerrarModal() {
+            document.getElementById('detalleModal').classList.remove('is-open');
+        }
+
+        document.getElementById('filtroTexto').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') cargar();
+        });
+
+        (function abrirDesdeQuery() {
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get('id');
+            if (id) {
+                cargar().then(() => verDetalle(id));
+            } else {
+                cargar();
+            }
+        })();
+    </script>
+</body>
+</html>

@@ -4,8 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
     <title>Ordenes de Produccion</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <style>
+        .order-status-chip{font-size:11px;font-weight:700;border-radius:4px;padding:1px 6px;white-space:nowrap;background:#f1f5f9;color:#64748b}
+        .order-status-chip[data-state="active"]{background:#eef6fb;color:#0b75a4}
+        .order-status-chip[data-state="late"]{background:#fdecea;color:#c0392b}
+        .order-status-chip[data-state="done"]{background:#e6f7ed;color:#168048}
+        .order-status-chip[data-state="stopped"]{background:#fff3d8;color:#9b6a00}
+        .order-status-chip[data-state="void"]{background:#fdecea;color:#a5302a}
+        html[data-theme="dark"] .order-status-chip{background:#1d2938;color:#94a3b8}
+        html[data-theme="dark"] .order-status-chip[data-state="active"]{background:#0f3654;color:#7dd3fc}
+        html[data-theme="dark"] .order-status-chip[data-state="late"]{background:#3a1414;color:#f87171}
+        html[data-theme="dark"] .order-status-chip[data-state="done"]{background:#123321;color:#86efac}
+        html[data-theme="dark"] .order-status-chip[data-state="stopped"]{background:#3a2a10;color:#e6b866}
+        html[data-theme="dark"] .order-status-chip[data-state="void"]{background:#3a1414;color:#f0a099}
+        .order-actions-cell{white-space:nowrap}
+        .order-actions-row{display:inline-flex;align-items:center;gap:6px}
+    </style>
 </head>
 <body>
     <main class="workspace workspace-quote quote-browser-main">
@@ -25,15 +42,16 @@
                             <th data-sort-key="customer_name">Cliente<span class="sort-indicator"></span></th>
                             <th data-sort-key="job_name">Trabajo<span class="sort-indicator"></span></th>
                             <th data-sort-key="created_at">Fecha<span class="sort-indicator"></span></th>
+                            <th>Estado</th>
                             <th></th>
                         </tr>
                     </thead>
-                    <tbody id="ordersTableBody"></tbody>
+                    <tbody id="ordersTableBody"><tr><td colspan="8">Cargando las órdenes desde el servidor, un momento por favor…</td></tr></tbody>
                 </table>
             </div>
         </section>
     </main>
-    <script src="/access-control.js"></script>
-    <script src="/ordenes-produccion.js"></script>
+    <script src="/access-control.js?v=20260923-mensajes-carga"></script>
+    <script src="/ordenes-produccion.js?v=20260923-volteadora"></script>
 </body>
 </html>

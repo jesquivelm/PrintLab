@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calidad - PrintLab</title>
+<link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+<link rel="stylesheet" href="/calidad/styles.css?v=20260905-sellos">
+<script src="/theme.js"></script>
+<style>
+body { margin:0; background:transparent; }
+</style>
+</head>
+<body>
+<section class="calidad-dashboard-grid" id="calidadGrid"></section>
+<script>
+const PUNTO_CONFIG = '/api/config/shell';
+const CALIDAD_MODULES = [
+  { route:'/calidad/incidencias', label:'Incidencias de Calidad', iconKey:'calidadOrdenes' },
+  { route:'/calidad/ordenes', label:'Órdenes de Calidad', iconKey:'calidadOrdenes' },
+  { route:'/calidad/documentos', label:'Documentos Generados', iconKey:'calidadCartilla' }
+];
+
+let configCargada = {};
+
+function escaparHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+function marcadoIcono(value, altText, extraClass) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized.startsWith('data:image/svg+xml') || /\.svg(\?|#|$)/i.test(normalized)) {
+    return '<span class="icon-svg-mask ' + (extraClass || '') + '" role="img" aria-label="' + escaparHtml(altText) + '" style="-webkit-mask-image:url(\'' + escaparHtml(value) + '\');mask-image:url(\'' + escaparHtml(value) + '\');"></span>';
+  }
+  if (normalized.startsWith('data:image') || /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(normalized)) {
+    return '<img src="' + escaparHtml(value) + '" alt="' + escaparHtml(altText) + '" class="icon-image ' + (extraClass || '') + '">';
+  }
+  return '<span class="icon-glyph ' + (extraClass || '') + '">' + escaparHtml(value || '') + '</span>';
+}
+
+function renderizarTarjetasCalidad() {
+  const grid = document.getElementById('calidadGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  CALIDAD_MODULES.forEach(function(mod) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'calidad-dashboard-card';
+    card.dataset.route = mod.route;
+    card.dataset.label = mod.label;
+    card.dataset.iconKey = mod.iconKey;
+
+    const iconValue = (configCargada.icons && configCargada.icons[mod.iconKey]) || '✓';
+    const suffix = mod.iconKey.charAt(0).toUpperCase() + mod.iconKey.slice(1);
+    let color = (configCargada.general && configCargada.general['iconColor' + suffix]) || '#16a34a';
+    const hover = (configCargada.general && configCargada.general['iconColorHover' + suffix]) || color || '#15803d';
+    const configuredSize = Number((configCargada.general && configCargada.general['iconSize' + suffix])) || 38;
+
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'calidad-dashboard-card-icon';
+    iconSpan.innerHTML = marcadoIcono(iconValue, mod.label, 'table-icon-media');
+    iconSpan.style.setProperty('--icon-base-color', color);
+    iconSpan.style.setProperty('--icon-hover-color', hover);
+    iconSpan.style.setProperty('--config-icon-size', configuredSize + 'px');
+
+    const titleSpan = document.createElement('span');
+    titleSpan.className = 'calidad-dashboard-card-title';
+    titleSpan.textContent = mod.label;
+
+    card.appendChild(iconSpan);
+    card.appendChild(titleSpan);
+
+    card.addEventListener('click', function() {
+      var parent = window.parent;
+      if (parent && parent !== window) {
+        parent.postMessage({ type:'erp-open-tab', route:mod.route, label:mod.label }, window.location.origin);
+      } else {
+        window.open(mod.route, '_blank', 'noopener');
+      }
+    });
+
+    grid.appendChild(card);
+  });
+}
+
+fetch(PUNTO_CONFIG).then(function(r) { return r.json(); }).then(function(cfg) {
+  configCargada = cfg || {};
+  renderizarTarjetasCalidad();
+}).catch(function() { renderizarTarjetasCalidad(); });
+</script>
+</body>
+</html>

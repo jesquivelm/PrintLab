@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
     <title>Inventario</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
     <style>
         .topbar.topbar-quote {
             display: flex;
@@ -20,6 +21,7 @@
                 <div class="inventory-actions quote-browser-actions-left">
                     <button id="catalogBackButton" type="button" class="action-btn quote-browser-action-btn" hidden>Listado</button>
                     <button id="catalogNewButton" type="button" class="action-btn quote-browser-action-btn">Nuevo</button>
+                    <button id="catalogMantenimientoButton" type="button" class="action-btn quote-browser-action-btn" hidden>Calendario de Mantenimientos</button>
                     <button id="catalogSaveButton" type="button" class="action-btn quote-browser-action-btn">Guardar</button>
                     <button id="catalogImportSapButton" type="button" class="action-btn quote-browser-action-btn" hidden>Actualizar desde SAP</button>
                     <button id="catalogRefreshButton" type="button" class="action-btn quote-browser-action-btn" hidden>Refrescar</button>
@@ -93,8 +95,8 @@
     </div>
 
     <input id="catalogImportInput" type="file" accept=".xlsx,.xls,.csv" hidden>
-    <script src="/access-control.js"></script>
-    <script src="/catalogo.js?v=20260712-2335"></script>
-    <script src="/topbar-tools.js"></script>
+    <script src="/access-control.js?v=20260923-mensajes-carga"></script>
+    <script src="/catalogo.js?v=20260916-datosadicionales"></script>
+    <script src="/topbar-tools.js?v=20260924-transiciones"></script>
 </body>
 </html>

@@ -38,7 +38,8 @@ const DEFAULT_EXCHANGE_RATE_CONFIG = Object.freeze({
     lastSyncStatus: 'idle',
     lastSyncMessage: '',
     lastSyncStartedAt: null,
-    lastSyncFinishedAt: null
+    lastSyncFinishedAt: null,
+    sapAutoEnviar: false
 });
 
 const DAY_KEYS = Object.freeze(['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']);
@@ -122,7 +123,8 @@ function normalizeConfigRow(row = {}) {
         lastSyncStatus: normalizeText(row.last_sync_status || row.lastSyncStatus, DEFAULT_EXCHANGE_RATE_CONFIG.lastSyncStatus),
         lastSyncMessage: normalizeText(row.last_sync_message || row.lastSyncMessage),
         lastSyncStartedAt: row.last_sync_started_at || row.lastSyncStartedAt || null,
-        lastSyncFinishedAt: row.last_sync_finished_at || row.lastSyncFinishedAt || null
+        lastSyncFinishedAt: row.last_sync_finished_at || row.lastSyncFinishedAt || null,
+        sapAutoEnviar: normalizeBoolean(row.sap_auto_enviar ?? row.sapAutoEnviar, DEFAULT_EXCHANGE_RATE_CONFIG.sapAutoEnviar)
     };
 }
 
@@ -143,10 +145,13 @@ async function ensureExchangeRateSchema(pgQuery) {
             last_sync_message TEXT NOT NULL DEFAULT '',
             last_sync_started_at TIMESTAMPTZ NULL,
             last_sync_finished_at TIMESTAMPTZ NULL,
+            sap_auto_enviar BOOLEAN NOT NULL DEFAULT false,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
     `);
+    // Por si la tabla ya existía de antes (columna nueva para el envío del tipo de cambio a SAP).
+    await pgQuery(`ALTER TABLE exchange_rate_config ADD COLUMN IF NOT EXISTS sap_auto_enviar BOOLEAN NOT NULL DEFAULT false`);
     await pgQuery(`
         INSERT INTO exchange_rate_config (
             id, provider_name, provider_url_template, base_currency, default_currency,
@@ -215,7 +220,8 @@ async function loadExchangeRateConfig(pgQuery) {
     const result = await pgQuery(`
         SELECT provider_name, provider_url_template, base_currency, default_currency, enabled_currencies,
                auto_update_enabled, update_time, update_days, timezone,
-               last_sync_status, last_sync_message, last_sync_started_at, last_sync_finished_at
+               last_sync_status, last_sync_message, last_sync_started_at, last_sync_finished_at,
+               sap_auto_enviar
           FROM exchange_rate_config
          WHERE id = 1
          LIMIT 1
@@ -230,7 +236,8 @@ async function saveExchangeRateConfig(pgQuery, patch = {}) {
         ...patch,
         base_currency: patch.baseCurrency ?? patch.base_currency ?? previous.baseCurrency,
         enabled_currencies: patch.enabledCurrencies ?? patch.enabled_currencies ?? previous.enabledCurrencies,
-        default_currency: patch.defaultCurrency ?? patch.default_currency ?? previous.defaultCurrency
+        default_currency: patch.defaultCurrency ?? patch.default_currency ?? previous.defaultCurrency,
+        sap_auto_enviar: patch.sapAutoEnviar ?? patch.sap_auto_enviar ?? previous.sapAutoEnviar
     });
     await pgQuery(`
         UPDATE exchange_rate_config
@@ -243,6 +250,7 @@ async function saveExchangeRateConfig(pgQuery, patch = {}) {
                update_time = $7,
                update_days = $8::jsonb,
                timezone = $9,
+               sap_auto_enviar = $10,
                updated_at = NOW()
          WHERE id = 1
     `, [
@@ -254,7 +262,8 @@ async function saveExchangeRateConfig(pgQuery, patch = {}) {
         next.autoUpdateEnabled,
         next.updateTime,
         JSON.stringify(next.updateDays),
-        next.timezone
+        next.timezone,
+        next.sapAutoEnviar
     ]);
     return loadExchangeRateConfig(pgQuery);
 }

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
+    <title>Inventario Producto Terminado</title>
+    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <style>
+        .ipt-shell{display:flex;flex-direction:column;flex:1;min-width:0;min-height:0}
+        .ipt-header{display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:14px 20px;background:var(--app-surface);border-bottom:1px solid var(--app-border)}
+        .ipt-refresh-btn{border:1px solid var(--app-border-strong);background:var(--app-surface);color:var(--app-text-soft);border-radius:8px;height:36px;padding:0 14px;font-size:12.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all .15s;flex:0 0 auto}
+        .ipt-refresh-btn:hover{border-color:var(--app-primary);color:var(--app-primary);background:var(--app-primary-soft)}
+        .ipt-refresh-icon{font-size:15px;line-height:1;display:inline-block}
+        .ipt-refresh-btn.is-loading .ipt-refresh-icon{animation:ipt-spin .7s linear infinite}
+        @keyframes ipt-spin{to{transform:rotate(360deg)}}
+        .ipt-tabs{display:flex;gap:4px;padding:0 20px;background:var(--app-surface);border-bottom:1px solid var(--app-border);overflow-x:auto}
+        .ipt-tabs::-webkit-scrollbar{height:0}
+        .ipt-tab{position:relative;border:none;background:transparent;color:var(--app-text-muted);padding:13px 14px 11px;cursor:pointer;font-size:12.5px;font-weight:600;white-space:nowrap;transition:color .15s;flex:0 0 auto}
+        .ipt-tab::after{content:'';position:absolute;left:8px;right:8px;bottom:0;height:2px;border-radius:2px 2px 0 0;background:transparent;transition:background .15s}
+        .ipt-tab:hover{color:var(--app-text)}
+        .ipt-tab.is-active{color:var(--app-primary)}
+        .ipt-tab.is-active::after{background:var(--app-primary)}
+        .ipt-main{padding:14px;max-width:1400px;margin:0 auto}
+        .ipt-panel{display:none}
+        .ipt-panel.is-active{display:block}
+        .ipt-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+        .ipt-kpi{border:1px solid var(--app-border);border-radius:14px;padding:12px 14px;background:var(--app-surface)}
+        .ipt-kpi-label{font-size:11px;color:var(--app-text-muted);text-transform:uppercase;letter-spacing:.4px}
+        .ipt-kpi-value{font-size:21px;font-weight:700;color:var(--app-text);margin-top:4px}
+        .ipt-kpi small{color:var(--app-text-muted);font-size:11px}
+        .ipt-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+        .ipt-toolbar input[type=search],.ipt-toolbar select,.ipt-toolbar input[type=text],.ipt-toolbar input[type=number],.ipt-toolbar input[type=date]{border:1px solid var(--app-border-strong);border-radius:8px;padding:0 9px;font-size:12.5px;background:var(--app-surface);color:var(--app-text);max-width:220px;height:34px;box-sizing:border-box}
+        .ipt-toolbar input[type=search]{flex:0 1 260px}
+        .ipt-btn{border:1px solid var(--app-primary);background:var(--app-primary);color:#fff;border-radius:8px;padding:0 13px;font-size:12.5px;cursor:pointer;transition:background .15s;height:34px;box-sizing:border-box;display:inline-flex;align-items:center}
+        .ipt-btn:hover{background:var(--app-primary-strong)}
+        .ipt-btn.ghost{background:var(--app-surface);color:var(--app-primary)}
+        .ipt-btn.ghost:hover{background:var(--app-primary-soft)}
+        .ipt-btn.danger{border-color:var(--app-danger);background:var(--app-danger)}
+        .ipt-btn.danger:hover{background:color-mix(in srgb,var(--app-danger) 75%,#000)}
+        .ipt-btn:disabled{opacity:.5;cursor:not-allowed}
+        .ipt-tbl-wrap{border:1px solid var(--app-border);border-radius:12px;overflow:auto;background:var(--app-surface);box-shadow:var(--app-shadow-sm)}
+        .ipt-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;min-width:720px}
+        .ipt-table th{background:var(--app-bg-soft);color:var(--app-text-soft);text-align:left;padding:10px 12px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;position:sticky;top:0;border-bottom:2px solid var(--app-border-strong);z-index:1}
+        .ipt-table td{padding:9px 12px;border-top:1px solid var(--app-border);color:var(--app-text);white-space:nowrap;line-height:1.4}
+        .ipt-table tbody tr:nth-child(even){background:color-mix(in srgb,var(--app-bg-soft) 55%,transparent)}
+        .ipt-table tbody tr:hover{background:var(--app-primary-soft)}
+        .ipt-table .num{text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
+        .ipt-table td strong{font-weight:700;color:var(--app-text)}
+        .ipt-empty{padding:32px;text-align:center;color:var(--app-text-muted);font-size:13px;font-style:italic}
+        .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.2px;white-space:nowrap}
+        .badge.ok{background:color-mix(in srgb,var(--app-success) 15%,transparent);color:var(--app-success)}
+        .badge.warn{background:color-mix(in srgb,var(--app-warning) 18%,transparent);color:var(--app-warning)}
+        .badge.bad{background:color-mix(in srgb,var(--app-danger) 15%,transparent);color:var(--app-danger)}
+        .badge.info{background:color-mix(in srgb,var(--app-primary) 15%,transparent);color:var(--app-primary)}
+        .badge.mut{background:var(--app-bg-soft);color:var(--app-text-muted)}
+        .row-actions{display:flex;gap:6px;flex-wrap:wrap}
+        .row-actions button{border:1px solid var(--app-border-strong);background:var(--app-surface);color:var(--app-text-soft);border-radius:6px;padding:4px 10px;font-size:11.5px;font-weight:600;cursor:pointer;height:28px;box-sizing:border-box;display:inline-flex;align-items:center;transition:all .15s}
+        .row-actions button:hover{border-color:var(--app-primary);color:var(--app-primary);background:var(--app-primary-soft)}
+        .ipt-modal-backdrop{position:fixed;inset:0;background:rgba(11,40,60,.45);display:none;align-items:center;justify-content:center;z-index:1200;padding:20px}
+        .ipt-modal-backdrop.is-open{display:flex}
+        .ipt-modal{background:var(--app-surface-raised);border-radius:16px;max-width:640px;width:100%;max-height:88vh;overflow:auto;box-shadow:var(--app-shadow-lg)}
+        .ipt-modal-head{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--app-border)}
+        .ipt-modal-head h3{margin:0;font-size:15px;color:var(--app-text);flex:1}
+        .ipt-modal-close{border:none;background:none;font-size:22px;color:var(--app-text-muted);cursor:pointer;line-height:1}
+        .ipt-modal-body{padding:16px 18px}
+        .ipt-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+        .ipt-form-grid .full{grid-column:1/-1}
+        .ipt-field label{display:block;font-size:11px;color:var(--app-text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px}
+        .ipt-field input,.ipt-field select,.ipt-field textarea{width:100%;border:1px solid var(--app-border-strong);border-radius:8px;padding:7px 9px;font-size:12.5px;background:var(--app-surface);color:var(--app-text);box-sizing:border-box}
+        .ipt-field textarea{min-height:58px;resize:vertical}
+        .ipt-modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--app-border)}
+        .ipt-lineas{border:1px solid var(--app-border);border-radius:10px;padding:8px;display:grid;gap:6px}
+        .ipt-linea{display:grid;grid-template-columns:1fr 110px 34px;gap:6px}
+        .ipt-sub-section{margin:14px 0 6px;font-size:12px;font-weight:700;color:var(--app-text-soft);text-transform:uppercase;letter-spacing:.4px}
+        .ipt-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;font-size:12.5px}
+        .ipt-detail-grid div{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dashed var(--app-border)}
+        .ipt-detail-grid span:first-child{color:var(--app-text-muted)}
+        .ipt-detail-grid span:last-child{color:var(--app-text);text-align:right}
+        .ipt-two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+        @media (max-width:900px){.ipt-two-col{grid-template-columns:1fr}}
+    </style>
+</head>
+<body>
+    <div class="ipt-shell">
+    <header class="ipt-header">
+        <button type="button" class="ipt-refresh-btn" id="iptRefreshBtn" title="Refrescar" aria-label="Refrescar">
+            <span class="ipt-refresh-icon">&#8635;</span> Actualizar
+        </button>
+    </header>
+
+    <nav class="ipt-tabs" id="iptTabs">
+        <button type="button" class="ipt-tab is-active" data-panel="resumen">Resumen</button>
+        <button type="button" class="ipt-tab" data-panel="lotes">Lotes</button>
+        <button type="button" class="ipt-tab" data-panel="entradas">Entradas</button>
+        <button type="button" class="ipt-tab" data-panel="existencias">Existencias</button>
+        <button type="button" class="ipt-tab" data-panel="reservas">Reservas</button>
+        <button type="button" class="ipt-tab" data-panel="solicitudes">Solicitudes</button>
+        <button type="button" class="ipt-tab" data-panel="despachos">Despachos</button>
+        <button type="button" class="ipt-tab" data-panel="movimientos">Movimientos</button>
+        <button type="button" class="ipt-tab" data-panel="reportes">Reportes</button>
+        <button type="button" class="ipt-tab" data-panel="bodegas">Bodegas</button>
+    </nav>
+
+    <main class="ipt-main">
+
+        <section id="panel-resumen" class="ipt-panel is-active">
+            <div class="ipt-kpis" id="iptKpis"></div>
+            <div class="ipt-two-col">
+                <div>
+                    <div class="ipt-sub-section">Actividad Reciente</div>
+                    <div class="ipt-tbl-wrap"><table class="ipt-table"><thead><tr><th>Movimiento</th><th>Cantidad</th><th>Producto</th><th>Fecha</th></tr></thead><tbody id="iptActividadBody"></tbody></table></div>
+                </div>
+                <div>
+                    <div class="ipt-sub-section">Inventario por Bodega</div>
+                    <div class="ipt-tbl-wrap"><table class="ipt-table"><thead><tr><th>Bodega</th><th class="num">Física</th><th class="num">Disponible</th></tr></thead><tbody id="iptResumenBodegaBody"></tbody></table></div>
+                    <div class="ipt-sub-section">Entradas y Salidas Mensuales</div>
+                    <div class="ipt-tbl-wrap"><table class="ipt-table"><thead><tr><th>Mes</th><th class="num">Entradas</th><th class="num">Salidas</th></tr></thead><tbody id="iptSerieBody"></tbody></table></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="panel-lotes" class="ipt-panel">
+            <div class="ipt-toolbar">
+                <input type="search" id="iptLotesBusqueda" placeholder="Buscar lote, producto u orden...">
+                <select id="iptLotesEstado"><option value="">Todos los estados</option><option>PENDIENTE</option><option>EN_INSPECCION</option><option>APROBADO</option><option>APROBADO_CON_OBSERVACIONES</option><option>RECHAZADO</option><option>BLOQUEADO</option><option>LIBERADO</option></select>
+                <button type="button" class="ipt-btn" id="iptLoteNuevoBtn">Nuevo Lote</button>
+            </div>
+            <div class="ipt-tbl-wrap"><table class="ipt-table">
+                <thead><tr><th>Lote</th><th>Producto</th><th>Orden</th><th class="num">Producida</th><th class="num">Aprobada</th><th class="num">Rechazada</th><th>Calidad</th><th>Liberación</th><th>Acciones</th></tr></thead>
+                <tbody id="iptLotesBody"></tbody>
+            </table></div>
+        </section>
+
+        <section id="panel-entradas" class="ipt-panel">
+            <div class="ipt-toolbar">
+                <input type="search" id="iptEntradasBusqueda" placeholder="Buscar lote o producto...">
+                <button type="button" class="ipt-btn" id="iptEntradaNuevaBtn">Registrar Entrada</button>
+            </div>
+            <div class="ipt-tbl-wrap"><table class="ipt-table">
+                <thead><tr><th>Fecha</th><th>Lote</th><th>Producto</th><th>Orden</th><th>Bodega</th><th class="num">Cantidad</th><th>Unidad</th><th>Motivo</th></tr></thead>
+                <tbody id="iptEntradasBody"></tbody>
+            </table></div>
+        </section>
+
+        <section id="panel-existencias" class="ipt-panel">
+            <div class="ipt-toolbar">
+                <input type="search" id="iptExistBusqueda" placeholder="Buscar producto, lote, bodega...">
+                <select id="iptExistBodega"><option value="">Todas las bodegas</option></select>
+                <button type="button" class="ipt-btn" id="iptExistTransferirBtn">Transferir</button>
+            </div>
+            <div class="ipt-tbl-wrap"><table class="ipt-table">
+                <thead><tr><th>Producto</th><th>Lote</th><th>Orden</th><th>Bodega</th><th>Ubicación</th><th class="num">Física</th><th class="num">Reservada</th><th class="num">Bloqueada</th><th class="num">En Despacho</th><th class="num">Disponible</th><th>Unidad</th><th>Estado</th><th>Acciones</th></tr></thead>
+                <tbody id="iptExistBody"></tbody>
+            </table></div>
+        </section>
+
+        <section id="panel-reservas" class="ipt-panel">
+            <div class="ipt-toolbar">
+                <input type="search" id="iptReservaBusqueda" placeholder="Buscar reserva, lote o producto...">
+                <select id="iptReservaEstado"><option value="">Todos los estados</option><option>ACTIVA</option><option>PARCIAL</option><option>UTILIZADA</option><option>CANCELADA</option><option>VENCIDA</option></select>
+                <button type="button" class="ipt-btn" id="iptReservaNuevaBtn">Nueva Reserva</button>
+                <button type="button" class="ipt-btn ghost" id="iptReservaVencidasBtn">Procesar Vencidas</button>
+            </div>
+            <div class="ipt-tbl-wrap"><table class="ipt-table">
+                <thead><tr><th>Reserva</th><th>Producto</th><th>Lote</th><th>Cliente</th><th class="num">Cantidad</th><th>Unidad</th><th>Fecha</th><th>Vence</th><th>Estado</th><th>Acciones</th></tr></thead>
+                <tbody id="iptReservaBody"></tbody>
+            </table></div>
+        </section>
+
+        <section id="panel-solicitudes" class="ipt-panel">
+            <div class="ipt-toolbar">
+                <input type="search" id="iptSolicitudBusqueda" placeholder="Buscar solicitud, cliente...">
+                <select id="iptSolicitudEstado"><option value="">Todos los estados</option><option>BORRADOR</option><option>PENDIENTE</option><option>APROBADA</option><option>RESERVADA</option><option>EN_PREPARACION</option><option>PREPARADA</option><option>DESPACHADA</option><option>DESPACHADA_PARCIAL</option><option>CANCELADA</option></select>
+                <button type="button" class="ipt-btn" id="iptSolicitudNuevaBtn">Nueva Solicitud</button>
+            </div>
+            <div class="ipt-tbl-wrap"><table class="ipt-table">
+                <thead><tr><th>Solicitud</th><th>Cliente</th><th>Bodega</th><th>Fecha Prog.</th><th>Transportista</th><th>Estado</th><th>Acciones</th></tr></thead>
+                <tbody id="iptSolicitudBody"></tbody>
+            </table></div>
+        </section>
+
+        <section id="panel-despachos" class="ipt-panel">
+            <div class="ipt-toolbar">
+                <input type="search" id="iptDespachoBusqueda" placeholder="Buscar despacho, cliente...">
+                <button type="button" class="ipt-btn" id="iptDespachoNuevoBtn">Nuevo Despacho</button>
+                <button type="button" class="ipt-btn ghost" id="iptIntegracionesBtn">Integraciones SAP</button>
+            </div>
+            <div class="ipt-tbl-wrap"><table class="ipt-table">
+                <thead><tr><th>Despacho</th><th>Solicitud</th><th>Cliente</th><th>Transportista</th><th>Guía</th><th>Fecha</th><th>Confirmación</th><th>Estado</th><th>Acciones</th></tr></thead>
+                <tbody id="iptDespachoBody"></tbody>
+            </table></div>
+        </section>
+
+        <section id="panel-movimientos" class="ipt-panel">
+            <div class="ipt-toolbar">
+                <input type="search" id="iptMovBusqueda" placeholder="Buscar producto, lote, documento...">
+                <select id="iptMovTipo"><option value="">Todos los tipos</option><option>ENTRADA_PRODUCCION</option><option>AJUSTE</option><option>RESERVA_PEDIDO</option><option>LIBERACION_RESERVA</option><option>INICIO_DESPACHO</option><option>CONFIRMACION_DESPACHO</option><option>TRANSFERENCIA</option><option>BLOQUEO</option><option>DESBLOQUEO</option></select>
+            </div>
+            <div class="ipt-tbl-wrap"><table class="ipt-table">
+                <thead><tr><th>Fecha</th><th>Movimiento</th><th>Producto</th><th>Lote</th><th class="num">Cantidad</th><th>Unidad</th><th>Documento</th><th>Referencia</th><th>Motivo</th></tr></thead>
+                <tbody id="iptMovBody"></tbody>
+            </table></div>
+        </section>
+
+        <section id="panel-reportes" class="ipt-panel">
+            <div class="ipt-toolbar">
+                <select id="iptReporteTipo">
+                    <option value="existencias">Existencias</option>
+                    <option value="por_producto">Resumen por Producto</option>
+                    <option value="por_cliente">Resumen por Cliente</option>
+                    <option value="por_lote">Resumen por Lote</option>
+                    <option value="por_bodega">Resumen por Bodega</option>
+                    <option value="movimientos">Movimientos</option>
+                    <option value="despachos_pendientes">Despachos Pendientes</option>
+                    <option value="integraciones_sap">Integraciones SAP</option>
+                    <option value="errores_sap">Errores SAP</option>
+                    <option value="ajustes">Ajustes</option>
+                    <option value="proximos_agotarse">Próximos a Agotarse</option>
+                    <option value="trazabilidad_lote">Trazabilidad de Lote</option>
+                </select>
+                <select id="iptReporteFiltro" hidden></select>
+                <button type="button" class="ipt-btn" id="iptReporteCargarBtn">Generar</button>
+                <button type="button" class="ipt-btn ghost" id="iptReporteCsvBtn">Exportar CSV</button>
+                <button type="button" class="ipt-btn ghost" id="iptReporteXlsxBtn">Exportar XLSX</button>
+            </div>
+            <div class="ipt-tbl-wrap"><table class="ipt-table">
+                <thead id="iptReporteHead"></thead>
+                <tbody id="iptReporteBody"></tbody>
+            </table></div>
+        </section>
+
+        <section id="panel-bodegas" class="ipt-panel">
+            <div class="ipt-toolbar">
+                <button type="button" class="ipt-btn" id="iptBodegaNuevaBtn">Nueva Bodega</button>
+            </div>
+            <div class="ipt-tbl-wrap"><table class="ipt-table">
+                <thead><tr><th>Código</th><th>Nombre</th><th>Código SAP</th><th>Ubicación</th><th>Activa</th><th>Ubicaciones Internas</th><th>Acciones</th></tr></thead>
+                <tbody id="iptBodegaBody"></tbody>
+            </table></div>
+        </section>
+
+    </main>
+    </div>
+
+    <div class="ipt-modal-backdrop" id="iptModalBackdrop">
+        <div class="ipt-modal">
+            <div class="ipt-modal-head">
+                <h3 id="iptModalTitle">Detalle</h3>
+                <button type="button" class="ipt-modal-close" id="iptModalClose" aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="ipt-modal-body" id="iptModalBody"></div>
+            <div class="ipt-modal-foot" id="iptModalFoot"></div>
+        </div>
+    </div>
+
+    <script src="/access-control.js?v=20260923-mensajes-carga"></script>
+    <script src="/inventario-pt.js"></script>
+</body>
+</html>

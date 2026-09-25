@@ -4,10 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
+    <script src="/direccion-pais.js?v=20260924-geo-v3"></script>
     <title>Orden de Producción</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=20260923-vendedor-chip-pildora">
+    <link rel="stylesheet" href="/orden-produccion.css?v=20260923-arte-titulo">
+    <link rel="stylesheet" href="/adjuntos-producto.css?v=20260921-tarjetas">
     <style>
-    #orderFlowPopover, #notif-area {
+    #orderMenuPopover, #notif-area {
       --ink: #0f1117; --ink-2: #2d3142; --ink-3: #5c6078; --ink-4: #9499b0;
       --ink-5: #c8cbda; --ink-6: #eceef5; --ink-7: #f6f7fb;
       --white: #fff; --flow-blue: #2563eb; --blue-light: #eff4ff; --blue-mid: #bfcffe;
@@ -18,7 +22,7 @@
       --shadow-sm: 0 1px 3px rgba(15,17,23,.07); --shadow-lg: 0 12px 32px rgba(15,17,23,.12);
       --connector-color: #dde0ed; --font: 'DM Sans',sans-serif; --mono: 'DM Mono',monospace;
     }
-    html[data-theme="dark"] #orderFlowPopover, html[data-theme="dark"] #notif-area {
+    html[data-theme="dark"] #orderMenuPopover, html[data-theme="dark"] #notif-area {
       --ink: #f6f8ff; --ink-2: #d8deeb; --ink-3: #aab4c5; --ink-4: #7f8aa0;
       --ink-5: #4f5d74; --ink-6: #26334a; --ink-7: #172236;
       --white: #101827; --flow-blue: #38bdf8; --blue-light: rgba(56,189,248,.14); --blue-mid: rgba(56,189,248,.35);
@@ -27,11 +31,11 @@
       --red: #fb7185; --red-light: rgba(251,113,133,.14); --red-mid: rgba(251,113,133,.32);
       --connector-color: #334155;
     }
-    #orderFlowPopover .calc-popover-panel { max-width: 820px !important; width: min(760px, calc(100vw - 48px)) !important; }
-    #orderFlowPopover .calc-popover-body { padding: 0; background: var(--order-panel-bg); }
-    #orderFlowPopover .calc-popover-close { width:32px; height:32px; top:10px; right:12px; border:0 !important; background:transparent !important; box-shadow:none !important; color:var(--ink-3); font-size:24px; line-height:1; }
-    #orderFlowPopover .calc-popover-close:hover,
-    #orderFlowPopover .calc-popover-close:focus-visible { background:transparent !important; color:var(--ink); outline:none; }
+    #orderMenuPopover .calc-popover-panel { max-width: 940px !important; width: min(880px, calc(100vw - 48px)) !important; }
+    #orderMenuPopover .calc-popover-body { padding: 0; background: var(--order-panel-bg); }
+    #orderMenuPopover .calc-popover-close { width:32px; height:32px; top:10px; right:12px; border:0 !important; background:transparent !important; box-shadow:none !important; color:var(--ink-3); font-size:24px; line-height:1; }
+    #orderMenuPopover .calc-popover-close:hover,
+    #orderMenuPopover .calc-popover-close:focus-visible { background:transparent !important; color:var(--ink); outline:none; }
     .tl-row { display:grid; grid-template-columns:90px 1fr; gap:0 10px; }
     .tl-col-left { display:flex; flex-direction:column; align-items:center; }
     .tl-connector { width:2px; flex:1; min-height:12px; margin:2px 0; border-radius:1px; }
@@ -117,22 +121,8 @@
     .hist-row { display:flex; gap:8px; align-items:flex-start; font-size:12px; color:var(--ink-3); padding:4px 0; border-bottom:1px solid var(--ink-6); }
     .hist-row:last-child { border-bottom:none; }
     .hist-date { color:var(--ink-5); white-space:nowrap; font-family:var(--mono); font-size:11px; flex-shrink:0; }
-    .cmp-step-header { display:flex; align-items:center; gap:8px; padding:6px 0 6px; font-size:13px; font-weight:600; color:var(--ink-2); border-bottom:1px solid var(--ink-6); margin-bottom:10px; }
-    .cmp-step-icon { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
-    .cmp-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-    .cmp-col { border-radius:var(--radius); padding:12px; border:1px solid transparent; }
-    .cmp-col.planned { background:var(--blue-light); border-color:var(--blue-mid); }
-    .cmp-col.real { background:var(--ink-7); border-color:var(--ink-6); }
-    .cmp-col-title { font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:5px; }
-    .planned .cmp-col-title { color:var(--flow-blue); }
-    .real .cmp-col-title { color:var(--ink-3); }
-    .cmp-row { display:flex; justify-content:space-between; align-items:baseline; gap:8px; padding:4px 0; border-bottom:1px solid rgba(0,0,0,.05); font-size:12px; }
-    .cmp-row:last-child { border-bottom:none; }
-    .cmp-row-label { color:var(--ink-3); }
-    .cmp-row-val { font-weight:600; color:var(--ink-2); font-family:var(--mono); font-size:11px; }
-    .cmp-row-val.over { color:var(--red); }
-    .step-section { padding:10px 0; border-bottom:1px solid var(--ink-6); }
-    .step-section:last-child { border-bottom:none; }
+    /* .cmp-*, .step-section y .cmp-legend* viven ahora en orden-produccion.css
+       (para que producto-documento.html también los use). */
     .excess-alert { background:var(--red-light); border:1px solid var(--red-mid); border-radius:var(--radius); padding:10px 12px; display:flex; gap:10px; align-items:flex-start; }
     .excess-alert-icon { color:var(--red); font-size:18px; flex-shrink:0; margin-top:1px; }
     .excess-alert-title { font-size:12px; font-weight:600; color:var(--red); margin-bottom:2px; }
@@ -154,8 +144,17 @@
     .production-flow-planning-tab .action-btn:disabled { opacity:.5; cursor:default; }
     .cmp-real-input { width:72px; padding:3px 7px; font-size:11px; border:1px solid var(--ink-5); border-radius:var(--radius-sm); font-family:var(--font); outline:none; }
     .cmp-real-input:focus { border-color:var(--flow-blue); }
-    .sap-consumption-form { display:grid; grid-template-columns:minmax(220px,1.7fr) minmax(136px,.82fr) minmax(110px,.64fr) auto; gap:12px; align-items:end; }
-    .sap-consumption-form .field-full { grid-column:1 / span 3; }
+    .sap-consumption-form { display:grid; grid-template-columns:1fr 1fr; gap:12px 14px; align-items:start; }
+    .sap-consumption-form .field { display:flex; flex-direction:column; gap:4px; min-width:0; }
+    .sap-consumption-form .field-full { grid-column:1 / -1; }
+    .sap-consumption-form label { font-size:11px; font-weight:600; color:var(--ink-3); }
+    .sap-consumption-form input,
+    .sap-consumption-form select { width:100%; padding:7px 10px; border:1px solid var(--ink-5); border-radius:var(--radius-sm); background:var(--white); color:var(--ink); font:inherit; font-size:12px; outline:none; box-sizing:border-box; }
+    .sap-consumption-form input:focus,
+    .sap-consumption-form select:focus { border-color:var(--flow-blue); }
+    .production-order-popover-actions.sap-consumption-actions { grid-column:1 / -1; justify-content:flex-end; margin:8px 0 0; }
+    .sap-consumption-detail { margin-top:22px; padding-top:14px; border-top:1px solid var(--ink-6); }
+    .sap-consumption-detail-title { font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-4); margin-bottom:8px; }
     .sap-consumption-history { margin-top:10px; display:grid; gap:6px; }
     .sap-consumption-row { display:grid; grid-template-columns:1fr auto; gap:8px; padding:8px 10px; border:1px solid var(--ink-6); border-radius:var(--radius-sm); background:var(--ink-7); font-size:12px; }
     .sap-consumption-row strong { color:var(--ink-2); }
@@ -174,13 +173,16 @@
 
     /* --- Vendedor justificado a la derecha de su columna --- */
     #orderSellerCol.production-client-seller-col { display:flex; justify-content:flex-end; text-align:right; }
+    #orderSellerCol.production-client-seller-chip { max-width:171px; justify-content:flex-end; }
 
     /* --- Fechas: texto plano, una a la izquierda y otra a la derecha, debajo del bloque Orden/OP/C/LC --- */
-    .production-tracking-dates-row { grid-column:1 / -1; display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:8px; }
+    .production-tracking-dates-row { grid-column:1 / -1; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; gap:4px; margin-top:8px; }
     .production-date-field { display:flex; flex-direction:column; min-width:0; }
     .production-date-field-right { align-items:flex-end; text-align:right; }
     .production-date-field:empty,
     .production-date-field[hidden] { display:none; }
+    #orderScheduledDateText[readonly],
+    #orderScheduledDateInput[readonly] { opacity:.65; cursor:default; background:var(--doc-soft-bg,rgba(0,0,0,.04)); }
 
     /* --- Máquina + Información del Rollo fusionados: 2 columnas compactas sin desbordes --- */
     .production-shared-printing-col-machine { min-width:0; }
@@ -248,21 +250,6 @@
     }
     .is-frontback-order .production-product-row { display: none; }
 
-    /* --- Indicador visual entre fechas --- */
-    .production-dates-indicator {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        flex-shrink: 0;
-        align-self: center;
-    }
-    .production-dates-indicator.status-green { background: #22c55e; }
-    .production-dates-indicator.status-orange { background: #f97316; }
-    .production-dates-indicator.status-red { background: #ef4444; }
-
     /* --- Reducir espacio vertical secciones (Destinatario / Forma de Entrega) --- */
     .production-delivery-section .production-summary-subsection,
     .production-samples-section .production-summary-subsection {
@@ -325,6 +312,33 @@
         grid-template-columns: 1.2fr 1fr 1fr;
         gap: 14px 16px;
     }
+    /* Sustrato / Tipo de Salida: comprimidas en una sola columna (Sustrato
+       arriba, Máquina/Tipo de Salida abajo) para dejar espacio a Motivos
+       en la columna derecha de Configuración de Producción. */
+    #orderPrintingGrid.production-shared-printing-grid-2col {
+        grid-template-columns: 1fr;
+    }
+    /* Frente/Dorso conserva su layout propio de 2 columnas (sin cambios) */
+    .is-frontback-order #orderPrintingGrid.production-shared-printing-grid-2col {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    /* Configuración de Producción: columna izquierda (Sustrato + Información
+       de Arte, apiladas cada una en su propio contenedor) y columna derecha
+       con Motivos ocupando toda la altura. */
+    /* Motivos se muestra expandido (cada motivo un bloque de 2 columnas: definición +
+       versiones a la izquierda, tintas a la derecha), así que ocupa el ancho completo
+       debajo de la configuración en vez de media columna. */
+    #orderProductionConfig > .production-config-split {
+        display: block;
+    }
+    #orderProductionConfig > .production-config-split > .production-config-split-main {
+        min-width: 0;
+    }
+    #orderProductionConfig > .production-config-split > .production-config-split-side {
+        min-width: 0;
+        margin-top: 12px;
+    }
 
     /* ============================================================
        IMPRESIÓN / PDF — Orden de Producción
@@ -334,228 +348,448 @@
        sin que las reglas responsivas de escritorio angosto colapsen
        las grillas a una sola columna.
        ============================================================ */
-    @page { size: letter portrait; margin: 10mm 12mm; }
+    /* ============================================================
+       IMPRESIÓN / PDF — Orden de Producción (formato DOCUMENTO)
+       No es la vista web: es una hoja carta ejecutiva, legible por
+       gerencia, jefaturas y operarios. Sin cajas, sin colores de
+       acento, escala tipográfica uniforme, aprovechando el espacio.
+       El contenido FLUYE (no se fuerzan saltos de página); solo se
+       evita partir un bloque a la mitad.
+       ============================================================ */
+    @page { size: letter portrait; margin: 8mm 9mm; }
 
     @media print {
-        * { -webkit-print-color-adjust: unset !important; print-color-adjust: unset !important; color-adjust: unset !important; }
-
-        /* Sobreescribir la variable --app-bg para que todo sea transparente */
-        :root {
-            --app-bg: transparent !important;
-            --app-bg-soft: transparent !important;
-            --app-surface: transparent !important;
-            --app-surface-soft: transparent !important;
-            --app-surface-raised: transparent !important;
+        /* El documento SIEMPRE es blanco con texto oscuro, imprima el usuario desde tema
+           claro u oscuro. Se neutralizan TODOS los tokens --app-* a valores claros (así
+           cualquier `var(--app-*)` de styles.css — incluidas sus reglas
+           html[data-theme="dark"] !important — resuelve claro). */
+        :root,
+        :root[data-theme="light"],
+        :root[data-theme="dark"],
+        html[data-theme="dark"],
+        html[data-theme="dark"] .production-order-card,
+        html[data-theme="light"] .production-order-card,
+        .production-order-card {
+            --doc-ink: #1a2230;
+            --doc-soft: #5b6572;
+            --doc-line: #dde0e6;
+            --doc-cap: #2b3444;
+            --app-bg: #ffffff !important;
+            --app-bg-soft: #ffffff !important;
+            --app-surface: #ffffff !important;
+            --app-surface-soft: #ffffff !important;
+            --app-surface-raised: #ffffff !important;
+            --app-hover: transparent !important;
+            --app-text: #1a2230 !important;
+            --app-text-soft: #3a4452 !important;
+            --app-text-muted: #5b6572 !important;
+            --app-border: #c7ccd6 !important;
+            --app-border-strong: #b3b9c4 !important;
+            --app-primary: #1a2230 !important;
+            --app-primary-soft: #ffffff !important;
+            --app-primary-strong: #1a2230 !important;
+            --app-accent: #1a2230 !important;
+            --app-accent-soft: #ffffff !important;
+            --app-ring: transparent !important;
+            --app-shadow: none !important;
+            --app-shadow-sm: none !important;
+            --app-shadow-md: none !important;
+            --app-shadow-lg: none !important;
+            /* Familia --order-* propia de la tarjeta de orden (la usan las reglas
+               html[data-theme="dark"] .production-order-card .x !important de styles.css). */
+            --order-panel-bg: #ffffff !important;
+            --order-panel-soft: #ffffff !important;
+            --order-panel-subtle: #ffffff !important;
+            --order-panel-border: #c7ccd6 !important;
+            --order-panel-text: #1a2230 !important;
+            --order-pill-bg: transparent !important;
+            --order-pill-text: #2b3444 !important;
         }
 
-        html, body { background: transparent !important; color: #0f1117 !important; }
-        .app-shell, .workspace-quote, .workspace { min-height: 0 !important; overflow: visible !important; background: transparent !important; }
-        .workspace-quote, .workspace { padding: 0 !important; background: transparent !important; }
-
-        /* --- Ocultar cromo de interfaz: nada de esto tiene función en papel --- */
+        /* ---- 1. Fuera el cromo web ---- */
+        html, body { background: #fff !important; color: var(--doc-ink) !important; }
+        html, html[data-theme], html[data-theme="dark"] { color-scheme: light !important; }
+        /* Matar cualquier fondo/sombra de tema oscuro con literal (no var) — misma
+           especificidad que las reglas html[data-theme="dark"] .x de styles.css. */
+        html[data-theme="dark"] .production-order-card,
+        html[data-theme="dark"] .production-order-card * {
+            background-color: transparent !important;
+            background-image: none !important;
+            box-shadow: none !important;
+            color: var(--doc-ink) !important;
+        }
         .app-shell > header.topbar,
-        html body #orderAdminTools,
-        html body .production-admin-tools,
-        #orderPrintButton,
-        #orderPdfButton,
-        #orderCreationSummaryButton,
         .production-tracking-icons-row,
         .production-section-corner-toggle,
         .production-contact-edit-btn,
         .production-frontback-art-edit-btn,
-        #orderArtworkDeleteButton,
-        .production-art-delete,
-        #orderArtworkFileInput,
-        .calc-popover,
-        .notif-area,
-        #orderStatus { display: none !important; }
+        #orderArtworkDeleteButton, .production-art-delete, #orderArtworkFileInput,
+        .calc-popover, .notif-area, #orderStatus,
+        .production-chips-row,
+        .production-inline-form,
+        .production-tracking-state-row,
+        #orderProductionConfig,
+        .production-order-card .section-caption .production-state-pill,
+        .production-observations-section.is-empty-print,
+        .production-config-bottom-row > .production-config-bottom-col.production-art-section { display: none !important; }
+        #orderMenuPopover, .calc-popover.is-visible { display: none !important; }
+        #orderSamplesSummary, #orderDeliverySummary, #orderArtSummary { display: block !important; }
 
-        /* --- Forzar modo claro siempre: esto es papel, no pantalla --- */
-        html, html[data-theme], html[data-theme="dark"] { color-scheme: light !important; }
-        /* Reset completo: todo el contenido SIN fondos, solo texto y bordes sutiles */
+        /* ---- 2. Contenedor a ancho de hoja, sin caja ---- */
+        .app-shell, .workspace-quote, .workspace { min-height: 0 !important; overflow: visible !important; background: #fff !important; padding: 0 !important; }
+        .production-order-card { max-width: none !important; width: 100% !important; margin: 0 !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; }
+        .quote-card-clean { padding-inline: 0 !important; }
+        .production-order-layout-refined { display: block !important; gap: 0 !important; }
+        .production-order-layout-refined > * { width: 100% !important; }
+
+        /* ---- 3. Todo sin fondo/sombra/radio; borde hairline uniforme ---- */
         .production-order-card,
         .production-order-card *,
         .production-order-card *::before,
         .production-order-card *::after {
-            color: #0f1117 !important;
-            border-color: #d7dbe3 !important;
             background: transparent !important;
-            background-color: transparent !important;
             background-image: none !important;
             box-shadow: none !important;
+            border-radius: 0 !important;
+            border-color: var(--doc-line) !important;
+            color: var(--doc-ink) !important;
         }
-        /* Sobreescribir fondos hardcoded de socios-section y subgrupos */
         .socios-section,
         .production-subgroup,
-        .production-order-card .socios-section,
-        .production-order-card .production-subgroup,
-        .production-order-card .production-order-status,
         .production-order-card textarea,
         .production-order-card input,
-        .production-order-card select {
+        .production-order-card select { border: 0 !important; padding: 0 !important; }
+        html .production-order-card textarea,
+        html .production-order-card input,
+        html .production-order-card select,
+        html[data-theme="dark"] .production-order-card textarea,
+        html[data-theme="dark"] .production-order-card input,
+        html[data-theme="dark"] .production-order-card select {
             background: transparent !important;
-            background-color: transparent !important;
-            background-image: none !important;
-        }
-        /* Excepción: el badge de Frente/Dorso conserva su color */
-        .production-frontback-side-chip--label {
-            background: #e0f2fe !important;
-            color: #0369a1 !important;
-        }
-        /* Chips de acabados: fondo gris claro para impresión */
-        .production-chip {
-            background: #f1f5f9 !important;
-            color: #334155 !important;
-        }
-        /* Pill de estado: conserva su color de fondo */
-        .production-state-pill-inline {
-            background: #e0f2fe !important;
-            color: #0369a1 !important;
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            color: var(--doc-ink) !important;
         }
 
-        /* --- Sin bordes ni cajas: los datos van "al aire" --- */
-        .production-order-card.production-order-card .production-client-section,
-        .production-order-card.production-order-card .production-tracking-section,
-        .production-order-card.production-order-card .production-shared-config,
-        .production-order-card.production-order-card .production-observations-section,
-        .production-order-card.production-order-card #orderPrintingBlock,
-        .production-order-card.production-order-card .production-samples-section,
-        .production-order-card.production-order-card .production-delivery-section {
-            border: none !important;
+        /* ---- 4. Escala tipográfica uniforme del documento ---- */
+        .production-order-card { font-size: 10.5px !important; line-height: 1.1 !important; }
+        /* Títulos de sección: pastilla oscura redondeada (variante del formato de "Motivo N",
+           pero con la letra en negrita). Aplica a Cliente, Seguimiento, Impresión, Sustrato,
+           Barniz, Sellos, Troquelado, Rebobinado, Empaque, Entrega, Muestras/VB, Arte. */
+        .production-order-card .section-caption,
+        html[data-theme="light"] .production-order-card .section-caption,
+        html[data-theme="dark"] .production-order-card .section-caption {
+            display: inline-block !important;
+            align-self: flex-start !important;
+            width: auto !important; max-width: none !important;
+            background: var(--doc-ink) !important;
+            color: #ffffff !important;
+            font-size: 9px !important; font-weight: 700 !important;
+            text-transform: uppercase !important; letter-spacing: .05em !important;
+            border: 0 !important; border-radius: 10px !important;
+            padding: 1px 9px !important; margin: 0 0 4px !important;
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
         }
-        /* Títulos que ya no se imprimen: el pill de estado, y los títulos
-           de Configuración de Producción, Muestras y Visto Bueno, Entrega. */
-        .production-tracking-state-row,
-        #orderProductionConfig > .section-caption,
-        .production-samples-section > .section-caption,
-        .production-delivery-section > .section-caption { display: none !important; }
+        /* El producto: "Nombre del Producto" se oculta y "Cantidad de Productos" queda como
+           rótulo gris plano (no pastilla). Especificidad alta para ganarle a la regla anterior. */
+        #orderProductRow > .production-summary-item > .section-caption,
+        html[data-theme="dark"] .production-order-card .production-product-row .section-caption:not(.production-quantity-caption),
+        html .production-order-card .production-product-row .section-caption:not(.production-quantity-caption) { display: none !important; }
+        html[data-theme="dark"] .production-order-card .production-product-quantity-display .production-quantity-caption,
+        html .production-order-card .production-product-quantity-display .production-quantity-caption {
+            display: inline !important; background: transparent !important; color: var(--doc-soft) !important;
+            border: 0 !important; border-radius: 0 !important; padding: 0 !important; margin: 0 !important;
+            font-size: 8.5px !important; font-weight: 400 !important; text-transform: none !important; letter-spacing: 0 !important;
+            align-self: auto !important;
+        }
+        .motivo-panel-title {
+            font-size: 9px !important; font-weight: 700 !important;
+            text-transform: uppercase !important; letter-spacing: .06em !important;
+            color: var(--doc-cap) !important;
+            border: 0 !important; border-bottom: 0.5px solid var(--doc-line) !important;
+            padding: 0 0 1px !important; margin: 0 0 3px !important;
+        }
+        .production-summary-label,
+        .motivo-stat-label,
+        html[data-theme="dark"] .production-order-card .production-summary-label { font-size: 9px !important; font-weight: 400 !important; color: var(--doc-soft) !important; letter-spacing: .01em !important; }
+        .motivo-table th { font-size: 8px !important; font-weight: 400 !important; color: var(--doc-soft) !important; }
+        .production-summary-value,
+        .production-summary-line-value,
+        .motivo-table td,
+        .motivo-stat-value,
+        html[data-theme="dark"] .production-order-card .production-summary-value,
+        html[data-theme="dark"] .production-order-card .production-summary-line-value { font-size: 10px !important; font-weight: 500 !important; color: var(--doc-ink) !important; }
+        .production-summary-unit { font-size: 8.5px !important; font-weight: 400 !important; color: var(--doc-soft) !important; }
+        .production-inline-link-btn, .production-data-link, #openSourceQuoteButton,
+        .production-source-link-group, .production-source-link-group *,
+        html[data-theme="dark"] .production-order-card .production-data-link,
+        html[data-theme="dark"] .production-order-card .production-inline-link-btn,
+        html[data-theme="dark"] .production-order-card .production-data-link *,
+        html[data-theme="dark"] .production-order-card .production-inline-link-btn * {
+            color: var(--doc-ink) !important; pointer-events: none; padding: 0 !important; font-weight: 500 !important;
+        }
+        .production-source-link-group, .production-source-link-group *,
+        html[data-theme="dark"] .production-order-card .production-source-link-group,
+        html[data-theme="dark"] .production-order-card .production-source-link-group * { font-size: 8.5px !important; color: var(--doc-soft) !important; }
 
-        /* --- Seguimiento de la Orden: nombre del trabajo a la izquierda, código a la derecha, fechas abajo lado a lado --- */
+        /* ---- 5. Espaciado compacto (interlínea a la mitad) ---- */
+        .production-order-card .socios-section { padding: 0 !important; margin: 0 0 5px !important; }
+        #orderMotivosLayout, #orderAcabadosFlex, #orderBottomModules, #orderTopModules { margin: 0 0 5px !important; }
+        .production-order-card .production-summary-item,
+        .production-order-card .production-summary-value,
+        .production-order-card .production-summary-line-value,
+        .production-order-card .production-summary-label { margin: 0 !important; padding: 0 !important; min-height: 0 !important; }
+        .production-order-card .production-summary-stack { gap: 1px !important; }
+        .production-order-card .production-summary-grid { gap: 1px 14px !important; }
+        .production-order-card .production-summary-item,
+        .production-order-card .production-summary-item *,
+        .production-order-card .production-client-info-line,
+        .production-order-card .production-client-info-line * { line-height: 1.05 !important; padding-top: 0 !important; padding-bottom: 0 !important; }
+        .motivo-table td, .motivo-table th { line-height: 1.05 !important; }
+        /* Contacto (Entrega/Muestras): si el valor ya trae ícono, la etiqueta sobra */
+        .production-summary-item:has(.production-contact-icon-value) .production-summary-label,
+        .production-summary-item:has(.production-summary-value > svg) .production-summary-label { display: none !important; }
+
+        /* ---- 6. Encabezado: Cliente + Seguimiento (2 columnas) ---- */
+        .production-top-row { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 0 20px !important; }
+        .production-tracking-body { grid-template-columns: 1fr 1fr !important; }
+        .production-client-info-grid { grid-template-columns: 1fr 1fr !important; }
+        .production-order-code { font-size: 15px !important; font-weight: 700 !important; color: var(--doc-ink) !important; }
+        .production-jobname { font-size: 12px !important; font-weight: 700 !important; margin: 1px 0 2px !important; }
         .production-tracking-right { text-align: right !important; }
         .production-tracking-right, .production-tracking-right * { align-items: flex-end !important; }
-        .production-tracking-dates-row { grid-column: 1 / -1 !important; display: flex !important; justify-content: space-between !important; }
-
-        /* Datos compactos de contacto (teléfono/correo/dirección): sin etiqueta, en líneas simples. */
-        .production-compact-field .production-summary-label { display: none !important; }
-        .production-order-card .production-compact-field { margin-bottom: 1px !important; }
-
-        /* Los formularios de edición nunca deben imprimirse; siempre se
-           imprime el resumen de solo lectura, sin importar si el usuario
-           dejó una tarjeta en modo edición al momento de imprimir. */
-        .production-inline-form { display: none !important; }
-        #orderSamplesSummary,
-        #orderDeliverySummary,
-        #orderArtSummary { display: block !important; }
-
-        /* Enlaces/botones que envuelven texto (Máquina, Sustrato, Tintas,
-           cálculo origen, etc.) se ven como texto plano, no como control. */
-        .production-inline-link-btn,
-        .production-data-link,
-        #openSourceQuoteButton { cursor: default !important; pointer-events: none; }
-        .production-inline-link-btn { background: transparent !important; border-color: transparent !important; padding: 2px 0 !important; }
-
-        /* --- Contenedor a ancho de página, sin las restricciones de pantalla --- */
-        .production-order-card { max-width: none !important; margin: 0 !important; box-shadow: none !important; }
-        .quote-card-clean { padding-inline: 0 !important; }
-        .production-order-layout-refined { gap: 8px !important; }
-
-        /* --- Reforzar las grillas de escritorio: la hoja carta (~720px de
-           ancho útil) cae dentro de los breakpoints de @media (max-width:920/980px)
-           que colapsan estas grillas a 1 columna en pantalla angosta; para
-           impresión siempre queremos las columnas completas. --- */
-        .production-top-row,
-        .production-bottom-row { grid-template-columns: 1fr 1fr !important; }
-        .production-order-card .production-order-layout-refined { display: block !important; }
-        .production-order-card .production-order-layout-refined > * { width: 100% !important; }
-        .production-frontback-layout { grid-template-columns: 1fr 1fr !important; }
-        /* Configuración de Producción en 2 columnas para impresión:
-           Col 1: Máquina/Rollos/Dimensiones
-           Col 2: Sustrato + Tintas + Acabados apilados */
-        .production-shared-printing-grid {
-            display: grid !important;
-            grid-template-columns: 1fr 1fr !important;
-            column-gap: 16px !important;
-            row-gap: 8px !important;
+        /* Vendedor: el ícono va casi pegado al nombre (la caja del ícono medía 35px con un
+           glifo de 13px → mucho aire). Se acota la caja y se cierra el gap. */
+        .production-client-seller-col .production-client-info-line { gap: 3px !important; }
+        #orderSellerIcon, .production-client-seller-col .production-client-info-icon {
+            width: 13px !important; min-width: 0 !important; flex: 0 0 13px !important;
         }
-        /* En impresión, ocultar el grid digital de 3 columnas y mostrar layout de 2 */
-        .production-shared-printing-col:nth-child(1) { grid-column: 1 !important; grid-row: 1 / 3 !important; }
-        .production-shared-printing-col:nth-child(2) { grid-column: 2 !important; grid-row: 1 !important; }
-        .production-shared-printing-col:nth-child(3) { grid-column: 2 !important; grid-row: 2 !important; }
-        /* Numerado permanece en la columna de Acabados */
-        #orderNumberingWrap { margin-top: 4px; }
-        .production-frontback-art-row { flex-direction: row !important; }
-        .production-frontback-art-preview-col { flex: 1 1 50% !important; width: auto !important; }
-        .production-config-bottom-row { flex-direction: row !important; }
-        /* Información de Arte no se imprime (el rollo ya vive en la columna de Máquina). */
-        .production-config-bottom-row > .production-config-bottom-col.production-art-section { display: none !important; }
-        .production-roll-mini-grid { grid-template-columns: 1fr 1fr !important; }
-        .production-client-info-grid,
-        .production-tracking-body { grid-template-columns: 1fr 1fr !important; }
-        .production-summary-grid-two { grid-template-columns: 1fr 1fr !important; }
-
-        /* --- Tipografía y espaciado compactos para que quepa en carta --- */
-        .production-order-card { font-size: 12px; }
-        .production-order-code { font-size: 20px !important; }
-        .production-jobname { font-size: 15px !important; font-weight: 700 !important; }
-        .socios-section.production-order-card .section-caption,
-        .production-order-card .section-caption { font-size: 10px; padding: 3px 14px; margin-bottom: 8px; }
-        .production-summary-label { font-size: 10.5px; margin-bottom: 1px !important; }
-        .production-summary-value { font-size: 12.5px; min-height: 0; }
-        .production-order-card .production-summary-item { margin-bottom: 3px !important; }
-        .production-order-card .production-summary-stack { gap: 3px !important; }
-        .production-order-card .socios-section { padding: 10px 14px !important; }
-        .production-frontback-product-name { font-size: 12.5px; }
-        .production-art-preview { min-height: 90px; max-height: 150px; padding: 8px; }
-        .production-chip, .production-frontback-side-chip--label { min-height: 22px; font-size: 10.5px; }
-
-        /* Fila Producto+Cantidad: compacta para impresión */
-        .production-product-row { gap: 8px !important; margin-bottom: 4px !important; }
-        .production-product-name-display { font-size: 13px !important; }
-        .production-product-quantity-display strong { font-size: 20px !important; }
-
-        /* Campos de fecha / observaciones / detalle: que se lean como
-           texto en papel, no como controles de formulario. */
-        .production-notes-box,
-        .production-order-card textarea {
-            border-color: #e4e9ee !important;
-            box-shadow: none !important;
-            background: #fff !important;
-            -webkit-appearance: none;
-            appearance: none;
+        /* Chip del vendedor: mismas medidas que en pantalla (tema claro: styles.css
+           .production-client-seller-chip), con colores literales porque en impresión los
+           tokens --app-* se neutralizan. */
+        .production-order-card #orderSellerCol .production-client-info-line {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 5px !important;
+            padding: 3px 10px 3px 8px !important;
+            border-radius: 999px !important;
+            background: rgba(2, 119, 169, 0.12) !important;
+            border: 1px solid rgba(2, 119, 169, 0.35) !important;
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
         }
-        .production-notes-box,
-        .production-order-card textarea { max-height: none !important; overflow: visible !important; field-sizing: content; }
+        .production-order-card #orderSellerCol .production-client-seller-name {
+            font-size: 11px !important;
+            line-height: 1.4 !important;
+            font-weight: 400 !important;
+            color: #0277a9 !important;
+        }
+        /* El ícono es una máscara SVG pintada con background-color; la regla general de
+           impresión (background: transparent) lo borraba. Mismo tamaño y color que en pantalla. */
+        .production-order-card #orderSellerCol #orderSellerIcon {
+            width: 14px !important; height: 14px !important; min-width: 14px !important; flex: 0 0 14px !important;
+            font-size: var(--config-icon-size, 14px) !important; line-height: 1.4 !important;
+        }
+        .production-order-card #orderSellerCol #orderSellerIcon .icon-svg-mask {
+            background-color: #86a0b1 !important;
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+        }
 
-        /* --- Evitar que una tarjeta se parta a la mitad entre dos hojas --- */
+        /* Fechas de Entrega / Estimada en Seguimiento — la etiqueta corta ("Entrega" / "Estimada")
+           y el valor ("dd/mm/aaaa" o "Pendiente") los pone formatDatesForPrint() por JS. Aquí
+           solo el layout compacto: label izq, valor der, líneas muy juntas. */
+        .production-date-field {
+            display: flex !important; flex-direction: row !important;
+            justify-content: flex-start !important; align-items: baseline !important;
+            gap: 10px !important; margin: 0 !important; min-height: 0 !important;
+        }
+        .production-date-field .production-summary-label {
+            font-size: 9px !important; font-weight: 400 !important; color: var(--doc-soft) !important;
+            margin: 0 !important; padding: 0 !important; line-height: 1.1 !important; min-height: 0 !important;
+        }
+        .production-date-field input[type="date"] { font-size: 10px !important; color: var(--doc-ink) !important; width: auto !important; text-align: right !important; line-height: 1.1 !important; }
+        .production-print-date-value { font-size: 10px !important; color: var(--doc-ink) !important; line-height: 1.1 !important; white-space: nowrap !important; }
+        .production-tracking-left { gap: 1px !important; }
+        .production-tracking-left .production-date-field { margin: 0 !important; }
+        .production-tracking-dates-row { gap: 1px !important; margin-top: 3px !important; }
+        .production-jobname { margin: 0 0 2px !important; }
+
+        /* ---- 7. Producto + Cantidad: sin bordes laterales, nombre centrado entre 2 líneas,
+           "Cantidad de Productos" en una línea a la izquierda del número, todo a la derecha ---- */
+        .production-order-card .production-product-row {
+            display: flex !important; justify-content: space-between !important; align-items: center !important; gap: 16px !important;
+            border: 0 !important; border-top: 0.5px solid var(--doc-line) !important; border-bottom: 0.5px solid var(--doc-line) !important;
+            padding: 13px 0 !important; margin: 6px 0 !important;
+        }
+        .production-order-card .production-product-row > .production-summary-item {
+            display: flex !important; align-items: center !important; min-height: 0 !important;
+        }
+        .production-product-name-display { font-size: 12px !important; font-weight: 700 !important; line-height: 1.1 !important; padding: 0 !important; margin: 0 !important; }
+        .production-product-quantity-display {
+            display: flex !important; flex-direction: row !important; align-items: baseline !important;
+            justify-content: flex-end !important; gap: 6px !important;
+        }
+        .production-product-quantity-display .production-quantity-caption {
+            white-space: nowrap !important; overflow: visible !important; text-overflow: clip !important; order: 0 !important;
+        }
+        .production-product-quantity-display strong { font-size: 12px !important; font-weight: 700 !important; order: 1 !important; }
+
+        /* ---- 8. Muestras/VB + Arte (arriba) · Observaciones + Entrega (abajo): 2 col compacto ---- */
+        #orderTopModules, #orderBottomModules, .production-top-modules { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 0 0 !important; }
+        /* Línea vertical entre Muestras/Visto Bueno e Información de Arte */
+        #orderTopModules > .socios-section:first-child { padding-right: 14px !important; }
+        #orderTopModules > .socios-section:last-child { border-left: 0.5px solid var(--doc-line) !important; padding-left: 14px !important; }
+        /* Información de Arte: sin recuadro (igual que el resto de los bloques). */
+        #orderTopModules .production-art-section .production-summary-line,
+        #orderTopModules .production-art-section .production-summary-grid-art,
+        #orderTopModules #orderArtSummary,
+        #orderTopModules .production-art-preview,
+        #orderTopModules .production-art-preview-wrap { border: 0 !important; background: transparent !important; padding: 0 !important; }
+        /* "Arte en Poder de" con el mismo formato que "Tipo de Envío": etiqueta izq, valor a la derecha. */
+        #orderTopModules .production-art-section .production-summary-line {
+            display: flex !important; flex-direction: row !important;
+            justify-content: flex-start !important; align-items: baseline !important; gap: 10px !important; margin: 0 !important;
+        }
+        #orderTopModules .production-art-section .production-summary-line-label {
+            font-size: 9px !important; font-weight: 400 !important; color: var(--doc-soft) !important;
+            flex: 0 0 auto !important;
+        }
+        #orderTopModules .production-art-section .production-summary-line-value { text-align: left !important; }
+        /* Línea horizontal entre "Impresión" y la información de arriba */
+        #orderMotivosLayout { border-top: 0.5px solid var(--doc-line) !important; padding-top: 4px !important; margin-top: 4px !important; }
+        /* Línea horizontal entre Empaque (última de la ficha) y Entrega/Observaciones */
+        #orderBottomModules { border-top: 0.5px solid var(--doc-line) !important; padding-top: 5px !important; margin-top: 5px !important; }
+        .production-summary-two-col { grid-template-columns: 1fr 1fr !important; gap: 0 14px !important; }
+        .production-client-info-line, .production-client-info-line * { font-size: 9px !important; }
+        .production-client-info-line > svg,
+        .production-summary-two-col .production-client-info-line > svg { width: 10px !important; height: 10px !important; }
+        .production-art-section .production-art-preview { min-height: 0 !important; max-height: 110px !important; padding: 4px !important; }
+        .production-observations-section textarea, .production-notes-box { min-height: 0 !important; font-size: 9.5px !important; }
+
+        /* ---- 9. Impresión / Motivos ---- */
+        #orderMotivosLayout .impresion-cabecera { column-gap: 14px !important; }
+        #orderMotivosLayout #orderMaquinaBody > .maquina-datos { column-gap: 14px !important; row-gap: 1px !important; }
+        #orderMotivosLayout .impresion-cabecera > .maquina-arte { padding-bottom: 6px !important; }
+        #orderMotivosLayout .maquina-arte img { max-height: 110px !important; filter: none !important; }
+        #orderMotivosLayout #orderMaquinaBody .production-summary-item:first-child { white-space: normal !important; }
+        #orderMotivosLayout #orderMaquinaSection { margin-bottom: 6px !important; padding: 0 !important; }
+        /* El subtítulo "Máquina de Impresión" sobra: ya está la pastilla "Impresión". */
+        #orderMotivosLayout #orderMaquinaSection > .section-caption { display: none !important; }
+        .motivo-block { padding: 4px 0 1px !important; margin-top: 6px !important; border-top: 0.5px solid var(--doc-line) !important; break-inside: avoid; }
+        .motivo-block:first-child { margin-top: 4px !important; padding-top: 4px !important; }
+        .production-order-card .motivo-tab,
+        html[data-theme="dark"] .production-order-card .motivo-tab {
+            padding: 1px 8px !important; border: 0 !important; border-radius: 10px !important;
+            background: var(--doc-ink) !important; color: #ffffff !important;
+            font-size: 9px !important; font-weight: 700 !important;
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+        }
+        .motivo-head-caption { font-size: 9px !important; color: var(--doc-soft) !important; }
+        .motivo-stats, .motivo-summary { gap: 12px !important; }
+        .motivo-stat-value { font-size: 11px !important; }
+        .motivo-block-body { grid-template-columns: 1fr 1.28fr !important; gap: 12px !important; margin-top: 4px !important; }
+        .motivo-panel { border: 0 !important; border-top: 0.5px solid var(--doc-line) !important; padding: 3px 0 0 !important; background: transparent !important; break-inside: avoid; }
+        .motivo-panel-title { border-bottom: 0 !important; margin-bottom: 3px !important; }
+        .motivo-table { font-size: 8.5px !important; table-layout: auto !important; width: 100% !important; }
+        .motivo-table th, .motivo-table td { padding: 1px 4px !important; }
+        /* Todas las líneas del documento (incl. filas de Tintas del Motivo y Versiones): 50% más finas. */
+        .motivo-table th, .motivo-table td, .motivo-tintas-total td { border-width: 0.5px !important; }
+        .motivo-table tr { break-inside: avoid; }
+        /* Versiones: la columna "Descripción" (3ª) se lleva todo el ancho sobrante; Nombre,
+           Cantidad y Sellos quedan pegadas a su contenido (Cantidad junto a Sellos). */
+        .motivo-versiones-table th, .motivo-versiones-table td { white-space: nowrap !important; width: 1% !important; }
+        .motivo-versiones-table th:nth-child(3), .motivo-versiones-table td:nth-child(3) { white-space: normal !important; width: 100% !important; }
+        .motivo-tinta-dot,
+        html[data-theme="dark"] .production-order-card .motivo-tinta-dot { width: 8px !important; height: 8px !important; border-radius: 50% !important; border: 1px solid rgba(0, 0, 0, 0.3) !important; background: var(--tinta-dot, transparent) !important; box-shadow: none !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        .production-rebobinado-image, #orderOutputTypeImage, .production-art-preview img { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        .production-order-card .icon-image, .production-order-card .icon-image-wrap { max-width: 13px !important; max-height: 13px !important; }
+        .motivo-tintas-total td { border-top: 0.5px solid var(--doc-line) !important; padding-top: 3px !important; }
+        .motivo-summary { margin-top: 6px !important; padding-top: 4px !important; border-top: 0.5px solid var(--doc-line) !important; }
+        .motivo-summary .motivo-stat-emphasis .motivo-stat-value { color: var(--doc-ink) !important; }
+
+        /* ---- 10. Ficha Técnica de procesos ---- */
+        .production-ficha-tecnica { display: flex !important; flex-wrap: wrap !important; gap: 4px 0 !important; align-items: stretch !important; }
+        .production-ficha-tecnica > .production-acabados-flex-item {
+            flex: 1 1 46% !important; min-width: 0 !important; max-width: 100% !important;
+            /* línea horizontal divisoria entre cada proceso */
+            border-top: 0.5px solid var(--doc-line) !important;
+            padding: 4px 16px 0 0 !important; margin: 4px 0 0 !important;
+        }
+        .production-ficha-tecnica > #orderSustratoSection,
+        .production-ficha-tecnica > #orderEmpaqueSection,
+        .production-ficha-tecnica > #orderRebobinadoSection { flex-basis: 100% !important; padding-right: 0 !important; }
+        .production-ficha-tecnica .production-acabados-flex-item .production-summary-grid { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 1px 16px !important; }
+        .production-acabados-flex-item, .production-plate-die-col { break-inside: avoid; }
+        /* línea vertical: separa Barniz (izq) de Sellos + Troquelado (der) */
+        .production-ficha-tecnica > .production-plate-die-col {
+            border-left: 0.5px solid var(--doc-line) !important;
+            padding-left: 14px !important;
+        }
+        /* línea entre Sellos y Troquelado (apilados dentro de la columna) */
+        .production-plate-die-col > section:last-child {
+            flex: 0 0 auto !important;
+            border-top: 0.5px solid var(--doc-line) !important;
+            padding-top: 4px !important; margin-top: 4px !important;
+        }
+        /* Sustrato: columna izquierda = Ancho / Gramaje / Calibre; el hueco de la derecha
+           aloja el Consumo en 2 columnas. Se oculta el subtítulo "Consumo" (separador). */
+        #orderSustratoBody { display: grid !important; grid-template-columns: minmax(240px, 1.7fr) minmax(0, 1fr) minmax(0, 1fr) !important; grid-auto-flow: row dense !important; column-gap: 18px !important; row-gap: 1px !important; align-content: start !important; }
+        #orderSustratoBody > .production-summary-item { grid-column: 1 !important; }
+        #orderSustratoBody > .production-summary-item:first-child { grid-column: 1 / -1 !important; white-space: normal !important; min-width: 0 !important; }
+        #orderSustratoBody > .production-summary-subhead { display: none !important; }
+        #orderSustratoBody > .production-summary-subhead ~ .production-summary-item { grid-column: 3 !important; }
+        #orderSustratoBody > .production-summary-subhead ~ .production-summary-item:nth-child(even) { grid-column: 2 !important; }
+        .production-empaque-consumo { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; column-gap: 12px !important; row-gap: 1px !important; }
+        .production-rebobinado-layout { grid-template-columns: minmax(0, 1fr) 120px !important; gap: 12px !important; }
+        .production-rebobinado-image, #orderOutputTypeImage { width: 108px !important; height: 108px !important; max-width: 108px !important; max-height: 108px !important; overflow: hidden !important; }
+        .production-rebobinado-image img, #orderOutputTypeImage img { width: 108px !important; height: 108px !important; max-width: 108px !important; max-height: 108px !important; object-fit: contain !important; }
+        .production-order-card img { max-width: 100% !important; }
+        .production-summary-subhead,
+        html[data-theme="dark"] .production-order-card .production-summary-subhead {
+            font-weight: 800 !important; text-transform: uppercase !important; letter-spacing: .04em !important;
+            color: var(--doc-cap) !important; font-size: 8.5px !important;
+            border: 0 !important; border-top: 0.5px solid var(--doc-line) !important;
+            padding-top: 3px !important; margin: 4px 0 2px !important;
+        }
+        .production-empaque-group .production-summary-subhead,
+        html[data-theme="dark"] .production-order-card .production-empaque-group .production-summary-subhead { border-top: 0 !important; padding-top: 0 !important; margin-top: 0 !important; }
+
+        /* ---- 11. Controles como texto plano ---- */
+        .production-notes-box, .production-order-card textarea {
+            max-height: none !important; overflow: visible !important; field-sizing: content;
+            -webkit-appearance: none; appearance: none; resize: none; border: 0 !important;
+        }
+
+        /* ---- 12. No partir bloques a la mitad entre hojas ---- */
         .socios-section,
-        .production-frontback-product,
-        .production-config-bottom-col { break-inside: avoid; page-break-inside: avoid; }
+        .production-summary-two-col,
+        .production-summary-item,
+        .production-frontback-product { break-inside: avoid; page-break-inside: avoid; }
 
-        /* Si la orden llega a necesitar más de una hoja, que al menos no
-           corte justo dentro de una fila de dos columnas. */
-        .production-top-row, .production-bottom-row, .production-frontback-layout { break-inside: avoid; }
-
-        /* Ocultar indicador visual de fechas en impresión */
-        .production-dates-indicator { display: none !important; }
-
-        /* Ocultar chips de Cliente y Seguimiento en impresión */
-        .production-chips-row { display: none !important; }
-
-        /* Frente/Dorso: Configuración de Producción en 2 columnas (misma que impresión) */
-        .is-frontback-order .production-shared-printing-grid {
-            grid-template-columns: 1fr 1fr !important;
-            row-gap: 8px !important;
+        /* Chips / pills de acabados y estado: texto oscuro, borde fino, sin relleno de color */
+        html .production-order-card .production-chip,
+        html[data-theme="dark"] .production-order-card .production-chip,
+        html .production-order-card .production-state-pill-inline,
+        html[data-theme="dark"] .production-order-card .production-state-pill-inline,
+        .production-frontback-side-chip--label {
+            background: transparent !important;
+            color: var(--doc-ink) !important;
+            border: 0.5px solid var(--doc-line) !important;
+            min-height: 0 !important;
+            padding: 0 5px !important;
+            font-size: 8.5px !important;
         }
-        .is-frontback-order .production-shared-printing-col:nth-child(1) { grid-column: 1 !important; grid-row: 1 / 3 !important; }
-        .is-frontback-order .production-shared-printing-col:nth-child(2) { grid-column: 2 !important; grid-row: 1 !important; }
-        .is-frontback-order .production-shared-printing-col:nth-child(3) { grid-column: 2 !important; grid-row: 2 !important; }
 
-        /* Destinatario y Forma de Entrega: compactar */
-        .production-delivery-section .production-summary-subsection,
-        .production-samples-section .production-summary-subsection { gap: 1px !important; }
-        .production-delivery-section .production-summary-item,
-        .production-samples-section .production-summary-item { margin-bottom: 1px !important; }
+        /* ---- 13. Pie de trazabilidad (fijo, se repite por hoja) ---- */
+        .production-print-footer {
+            display: block !important; position: fixed; bottom: 4mm; left: 0; right: 0; text-align: right;
+            font-size: 7px; color: #aeb4bd !important; letter-spacing: .01em;
+        }
+        /* styles.css reserva el canal del scrollbar (html { scrollbar-gutter: stable }) y en
+           impresión eso encoge el área del pie fijo; sin esto el pie no llega al margen derecho. */
+        html { scrollbar-gutter: auto !important; }
     }
+    .production-print-footer { display: none; }
+
     </style>
 </head>
 <body>
@@ -574,27 +808,23 @@
         </header>
         <main class="workspace workspace-quote">
             <section class="quote-card quote-card-clean production-order-card">
-                <div id="orderAdminTools" class="production-admin-tools">
-                    <button type="button" id="orderPrintButton" class="browser-open-link production-admin-tool-btn" aria-label="Imprimir orden" title="Imprimir orden"></button>
-                    <button type="button" id="orderPdfButton" class="browser-open-link production-admin-tool-btn" aria-label="Descargar PDF" title="Descargar PDF"></button>
-                    <button type="button" id="orderCreationSummaryButton" class="browser-open-link production-admin-tool-btn" aria-label="Datos de creación" title="Datos de creación" hidden></button>
-                </div>
                 <div id="orderStatus" class="calc-popover-notice production-order-status">Cargando orden...</div>
                 <section id="orderContent" hidden>
+                    <div id="orderDetencionBanner" class="order-detencion-banner" hidden></div>
                     <div class="production-order-layout production-order-layout-refined">
                         <div class="production-top-row-wrapper">
                         <div class="production-top-row">
                         <section class="socios-section production-client-section">
                             <div class="section-caption">Cliente</div>
                             <div class="production-summary-stack">
-                                <div class="production-summary-item">
-                                    <strong id="orderCustomerSummaryText" class="production-summary-value"></strong>
+                                <div class="production-summary-item production-client-name-row">
+                                    <strong id="orderCustomerSummaryText" class="production-summary-value production-client-name-text"></strong>
+                                    <div id="orderSellerCol" class="production-client-seller-chip"></div>
                                 </div>
                                 <div id="orderCustomerChipsRow" class="production-chips-row">
                                 </div>
                                 <div id="orderClientInfoGrid" class="production-client-info-grid">
                                     <div id="orderCustomerContactCol" class="production-client-contact-col"></div>
-                                    <div id="orderSellerCol" class="production-client-seller-col"></div>
                                 </div>
                                 <div id="orderCustomerAddressRow" class="production-summary-item" hidden>
                                     <span id="orderCustomerAddressText" class="production-summary-value"></span>
@@ -603,30 +833,16 @@
                         </section>
 
                         <section class="socios-section production-tracking-section">
-                            <div class="section-caption">Seguimiento</div>
                             <div class="production-tracking-body">
                                 <div class="production-tracking-left">
                                     <div class="production-tracking-head-row">
-                                        <strong id="orderJobNameText" class="production-jobname"></strong>
+                                        <div class="section-caption">Seguimiento</div>
                                         <div class="production-tracking-state-row">
                                             <strong id="orderStateText" class="production-order-state production-state-pill production-state-pill-inline"></strong>
                                             <span id="orderGroupPill" class="production-group-pill" hidden></span>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="production-tracking-right">
-                                    <span class="production-summary-label">Orden</span>
-                                    <strong id="orderCodeText" class="production-order-code"></strong>
-
-                                    <div id="openSourceQuoteButton" class="production-source-link-group" aria-label="Ver cálculo origen"></div>
-                                    <div class="production-tracking-icons-row">
-                                        <button type="button" id="orderSapButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Descargas SAP" title="Descargas SAP"></button>
-                                        <button type="button" id="orderStateButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Control de planificación y flujo productivo"></button>
-                                        <button type="button" id="orderDeliveriesButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Detalle de entregas" title="Detalle de entregas"></button>
-                                        <button type="button" id="orderAttachmentsButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Ver adjuntos"></button>
-                                    </div>
-                                </div>
-                                <div class="production-tracking-dates-row">
+                                    <strong id="orderJobNameText" class="production-jobname"></strong>
                                     <label class="production-summary-item production-date-field">
                                         <span class="production-summary-label">Fecha de Entrega</span>
                                         <input id="orderScheduledDateInput" type="date">
@@ -635,6 +851,16 @@
                                         <span class="production-summary-label">Fecha Estimada</span>
                                         <input id="orderScheduledDateText" type="date">
                                     </label>
+                                </div>
+                                <div class="production-tracking-right">
+                                    <span class="production-summary-label">Orden</span>
+                                    <strong id="orderCodeText" class="production-order-code"></strong>
+
+                                    <span id="orderSourceQuoteLabel" class="production-summary-label" hidden>Cotización / Línea</span>
+                                    <div id="openSourceQuoteButton" class="production-source-link-group" aria-label="Ver cálculo origen"></div>
+                                    <div class="production-tracking-icons-row">
+                                        <button type="button" id="orderMenuButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Menú de la orden" title="Menú"></button>
+                                    </div>
                                 </div>
                             </div>
                         </section>
@@ -654,63 +880,27 @@
 
                         <section id="orderProductionConfig" class="socios-section production-shared-config">
                             <div class="section-caption">Configuración de Producción</div>
+                            <div class="production-config-split">
+                            <div class="production-config-split-main">
                             <div class="production-summary-stack">
                                 <div id="orderPrintingBlock" class="production-subgroup">
                                     <div id="orderPrintingAlert" class="production-order-alert" hidden></div>
-                                    <div id="orderPrintingGrid" class="production-shared-printing-grid">
-                                        <div class="production-shared-printing-col production-shared-printing-col-machine">
-                                            <div class="production-summary-item">
-                                                <span class="production-summary-label">Máquina</span>
-                                                <button type="button" id="orderMachineDetailBtn" class="production-inline-link-btn">
-                                                    <span id="orderMachineText" class="production-summary-value"></span>
-                                                </button>
-                                            </div>
-                                            <div class="production-roll-mini-grid">
-                                                <div class="production-roll-core-combo">
-                                                    <div class="production-core-sub">
-                                                        <span class="production-summary-label">Ancho Core</span>
-                                                        <span id="orderCoreWidthText" class="production-summary-value"></span>
-                                                    </div>
-                                                    <div class="production-core-sub">
-                                                        <span class="production-summary-label">Diámetro Core</span>
-                                                        <span id="orderCoreDiameterText" class="production-summary-value"></span>
-                                                    </div>
-                                                </div>
-                                                <div class="production-summary-item production-roll-mini-item">
-                                                    <span class="production-summary-label">Tipo de Salida</span>
-                                                    <span class="production-output-type-wrap">
-                                                        <span id="orderOutputTypeText" class="production-summary-value"></span>
-                                                        <span id="orderOutputTypeImage" class="production-output-type-img"></span>
-                                                    </span>
-                                                </div>
-                                                <div class="production-summary-item production-roll-mini-item">
-                                                    <span class="production-summary-label">Cantidad de Rollos</span>
-                                                    <span id="orderRollCountText" class="production-summary-value"></span>
-                                                </div>
-                                                <div class="production-summary-item production-roll-mini-item">
-                                                    <span class="production-summary-label">Etiquetas por Rollo</span>
-                                                    <span id="orderRollLabelsText" class="production-summary-value"></span>
-                                                </div>
-                                            </div>
-                                        </div>
+                                    <div id="orderPrintingGrid" class="production-shared-printing-grid production-shared-printing-grid-2col">
                                         <div class="production-shared-printing-col">
                                             <div class="production-summary-item">
                                                 <span class="production-summary-label">Sustrato</span>
-                                                <button type="button" id="orderSubstrateDetailBtn" class="production-inline-link-btn">
-                                                    <span id="orderMaterialText" class="production-summary-value"></span>
-                                                </button>
+                                                <span id="orderMaterialText" class="production-summary-value"></span>
                                             </div>
-                                            <div class="production-summary-item production-summary-item-full">
-                                                <span class="production-summary-label">Tintas</span>
-                                                <button type="button" id="orderInkDetailBtn" class="production-inline-link-btn">
-                                                    <span id="orderInkConfigText" class="production-summary-value"></span>
-                                                </button>
+                                            <div class="production-summary-item">
+                                                <span id="orderInkConfigText" class="production-summary-value"></span>
                                             </div>
                                             <div id="orderPantonesRow" class="production-summary-item" hidden><span class="production-summary-label">Pantones</span><span id="orderPantonesText" class="production-summary-value"></span></div>
                                         </div>
-                                        <div class="production-shared-printing-col">
-                                            <div class="production-summary-label">Acabados</div>
-                                            <div id="orderFinishList" class="production-chip-list"></div>
+                                        <div class="production-shared-printing-col production-shared-printing-col-machine">
+                                            <div class="production-summary-item">
+                                                <span id="orderMachineText" class="production-summary-value"></span>
+                                            </div>
+                                            <div id="orderFinishList" class="production-chip-list" hidden></div>
                                             <div id="orderNumberingWrap" class="production-summary-item" hidden>
                                                 <span class="production-summary-label">Numerado</span>
                                                 <button type="button" id="orderNumberingButton" class="production-inline-link-btn">
@@ -734,13 +924,13 @@
                                             <div class="production-art-meta-stack">
                                                 <div class="field production-art-holder-field">
                                                     <label for="orderArtworkHolderInput">Arte en Poder de</label>
-                                                    <input id="orderArtworkHolderInput" type="text" list="orderArtworkHolderOptions" placeholder="Seleccionar o escribir">
+                                                    <select id="orderArtworkHolderInput"><option value=""></option><option value="Cliente">Cliente</option><option value="Vendedor">Vendedor</option><option value="Departamento de Diseño">Departamento de Diseño</option><option value="Preprensa">Preprensa</option><option value="Aprobaciones">Aprobaciones</option></select>
                                                     <datalist id="orderArtworkHolderOptions">
                                                         <option value="Cliente"></option>
                                                         <option value="Vendedor"></option>
                                                         <option value="Departamento de Diseño"></option>
                                                         <option value="Preprensa"></option>
-                                                        <option value="Visto Bueno"></option>
+                                                        <option value="Aprobaciones"></option>
                                                     </datalist>
                                                 </div>
                                             </div>
@@ -754,16 +944,26 @@
                                 </section>
                                 </div>
                             </div>
+                            </div>
+                            <section id="orderMotivosLayout" class="socios-section production-motivos-section production-config-split-side" hidden>
+                                <div class="section-caption">Artes</div>
+                                <div id="orderMotivosTableWrap"></div>
+                            </section>
+                            </div>
                         </section>
 
                         <div id="orderFrontBackLayout" class="production-frontback-layout"></div>
 
                         <div class="production-bottom-row">
+                        <section id="orderInfoGeneralSection" class="socios-section production-order-info-section">
+                            <div class="section-caption">Información General</div>
+                            <div id="orderInfoGeneralBody" class="production-summary-stack"></div>
+                        </section>
                         <section class="socios-section production-samples-section">
-                            <div class="section-caption">Muestras y Visto Bueno</div>
-                            <button type="button" id="orderSamplesToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir muestras y visto bueno"></button>
+                            <div class="section-caption">Muestras y Aprobaciones</div>
+                            <button type="button" id="orderSamplesToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir muestras y aprobaciones"></button>
                             <div id="orderSamplesSummary" class="production-summary-stack"></div>
-                            <form id="orderSamplesForm" class="production-inline-form" hidden>
+                            <form id="orderSamplesForm" class="production-inline-form" autocomplete="off" hidden>
                                 <div class="production-form-divider">
                                     <span class="production-form-divider-label">Envío de Muestras</span>
                                 </div>
@@ -776,7 +976,7 @@
                                     </div>
                                 </div>
                                 <div class="production-form-divider">
-                                    <span class="production-form-divider-label">Destinatario de Visto Bueno</span>
+                                    <span class="production-form-divider-label">Destinatario de Aprobaciones</span>
                                 </div>
                                 <div class="production-summary-grid production-summary-grid-two">
                                     <div class="field">
@@ -793,15 +993,52 @@
                                     </div>
                                     <div class="field">
                                         <label for="orderSamplesPhoneInput">Teléfono</label>
-                                        <input id="orderSamplesPhoneInput" type="text" autocomplete="off" placeholder="Teléfono del contacto">
+                                        <input id="orderSamplesPhoneInput" type="text" autocomplete="off" spellcheck="false" placeholder="Teléfono del contacto">
                                     </div>
                                     <div class="field">
                                         <label for="orderSamplesEmailInput">Correo</label>
-                                        <input id="orderSamplesEmailInput" type="text" autocomplete="off" placeholder="Correo del contacto">
+                                        <input id="orderSamplesEmailInput" type="text" autocomplete="off" spellcheck="false" placeholder="Correo del contacto">
+                                    </div>
+                                </div>
+                                <div class="production-form-divider">
+                                    <span class="production-form-divider-label">Dirección</span>
+                                </div>
+                                <div class="production-summary-grid production-summary-grid-two" data-order-address-block="vb">
+                                    <div class="field field-full">
+                                        <label for="orderVbAddrPick">Dirección Guardada</label>
+                                        <select id="orderVbAddrPick" data-address-field="pick"><option value="">Seleccionar dirección o crear nueva</option></select>
+                                    </div>
+                                    <div class="field">
+                                        <label for="orderVbAddrNombre">Nombre</label>
+                                        <input id="orderVbAddrNombre" type="text" autocomplete="off" spellcheck="false" data-address-field="addressName">
+                                    </div>
+                                    <div class="field">
+                                        <label for="orderVbAddrTipo">Tipo de Dirección</label>
+                                        <select id="orderVbAddrTipo" data-address-field="addressType"><option value=""></option><option value="Facturación">Facturación</option><option value="Envío">Envío</option></select>
+                                    </div>
+                                    <div class="field">
+                                        <label for="orderVbAddrPais">País</label>
+                                        <select id="orderVbAddrPais" data-address-field="country" data-dir-pais><option value=""></option></select>
+                                    </div>
+                                    <div class="field">
+                                        <label for="orderVbAddrDepto"><span data-dir-etiqueta-n1>Departamento</span></label>
+                                        <select id="orderVbAddrDepto" data-dir-n1><option value=""></option></select>
+                                    </div>
+                                    <div class="field" data-dir-grupo-n2 hidden>
+                                        <label for="orderVbAddrSubnivel"><span data-dir-etiqueta-n2>Municipio</span></label>
+                                        <select id="orderVbAddrSubnivel" data-dir-n2><option value=""></option></select>
+                                    </div>
+                                    <div class="field" data-dir-grupo-n3 hidden>
+                                        <label for="orderVbAddrZona"><span data-dir-etiqueta-n3>Distrito</span></label>
+                                        <select id="orderVbAddrZona" data-dir-n3><option value=""></option></select>
+                                    </div>
+                                    <div class="field">
+                                        <label for="orderVbAddrCP">Código Postal</label>
+                                        <input id="orderVbAddrCP" type="text" autocomplete="off" spellcheck="false" data-address-field="zipCode">
                                     </div>
                                     <div class="field field-full">
-                                        <label for="orderSamplesAddressInput">Dirección</label>
-                                        <input id="orderSamplesAddressInput" type="text" autocomplete="off" list="orderCustomerAddressOptions" placeholder="Dirección del contacto">
+                                        <label for="orderVbAddrLinea">Dirección Exacta</label>
+                                        <input id="orderVbAddrLinea" type="text" autocomplete="off" spellcheck="false" data-address-field="addressLine" placeholder="Dirección exacta">
                                     </div>
                                 </div>
                                 <div class="production-form-divider">
@@ -817,7 +1054,7 @@
                             <div class="section-caption">Entrega</div>
                             <button type="button" id="orderDeliveryToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir entrega"></button>
                             <div id="orderDeliverySummary" class="production-summary-stack"></div>
-                            <form id="orderDeliveryForm" class="production-inline-form" hidden>
+                            <form id="orderDeliveryForm" class="production-inline-form" autocomplete="off" hidden>
                                 <div class="production-form-divider">
                                     <span class="production-form-divider-label">Forma de Entrega</span>
                                 </div>
@@ -836,11 +1073,52 @@
                                     </div>
                                     <div class="field">
                                         <label for="orderDeliveryPhoneInput">Teléfono</label>
-                                        <input id="orderDeliveryPhoneInput" type="text" autocomplete="off" placeholder="Teléfono de entrega">
+                                        <input id="orderDeliveryPhoneInput" type="text" autocomplete="off" spellcheck="false" placeholder="Teléfono de entrega">
                                     </div>
                                     <div class="field">
                                         <label for="orderDeliveryEmailInput">Correo</label>
-                                        <input id="orderDeliveryEmailInput" type="text" autocomplete="off" placeholder="Correo de entrega">
+                                        <input id="orderDeliveryEmailInput" type="text" autocomplete="off" spellcheck="false" placeholder="Correo de entrega">
+                                    </div>
+                                </div>
+                                <div class="production-form-divider">
+                                    <span class="production-form-divider-label">Dirección de Entrega</span>
+                                </div>
+                                <div class="production-summary-grid production-summary-grid-two" data-order-address-block="entrega">
+                                    <div class="field field-full">
+                                        <label for="orderEntregaAddrPick">Dirección Guardada</label>
+                                        <select id="orderEntregaAddrPick" data-address-field="pick"><option value="">Seleccionar dirección o crear nueva</option></select>
+                                    </div>
+                                    <div class="field">
+                                        <label for="orderEntregaAddrNombre">Nombre</label>
+                                        <input id="orderEntregaAddrNombre" type="text" autocomplete="off" spellcheck="false" data-address-field="addressName">
+                                    </div>
+                                    <div class="field">
+                                        <label for="orderEntregaAddrTipo">Tipo de Dirección</label>
+                                        <select id="orderEntregaAddrTipo" data-address-field="addressType"><option value=""></option><option value="Facturación">Facturación</option><option value="Envío">Envío</option></select>
+                                    </div>
+                                    <div class="field">
+                                        <label for="orderEntregaAddrPais">País</label>
+                                        <select id="orderEntregaAddrPais" data-address-field="country" data-dir-pais><option value=""></option></select>
+                                    </div>
+                                    <div class="field">
+                                        <label for="orderEntregaAddrDepto"><span data-dir-etiqueta-n1>Departamento</span></label>
+                                        <select id="orderEntregaAddrDepto" data-dir-n1><option value=""></option></select>
+                                    </div>
+                                    <div class="field" data-dir-grupo-n2 hidden>
+                                        <label for="orderEntregaAddrSubnivel"><span data-dir-etiqueta-n2>Municipio</span></label>
+                                        <select id="orderEntregaAddrSubnivel" data-dir-n2><option value=""></option></select>
+                                    </div>
+                                    <div class="field" data-dir-grupo-n3 hidden>
+                                        <label for="orderEntregaAddrZona"><span data-dir-etiqueta-n3>Distrito</span></label>
+                                        <select id="orderEntregaAddrZona" data-dir-n3><option value=""></option></select>
+                                    </div>
+                                    <div class="field">
+                                        <label for="orderEntregaAddrCP">Código Postal</label>
+                                        <input id="orderEntregaAddrCP" type="text" autocomplete="off" spellcheck="false" data-address-field="zipCode">
+                                    </div>
+                                    <div class="field field-full">
+                                        <label for="orderEntregaAddrLinea">Dirección Exacta</label>
+                                        <input id="orderEntregaAddrLinea" type="text" autocomplete="off" spellcheck="false" data-address-field="addressLine" placeholder="Dirección exacta">
                                     </div>
                                 </div>
                                 <div class="production-form-divider">
@@ -852,6 +1130,68 @@
                             </form>
                         </section>
                         </div>
+
+                        <div id="orderAcabadosFlex" class="production-acabados-flex production-ficha-tecnica">
+                        <section id="orderMaquinaSection" class="socios-section production-shared-config production-acabados-flex-item" hidden>
+                            <div class="section-caption">Máquina de Impresión</div>
+                            <div id="orderMaquinaBody" class="production-summary-grid"></div>
+                        </section>
+
+                        <section id="orderSustratoSection" class="socios-section production-shared-config production-acabados-flex-item" hidden>
+                            <div class="section-caption">Sustrato</div>
+                            <div id="orderSustratoBody" class="production-summary-grid"></div>
+                        </section>
+
+                        <section id="orderTintasSection" class="socios-section production-shared-config production-acabados-flex-item" hidden>
+                            <div class="section-caption">Tintas</div>
+                            <div id="orderTintasBody" class="production-summary-grid"></div>
+                        </section>
+
+                        <section id="orderBarnizSection" class="socios-section production-shared-config production-acabados-flex-item" hidden>
+                            <div class="section-caption">Barniz</div>
+                            <div id="orderBarnizBody" class="production-summary-grid"></div>
+                        </section>
+
+                        <section id="orderEstampadoSection" class="socios-section production-shared-config production-acabados-flex-item" hidden>
+                            <div class="section-caption">Estampado</div>
+                            <div id="orderEstampadoBody" class="production-summary-grid"></div>
+                        </section>
+
+                        <section id="orderLaminadoSection" class="socios-section production-shared-config production-acabados-flex-item" hidden>
+                            <div class="section-caption">Laminado</div>
+                            <div id="orderLaminadoBody" class="production-summary-grid"></div>
+                        </section>
+
+                        <section id="orderSellosSection" class="socios-section production-shared-config production-acabados-flex-item" hidden>
+                            <div class="section-caption">Sellos</div>
+                            <div id="orderSellosBody" class="production-summary-grid"></div>
+                        </section>
+
+                        <section id="orderTroqueladoSection" class="socios-section production-shared-config production-acabados-flex-item" hidden>
+                            <div class="section-caption">Troquelado</div>
+                            <div id="orderTroqueladoBody" class="production-summary-grid"></div>
+                        </section>
+
+                        <section id="orderRebobinadoSection" class="socios-section production-shared-config production-acabados-flex-item" hidden>
+                            <div class="production-rebobinado-layout">
+                                <div class="production-rebobinado-main">
+                                    <div class="section-caption">Rebobinado</div>
+                                    <div id="orderRebobinadoBody" class="production-summary-grid"></div>
+                                </div>
+                                <div id="orderOutputTypeImage" class="production-rebobinado-image"></div>
+                            </div>
+                        </section>
+
+                        <section id="orderEmpaqueSection" class="socios-section production-shared-config production-acabados-flex-item" hidden>
+                            <div class="section-caption">Empaque<button type="button" id="orderEmpaqueAdvertenciaPill" class="production-state-pill is-alert" style="margin-left:10px;min-height:24px;padding:0 10px;font-size:12px;border:0;cursor:pointer;" onclick="showEmpaqueAdvertencia()" hidden>⚠ Advertencia</button></div>
+                            <div id="orderEmpaqueBody" class="production-summary-grid"></div>
+                        </section>
+                        </div>
+
+                        <section id="orderProcesosAdicionalesSection" class="socios-section production-shared-config" hidden>
+                            <div class="section-caption">Procesos Adicionales</div>
+                            <div id="orderProcesosAdicionalesList" class="production-summary-stack"></div>
+                        </section>
 
                         <section class="socios-section production-observations-section">
                             <div class="section-caption">Observaciones</div>
@@ -889,47 +1229,6 @@
         </div>
     </div>
 
-    <div id="orderSapPopover" class="calc-popover production-sap-popover" hidden>
-        <div class="calc-popover-backdrop" data-close-popover="orderSapPopover"></div>
-        <div class="calc-popover-panel production-sap-popover-panel">
-            <button type="button" class="calc-popover-close" data-close-popover="orderSapPopover" aria-label="Cerrar">×</button>
-            <div class="calc-popover-body">
-                <div class="copy-popover-header">
-                    <h2>Descargas SAP</h2>
-                </div>
-                <form id="sapConsumptionForm" class="sap-consumption-form">
-                    <div class="field">
-                        <label for="sapConsumptionMaterial">Material</label>
-                        <select id="sapConsumptionMaterial"></select>
-                    </div>
-                    <div class="field">
-                        <label for="sapConsumptionProcess">Proceso</label>
-                        <select id="sapConsumptionProcess">
-                            <option value="impresion">Impresión</option>
-                            <option value="barnizado">Barniz</option>
-                            <option value="laminado">Laminado</option>
-                            <option value="estampado">Foil</option>
-                            <option value="rebobinado">Rebobinado</option>
-                            <option value="empaque">Empaque</option>
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label for="sapConsumptionQuantity">Cantidad</label>
-                        <input id="sapConsumptionQuantity" type="number" min="0" step="0.0001">
-                    </div>
-                    <div class="field field-full">
-                        <label for="sapConsumptionReason">Razón</label>
-                        <input id="sapConsumptionReason" type="text" placeholder="Motivo de solicitud">
-                    </div>
-                    <button type="submit" class="browser-open-link sap-consumption-submit">Solicitar descarga</button>
-                </form>
-                <div id="sapConsumptionStatus" class="production-summary-empty sap-consumption-message"></div>
-                <div id="sapConsumptionHistory" class="sap-consumption-history"></div>
-            </div>
-        </div>
-    </div>
-
-
     <datalist id="orderCustomerAddressOptions"></datalist>
 
     <div id="orderSourceQuotePopover" class="calc-popover" hidden>
@@ -945,102 +1244,176 @@
         </div>
     </div>
 
-    <div id="orderCreationSummaryPopover" class="calc-popover production-header-tab-popover" hidden>
-        <div class="calc-popover-backdrop" data-close-popover="orderCreationSummaryPopover"></div>
-        <div class="calc-popover-panel production-flow-popover-panel">
-            <button type="button" class="calc-popover-close" data-close-popover="orderCreationSummaryPopover" aria-label="Cerrar">×</button>
-            <div class="calc-popover-body">
-                <div id="orderCreationTabs" class="tl-tabs-bar">
-                    <button type="button" class="tl-tab-btn active" data-creation-tab="datos">Datos de Creación</button>
-                    <button type="button" class="tl-tab-btn" data-creation-tab="procesos">Procesos Productivos</button>
+    <div id="orderMenuPopover" class="calc-popover production-header-tab-popover production-flow-tab-popover production-menu-popover" hidden>
+        <div class="calc-popover-backdrop" data-close-popover="orderMenuPopover"></div>
+        <div class="calc-popover-panel production-flow-popover-panel production-menu-popover-panel">
+            <button type="button" class="calc-popover-close" data-close-popover="orderMenuPopover" aria-label="Cerrar">×</button>
+            <div class="calc-popover-body production-menu-popover-body">
+                <div class="production-menu-nav">
+                    <button type="button" id="orderMenuNavFlujo" class="production-menu-nav-btn is-active" data-menu-tab="flujo" aria-label="Flujo" title="Flujo"></button>
+                    <button type="button" id="orderMenuNavEntregas" class="production-menu-nav-btn" data-menu-tab="entregas" aria-label="Detalle de entregas" title="Detalle de Entregas"></button>
+                    <button type="button" id="orderMenuNavAdjuntos" class="production-menu-nav-btn" data-menu-tab="adjuntos" aria-label="Adjuntos" title="Adjuntos"></button>
+                    <button type="button" id="orderMenuNavSap" class="production-menu-nav-btn" data-menu-tab="sap" aria-label="Descargas SAP" title="Descargas SAP"></button>
+                    <button type="button" id="orderMenuNavEstadoSap" class="production-menu-nav-btn" data-menu-tab="estadosap" aria-label="Estado en SAP" title="Estado en SAP"></button>
+                    <button type="button" id="orderMenuNavCreacion" class="production-menu-nav-btn" data-menu-tab="creacion" aria-label="Datos de creación" title="Datos de Creación" hidden></button>
+                    <button type="button" id="orderMenuNavProcesos" class="production-menu-nav-btn" data-menu-tab="procesos" aria-label="Producción" title="Producción"></button>
+                    <button type="button" id="orderMenuNavEstado" class="production-menu-nav-btn" data-menu-tab="estado" aria-label="Estado de la orden: detener, anular, reactivar" title="Estado de la Orden"></button>
+                    <div class="production-menu-nav-divider"></div>
+                    <button type="button" id="orderPrintButton" class="browser-open-link production-menu-nav-btn" aria-label="Imprimir orden" title="Imprimir orden"></button>
+                    <button type="button" id="orderPdfButton" class="browser-open-link production-menu-nav-btn" aria-label="Descargar PDF" title="Descargar PDF"></button>
+                    <button type="button" id="orderQualityCartillaButton" class="browser-open-link production-menu-nav-btn" aria-label="Generar cartilla de color" title="Generar cartilla de color" hidden></button>
+                    <button type="button" id="orderQualityFichaButton" class="browser-open-link production-menu-nav-btn" aria-label="Generar ficha técnica" title="Generar ficha técnica" hidden></button>
+                    <button type="button" id="orderQualityCertificadoButton" class="browser-open-link production-menu-nav-btn" aria-label="Generar certificado de calidad" title="Generar certificado de calidad" hidden></button>
                 </div>
-                <div id="orderCreationSummaryTab" class="production-creation-tab-panel">
-                    <div id="orderCreationSummaryBody" class="production-creation-summary-body"></div>
-                </div>
-                <div id="orderProcessesTab" class="production-creation-tab-panel" hidden>
-                    <div id="orderProcessesTabBody" class="production-creation-summary-body"></div>
+                <div class="production-menu-content">
+                    <div id="orderMenuPanelFlujo" class="production-menu-panel">
+                        <div id="orderFlowTabs" class="tl-tabs-bar">
+                            <button type="button" class="tl-tab-btn active" data-flow-tab="flujo">Flujo</button>
+                            <button type="button" class="tl-tab-btn" data-flow-tab="responsabilidades">Responsabilidades</button>
+                            <button type="button" class="tl-tab-btn" data-flow-tab="pausas">Pausas</button>
+                            <button type="button" class="tl-tab-btn" data-flow-tab="auditoria">Auditoría</button>
+                            <button type="button" class="tl-tab-btn" data-flow-tab="pasos">Pasos de Producción</button>
+                        </div>
+                        <div id="orderFlowBody" class="production-flow-body"></div>
+                        <div id="orderFlowTabContent" class="production-flow-body" style="display:none;"></div>
+                    </div>
+                    <div id="orderMenuPanelEntregas" class="production-menu-panel" hidden>
+                        <div class="copy-popover-header">
+                            <h2>Detalle de Entregas</h2>
+                        </div>
+                        <div class="production-deliveries-total">
+                            <span>Cantidad a entregar</span>
+                            <strong id="orderDeliveriesQuantityText">Pendiente</strong>
+                        </div>
+                        <div class="socios-table-wrap production-mini-table">
+                            <table class="quote-table socios-table">
+                                <thead>
+                                    <tr>
+                                        <th>Cantidad</th>
+                                        <th>Fecha</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="orderDeliveriesBody"></tbody>
+                            </table>
+                        </div>
+                        <div id="orderDeliveriesMessage" class="production-deliveries-message" hidden></div>
+                    </div>
+                    <div id="orderMenuPanelAdjuntos" class="production-menu-panel" hidden>
+                        <div class="copy-popover-header">
+                            <h2>Adjuntos del Producto</h2>
+                        </div>
+                        <div id="orderAdjuntosProducto"></div>
+                        <div hidden>
+                            <input id="orderAttachmentFileInput" type="file" hidden>
+                            <label id="orderAttachmentUploadButton" for="orderAttachmentFileInput"></label>
+                            <button type="button" id="orderAudioRecordButton" data-recording="false"></button>
+                            <div id="orderAudioRecordIndicator" hidden></div>
+                            <div id="orderAttachmentsPopoverBody"></div>
+                        </div>
+                    </div>
+                    <div id="orderMenuPanelSap" class="production-menu-panel" hidden>
+                        <div class="copy-popover-header">
+                            <h2>Descargas SAP</h2>
+                        </div>
+                        <form id="sapConsumptionForm" class="sap-consumption-form">
+                            <div class="field">
+                                <label for="sapConsumptionMaterial">Material</label>
+                                <select id="sapConsumptionMaterial"></select>
+                            </div>
+                            <div class="field">
+                                <label for="sapConsumptionProcess">Proceso</label>
+                                <select id="sapConsumptionProcess">
+                                    <option value="impresion">Impresión</option>
+                                    <option value="barnizado">Barniz</option>
+                                    <option value="laminado">Laminado</option>
+                                    <option value="estampado">Foil</option>
+                                    <option value="rebobinado">Rebobinado</option>
+                                    <option value="empaque">Empaque</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="sapConsumptionQuantity">Cantidad</label>
+                                <input id="sapConsumptionQuantity" type="number" min="0" step="0.0001">
+                            </div>
+                            <div class="field">
+                                <label for="sapConsumptionReason">Razón</label>
+                                <input id="sapConsumptionReason" type="text" placeholder="Motivo de solicitud">
+                            </div>
+                            <div class="production-order-popover-actions sap-consumption-actions">
+                                <button type="submit" class="action-btn action-btn-primary">Solicitar descarga</button>
+                            </div>
+                        </form>
+                        <div class="sap-consumption-detail">
+                            <div class="sap-consumption-detail-title">Solicitudes</div>
+                            <div id="sapConsumptionStatus" class="production-summary-empty sap-consumption-message"></div>
+                            <div id="sapConsumptionHistory" class="sap-consumption-history"></div>
+                        </div>
+                    </div>
+                    <div id="orderMenuPanelEstadoSap" class="production-menu-panel" hidden>
+                        <div class="copy-popover-header">
+                            <h2>Estado en SAP</h2>
+                        </div>
+                        <div class="production-order-popover-actions">
+                            <button type="button" id="estadoSapRefreshBtn" class="action-btn">Actualizar</button>
+                            <button type="button" id="estadoSapLiveBtn" class="action-btn">Consultar en Vivo</button>
+                        </div>
+                        <div id="estadoSapAviso" class="production-summary-empty" hidden></div>
+                        <div id="estadoSapStatus" class="production-summary-empty"></div>
+                        <div id="estadoSapList" class="sap-consumption-history"></div>
+                    </div>
+                    <div id="orderMenuPanelProcesos" class="production-menu-panel" hidden>
+                        <div class="copy-popover-header">
+                            <h2>Producción</h2>
+                        </div>
+                        <div id="orderProduccionTabs" class="tl-tabs-bar">
+                            <button type="button" class="tl-tab-btn active" data-produccion-tab="comparativa">Comparativa</button>
+                            <button type="button" class="tl-tab-btn" data-produccion-tab="tiempos">Tiempos y Merma</button>
+                        </div>
+                        <div id="orderProduccionPanelComparativa">
+                            <p class="production-menu-panel-hint">Lo que se calculó al cotizar frente a lo que producción capturó realmente en cada proceso.</p>
+                            <div class="cmp-legend">
+                                <span class="cmp-legend-item cmp-legend-cotizado"><span class="cmp-legend-dot"></span>Cotizado <em>— del cálculo de la cotización</em></span>
+                                <span class="cmp-legend-item cmp-legend-produccion"><span class="cmp-legend-dot"></span>En Producción <em>— capturado por planta (valores reales)</em></span>
+                            </div>
+                            <div id="orderProcessesTab" class="production-creation-tab-panel">
+                                <div id="orderProcessesTabBody" class="production-creation-summary-body"></div>
+                            </div>
+                        </div>
+                        <div id="orderProduccionPanelTiempos" hidden>
+                            <p class="production-menu-panel-hint">Tiempo y merma que planta registró en cada fase de Impresión y Rebobinado, con el detalle por operario.</p>
+                            <div id="orderTiemposMermaBody"></div>
+                        </div>
+                    </div>
+                    <div id="orderMenuPanelCreacion" class="production-menu-panel" hidden>
+                        <div class="copy-popover-header">
+                            <h2>Datos de Creación</h2>
+                        </div>
+                        <div id="orderCreationSummaryTab" class="production-creation-tab-panel">
+                            <div id="orderCreationSummaryBody" class="production-creation-summary-body"></div>
+                        </div>
+                    </div>
+                    <div id="orderMenuPanelEstado" class="production-menu-panel" hidden>
+                        <div class="copy-popover-header">
+                            <h2>Estado de la Orden</h2>
+                        </div>
+                        <p class="production-menu-panel-hint">Detener, anular o reactivar la orden. Mientras está detenida o anulada, ningún proceso de esta orden puede avanzar.</p>
+                        <div id="orderDetencionPanelBody" class="order-detencion-body"></div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="orderFlowPopover" class="calc-popover production-header-tab-popover production-flow-tab-popover" hidden>
-        <div class="calc-popover-backdrop" data-close-popover="orderFlowPopover"></div>
-        <div class="calc-popover-panel production-flow-popover-panel">
-            <button type="button" class="calc-popover-close" data-close-popover="orderFlowPopover" aria-label="Cerrar">×</button>
-            <div class="calc-popover-body">
-                <div id="orderFlowTabs" class="tl-tabs-bar">
-                    <button type="button" class="tl-tab-btn active" data-flow-tab="flujo">Flujo</button>
-                    <button type="button" class="tl-tab-btn" data-flow-tab="responsabilidades">Responsabilidades</button>
-                    <button type="button" class="tl-tab-btn" data-flow-tab="pausas">Pausas</button>
-                    <button type="button" class="tl-tab-btn" data-flow-tab="auditoria">Auditoría</button>
-                </div>
-                <div id="orderFlowBody" class="production-flow-body"></div>
-                <div id="orderFlowTabContent" class="production-flow-body" style="display:none;"></div>
-            </div>
-        </div>
-    </div>
 
-    <div id="orderDeliveriesPopover" class="calc-popover production-header-tab-popover production-deliveries-popover" hidden>
-        <div class="calc-popover-backdrop" data-close-popover="orderDeliveriesPopover"></div>
-        <div class="calc-popover-panel production-deliveries-popover-panel">
-            <button type="button" class="calc-popover-close" data-close-popover="orderDeliveriesPopover" aria-label="Cerrar">×</button>
-            <div class="calc-popover-body">
+    <div id="orderAttachmentPreviewPopover" class="calc-popover" hidden>
+        <div class="calc-popover-backdrop" data-close-popover="orderAttachmentPreviewPopover"></div>
+        <div class="calc-popover-panel calc-popover-panel-narrow attachment-preview-popover-panel">
+            <button type="button" class="calc-popover-close" data-close-popover="orderAttachmentPreviewPopover" aria-label="Cerrar">×</button>
+            <div class="calc-popover-body attachment-preview-popover-body">
                 <div class="copy-popover-header">
-                    <h2>Detalle de Entregas</h2>
+                    <h2 id="orderAttachmentPreviewTitle">Adjunto</h2>
                 </div>
-                <div class="production-deliveries-total">
-                    <span>Cantidad a entregar</span>
-                    <strong id="orderDeliveriesQuantityText">Pendiente</strong>
-                </div>
-                <div class="socios-table-wrap production-mini-table">
-                    <table class="quote-table socios-table">
-                        <thead>
-                            <tr>
-                                <th>Cantidad</th>
-                                <th>Fecha</th>
-                            </tr>
-                        </thead>
-                        <tbody id="orderDeliveriesBody"></tbody>
-                    </table>
-                </div>
-                <div id="orderDeliveriesMessage" class="production-deliveries-message" hidden></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="orderAttachmentsPopover" class="calc-popover production-header-tab-popover production-attachments-popover" hidden>
-        <div class="calc-popover-backdrop" data-close-popover="orderAttachmentsPopover"></div>
-        <div class="calc-popover-panel calc-popover-panel-compact production-attachments-popover-panel">
-            <button type="button" class="calc-popover-close" data-close-popover="orderAttachmentsPopover" aria-label="Cerrar">×</button>
-            <div class="calc-popover-body">
-                <div class="copy-popover-header">
-                    <h2>Adjuntos</h2>
-                </div>
-                <div class="order-attachments-actions">
-                    <input id="orderAttachmentFileInput" type="file" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ai,.eps" hidden>
-                    <label id="orderAttachmentUploadButton" class="quote-request-icon-action order-attachment-icon-action" for="orderAttachmentFileInput" title="Adjuntar Archivos" aria-label="Adjuntar Archivos">
-                        <span data-order-inline-icon="attachment"></span>
-                    </label>
-                    <button type="button" id="orderAudioRecordButton" class="quote-request-icon-action order-attachment-icon-action" title="Grabar Audio" aria-label="Grabar Audio" data-recording="false">
-                        <span data-order-inline-icon="record"></span>
-                    </button>
-                    <div id="orderAudioRecordIndicator" class="quote-request-audio-status" hidden><span class="quote-request-audio-dot"></span><span>Grabando</span></div>
-                </div>
-                <div id="orderAttachmentsPopoverBody" class="attachments-popover-body">
-                    <table class="copy-popover-table attachments-table">
-                        <thead>
-                            <tr>
-                                <th>Nombre</th>
-                                <th>Categoría</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="orderAttachmentsTableBody">
-                            <tr><td colspan="3">Cargando adjuntos...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
+                <div id="orderAttachmentPreviewBody" class="attachment-preview-content"></div>
             </div>
         </div>
     </div>
@@ -1123,7 +1496,11 @@
         </div>
     </div>
 
-    <script src="/access-control.js"></script>
-    <script src="/orden-produccion.js"></script>
+    <div id="orderPrintFooter" class="production-print-footer"></div>
+
+    <script src="/access-control.js?v=20260923-mensajes-carga"></script>
+    <script src="/trazabilidad-launcher.js"></script>
+    <script src="/adjuntos-producto.js?v=20260921-tarjetas"></script>
+    <script src="/orden-produccion.js?v=20260924-muestras-paises"></script>
 </body>
 </html>

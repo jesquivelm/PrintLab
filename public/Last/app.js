@@ -1428,15 +1428,13 @@ function buildCalcUrl(row) {
 }
 
 function updateSummary(quote, resumen) {
-    const raw = quote?.raw_data || {};
     const summaryStrip = document.querySelector('.summary-strip-quote');
     if (!summaryStrip) return;
     summaryStrip.innerHTML = `
         <div>Compra: <span id="summaryCompra">${quote?.exchange_buy ? `¢${formatMoney(quote.exchange_buy)}` : '¢457'}</span></div>
         <div>Venta: <span id="summaryVenta">${quote?.exchange_sale ? `¢${formatMoney(quote.exchange_sale)}` : '¢471'}</span></div>
-        <div>Creación: ${escapeHtml(raw['PIE COTIZACION | DETALLE COTIZACION | FECHAS'] || formatDate(quote?.created_on))}</div>
+        <div>Creación: ${escapeHtml(quote?.footer_dates || formatDate(quote?.created_on))}</div>
         <div>Vencimiento: ${escapeHtml(formatDate(quote?.due_on))}</div>
-        <div>Revisión Avanzada: ${escapeHtml(raw['PIE COTIZACION | REVISION AVANZADA'] || '')}</div>
     `;
 }
 

@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="/theme.js"></script>
+    <script src="/desplegable.js?v=20260924-desplegable-v5"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flexo APS — Configuración de Procesos y Máquinas</title>
 <style>
@@ -46,6 +47,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1f2b3d;background:#f
 .proceso-row:hover{background:#fafcfe}
 .proceso-row.is-selected{background:#eef8f4}
 .drag-handle{color:#ccc;cursor:grab;font-size:16px;text-align:center}
+.aviso-sin-horario{display:inline-block;padding:1px 6px;border-radius:999px;font-size:9px;font-weight:600;color:#92400e;background:#fef3c7;border:1px solid #fcd34d}
 .proceso-orden{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
 .proceso-nombre{font-weight:500;font-size:13px}
 .proceso-icono{font-size:18px}
@@ -118,6 +120,61 @@ input[type="checkbox"]{width:16px;height:16px;accent-color:#1D9E75;cursor:pointe
 .maq-spec-tab.active{background:#f7fbff;color:#1D9E75;border-color:#d8e4ef;font-weight:600}
 .maq-spec-panel{display:none}
 .maq-spec-panel.active{display:block}
+
+/* ── Modo oscuro (tokens de public/styles.css, ver docs/design-system-theme.md) ── */
+html[data-theme="dark"] body{background:#0f172a;color:#f8fafc}
+html[data-theme="dark"] .hdr{background:#162033;border-color:#26364d}
+html[data-theme="dark"] .hdr-title{color:#f8fafc}
+html[data-theme="dark"] .hdr-sub{color:#94a3b8}
+html[data-theme="dark"] .nav-tabs{background:#0f172a}
+html[data-theme="dark"] .nav-tab{color:#94a3b8}
+html[data-theme="dark"] .nav-tab.active{background:#1b263b;color:#f8fafc}
+html[data-theme="dark"] .btn{background:#1b263b;border-color:#26364d;color:#f8fafc}
+html[data-theme="dark"] .btn:hover{background:#1e293b}
+html[data-theme="dark"] .btn.primary{background:#1D9E75;border-color:#15805e;color:#fff}
+html[data-theme="dark"] .btn.danger{background:rgba(248,113,113,0.12);border-color:#f87171;color:#f87171}
+html[data-theme="dark"] .card{background:#162033;border-color:#26364d}
+html[data-theme="dark"] .card-hdr{border-color:#26364d}
+html[data-theme="dark"] .card-title{color:#f8fafc}
+html[data-theme="dark"] .planning-primary-strip{background:#162033;border-color:#26364d}
+html[data-theme="dark"] .planning-primary-field span{color:#94a3b8}
+html[data-theme="dark"] .planning-primary-field select{background:#1e293b;border-color:#26364d;color:#f8fafc}
+html[data-theme="dark"] .planning-primary-summary{color:#94a3b8}
+html[data-theme="dark"] .proceso-row{border-color:#1e293b}
+html[data-theme="dark"] .proceso-row:hover{background:#1b263b}
+html[data-theme="dark"] .proceso-row.is-selected{background:rgba(29,158,117,0.14)}
+html[data-theme="dark"] .drag-handle{color:#475569}
+html[data-theme="dark"] .aviso-sin-horario{color:#fcd34d;background:rgba(146,64,14,0.25);border-color:rgba(252,211,77,0.35)}
+html[data-theme="dark"] .proceso-nombre{color:#f8fafc}
+html[data-theme="dark"] .proceso-maquinas{color:#94a3b8}
+html[data-theme="dark"] .proceso-paralelo,html[data-theme="dark"] .badge-paralelo.si{background:rgba(74,222,128,0.14);color:#4ade80;border-color:rgba(74,222,128,0.35)}
+html[data-theme="dark"] .badge-paralelo.no{background:#1e293b;color:#94a3b8;border-color:#334155}
+html[data-theme="dark"] .maq-row{background:#1b263b;border-color:#26364d}
+html[data-theme="dark"] .maq-id{color:#38bdf8}
+html[data-theme="dark"] .maq-nombre{color:#f8fafc}
+html[data-theme="dark"] .maq-sub{color:#94a3b8}
+html[data-theme="dark"] .flag{background:rgba(56,189,248,0.14);color:#38bdf8;border-color:rgba(56,189,248,0.35)}
+html[data-theme="dark"] .maq-section-title{color:#94a3b8}
+html[data-theme="dark"] .modal{background:#162033;box-shadow:0 12px 32px rgba(0,0,0,0.45)}
+html[data-theme="dark"] .modal-close{color:#94a3b8}
+html[data-theme="dark"] .field label{color:#94a3b8}
+html[data-theme="dark"] .field input,html[data-theme="dark"] .field select,html[data-theme="dark"] .field textarea{background:#1e293b;border-color:#26364d;color:#f8fafc}
+html[data-theme="dark"] .field input:focus,html[data-theme="dark"] .field select:focus{border-color:#38bdf8;box-shadow:0 0 0 2px rgba(56,189,248,0.18)}
+html[data-theme="dark"] .field .hint{color:#64748b}
+html[data-theme="dark"] .toggle-row{border-color:#1e293b}
+html[data-theme="dark"] .toggle-lbl{color:#f8fafc}
+html[data-theme="dark"] .toggle-hint{color:#64748b}
+html[data-theme="dark"] .modal-footer{border-color:#26364d}
+html[data-theme="dark"] .empty,html[data-theme="dark"] .loading{color:#64748b}
+html[data-theme="dark"] .alert.success{background:rgba(74,222,128,0.12);color:#4ade80;border-color:rgba(74,222,128,0.35)}
+html[data-theme="dark"] .alert.error{background:rgba(248,113,113,0.12);color:#f87171;border-color:rgba(248,113,113,0.35)}
+html[data-theme="dark"] .summary-card{background:#162033;border-color:#26364d}
+html[data-theme="dark"] .summary-lbl{color:#94a3b8}
+html[data-theme="dark"] .resumen-track{background:#1e293b!important}
+html[data-theme="dark"] .maq-spec-tabs{border-color:#26364d}
+html[data-theme="dark"] .maq-spec-tab{color:#94a3b8}
+html[data-theme="dark"] .maq-spec-tab:hover{background:#1b263b;color:#f8fafc}
+html[data-theme="dark"] .maq-spec-tab.active{background:#1e293b;color:#38bdf8;border-color:#26364d}
 </style>
 <link rel="stylesheet" href="/theme-extensions.css">
 </head>
@@ -137,8 +194,8 @@ input[type="checkbox"]{width:16px;height:16px;accent-color:#1D9E75;cursor:pointe
     <button class="nav-tab" onclick="showTab('resumen')">Resumen</button>
   </div>
   <div style="display:flex;gap:8px">
-    <a class="btn" href="/planificacion/recursos">Recursos y Competencias</a>
-    <a class="btn" href="/planificacion/gantt">← Volver al Gantt</a>
+    <a class="btn" href="/planificacion/recursos" onclick="return navShellAware(event,'/planificacion/recursos','Recursos')">Recursos y Competencias</a>
+    <a class="btn" href="/planificacion/gantt" onclick="return navShellAware(event,'/planificacion/gantt','Gantt')">← Volver al Gantt</a>
   </div>
 </div>
 
@@ -208,6 +265,20 @@ input[type="checkbox"]{width:16px;height:16px;accent-color:#1D9E75;cursor:pointe
   <div id="calendarios-list">
     <div class="loading"><span class="spinner"></span>Cargando...</div>
   </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin:28px 0 12px">
+    <div>
+      <div style="font-size:16px;font-weight:600">Feriados Nacionales (Guatemala)</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">Días de cierre total. El scheduler y el cálculo de fechas compromiso los restan a todos los recursos.</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:12px">
+    <div class="field" style="margin:0"><label>Fecha</label><input type="date" id="fer-fecha"></div>
+    <div class="field" style="margin:0;flex:1;min-width:180px"><label>Nombre</label><input type="text" id="fer-nombre" placeholder="Ej: Día de la Independencia"></div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;padding-bottom:8px"><input type="checkbox" id="fer-recurrente" checked> Se repite cada año</label>
+    <button class="btn primary" onclick="agregarFeriado()">+ Agregar</button>
+  </div>
+  <div id="feriados-list"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════ -->
@@ -269,6 +340,17 @@ input[type="checkbox"]{width:16px;height:16px;accent-color:#1D9E75;cursor:pointe
         <input type="checkbox" id="proc-activo" checked>
       </div>
     </div>
+    <div class="form-grid" style="margin-top:14px">
+      <div class="field" style="grid-column:1/-1">
+        <label>Horario del Proceso</label>
+        <select id="proc-calendario"></select>
+        <span class="hint">Se usa cuando el proceso no tiene máquina asignada. Sin horario, se programa con 8 horas, de lunes a viernes de 7:00 a 15:00.</span>
+      </div>
+    </div>
+    <div style="margin-top:14px">
+      <div class="toggle-lbl" style="margin-bottom:6px">Máquinas Asignadas</div>
+      <div id="proc-maquinas"></div>
+    </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('modal-proceso')">Cancelar</button>
       <button class="btn primary" onclick="guardarProceso()">Guardar proceso</button>
@@ -322,7 +404,7 @@ input[type="checkbox"]{width:16px;height:16px;accent-color:#1D9E75;cursor:pointe
           <input type="number" id="maq-colores" min="0" max="12" value="0">
         </div>
         <div class="field">
-          <label>Velocidad nominal (pies/min)</label>
+          <label>Velocidad nominal (m/min)</label>
           <input type="number" id="maq-vel" min="0" value="0">
         </div>
         <div class="field">
@@ -539,6 +621,7 @@ input[type="checkbox"]{width:16px;height:16px;accent-color:#1D9E75;cursor:pointe
       </div>
       <div class="field"><label>Hora inicio</label><input type="time" id="turno-inicio" value="08:00"></div>
       <div class="field"><label>Hora fin</label><input type="time" id="turno-fin" value="17:00"></div>
+      <div class="field" id="turno-vigencia-field"><label>Vigente desde</label><input type="date" id="turno-vigencia"></div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('modal-turno')">Cancelar</button>
@@ -589,9 +672,19 @@ input[type="checkbox"]{width:16px;height:16px;accent-color:#1D9E75;cursor:pointe
 
 
 <script>
+function navShellAware(e,route,label){
+  if(window.parent&&window.parent!==window&&window.location.search.includes('shell=1')){
+    e.preventDefault();
+    window.parent.postMessage({type:'erp-open-tab',route:route+(route.includes('?')?'&':'?')+'shell=1',label:label},window.location.origin);
+    return false;
+  }
+  return true;
+}
 const API = '/api/planificacion';
 let procesos = [];
 let maquinas = [];
+let maquinasInventario = [];
+const AVISO_SIN_HORARIO = '<span class="aviso-sin-horario" title="Sin horario asignado. Se programa con 8 horas, de lunes a viernes de 7:00 a 15:00.">Sin horario · usa 8 horas</span>';
 
 function displayProcessName(value) {
   const raw = String(value || '').trim();
@@ -621,7 +714,7 @@ function showTab(tab) {
       t.classList.add('active');
   });
   if (tab === 'resumen') renderResumen();
-  if (tab === 'calendarios') renderCalendarios();
+  if (tab === 'calendarios') { renderCalendarios(); renderFeriados(); }
 }
 
 // ── ALERTAS ───────────────────────────────────────────────────
@@ -637,27 +730,91 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 
 // ── CARGA DE DATOS ────────────────────────────────────────────
 let calendarios = [];
+let feriados = [];
+
+const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function fmtFecha(iso, recurrente) {
+  const [y, m, d] = String(iso).slice(0, 10).split('-');
+  return recurrente ? `${Number(d)} ${MESES[Number(m) - 1]}` : `${Number(d)} ${MESES[Number(m) - 1]} ${y}`;
+}
+
+function renderFeriados() {
+  const list = document.getElementById('feriados-list');
+  if (!list) return;
+  if (!feriados.length) {
+    list.innerHTML = `<div class="empty" style="padding:20px"><div class="empty-icon">📅</div>No hay feriados configurados.</div>`;
+    return;
+  }
+  list.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="text-align:left;color:#888;font-size:11px;border-bottom:1px solid #e2e8f0">
+      <th style="padding:6px 8px">Fecha</th><th style="padding:6px 8px">Nombre</th>
+      <th style="padding:6px 8px">Cada año</th><th style="padding:6px 8px">Activo</th><th></th></tr></thead>
+    <tbody>${feriados.map(f => `
+      <tr style="border-bottom:1px solid #f0f4f8">
+        <td style="padding:6px 8px;font-family:monospace">${fmtFecha(f.fecha, f.recurrente)}</td>
+        <td style="padding:6px 8px">${(f.nombre || '').replace(/</g, '&lt;')}</td>
+        <td style="padding:6px 8px">${f.recurrente ? 'Sí' : '—'}</td>
+        <td style="padding:6px 8px"><input type="checkbox" ${f.activo ? 'checked' : ''} onchange="toggleFeriado(${f.id}, this.checked)"></td>
+        <td style="padding:6px 8px;text-align:right"><button class="btn sm danger" onclick="eliminarFeriado(${f.id})">Eliminar</button></td>
+      </tr>`).join('')}</tbody></table>`;
+}
+
+async function agregarFeriado() {
+  const fecha = document.getElementById('fer-fecha').value;
+  const nombre = document.getElementById('fer-nombre').value.trim();
+  const recurrente = document.getElementById('fer-recurrente').checked;
+  if (!fecha || !nombre) { showAlert('Fecha y nombre son requeridos', 'error'); return; }
+  const res = await fetch(`${API}/feriados`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fecha, nombre, recurrente })
+  });
+  const j = await res.json();
+  if (!j.ok) { showAlert(j.error || 'No se pudo guardar', 'error'); return; }
+  document.getElementById('fer-nombre').value = '';
+  await loadAll();
+}
+
+async function toggleFeriado(id, activo) {
+  await fetch(`${API}/feriados/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ activo })
+  });
+  const f = feriados.find(x => x.id === id); if (f) f.activo = activo;
+}
+
+async function eliminarFeriado(id) {
+  if (!confirm('¿Eliminar este feriado?')) return;
+  await fetch(`${API}/feriados/${id}`, { method: 'DELETE' });
+  await loadAll();
+}
 
 async function loadAll() {
   try {
-    const [pRes, mRes, cRes] = await Promise.all([
+    const [pRes, mRes, cRes, fRes, invRes] = await Promise.all([
       fetch(`${API}/procesos`),
       fetch(`${API}/maquinas/config`),
-      fetch(`${API}/calendarios`)
+      fetch(`${API}/calendarios`),
+      fetch(`${API}/feriados`),
+      fetch(`${API}/maquinas-inventario`)
     ]);
     const pData = await pRes.json();
     const mData = await mRes.json();
     const cData = await cRes.json();
+    const fData = await fRes.json().catch(() => ({}));
     if (pData.ok) procesos = pData.data;
     if (mData.ok) maquinas = mData.data;
     if (cData.ok) calendarios = cData.data;
+    if (fData.ok) feriados = fData.data;
+    const invData = await invRes.json().catch(() => ({}));
+    if (invData.ok) maquinasInventario = invData.data;
     renderProcesos();
     renderMaquinas();
     renderCalendarios();
+    renderFeriados();
     poblarSelectProceso();
   } catch (e) {
     document.getElementById('procesos-list').innerHTML =
-      `<div class="empty"><div class="empty-icon">⚡</div>No se pudo conectar a la API.<br>Asegúrate que el servidor está corriendo.</div>`;
+      `<div class="empty">Seguimos esperando al servidor.<br>La conexión está lenta y la información todavía no llega. Recarga la pantalla en un momento.</div>`;
   }
 }
 
@@ -682,19 +839,58 @@ function renderProcesos() {
           ${!p.activo ? '<span style="font-size:10px;color:#aaa;background:#f5f5f3;padding:1px 6px;border-radius:4px">Inactivo</span>' : ''}
         </div>
         <div class="proceso-maquinas" style="margin-top:2px">
-          ${parseInt(p.total_maquinas) > 0
-            ? `${p.total_maquinas} máquina(s) asignada(s)`
-            : '<span style="color:#E24B4A">Sin máquinas asignadas</span>'}
+          ${(p.maquinas_asignadas || []).length
+            ? p.maquinas_asignadas.map(m => `${esc(m.nombre)}${m.calendario_nombre ? ' · ' + esc(m.calendario_nombre) : ' ' + AVISO_SIN_HORARIO}`).join(' | ')
+            : `Sin máquina${p.calendario_nombre ? ' · ' + esc(p.calendario_nombre) : ' ' + AVISO_SIN_HORARIO}`}
         </div>
       </div>
       <div></div>
       <div></div>
       <div class="proceso-actions">
-        <button class="btn sm" onclick="editarProceso(${p.id_proceso})">Editar</button>
-        <button class="btn sm danger" onclick="eliminarProceso(${p.id_proceso},'${p.nombre}')">✕</button>
+        <button class="btn sm" onclick="editarProceso('${p.id_proceso}')">Editar</button>
+        <button class="btn sm danger" onclick="eliminarProceso('${p.id_proceso}','${p.nombre}')">✕</button>
       </div>
     </div>
   `).join('');
+  activarArrastreProcesos(list);
+}
+
+function activarArrastreProcesos(list) {
+  let filaArrastrada = null;
+  list.querySelectorAll('.proceso-row').forEach(fila => {
+    fila.addEventListener('dragstart', e => {
+      filaArrastrada = fila;
+      fila.style.opacity = '0.4';
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', fila.dataset.id);
+    });
+    fila.addEventListener('dragend', async () => {
+      fila.style.opacity = '';
+      filaArrastrada = null;
+      const ordenNuevo = [...list.querySelectorAll('.proceso-row')].map(f => f.dataset.id).join(',');
+      const ordenAnterior = procesos.map(p => String(p.id_proceso)).join(',');
+      if (ordenNuevo !== ordenAnterior) await guardarOrdenProcesos(list);
+    });
+    fila.addEventListener('dragover', e => {
+      if (!filaArrastrada || filaArrastrada === fila) return;
+      e.preventDefault();
+      const caja = fila.getBoundingClientRect();
+      const antes = e.clientY < caja.top + caja.height / 2;
+      list.insertBefore(filaArrastrada, antes ? fila : fila.nextSibling);
+    });
+    fila.addEventListener('drop', e => e.preventDefault());
+  });
+}
+
+async function guardarOrdenProcesos(list) {
+  const ids = [...list.querySelectorAll('.proceso-row')].map(f => f.dataset.id);
+  try {
+    const res = await fetch(`${API}/procesos-orden`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ids }) });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    showAlert('Orden guardado.');
+  } catch (e) { showAlert('Error: ' + e.message, 'error'); }
+  await loadAll();
 }
 
 function renderPlanningPrimarySelect() {
@@ -740,10 +936,10 @@ function renderMaquinas() {
       <div class="card-hdr">
         <span class="card-title">
           <span style="width:12px;height:12px;border-radius:50%;background:${g.proceso.color};display:inline-block"></span>
-          ${g.proceso.icono} ${g.proceso.nombre}
+          ${g.proceso.icono || ''} ${g.proceso.nombre}
           <span style="font-size:11px;color:#aaa;font-weight:400">(${g.maquinas.length} máquina${g.maquinas.length!==1?'s':''})</span>
         </span>
-        <button class="btn sm primary" onclick="openModalMaquina(${g.maquinas[0]?.id_proceso||''})">+ Máquina</button>
+        <button class="btn sm primary" onclick="openModalMaquina('${g.maquinas[0]?.id_proceso||''}')">+ Máquina</button>
       </div>
       <div class="maq-section">
         <div class="maq-list">
@@ -764,15 +960,15 @@ function maqRow(m) {
   return `<div class="maq-row ${m.activa?'':'inactive'}">
     <div>
       <div style="display:flex;align-items:center;gap:6px">
-        <span class="maq-id">${m.codigo_maquina || '—'}</span>
+        <span class="maq-id">${m.codigo_maquina || ''}</span>
         ${!m.activa ? '<span style="font-size:10px;color:#aaa;background:#f5f5f3;padding:1px 5px;border-radius:3px">Inactiva</span>' : ''}
       </div>
       <div class="maq-nombre">${m.nombre_recurso}</div>
       ${m.sub_descripcion ? `<div class="maq-sub">${m.sub_descripcion}</div>` : ''}
     </div>
-    <div style="font-size:11px;color:#666">${m.velocidad_nom ? m.velocidad_nom + ' pies/min' : '—'}</div>
-    <div style="font-size:11px;color:#666">${m.oee ? (parseFloat(m.oee)*100).toFixed(0) + '% OEE' : '—'}</div>
-    <div style="font-size:11px;color:#666">${m.ancho_max_banda ? m.ancho_max_banda + 'mm' : '—'}</div>
+    <div style="font-size:11px;color:#666">${m.velocidad_nom ? m.velocidad_nom + ' m/min' : ''}</div>
+    <div style="font-size:11px;color:#666">${m.oee ? (parseFloat(m.oee)*100).toFixed(0) + '% OEE' : ''}</div>
+    <div style="font-size:11px;color:#666">${m.ancho_max_banda ? m.ancho_max_banda + 'mm' : ''}</div>
     <div class="maq-flags">${flags.join('') || '<span style="font-size:11px;color:#ccc">Sin caps. especiales</span>'}</div>
     <div class="maq-actions">
         <button class="btn sm" onclick="editarMaquina('${m.id}')">Editar</button>
@@ -803,10 +999,10 @@ function renderResumen() {
           const pct = totalMaq > 0 ? Math.round(maqsDeProc.length / Math.max(activeMaq,1) * 100) : 0;
           return `<div style="margin-bottom:12px">
             <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-              <span style="font-size:12px;font-weight:500">${p.icono} ${p.nombre}</span>
+              <span style="font-size:12px;font-weight:500">${p.icono || ''} ${p.nombre}</span>
               <span style="font-size:11px;color:#888">${maqsDeProc.length} máquina${maqsDeProc.length!==1?'s':''}</span>
             </div>
-            <div style="height:8px;background:#e8ecf0;border-radius:4px;overflow:hidden">
+            <div class="resumen-track" style="height:8px;background:#e8ecf0;border-radius:4px;overflow:hidden">
               <div style="height:100%;width:${pct}%;background:${p.color_hex};border-radius:4px;transition:width .4s"></div>
             </div>
           </div>`;
@@ -898,7 +1094,17 @@ async function guardarCalendario() {
 }
 
 async function eliminarCalendario(id, nombre) {
-  if (!confirm(`¿Eliminar el calendario "${nombre}"?\nSe eliminarán todos sus turnos y excepciones.`)) return;
+  const usos = [];
+  procesos.forEach(p => {
+    if (String(p.calendario_id || '') === String(id)) usos.push(`• ${displayProcessName(p.nombre)}`);
+    (p.maquinas_asignadas || []).forEach(m => {
+      if (String(m.calendario_id || '') === String(id)) usos.push(`• ${displayProcessName(p.nombre)}: ${m.nombre}`);
+    });
+  });
+  const avisoUso = usos.length
+    ? `\n\nEste horario se usa para programar en la Cadena de Procesos:\n${usos.join('\n')}\n\nSi lo elimina, se van a programar con 8 horas, de lunes a viernes de 7:00 a 15:00.`
+    : '';
+  if (!confirm(`¿Eliminar el calendario "${nombre}"?\nSe eliminarán todos sus turnos y excepciones.${avisoUso}`)) return;
   try {
     const res = await fetch(`${API}/calendarios/${id}`, { method: 'DELETE' });
     const data = await res.json();
@@ -956,12 +1162,18 @@ function formatHour(h) {
   return `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}`;
 }
 
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
 function openModalAgregarTurno() {
   document.getElementById('turno-id').value = '';
   document.getElementById('turno-nombre').value = '';
   document.getElementById('turno-dia').value = '1';
   document.getElementById('turno-inicio').value = '08:00';
   document.getElementById('turno-fin').value = '17:00';
+  document.getElementById('turno-vigencia').value = todayIso();
   document.getElementById('modal-turno-titulo').textContent = 'Nuevo Turno';
   openModal('modal-turno');
 }
@@ -972,6 +1184,7 @@ function editarTurno(id, name, dow, start, end) {
   document.getElementById('turno-dia').value = dow;
   document.getElementById('turno-inicio').value = formatHour(start);
   document.getElementById('turno-fin').value = formatHour(end);
+  document.getElementById('turno-vigencia').value = todayIso();
   document.getElementById('modal-turno-titulo').textContent = 'Editar Turno';
   openModal('modal-turno');
 }
@@ -981,12 +1194,14 @@ async function guardarTurno() {
   const turnoId = document.getElementById('turno-id').value;
   const startParts = document.getElementById('turno-inicio').value.split(':');
   const endParts = document.getElementById('turno-fin').value.split(':');
+  const vigencia = document.getElementById('turno-vigencia').value || todayIso();
   const body = {
     shift_name: document.getElementById('turno-nombre').value.trim(),
     day_of_week: parseInt(document.getElementById('turno-dia').value),
     start_hour: parseInt(startParts[0]) + parseInt(startParts[1] || 0) / 60,
     end_hour: parseInt(endParts[0]) + parseInt(endParts[1] || 0) / 60,
   };
+  if (turnoId) body.effective_from = vigencia; else body.valid_from = vigencia;
   if (!body.shift_name) { alert('Nombre del turno es requerido.'); return; }
   if (body.end_hour <= body.start_hour) { alert('La hora de fin debe ser mayor que la de inicio.'); return; }
   try {
@@ -1128,8 +1343,72 @@ function openModalProceso(id = null) {
     document.getElementById('proc-color-hex').textContent = '#378ADD';
     document.getElementById('proc-paralelo').checked = false;
     document.getElementById('proc-activo').checked = true;
+    llenarSelectCalendario(document.getElementById('proc-calendario'), '');
+    renderMaquinasProceso(null);
   }
   openModal('modal-proceso');
+}
+
+function llenarSelectCalendario(select, valor) {
+  select.innerHTML = '<option value="">Sin horario</option>' +
+    calendarios.filter(c => c.is_active !== false)
+      .map(c => `<option value="${c.id}">${esc(c.calendar_name)}</option>`).join('');
+  select.value = valor || '';
+}
+
+function renderMaquinasProceso(proceso) {
+  const cont = document.getElementById('proc-maquinas');
+  if (!proceso) {
+    cont.innerHTML = '<span class="hint">Guarda el proceso para asignarle máquinas.</span>';
+    return;
+  }
+  const asignadas = proceso.maquinas_asignadas || [];
+  const idsAsignadas = new Set(asignadas.map(a => String(a.maquina_id)));
+  const libres = maquinasInventario.filter(m => !idsAsignadas.has(String(m.id)));
+  cont.innerHTML = `
+    ${asignadas.map(a => `
+      <div class="form-grid" style="align-items:end;margin-bottom:8px">
+        <div class="field"><label>Máquina</label><input type="text" value="${esc(a.nombre)}" readonly></div>
+        <div class="field" style="display:flex;flex-direction:row;gap:6px;align-items:end">
+          <div class="field" style="flex:1"><label>Horario</label><select data-asignacion="${a.id}" onchange="cambiarHorarioMaquina('${proceso.id_proceso}','${a.id}',this.value)"></select></div>
+          <button class="btn sm danger" onclick="quitarMaquinaProceso('${proceso.id_proceso}','${a.id}')">✕</button>
+        </div>
+      </div>`).join('')}
+    ${!asignadas.length ? '<div class="hint" style="margin-bottom:8px">Este proceso no tiene máquina.</div>' : ''}
+    ${libres.length ? `
+      <div style="display:flex;gap:6px;align-items:end">
+        <div class="field" style="flex:1"><label>Agregar Máquina del Inventario</label>
+          <select id="proc-maquina-nueva">${libres.map(m => `<option value="${m.id}">${esc(m.nombre)}</option>`).join('')}</select>
+        </div>
+        <button class="btn sm primary" onclick="agregarMaquinaProceso('${proceso.id_proceso}')">+ Agregar</button>
+      </div>` : ''}`;
+  asignadas.forEach(a => {
+    llenarSelectCalendario(cont.querySelector(`select[data-asignacion="${a.id}"]`), a.calendario_id);
+  });
+}
+
+async function accionMaquinaProceso(idProceso, url, metodo, cuerpo) {
+  try {
+    const res = await fetch(url, { method: metodo, headers: {'Content-Type':'application/json'}, body: cuerpo ? JSON.stringify(cuerpo) : undefined });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+  } catch (e) { showAlert('Error: ' + e.message, 'error'); }
+  await loadAll();
+  renderMaquinasProceso(procesos.find(x => String(x.id_proceso) === String(idProceso)));
+}
+
+function agregarMaquinaProceso(idProceso) {
+  const maquinaId = document.getElementById('proc-maquina-nueva')?.value;
+  if (!maquinaId) return;
+  accionMaquinaProceso(idProceso, `${API}/procesos/${idProceso}/maquinas`, 'POST', { maquina_id: maquinaId });
+}
+
+function quitarMaquinaProceso(idProceso, idAsignacion) {
+  accionMaquinaProceso(idProceso, `${API}/procesos/${idProceso}/maquinas/${idAsignacion}`, 'DELETE');
+}
+
+function cambiarHorarioMaquina(idProceso, idAsignacion, calendarioId) {
+  accionMaquinaProceso(idProceso, `${API}/procesos/${idProceso}/maquinas/${idAsignacion}`, 'PUT', { calendario_id: calendarioId || null });
 }
 
 function editarProceso(id) {
@@ -1144,6 +1423,8 @@ function editarProceso(id) {
   document.getElementById('proc-color-hex').textContent = p.color_hex;
   document.getElementById('proc-paralelo').checked = p.es_paralelo;
   document.getElementById('proc-activo').checked   = p.activo;
+  llenarSelectCalendario(document.getElementById('proc-calendario'), p.calendario_id);
+  renderMaquinasProceso(p);
   document.getElementById('modal-proceso-titulo').textContent = 'Editar Proceso';
   openModal('modal-proceso');
 }
@@ -1162,6 +1443,7 @@ async function guardarProceso() {
     color_hex:       document.getElementById('proc-color').value,
     es_paralelo:     document.getElementById('proc-paralelo').checked,
     activo:          document.getElementById('proc-activo').checked,
+    calendario_id:   document.getElementById('proc-calendario').value || null,
   };
   if (!body.nombre || !body.orden_secuencia) { alert('Nombre y orden son obligatorios.'); return; }
 
@@ -1416,7 +1698,7 @@ document.getElementById('planning-primary-select')?.addEventListener('change', (
 // ── INICIO ────────────────────────────────────────────────────
 loadAll();
   const erpAccessScript = document.createElement('script');
-  erpAccessScript.src = '/access-control.js';
+  erpAccessScript.src = '/access-control.js?v=20260923-mensajes-carga';
   document.head.appendChild(erpAccessScript);
 </script>
 </body>

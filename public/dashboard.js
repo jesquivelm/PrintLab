@@ -3,6 +3,7 @@ const SESSION_STORAGE_KEY = 'erp-user-session';
 const DASHBOARD_CONFIG_CACHE_KEY = 'erp-dashboard-config-cache';
 const DASHBOARD_CONFIG_CACHE_TTL_MS = 60 * 1000;
 const DASHBOARD_CONFIG_CACHE_TEXT_LIMIT = 24000;
+const DASHBOARD_CONFIG_CACHE_MAX_PAYLOAD_CHARS = 2 * 1024 * 1024;
 const tabsContainer = document.getElementById('dashboardTabs');
 const tabsBar = document.querySelector('.dashboard-tabs-bar');
 const homePanel = document.getElementById('dashboardHome');
@@ -24,6 +25,17 @@ const bdfgTitle = document.getElementById('dashboardBdfgTitle');
 const bdfgSubtitle = document.getElementById('dashboardBdfgSubtitle');
 const bdfgPanel = document.getElementById('dashboardBdfgPanel');
 const bdfgRadialBridge = document.getElementById('dashboardBdfgRadialBridge');
+const dvpPanel = document.getElementById('dvpPanel');
+const dvpPanelHomeParent = document.getElementById('dvpHomeSlot') || (dvpPanel ? dvpPanel.parentElement : null);
+document.getElementById('dvpGotoFullBtn')?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    openTab('/mi-actividad.html', 'Tu Actividad');
+    setBdfgOpen(false, 'actions');
+});
+document.getElementById('dvpCloseBtn')?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    setBdfgOpen(false, 'actions');
+});
 
 const HOME_TAB_ID = 'home';
 const FAVORITE_DOCUMENTS_STORAGE_KEY = 'erp-favorite-documents';
@@ -33,24 +45,30 @@ const NOTIFICATION_UNREAD_ENDPOINT = '/api/notification-center/unread-count';
 const NOTIFICATION_THREAD_ENDPOINT = '/api/notification-center/threads';
 const DASHBOARD_CARDS = [
 { route: '/socios', label: 'Socios', iconKey: 'dashboardBusinessPartners', modules: ['socios'] },
-{ route: '/productos', label: 'Productos', iconKey: 'dashboardProducts', modules: ['productos'] },
+{ route: '/productos', label: 'SKU', iconKey: 'dashboardProducts', modules: ['productos'] },
 { route: '/cotizaciones', label: 'Cotizaciones', iconKey: 'dashboardQuotes', modules: ['cotizaciones'] },
 { route: '/costos.html', label: 'Costos', iconKey: 'dashboardCosts', modules: ['costos'] },
-{ route: '/reporteria', label: 'Reporter\u00eda', iconKey: 'dashboardReports', modules: ['dashboard'] },
-{ route: '/inventario-materiales', label: 'Inventarios', iconKey: 'dashboardInventory', modules: ['inventario-mp', 'inventario-troqueles', 'inventario-maquinaria', 'inventario-planchas'] },
+{ route: '/reporteria', label: 'Reporter\u00eda', iconKey: 'dashboardReports', modules: ['reporteria'] },
+{ route: '/inventario-materiales', label: 'Inventarios', iconKey: 'dashboardInventory', modules: ['inventario-mp', 'inventario-troqueles', 'inventario-maquinaria', 'inventario-sellos', 'inventario-cilindros', 'inventario-anilox', 'inventario-pt'] },
 { route: '/configuracion-general', label: 'Configuraci\u00f3n', iconKey: 'dashboardSettings', modules: ['configuracion-general'] },
+{ route: '/capacitacion', label: 'Capacitaci\u00f3n', iconKey: 'dashboardCapacitacion', modules: ['capacitacion'] },
 { route: '/ordenes-produccion', label: '\u00d3rdenes', iconKey: 'dashboardOrders', modules: ['ordenes'] },
+{ route: '/calidad', label: 'Calidad', iconKey: 'dashboardCalidad', modules: ['calidad'] },
 { route: '/planificacion/seguimiento', label: 'Planificaci\u00f3n', iconKey: 'dashboardPlanning', modules: ['planificacion'] },
-{ route: '/produccion.html', label: 'Producci\u00f3n', iconKey: 'dashboardProduction', modules: ['dashboard'], fallbackIcon: '\u25A1' },
-{ route: '/tintas', label: 'Tintas', iconKey: 'dashboardInks', modules: ['dashboard'] },
-{ route: '/notificaciones.html', label: 'Notificaciones', iconKey: 'dashboardNotifications', modules: ['dashboard'] }
+{ route: '/produccion.html', label: 'Producci\u00f3n', iconKey: 'dashboardProduction', modules: ['produccion'], fallbackIcon: '\u25A1' },
+{ route: '/tintas', label: 'Tintas', iconKey: 'dashboardInks', modules: ['tintas'] },
+{ route: '/facturacion-fel', label: 'Contabilidad', iconKey: 'dashboardFacturacionFel', modules: ['facturacion-fel'] },
+{ route: '/notificaciones.html', label: 'Notificaciones', iconKey: 'dashboardNotifications', modules: ['notificaciones'] }
 ];
 const INVENTORY_CARD_ROUTE = '/inventario-materiales';
 const INVENTORY_OPTIONS = [
-    { route: '/inventario-maquinas', label: 'Inventario de Máquinas', modules: ['inventario-maquinaria'] },
+    { route: '/inventario-maquinas', label: 'Inventario de M\u00e1quinas', modules: ['inventario-maquinaria'] },
     { route: '/inventario-materiales', label: 'Inventario de Materia Prima', modules: ['inventario-mp'] },
     { route: '/inventario-troqueles', label: 'Inventario de Troqueles', modules: ['inventario-troqueles'] },
-    { route: '/inventario-planchas', label: 'Inventario de Planchas', modules: ['inventario-planchas'] }
+    { route: '/inventario-sellos', label: 'Inventario de Sellos', modules: ['inventario-sellos'] },
+    { route: '/inventario-cilindros', label: 'Inventario de Cilindros', modules: ['inventario-cilindros'] },
+    { route: '/inventario-anilox', label: 'Inventario de Anilox', modules: ['inventario-anilox'] },
+    { route: '/inventario-pt', label: 'Inventario de Producto Terminado', modules: ['inventario-pt'] }
 ];
 
 let tabs = [{ id: HOME_TAB_ID, label: 'PrintLab', route: '', closable: false, family: 'home', level: 'root' }];
@@ -82,6 +100,14 @@ let bdfgPreviewGlobal = null;
 let bdfgPreviewProfile = null;
 const bdfgTabContexts = new Map();
 const tabFrames = new Map();
+const frameHosts = new Map();
+const FLOAT_MIN_W = 860;
+const FLOAT_MIN_H = 620;
+const FLOAT_DEFAULT_W = 880;
+const FLOAT_DEFAULT_H = 720;
+const FLOAT_GEOMETRY_STORAGE_KEY = 'erp-dashboard-tab-flotante';
+let floatZCounter = 60;
+let floatDragState = null;
 const TAB_FAMILY_META = {
     home: { family: 'home', level: 'root' },
     quotes: { family: 'quotes', level: 'root' },
@@ -143,13 +169,14 @@ function hasSuperPermission() {
 }
 
 function getSessionModules() {
-    const modules = activeUserSession?.modules;
+    const session = getStoredSession();
+    const modules = session?.modules || activeUserSession?.modules;
     return modules && typeof modules === 'object' ? modules : null;
 }
 
 function canViewModule(moduleKey) {
     if (!moduleKey || moduleKey === 'dashboard') return true;
-    if (hasSuperPermission()) return true;
+    if (window.ErpAccess?.canViewModule) return window.ErpAccess.canViewModule(moduleKey);
     const modules = getSessionModules();
     if (!modules) return true;
     if (moduleKey === 'productos' && !Object.prototype.hasOwnProperty.call(modules, 'productos')) {
@@ -160,7 +187,6 @@ function canViewModule(moduleKey) {
 
 function canCreateModule(moduleKey) {
     if (!moduleKey) return false;
-    if (hasSuperPermission()) return true;
     if (window.ErpAccess?.canCreateModule) return window.ErpAccess.canCreateModule(moduleKey);
     const modules = getSessionModules();
     if (!modules) return true;
@@ -177,21 +203,28 @@ function getRoutePermissionKeys(route) {
     if (pathname === '/socios' || pathname === '/socios.html' || pathname === '/socios-documento.html' || pathname.startsWith('/socios/')) return ['socios'];
     if (pathname === '/productos' || pathname === '/productos.html' || pathname.startsWith('/productos/')) return ['productos'];
     if (pathname === '/cotizaciones' || pathname === '/cotizaciones.html' || pathname === '/index.html' || pathname.startsWith('/cotizaciones/')) return ['cotizaciones'];
-    if (pathname === '/notificaciones' || pathname === '/notificaciones.html') return ['dashboard'];
+    if (pathname === '/notificaciones' || pathname === '/notificaciones.html' || pathname.startsWith('/notificaciones/') || pathname.startsWith('/notificaciones')) return ['notificaciones'];
+    if (pathname === '/mi-actividad' || pathname === '/mi-actividad.html') return ['dashboard'];
     if (pathname === '/calculo-flexografia' || pathname === '/flexo-calculo' || pathname === '/flexo-calculo.html') return ['calculos'];
     if (pathname === '/ordenes-produccion' || pathname === '/ordenes-produccion.html' || pathname === '/orden-produccion.html' || pathname.startsWith('/orden-produccion')) return ['ordenes'];
+    if (pathname === '/calidad' || pathname.startsWith('/calidad/')) return ['calidad'];
     if (pathname === '/planificacion' || pathname.startsWith('/planificacion/')) return ['planificacion'];
-    if (pathname === '/reporteria' || pathname === '/reporteria.html') return ['dashboard'];
+    if (pathname === '/produccion' || pathname === '/produccion.html') return ['produccion'];
+    if (pathname === '/reporteria' || pathname === '/reporteria.html' || pathname.startsWith('/reporteria/') || pathname.startsWith('/reporteria')) return ['reporteria'];
     if (pathname === '/costos' || pathname === '/costos.html') return ['costos'];
     if (pathname === '/configuracion-general' || pathname === '/configuracion-general.html') return ['configuracion-general'];
     if (pathname === '/vendedores' || pathname === '/vendedores-mobile.html') return ['vendedores'];
     if (pathname === '/proforma' || pathname === '/proforma.html') return ['cotizaciones'];
-    if (pathname === '/inventario-materiales' || pathname === '/catalogo.html') return ['inventario-mp'];
+    if (pathname === '/inventario-materiales' || pathname === '/catalogo.html') return ['inventario-mp', 'inventario-troqueles', 'inventario-maquinaria', 'inventario-sellos', 'inventario-cilindros', 'inventario-anilox', 'inventario-pt'];
     if (pathname === '/inventario-troqueles' || pathname === '/inventario-troqueles.html' || pathname === '/troquel-documento.html' || pathname.startsWith('/inventario-troqueles/')) return ['inventario-troqueles'];
     if (pathname === '/inventario-maquinas') return ['inventario-maquinaria'];
-    if (pathname === '/inventario-planchas') return ['inventario-planchas'];
-    if (pathname.startsWith('/inventario-')) return ['inventario-mp', 'inventario-troqueles', 'inventario-maquinaria', 'inventario-planchas'];
-    if (pathname === '/tintas' || pathname.startsWith('/tintas/')) return ['dashboard'];
+    if (pathname === '/inventario-sellos') return ['inventario-sellos'];
+    if (pathname === '/inventario-cilindros') return ['inventario-cilindros'];
+    if (pathname === '/inventario-anilox') return ['inventario-anilox'];
+    if (pathname.startsWith('/inventario-')) return ['inventario-mp', 'inventario-troqueles', 'inventario-maquinaria', 'inventario-sellos', 'inventario-cilindros', 'inventario-anilox', 'inventario-pt'];
+    if (pathname === '/tintas' || pathname === '/tintas.html' || pathname.startsWith('/tintas/') || pathname.startsWith('/tintas')) return ['tintas'];
+    if (pathname === '/facturacion-fel' || pathname.startsWith('/facturacion-fel/')) return ['facturacion-fel'];
+    if (pathname === '/capacitacion' || pathname === '/capacitacion.html' || pathname.startsWith('/capacitacion/') || pathname.startsWith('/capacitacion-') || pathname.includes('capacitacion')) return ['capacitacion'];
     return [];
 }
 
@@ -356,21 +389,17 @@ function readDashboardConfigCache() {
 
 function writeDashboardConfigCache(config) {
     try {
-        localStorage.setItem(DASHBOARD_CONFIG_CACHE_KEY, JSON.stringify({
+        const payload = JSON.stringify({
             storedAt: Date.now(),
             data: config
-        }));
-    } catch (error) {
-        if (error.name === 'QuotaExceededError' || error.code === 22 || error.code === 1014) {
-            try {
-                localStorage.removeItem(DASHBOARD_CONFIG_CACHE_KEY);
-                localStorage.setItem(DASHBOARD_CONFIG_CACHE_KEY, JSON.stringify({
-                    storedAt: Date.now(),
-                    data: config
-                }));
-            } catch (_) {}
+        });
+        if (payload.length > DASHBOARD_CONFIG_CACHE_MAX_PAYLOAD_CHARS) {
+            localStorage.removeItem(DASHBOARD_CONFIG_CACHE_KEY);
+            return;
         }
-        console.warn('No fue posible actualizar el caché local del dashboard.', error);
+        localStorage.setItem(DASHBOARD_CONFIG_CACHE_KEY, payload);
+    } catch (_) {
+        try { localStorage.removeItem(DASHBOARD_CONFIG_CACHE_KEY); } catch (_) {}
     }
 }
 
@@ -480,16 +509,110 @@ const SALES_PIPELINE_STAGE_LABELS = {
     expirada: 'Expiradas'
 };
 
-async function loadSalesPipeline() {
+const VIEW_AS_VENDOR_MODE_KEY = 'erp-view-as-vendor-mode';
+const VIEW_AS_VENDOR_CODE_KEY = 'erp-view-as-vendor-code';
+let viewAsVendorMode = sessionStorage.getItem(VIEW_AS_VENDOR_MODE_KEY) === '1';
+let viewAsVendorCode = sessionStorage.getItem(VIEW_AS_VENDOR_CODE_KEY) || '';
+let viewAsVendorOptionsCache = null;
+
+function persistViewAsVendorState() {
+    sessionStorage.setItem(VIEW_AS_VENDOR_MODE_KEY, viewAsVendorMode ? '1' : '');
+    sessionStorage.setItem(VIEW_AS_VENDOR_CODE_KEY, viewAsVendorCode || '');
+}
+
+// Misma regla que adminPermissionRequiresSapSalesperson() en server.js — un usuario cuenta como
+// "vendedor" únicamente si su perfil de permiso (Configuración → Seguridad) es Vendedores o
+// Vendedores Cotizadores, no por el simple hecho de tener un código de vendedor SAP asignado.
+function isVendedorPermissionName(value) {
+    const normalized = String(value || '').trim().toLowerCase().replace(/[-\s]+/g, ' ');
+    return normalized === 'vendedores' || normalized === 'vendedores cotizadores';
+}
+
+async function loadVendorOptionsForPreview() {
+    if (viewAsVendorOptionsCache) return viewAsVendorOptionsCache;
+    try {
+        const response = await fetch('/api/admin-users', { headers: sessionHeaders() });
+        const payload = await response.json();
+        const items = Array.isArray(payload) ? payload : [];
+        // Incluye a quien tenga el permiso Vendedores/Vendedores Cotizadores, y también a
+        // Administradores/Implementadores (roles que también cotizan, ej. jesquiv/Jorge Esquivel) —
+        // pero NO a cualquier otro permiso solo por tener un código SAP de prueba residual
+        // (ej. Cotizadores/Operadores no son vendedores aunque tengan un código asignado por error).
+        viewAsVendorOptionsCache = items
+            .filter((user) => user.active !== false && (isVendedorPermissionName(user.permissionName) || isErpSuperPermission({ permissionName: user.permissionName })))
+            .map((user) => ({
+                // value único por USUARIO — es la clave que se envía al backend, evita
+                // colisiones cuando varias personas comparten el mismo nombre.
+                value: user.username,
+                name: user.name || user.username
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name, 'es'));
+    } catch (error) {
+        viewAsVendorOptionsCache = [];
+    }
+    return viewAsVendorOptionsCache;
+}
+
+function toggleViewAsVendorMode() {
+    viewAsVendorMode = !viewAsVendorMode;
+    if (!viewAsVendorMode) viewAsVendorCode = '';
+    persistViewAsVendorState();
+    renderBdfg();
+    refreshSalesPipelineSection();
+}
+
+async function renderVendorSelectForPreview() {
+    const select = document.getElementById('dashboardSalesPipelineVendorSelect');
+    const banner = document.getElementById('dashboardSalesPipelinePreviewBanner');
+    if (!select || !banner) return;
+    banner.hidden = false;
+    const options = await loadVendorOptionsForPreview();
+    if (!options.length) {
+        select.innerHTML = '<option value="">Sin vendedores disponibles</option>';
+        viewAsVendorCode = '';
+        persistViewAsVendorState();
+        return;
+    }
+    if (!viewAsVendorCode || !options.some((option) => option.value === viewAsVendorCode)) {
+        viewAsVendorCode = options[0].value;
+        persistViewAsVendorState();
+    }
+    select.innerHTML = options.map((option) =>
+        `<option value="${escapeHtml(option.value)}"${option.value === viewAsVendorCode ? ' selected' : ''}>${escapeHtml(option.name)}</option>`
+    ).join('');
+}
+
+async function refreshSalesPipelineSection() {
     const section = document.getElementById('dashboardSalesPipeline');
     const countsMount = document.getElementById('dashboardSalesPipelineCounts');
     const listMount = document.getElementById('dashboardSalesPipelineList');
-    if (!section || !countsMount || !listMount) return;
+    const banner = document.getElementById('dashboardSalesPipelinePreviewBanner');
+    if (!section || !countsMount || !listMount || !banner) return;
+
+    if (!viewAsVendorMode) {
+        banner.hidden = true;
+    } else {
+        await renderVendorSelectForPreview();
+    }
+
+    const selectedOption = viewAsVendorMode
+        ? (viewAsVendorOptionsCache || []).find((option) => option.value === viewAsVendorCode)
+        : null;
+    // Mantiene sincronizado el panel "Tu actividad" (KPIs, órdenes, facturas, leads) con el
+    // mismo vendedor previsualizado — ver public/dashboard-vendedor-panel.js.
+    window.dvpReload?.(viewAsVendorMode ? selectedOption?.value : undefined);
+
     try {
-        const response = await fetch('/api/vendedores/mi-pipeline', { headers: sessionHeaders() });
+        const url = viewAsVendorMode && selectedOption
+            ? `/api/vendedores/mi-pipeline?usuarioVendedor=${encodeURIComponent(selectedOption.value)}`
+            : '/api/vendedores/mi-pipeline';
+        const response = await fetch(url, { headers: sessionHeaders() });
         const payload = await response.json();
         if (!response.ok || !payload.isVendedor) {
-            section.hidden = true;
+            section.hidden = !viewAsVendorMode;
+            if (!viewAsVendorMode) return;
+            countsMount.innerHTML = '';
+            listMount.innerHTML = '<p class="dashboard-sales-pipeline-empty">No fue posible cargar el pipeline de este vendedor.</p>';
             return;
         }
         section.hidden = false;
@@ -502,7 +625,7 @@ async function loadSalesPipeline() {
             ? pendientes.map((item) => `<a class="dashboard-sales-pipeline-row" href="/cotizaciones?codigo=${encodeURIComponent(item.quoteCode)}" data-route="/cotizaciones?codigo=${encodeURIComponent(item.quoteCode)}"><span>${escapeHtml(item.quoteCode)} · ${escapeHtml(item.customerName || 'Sin cliente')}</span><span>${escapeHtml(SALES_PIPELINE_STAGE_LABELS[item.stage] || item.stage)}</span></a>`).join('')
             : '<p class="dashboard-sales-pipeline-empty">No hay cotizaciones pendientes de acción.</p>';
     } catch (error) {
-        section.hidden = true;
+        section.hidden = !viewAsVendorMode;
     }
 }
 
@@ -657,7 +780,8 @@ function renderTabs() {
     const containerWidth = Math.max(tabsContainer?.clientWidth || tabsContainer?.parentElement?.clientWidth || 0, 320);
     const configuredTabWidth = Math.max(Number(loadedConfig?.general?.dashboardTabWidth) || 0, 146);
     const homeWidth = 120;
-    const regularTabCount = Math.max(tabs.length - 1, 0);
+    const visibleTabs = tabs.filter((tab) => tab.id === HOME_TAB_ID || !tab.floating);
+    const regularTabCount = Math.max(visibleTabs.length - 1, 0);
     
     // Calculate width to fit in one row
     const availableWidth = containerWidth - homeWidth - (regularTabCount * 2) - 40; // 2px gap, 40px buffer
@@ -668,9 +792,9 @@ function renderTabs() {
     tabsContainer?.classList.remove('is-multirow');
     workspaceShell?.classList.remove('has-tab-wrap');
 
-    tabsContainer.innerHTML = tabs.map((tab, index) => {
+    tabsContainer.innerHTML = visibleTabs.map((tab, index) => {
         const itemWidth = tab.id === HOME_TAB_ID ? homeWidth : computedTabWidth;
-        const hasGap = index > 0 && tabs[index - 1]?.family !== tab.family;
+        const hasGap = index > 0 && visibleTabs[index - 1]?.family !== tab.family;
         return `
             <div class="dashboard-tab-item ${hasGap ? 'has-family-gap' : ''}" style="--tab-item-base-width:${itemWidth}px;">
                 <button
@@ -689,6 +813,21 @@ function renderTabs() {
 }
 
 function createTabFrame(tab) {
+    const host = document.createElement('div');
+    host.className = 'dashboard-frame-host';
+    host.dataset.tabId = tab.id;
+    host.hidden = true;
+
+    const bar = document.createElement('div');
+    bar.className = 'dashboard-float-bar';
+    const dockGlyph = loadedConfig?.icons?.orderAcoplarTab || '⤓';
+    bar.innerHTML = `
+        <span class="dashboard-float-title"></span>
+        <button type="button" class="dashboard-float-btn" data-float-action="dock" title="Acoplar a la Fila de Tabs" aria-label="Acoplar a la Fila de Tabs">${iconMarkup(dockGlyph, 'Acoplar a la Fila de Tabs')}</button>
+        <button type="button" class="dashboard-float-btn" data-float-action="close" title="Cerrar Ventana" aria-label="Cerrar Ventana">×</button>
+    `;
+    bar.querySelector('.dashboard-float-title').textContent = tab.label || 'Documento';
+
     const iframe = document.createElement('iframe');
     iframe.className = 'dashboard-frame';
     iframe.title = tab.label || 'Contenido ERP';
@@ -696,9 +835,16 @@ function createTabFrame(tab) {
     iframe.style.background = 'var(--app-bg)';
     iframe.style.colorScheme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
     iframe.src = normalizeRoute(tab.route);
-    iframe.hidden = true;
-    workspacePanel.appendChild(iframe);
+
+    const resizeGrip = document.createElement('div');
+    resizeGrip.className = 'dashboard-float-resize';
+
+    host.appendChild(bar);
+    host.appendChild(iframe);
+    host.appendChild(resizeGrip);
+    workspacePanel.appendChild(host);
     tabFrames.set(tab.id, iframe);
+    frameHosts.set(tab.id, host);
     return iframe;
 }
 
@@ -709,17 +855,353 @@ function ensureTabFrame(tab) {
     return createTabFrame(tab);
 }
 
+// Transiciones del dashboard: velocidad del desvanecimiento de botones y del
+// nacimiento de la pestaña. La global vive en Configuración → Diseño → Transiciones;
+// cada usuario puede ajustar la suya en su perfil (botón flotante → Mi perfil).
+function getTransicionesConfig() {
+    const general = loadedConfig?.general || {};
+    const usuario = transicionesPreviewPerfil || parseBdfgUserConfig(bdfgUserProfile?.transicionesConfig);
+    const usarUsuario = usuario.activar === true || String(usuario.activar || '').trim().toLowerCase() === 'true';
+    const fuente = usarUsuario ? usuario : general;
+    const desvanecer = sanitizeBdfgNumber(fuente?.transicionDesvanecerMs, 140, 0, 1000);
+    const crecer = sanitizeBdfgNumber(fuente?.transicionCrecerMs, 260, 0, 1200);
+    const activo = usarUsuario || general.transicionesActivadas !== false;
+    return { activo, desvanecer, crecer };
+}
+
+let transicionesPreviewPerfil = null;
+
+function aplicarTransicionesPreviewPerfil(preview) {
+    transicionesPreviewPerfil = preview && typeof preview === 'object' ? preview : null;
+    aplicarTransicionesCss();
+}
+
+function aplicarTransicionesCss() {
+    const { activo, desvanecer, crecer } = getTransicionesConfig();
+    const root = document.documentElement;
+    root.style.setProperty('--transicion-desvanecer', `${desvanecer}ms`);
+    root.style.setProperty('--transicion-crecer', `${crecer}ms`);
+    root.classList.toggle('transiciones-apagadas', !activo);
+    sincronizarDesplegablesConTransiciones(activo ? Math.round((desvanecer + crecer) / 2) : 0);
+}
+
+function sincronizarDesplegablesConTransiciones(velocidadPromedio) {
+    const control = window.ERPSelDesplegable;
+    if (!control) return;
+    const general = loadedConfig?.general || {};
+    const usuario = transicionesPreviewPerfil || parseBdfgUserConfig(bdfgUserProfile?.transicionesConfig);
+    const usarUsuario = usuario.activar === true || String(usuario.activar || '').trim().toLowerCase() === 'true';
+    const fuente = usarUsuario ? usuario : general;
+    if (Number.isFinite(Number(fuente?.transicionDesplegablesMs))) {
+        control.definirVelocidad(activo ? Number(fuente.transicionDesplegablesMs) : 0);
+    } else {
+        control.definirVelocidad(Number.isFinite(Number(velocidadPromedio)) ? velocidadPromedio : 220);
+    }
+    const estilo = String(fuente?.transicionDesplegablesEstilo || general.transicionDesplegablesEstilo || 'slide').trim().toLowerCase();
+    if (['slide', 'despliegue', 'cascada'].includes(estilo)) control.definirEstilo(estilo);
+}
+
+function animarEntradaTab(tabId) {
+    const host = frameHosts.get(tabId);
+    if (!host) return;
+    const { activo } = getTransicionesConfig();
+    if (!activo) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    host.classList.remove('dashboard-frame-host-entrando');
+    void host.offsetWidth;
+    host.classList.add('dashboard-frame-host-entrando');
+    host.addEventListener('animationend', () => host.classList.remove('dashboard-frame-host-entrando'), { once: true });
+}
+
+function desvanecerBotonesDashboard(botonOrigen) {
+    const { activo } = getTransicionesConfig();
+    if (!activo) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    document.querySelectorAll('.dashboard-card').forEach((card) => {
+        if (card === botonOrigen) {
+            card.classList.add('transicion-semilla');
+        } else {
+            card.classList.add('transicion-desvanecida');
+        }
+    });
+}
+
+function restaurarBotonesDashboard() {
+    document.querySelectorAll('.dashboard-card').forEach((card) => {
+        card.classList.remove('transicion-desvanecida', 'transicion-semilla');
+    });
+}
+
+window.addEventListener('resize', restaurarBotonesDashboard);
+
 function showOnlyTabFrame(tabId) {
-    tabFrames.forEach((iframe, id) => {
-        iframe.hidden = id !== tabId;
+    frameHosts.forEach((host, id) => {
+        const tab = tabs.find((item) => item.id === id);
+        host.hidden = tab && tab.floating ? false : id !== tabId;
     });
 }
 
 function disposeTabFrame(tabId) {
-    const iframe = tabFrames.get(tabId);
-    if (!iframe) return;
-    iframe.remove();
+    const host = frameHosts.get(tabId);
+    if (host) host.remove();
+    frameHosts.delete(tabId);
     tabFrames.delete(tabId);
+}
+
+function anyFloatingTab() {
+    return tabs.some((tab) => tab && tab.floating);
+}
+
+function syncWorkspaceVisibility() {
+    const floatsExist = anyFloatingTab();
+    if (activeTabId === HOME_TAB_ID) {
+        homePanel.hidden = false;
+        workspacePanel.hidden = !floatsExist;
+        workspacePanel.classList.toggle('is-floats-only', floatsExist);
+    } else {
+        homePanel.hidden = true;
+        workspacePanel.hidden = false;
+        workspacePanel.classList.remove('is-floats-only');
+    }
+}
+
+function clampNumber(value, min, max) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return min;
+    return Math.min(Math.max(num, min), Math.max(min, max));
+}
+
+function applyFloatGeometry(tab, patch) {
+    const host = frameHosts.get(tab.id);
+    if (!host || !tab.floating) return;
+    const geom = tab.floating;
+    if (patch) {
+        if (Number.isFinite(patch.w)) geom.w = patch.w;
+        if (Number.isFinite(patch.h)) geom.h = patch.h;
+        if (Number.isFinite(patch.x)) geom.x = patch.x;
+        if (Number.isFinite(patch.y)) geom.y = patch.y;
+    }
+    const minTop = getFloatMinTop();
+    geom.w = clampNumber(geom.w, FLOAT_MIN_W, Math.max(FLOAT_MIN_W, window.innerWidth - 24));
+    geom.h = clampNumber(geom.h, FLOAT_MIN_H, Math.max(FLOAT_MIN_H, window.innerHeight - minTop - 12));
+    geom.x = clampNumber(geom.x, 12, Math.max(12, window.innerWidth - geom.w - 12));
+    geom.y = clampNumber(geom.y, minTop, Math.max(minTop, window.innerHeight - geom.h - 12));
+    host.style.width = `${geom.w}px`;
+    host.style.height = `${geom.h}px`;
+    host.style.left = `${geom.x}px`;
+    host.style.top = `${geom.y}px`;
+}
+
+function getFloatStorageKey() {
+    let userKey = 'anon';
+    try {
+        const raw = sessionStorage.getItem(SESSION_STORAGE_KEY) || localStorage.getItem(SESSION_STORAGE_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            userKey = parsed?.username || parsed?.user?.username || parsed?.id || parsed?.userId || 'anon';
+        }
+    } catch (_) {}
+    return `${FLOAT_GEOMETRY_STORAGE_KEY}::${userKey}`;
+}
+
+function readFloatGeometryStore() {
+    try {
+        const raw = localStorage.getItem(getFloatStorageKey());
+        const parsed = raw ? JSON.parse(raw) : {};
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (_) {
+        return {};
+    }
+}
+
+function readFloatGeometry(route) {
+    const entry = readFloatGeometryStore()[stripShellRoute(route)];
+    if (!entry || typeof entry !== 'object') return null;
+    return { x: Number(entry.x), y: Number(entry.y), w: Number(entry.w), h: Number(entry.h) };
+}
+
+function writeFloatGeometry(route, geometry) {
+    if (!geometry) return;
+    try {
+        const store = readFloatGeometryStore();
+        store[stripShellRoute(route)] = {
+            x: Math.round(geometry.x),
+            y: Math.round(geometry.y),
+            w: Math.round(geometry.w),
+            h: Math.round(geometry.h)
+        };
+        localStorage.setItem(getFloatStorageKey(), JSON.stringify(store));
+    } catch (_) {}
+}
+
+function isPointerOverTabsBar(x, y) {
+    const bar = tabsBar?.getBoundingClientRect();
+    if (!bar) return false;
+    return x >= bar.left && x <= bar.right && y >= bar.top && y <= bar.bottom;
+}
+
+function getFloatMinTop() {
+    const bar = tabsBar?.getBoundingClientRect();
+    return bar && bar.bottom > 0 ? Math.round(bar.bottom + 8) : 128;
+}
+
+function onFloatPointerMove(event) {
+    if (!floatDragState) return;
+    const tab = tabs.find((item) => item.id === floatDragState.tabId);
+    if (!tab || !tab.floating) return;
+    const dx = event.clientX - floatDragState.startX;
+    const dy = event.clientY - floatDragState.startY;
+    if (Math.abs(dx) + Math.abs(dy) > 6) floatDragState.moved = true;
+    if (floatDragState.mode === 'move') {
+        applyFloatGeometry(tab, { x: floatDragState.baseX + dx, y: floatDragState.baseY + dy });
+        tabsBar?.classList.toggle('is-dock-target', !!(floatDragState.moved && isPointerOverTabsBar(event.clientX, event.clientY)));
+    } else {
+        applyFloatGeometry(tab, { w: floatDragState.baseW + dx, h: floatDragState.baseH + dy });
+    }
+}
+
+function onFloatPointerUp(event) {
+    window.removeEventListener('pointermove', onFloatPointerMove);
+    const state = floatDragState;
+    floatDragState = null;
+    if (!state) return;
+    const host = frameHosts.get(state.tabId);
+    host?.classList.remove('is-dragging');
+    const frameEl = host?.querySelector('.dashboard-frame');
+    if (frameEl) frameEl.style.pointerEvents = '';
+    tabsBar?.classList.remove('is-dock-target');
+    const tab = tabs.find((item) => item.id === state.tabId);
+    if (tab && tab.floating) writeFloatGeometry(tab.route, tab.floating);
+    if (state.mode === 'move' && state.moved && isPointerOverTabsBar(event.clientX, event.clientY)) {
+        dockTab(state.tabId);
+    }
+}
+
+function bindFloatHost(host, tabId) {
+    if (host.dataset.floatBound === '1') return;
+    host.dataset.floatBound = '1';
+    const bar = host.querySelector('.dashboard-float-bar');
+    const resizeGrip = host.querySelector('.dashboard-float-resize');
+
+    host.addEventListener('pointerdown', () => {
+        const tab = tabs.find((item) => item.id === tabId);
+        if (!tab || !tab.floating) return;
+        tab.floating.z = ++floatZCounter;
+        host.style.zIndex = String(tab.floating.z);
+    }, true);
+
+    bar.addEventListener('click', (event) => {
+        const actionBtn = event.target.closest('[data-float-action]');
+        if (!actionBtn) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (actionBtn.dataset.floatAction === 'dock') dockTab(tabId);
+        else if (actionBtn.dataset.floatAction === 'close') closeTab(tabId);
+    });
+
+    bar.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0 || event.target.closest('[data-float-action]')) return;
+        const tab = tabs.find((item) => item.id === tabId);
+        if (!tab || !tab.floating) return;
+        event.preventDefault();
+        floatDragState = {
+            mode: 'move',
+            tabId,
+            moved: false,
+            startX: event.clientX,
+            startY: event.clientY,
+            baseX: tab.floating.x,
+            baseY: tab.floating.y
+        };
+        host.classList.add('is-dragging');
+        try { bar.setPointerCapture(event.pointerId); } catch (_) {}
+        const flFrame = host.querySelector('.dashboard-frame');
+        if (flFrame) flFrame.style.pointerEvents = 'none';
+        window.addEventListener('pointermove', onFloatPointerMove);
+        window.addEventListener('pointerup', onFloatPointerUp, { once: true });
+    });
+
+    resizeGrip.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0) return;
+        const tab = tabs.find((item) => item.id === tabId);
+        if (!tab || !tab.floating) return;
+        event.preventDefault();
+        event.stopPropagation();
+        floatDragState = {
+            mode: 'resize',
+            tabId,
+            moved: false,
+            startX: event.clientX,
+            startY: event.clientY,
+            baseW: tab.floating.w,
+            baseH: tab.floating.h
+        };
+        host.classList.add('is-dragging');
+        try { resizeGrip.setPointerCapture(event.pointerId); } catch (_) {}
+        const flFrame2 = host.querySelector('.dashboard-frame');
+        if (flFrame2) flFrame2.style.pointerEvents = 'none';
+        window.addEventListener('pointermove', onFloatPointerMove);
+        window.addEventListener('pointerup', onFloatPointerUp, { once: true });
+    });
+}
+
+function floatTab(tabId, pointerX, pointerY) {
+    const tab = tabs.find((item) => item.id === tabId);
+    if (!tab || tab.id === HOME_TAB_ID || tab.floating) return;
+    ensureTabFrame(tab);
+    const host = frameHosts.get(tabId);
+    if (!host) return;
+
+    const saved = readFloatGeometry(tab.route);
+    const w = clampNumber(saved?.w ?? FLOAT_DEFAULT_W, FLOAT_MIN_W, window.innerWidth);
+    const h = clampNumber(saved?.h ?? FLOAT_DEFAULT_H, FLOAT_MIN_H, window.innerHeight);
+    let x = saved?.x;
+    let y = saved?.y;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        x = Number.isFinite(pointerX) && pointerX > 0 ? pointerX - w / 2 : (window.innerWidth - w) / 2;
+        y = Number.isFinite(pointerY) && pointerY > 0 ? pointerY - 18 : (window.innerHeight - h) / 2;
+    }
+
+    tab.floating = { x: 0, y: 0, w, h, z: ++floatZCounter };
+    host.classList.add('is-floating');
+    host.querySelector('.dashboard-float-title').textContent = tab.label || 'Documento';
+    applyFloatGeometry(tab, { x, y });
+    host.style.zIndex = String(tab.floating.z);
+    bindFloatHost(host, tabId);
+
+    if (activeTabId === tabId) {
+        const fallback = tabs.find((item) => item.id !== tabId && item.id !== HOME_TAB_ID && !item.floating)
+            || tabs.find((item) => item.id === HOME_TAB_ID);
+        activateTab(fallback ? fallback.id : HOME_TAB_ID);
+    } else {
+        renderTabs();
+        syncWorkspaceVisibility();
+        showOnlyTabFrame(activeTabId);
+        renderBdfg();
+    }
+}
+
+function dockTab(tabId) {
+    const tab = tabs.find((item) => item.id === tabId);
+    if (!tab || !tab.floating) return;
+    const host = frameHosts.get(tabId);
+    if (host) {
+        writeFloatGeometry(tab.route, tab.floating);
+        host.classList.remove('is-floating', 'is-dragging');
+        host.style.left = '';
+        host.style.top = '';
+        host.style.width = '';
+        host.style.height = '';
+        host.style.zIndex = '';
+    }
+    tab.floating = null;
+    const fromIndex = tabs.findIndex((item) => item.id === tabId);
+    if (fromIndex > 0) {
+        const [moved] = tabs.splice(fromIndex, 1);
+        tabs.splice(getFamilyInsertIndex(moved.family), 0, moved);
+    }
+    activateTab(tabId);
+    renderBdfg();
 }
 
 function moveTab(dragId, targetId) {
@@ -741,19 +1223,20 @@ function activateTab(tabId) {
     renderTabs();
     renderBdfg();
     if (tab.id === HOME_TAB_ID) {
-        homePanel.hidden = false;
-        workspacePanel.hidden = true;
+        renderCards();
+        syncWorkspaceVisibility();
         showOnlyTabFrame('__none__');
         document.title = homeTabLabel;
+        restaurarBotonesDashboard();
         if (favoriteDrumState) {
             requestAnimationFrame(() => drawFavoriteDrum(favoriteDrumState));
         }
         return;
     }
-    homePanel.hidden = true;
-    workspacePanel.hidden = false;
     ensureTabFrame(tab);
+    syncWorkspaceVisibility();
     showOnlyTabFrame(tab.id);
+    animarEntradaTab(tab.id);
     document.title = `${tab.label} | ERP`;
 }
 
@@ -773,14 +1256,28 @@ function showAccessDeniedNotice(label = 'este modulo') {
     }, 3200);
 }
 
-function openTab(route, label) {
+function reloadTabFrame(tabId) {
+    const iframe = tabFrames.get(tabId);
+    if (!iframe) return;
+    try {
+        iframe.contentWindow.location.reload();
+    } catch (error) {
+        iframe.src = iframe.src;
+    }
+}
+
+function openTab(route, label, options) {
     if (!canViewRoute(route)) {
         showAccessDeniedNotice(label || 'este modulo');
         return null;
     }
     const normalizedRoute = normalizeRoute(route);
+    // Reutiliza el tab existente solo si la ruta completa coincide (incluye query
+    // params tipo ?codigo= / ?orderCode=): cada cotización, cálculo u orden distinta
+    // abre su propio tab y no se sobrepone sobre el anterior.
     const existing = tabs.find((tab) => normalizeRoute(tab.route) === normalizedRoute);
     if (existing) {
+        if (options && options.reload) reloadTabFrame(existing.id);
         activateTab(existing.id);
         return existing.id;
     }
@@ -790,6 +1287,30 @@ function openTab(route, label) {
     tabs.splice(insertAt, 0, { id, route: normalizedRoute, label, closable: true, family: familyMeta.family, level: familyMeta.level });
     activateTab(id);
     renderBdfg();
+    return id;
+}
+
+function abrirTabFlotante(route, label) {
+    if (!canViewRoute(route)) {
+        showAccessDeniedNotice(label || 'este modulo');
+        return null;
+    }
+    const normalizedRoute = normalizeRoute(route);
+    const existente = tabs.find((tab) => normalizeRoute(tab.route) === normalizedRoute);
+    if (existente) {
+        if (existente.floating) {
+            existente.floating.z = ++floatZCounter;
+            const host = frameHosts.get(existente.id);
+            if (host) host.style.zIndex = String(existente.floating.z);
+        } else if (existente.id !== activeTabId) {
+            floatTab(existente.id);
+        }
+        return existente.id;
+    }
+    const familyMeta = getTabFamilyMeta(normalizedRoute);
+    const id = `tab-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    tabs.splice(getFamilyInsertIndex(familyMeta.family), 0, { id, route: normalizedRoute, label, closable: true, family: familyMeta.family, level: familyMeta.level });
+    floatTab(id);
     return id;
 }
 
@@ -806,9 +1327,15 @@ function closeTab(tabId) {
         return;
     }
     if (wasActive) {
-        activateTab(tabs[Math.max(0, index - 1)].id);
+        let fallback = null;
+        for (let i = Math.min(index, tabs.length - 1); i >= 0; i -= 1) {
+            if (tabs[i] && !tabs[i].floating) { fallback = tabs[i]; break; }
+        }
+        activateTab(fallback ? fallback.id : HOME_TAB_ID);
     } else {
         renderTabs();
+        syncWorkspaceVisibility();
+        showOnlyTabFrame(activeTabId);
         renderBdfg();
     }
 }
@@ -860,11 +1387,27 @@ function getPresentationConfig(config, key) {
     };
 }
 
+// 'pendiente' → todavía no se ha confirmado con el servidor; 'consultando' → en camino;
+// 'confirmado' → el servidor respondió; 'sin-respuesta' → la conexión no respondió.
+let estadoConsultaModulos = 'pendiente';
+
+async function confirmarModulosConServidor() {
+    if (estadoConsultaModulos === 'consultando') return;
+    estadoConsultaModulos = 'consultando';
+    renderCards();
+    const actualizada = window.ErpAccess?.revalidateSession
+        ? await window.ErpAccess.revalidateSession().catch(() => null)
+        : null;
+    estadoConsultaModulos = actualizada ? 'confirmado' : 'sin-respuesta';
+    renderCards();
+}
+
 function renderAccessEmptyState(visibleCount) {
     const grid = document.querySelector('.dashboard-grid');
     if (!grid) return;
     let empty = document.getElementById('dashboardAccessEmpty');
     if (visibleCount > 0) {
+        if (estadoConsultaModulos !== 'consultando') estadoConsultaModulos = 'pendiente';
         empty?.remove();
         return;
     }
@@ -873,10 +1416,35 @@ function renderAccessEmptyState(visibleCount) {
         empty.id = 'dashboardAccessEmpty';
         empty.className = 'dashboard-access-empty';
         grid.insertAdjacentElement('afterend', empty);
+        empty.addEventListener('click', (event) => {
+            if (!event.target.closest('[data-action="actualizar-modulos"]')) return;
+            estadoConsultaModulos = 'pendiente';
+            confirmarModulosConServidor();
+        });
+    }
+    if (estadoConsultaModulos === 'pendiente') {
+        confirmarModulosConServidor();
+        return;
+    }
+    if (estadoConsultaModulos === 'confirmado') {
+        empty.innerHTML = `
+            <strong>Tu usuario todavía no tiene módulos activos</strong>
+            <span>Si necesitas alguno, un administrador puede activarlo en tu permiso.</span>
+            <button type="button" data-action="actualizar-modulos">Actualizar</button>
+        `;
+        return;
+    }
+    if (estadoConsultaModulos === 'sin-respuesta') {
+        empty.innerHTML = `
+            <strong>Seguimos esperando al servidor</strong>
+            <span>La conexión está lenta y tus módulos todavía no llegan. Toca el botón para intentarlo de nuevo.</span>
+            <button type="button" data-action="actualizar-modulos">Actualizar</button>
+        `;
+        return;
     }
     empty.innerHTML = `
-        <strong>No tienes modulos visibles asignados.</strong>
-        <span>Solicita a un administrador que revise el permiso "${escapeHtml(activeUserSession?.permissionName || 'sin permiso')}".</span>
+        <strong>Cargando tu información</strong>
+        <span>Estamos trayendo tus módulos desde el servidor. Espera un momento, por favor.</span>
     `;
 }
 
@@ -887,7 +1455,11 @@ function renderCards() {
         if (!button) return;
         const isAllowed = canViewAnyModule(card.modules);
         button.hidden = !isAllowed;
-        if (!isAllowed) return;
+        if (!isAllowed) {
+            button.style.setProperty('display', 'none', 'important');
+            return;
+        }
+        button.style.removeProperty('display');
         visibleCount += 1;
         const iconTarget = button.querySelector(`[data-icon-target="${card.iconKey}"]`);
         const iconValue = loadedConfig?.icons?.[card.iconKey] || card.fallbackIcon || '□';
@@ -1173,6 +1745,20 @@ function openDashboardUserProfile() {
     window.ERPTopbarTools?.openProfilePopover?.();
 }
 
+function getTrazabilidadTargetFromContext(context) {
+    if (!context || typeof context !== 'object') return null;
+    if (context.kind === 'calculo-flexografia' && String(context.lineCode || '').trim()) {
+        return { entityType: 'line', entityId: String(context.lineCode).trim() };
+    }
+    if (context.kind === 'product-document' && String(context.productCode || '').trim()) {
+        return { entityType: 'product', entityId: String(context.productCode).trim() };
+    }
+    if (context.kind === 'order-document' && String(context.orderCode || '').trim()) {
+        return { entityType: 'order', entityId: String(context.orderCode).trim() };
+    }
+    return null;
+}
+
 function getBdfgContextSummary() {
     const tab = getActiveTab();
     const context = getActiveBdfgContext();
@@ -1214,6 +1800,12 @@ function getBdfgActions() {
             description: 'Abrir la búsqueda global de órdenes y cotizaciones',
             mode: 'search'
         },
+        ...(dvpPanel && !dvpPanel.hidden ? [{
+            id: 'tu-actividad',
+            label: 'Tu actividad',
+            description: 'KPIs, órdenes, facturas, top clientes y leads',
+            mode: 'tu-actividad'
+        }] : []),
         {
             id: 'profile',
             label: 'Perfil de usuario',
@@ -1225,7 +1817,13 @@ function getBdfgActions() {
             label: currentTheme === 'dark' ? 'Modo día' : 'Modo noche',
             description: 'Cambiar el tema sin recargar la pantalla',
             callback: toggleThemeMode
-        }
+        },
+        ...(hasSuperPermission() ? [{
+            id: 'toggle-vendor-view',
+            label: viewAsVendorMode ? 'Salir de vista vendedor' : 'Ver como vendedor',
+            description: 'Alternar la vista de prueba del pipeline de un vendedor',
+            callback: toggleViewAsVendorMode
+        }] : [])
     ];
 
     const contextualActions = [];
@@ -1279,6 +1877,23 @@ function getBdfgActions() {
         });
     }
 
+    const trazabilidadTarget = getTrazabilidadTargetFromContext(context);
+    if (trazabilidadTarget) {
+        contextualActions.push({
+            id: 'open-trazabilidad',
+            label: 'Ver trazabilidad',
+            description: 'Abrir el mapa de trazabilidad del documento actual',
+            callback: () => {
+                if (typeof window.openTrazabilidad === 'function') {
+                    window.openTrazabilidad(trazabilidadTarget);
+                    return;
+                }
+                const url = `/trazabilidad?entityType=${encodeURIComponent(trazabilidadTarget.entityType)}&entityId=${encodeURIComponent(trazabilidadTarget.entityId)}`;
+                window.open(url, '_blank');
+            }
+        });
+    }
+
     switch (tab?.family) {
         case 'quotes':
             if (canViewRoute('/cotizaciones') && !isCurrentTabRoute('/cotizaciones')) {
@@ -1295,10 +1910,10 @@ function getBdfgActions() {
             if (canViewRoute('/productos') && !isCurrentTabRoute('/productos')) {
                 contextualActions.push({
                     id: 'open-products',
-                    label: 'Ir a Productos',
+                    label: 'Ir a SKU',
                     description: 'Abrir el módulo principal de productos',
                     route: '/productos',
-                    routeLabel: 'Productos'
+                    routeLabel: 'SKU'
                 });
             }
             break;
@@ -1314,7 +1929,7 @@ function getBdfgActions() {
             }
             break;
         case 'inventory':
-            if (getVisibleInventoryOptions().length > 1) {
+            if (getVisibleInventoryOptions().length > 0) {
                 contextualActions.push({
                     id: 'open-inventory-menu',
                     label: 'Inventarios',
@@ -1369,6 +1984,16 @@ function getBdfgActions() {
             break;
         default:
             break;
+    }
+
+    if ((tab?.family === 'quotes' || tab?.family === 'orders')
+        && (typeof canErpCreateModule !== 'function' || canErpCreateModule('calidad'))) {
+        contextualActions.push({
+            id: 'report-quality-incident',
+            label: 'Reportar Incidencia de Calidad',
+            description: 'Registrar un problema de calidad reportado por un cliente',
+            callback: openQuickQualityIncidentModal
+        });
     }
 
     return { globalActions, contextualActions };
@@ -1748,6 +2373,10 @@ function finishBdfgFavoritesPanelDrag(event) {
 function renderBdfgPanel() {
     if (!bdfgBridge || bdfgBridge.hidden) return;
     bdfgBridge.classList.toggle('dashboard-bdfg-bridge-chat', bdfgMode === 'notifications');
+    bdfgBridge.classList.toggle('dashboard-bdfg-bridge-activity', bdfgMode === 'tu-actividad');
+    if (dvpPanel && dvpPanel.parentElement === bdfgPanel && bdfgMode !== 'tu-actividad') {
+        dvpPanelHomeParent?.appendChild(dvpPanel);
+    }
     if (!['favorites', 'calc-processes'].includes(bdfgMode)) disableBdfgFavoritesFloatingPanel();
     if (bdfgMode === 'calc-processes') {
         const currentRect = bdfgBridge.getBoundingClientRect();
@@ -1779,7 +2408,26 @@ function renderBdfgPanel() {
         renderBdfgStatusPanel();
         return;
     }
+    if (bdfgMode === 'tu-actividad') {
+        renderBdfgVendorActivityPanel();
+        return;
+    }
     renderBdfgActionsPanel();
+}
+
+function renderBdfgVendorActivityPanel() {
+    if (!bdfgPanel || !dvpPanel) {
+        renderBdfgActionsPanel();
+        return;
+    }
+    bdfgTitle.textContent = 'Tu actividad';
+    bdfgSubtitle.textContent = '';
+    bdfgSubtitle.hidden = true;
+    if (dvpPanel.parentElement !== bdfgPanel) {
+        bdfgPanel.innerHTML = '';
+        bdfgPanel.appendChild(dvpPanel);
+    }
+    dvpPanel.hidden = false;
 }
 
 function renderBdfgBadge() {
@@ -1870,14 +2518,19 @@ function renderBdfgRadialMenu() {
             ? { key: 'dashboardFabNotificationsActive', fallback: 'processLauncher', color: '#ef4444', size: 20 }
             : { key: 'dashboardFabNotifications', fallback: 'processLauncher', color: '#0b81b8', size: 20 },
         search: { key: 'dashboardFabSearch', literalFallback: '🔍', color: '#5f7392', size: 20 },
+        'tu-actividad': { key: 'dashboardFabVendorActivity', literalFallback: '📈', color: '#0b81b8', size: 20 },
         profile: { key: 'topUser', literalFallback: '◔', color: '#9ba2ab', size: 20 },
         theme: currentTheme === 'dark'
             ? { key: 'dashboardFabThemeDark', literalFallback: '☀', color: '#f59e0b', size: 20 }
             : { key: 'dashboardFabTheme', literalFallback: '☾', color: '#5f7392', size: 20 },
+        'toggle-vendor-view': viewAsVendorMode
+            ? { key: 'dashboardFabVendorViewActive', literalFallback: '🧑‍💼', color: '#c79b18', size: 20 }
+            : { key: 'dashboardFabVendorView', literalFallback: '👁', color: '#5f7392', size: 20 },
         'open-context-document': { key: 'dashboardFabContextDocument', fallback: 'browserOpen', color: '#0b81b8', size: 20 },
         'open-context-secondary': { key: 'dashboardFabContextSecondary', fallback: 'browserOpen', color: '#0b81b8', size: 20 },
         'open-quote-proforma': { key: 'dashboardFabQuoteProforma', fallback: 'proformaView', color: '#0b81b8', size: 20 },
         'view-context-status': { key: 'dashboardFabStatus', literalFallback: '📊' },
+        'open-trazabilidad': { key: 'dashboardFabTrazabilidad', literalFallback: '🧭', color: '#0b81b8', size: 20 },
         'calc-processes': { key: 'dashboardFabQuoteCalculation', fallback: 'processLauncher', color: '#0b81b8', size: 20 },
         'open-quotes': { key: 'dashboardFabQuotes', fallback: 'dashboardQuotes', color: '#0b81b8', size: 20 },
         'open-products': { key: 'dashboardFabProducts', fallback: 'dashboardProducts', color: '#0b81b8', size: 20 },
@@ -1885,21 +2538,19 @@ function renderBdfgRadialMenu() {
         'open-inventory-menu': { key: 'dashboardFabInventory', fallback: 'dashboardInventory', color: '#0b81b8', size: 20 },
         'open-settings': { key: 'dashboardFabSettings', fallback: 'dashboardSettings', color: '#0b81b8', size: 20 },
         'open-planning': { key: 'dashboardFabPlanning', fallback: 'dashboardPlanning', color: '#0b81b8', size: 20 },
-        'open-costs': { key: 'dashboardFabCosts', fallback: 'dashboardCosts', color: '#0b81b8', size: 20 }
+        'open-costs': { key: 'dashboardFabCosts', fallback: 'dashboardCosts', color: '#0b81b8', size: 20 },
+        'report-quality-incident': { key: 'dashboardCalidad', fallback: 'dashboardCalidad', literalFallback: '⚠', color: '#ba3535', size: 20 }
     };
     
     const mergedActions = [...globalActions, ...contextualActions];
-    const allActions = mergedActions.slice(0, 7);
+    const allActions = mergedActions.slice(0, 8);
     const calcProcessesAction = mergedActions.find((action) => action.id === 'calc-processes');
     if (calcProcessesAction && !allActions.some((action) => action.id === 'calc-processes')) {
-        const replaceIndex = allActions.findIndex((action) => action.id === 'theme');
-        if (replaceIndex >= 0) {
-            allActions.splice(replaceIndex, 1, calcProcessesAction);
-        } else if (allActions.length >= 7) {
-            allActions[allActions.length - 1] = calcProcessesAction;
-        } else {
-            allActions.push(calcProcessesAction);
-        }
+        allActions.push(calcProcessesAction);
+    }
+    const trazabilidadAction = mergedActions.find((action) => action.id === 'open-trazabilidad');
+    if (trazabilidadAction && !allActions.some((action) => action.id === 'open-trazabilidad')) {
+        allActions.push(trazabilidadAction);
     }
     const radialItems = allActions.map((action) => {
         const mapping = actionIconsMap[action.id] || { key: 'dashboardFabSearch', literalFallback: '🔍', color: '#5f7392', size: 20 };
@@ -1973,8 +2624,10 @@ function setBdfgOpen(open, nextMode = bdfgMode, triggerEl = null) {
     const willShowPanel = open && nextMode !== 'actions';
     
     bdfgComponent?.setOpen(willOpenRadial);
-    
-    if (bdfgBridge) {
+
+    if (bdfgComponent) {
+        bdfgComponent.showBridge(willShowPanel);
+    } else if (bdfgBridge) {
         bdfgBridge.hidden = !willShowPanel;
     }
 
@@ -2051,6 +2704,105 @@ function applyBdfgGlobalPreview(previewConfig) {
 function applyBdfgProfilePreview(previewConfig) {
     bdfgPreviewProfile = previewConfig && typeof previewConfig === 'object' ? { ...previewConfig } : null;
     renderBdfg();
+}
+
+function closeQuickQualityIncidentModal() {
+    document.getElementById('fabQuickIncidentOverlay')?.remove();
+}
+
+function openQuickQualityIncidentModal() {
+    closeQuickQualityIncidentModal();
+    const session = getStoredSession();
+    const overlay = document.createElement('div');
+    overlay.id = 'fabQuickIncidentOverlay';
+    overlay.className = 'fab-quick-incident-overlay';
+    overlay.innerHTML = `
+        <div class="fab-quick-incident-modal">
+            <div class="fab-quick-incident-title">Reportar Incidencia de Calidad</div>
+            <label class="fab-quick-incident-field"><span>Cliente</span><input type="text" id="fqiCliente"></label>
+            <label class="fab-quick-incident-field"><span>Producto</span><input type="text" id="fqiProducto" placeholder="P-000005"></label>
+            <label class="fab-quick-incident-field"><span>Orden de Producción</span><input type="text" id="fqiOrden" placeholder="OP-000009"></label>
+            <label class="fab-quick-incident-field"><span>Medio de Recepción</span>
+                <select id="fqiMedio"><option value="">—</option></select>
+            </label>
+            <label class="fab-quick-incident-field"><span>Prioridad</span>
+                <select id="fqiPrioridad">
+                    <option value="baja">Baja</option>
+                    <option value="media" selected>Media</option>
+                    <option value="alta">Alta</option>
+                    <option value="critica">Crítica</option>
+                </select>
+            </label>
+            <label class="fab-quick-incident-field"><span>Descripción del Problema</span><textarea id="fqiDescripcion"></textarea></label>
+            <label class="fab-quick-incident-field"><span>Observaciones</span><textarea id="fqiObservaciones"></textarea></label>
+            <label class="fab-quick-incident-field"><span>Evidencia (opcional)</span><input type="file" id="fqiArchivo"></label>
+            <div class="fab-quick-incident-actions">
+                <button type="button" class="action-btn action-btn-primary" id="fqiGuardar">Guardar Incidencia</button>
+                <button type="button" class="action-btn" id="fqiCancelar">Cancelar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (event) => { if (event.target === overlay) closeQuickQualityIncidentModal(); });
+    document.getElementById('fqiCancelar').addEventListener('click', closeQuickQualityIncidentModal);
+
+    fetch('/api/calidad/incidencias/medios-recepcion').then((r) => r.json()).then((medios) => {
+        const select = document.getElementById('fqiMedio');
+        (medios || []).forEach((m) => {
+            const opt = document.createElement('option');
+            opt.value = m.codigo;
+            opt.textContent = m.nombre;
+            select.appendChild(opt);
+        });
+    }).catch(() => {});
+
+    document.getElementById('fqiGuardar').addEventListener('click', async () => {
+        const descripcion = document.getElementById('fqiDescripcion').value.trim();
+        if (!descripcion) { alert('Describa el problema reportado por el cliente.'); return; }
+        const boton = document.getElementById('fqiGuardar');
+        boton.disabled = true;
+        try {
+            const payload = {
+                origen: 'ventas',
+                medio_recepcion: document.getElementById('fqiMedio').value || null,
+                prioridad: document.getElementById('fqiPrioridad').value,
+                descripcion,
+                observaciones_iniciales: document.getElementById('fqiObservaciones').value.trim() || null,
+                cliente_nombre: document.getElementById('fqiCliente').value.trim() || null,
+                producto_codigo: document.getElementById('fqiProducto').value.trim() || null,
+                orden_produccion_codigo: document.getElementById('fqiOrden').value.trim() || null,
+                creado_por_user_id: session?.id || null,
+                creado_por_nombre: session?.name || null,
+                departamento_origen: session?.department || 'Ventas'
+            };
+            const response = await fetch('/api/calidad/incidencias', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+            });
+            const resultado = await response.json();
+            if (!response.ok) throw new Error(resultado.error || 'No fue posible registrar la incidencia.');
+
+            const archivo = document.getElementById('fqiArchivo').files[0];
+            if (archivo) {
+                const base64 = await new Promise((resolve, reject) => {
+                    const lector = new FileReader();
+                    lector.onload = () => resolve(String(lector.result).split(',')[1] || '');
+                    lector.onerror = reject;
+                    lector.readAsDataURL(archivo);
+                });
+                await fetch(`/api/calidad/incidencias/${encodeURIComponent(resultado.codigo)}/adjuntos`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file_name: archivo.name, content_base64: base64, tipo_evidencia: 'foto' })
+                }).catch(() => {});
+            }
+
+            closeQuickQualityIncidentModal();
+            alert(`Incidencia ${resultado.codigo} registrada. Calidad la revisará en su bandeja.`);
+        } catch (error) {
+            alert(error.message || 'No fue posible registrar la incidencia.');
+        } finally {
+            boton.disabled = false;
+        }
+    });
 }
 
 function handleBdfgAction(actionId, triggerEl = null) {
@@ -2822,6 +3574,7 @@ function applyDashboardConfigPayload(config) {
     renderTabs();
     renderFavoriteDocuments();
     renderBdfg();
+    aplicarTransicionesCss();
     if (favoriteDrumState) {
         requestAnimationFrame(() => drawFavoriteDrum(favoriteDrumState));
     }
@@ -2873,11 +3626,43 @@ tabsContainer?.addEventListener('drop', (event) => {
     renderBdfg();
 });
 
-tabsContainer?.addEventListener('dragend', () => {
+tabsContainer?.addEventListener('dragend', (event) => {
+    const draggedId = draggedTabId;
     draggedTabId = null;
+    if (draggedId && draggedId !== HOME_TAB_ID) {
+        const tab = tabs.find((item) => item.id === draggedId);
+        const bar = tabsBar?.getBoundingClientRect();
+        const x = event.clientX;
+        const y = event.clientY;
+        const droppedOutside = !!bar && !(x === 0 && y === 0)
+            && (y > bar.bottom + 20 || y < bar.top - 20 || x < bar.left - 20 || x > bar.right + 20);
+        if (tab && !tab.floating && droppedOutside) {
+            floatTab(draggedId, x, y);
+            return;
+        }
+    }
     renderTabs();
     renderBdfg();
 });
+
+function applyDashboardCardsVisibility() {
+    document.querySelectorAll('.dashboard-card').forEach((card) => {
+        const route = card.dataset.route;
+        if (!route) return;
+        if (route === INVENTORY_CARD_ROUTE) {
+            const hasInventories = getVisibleInventoryOptions().length > 0;
+            const canView = canViewRoute(route) && hasInventories;
+            card.hidden = !canView;
+            if (!canView) card.style.setProperty('display', 'none', 'important');
+            else card.style.removeProperty('display');
+        } else {
+            const canView = canViewRoute(route);
+            card.hidden = !canView;
+            if (!canView) card.style.setProperty('display', 'none', 'important');
+            else card.style.removeProperty('display');
+        }
+    });
+}
 
 document.querySelectorAll('.dashboard-card').forEach((card) => {
     card.addEventListener('click', () => {
@@ -2904,10 +3689,13 @@ document.querySelectorAll('.dashboard-card').forEach((card) => {
             return;
         }
         if (card.dataset.openMode === 'window') {
-            const opened = window.open(stripShellRoute(card.dataset.route), '_blank', 'noopener');
+            // Sin 'noopener': así el navegador copia la sesión (sessionStorage) a la pestaña nueva.
+            // Igual queda aislada de esta pestaña porque anulamos `opened.opener` justo después.
+            const opened = window.open(stripShellRoute(card.dataset.route), '_blank');
             if (opened) opened.opener = null;
             return;
         }
+        desvanecerBotonesDashboard(card);
         openTab(card.dataset.route, card.dataset.label);
     });
 });
@@ -2916,7 +3704,11 @@ window.addEventListener('message', (event) => {
     if (event.origin !== window.location.origin) return;
     const data = event.data || {};
     if (data.type === 'erp-open-tab') {
-        openTab(data.route, data.label || 'Documento');
+        if (data.flotante === true) {
+            abrirTabFlotante(data.route, data.label || 'Documento');
+            return;
+        }
+        openTab(data.route, data.label || 'Documento', { reload: data.reload === true });
         return;
     }
     if (data.type === 'erp-favorites-updated') {
@@ -2941,11 +3733,15 @@ window.addEventListener('message', (event) => {
     if (data.type === 'erp-bdfg-preview-global') {
         applyBdfgGlobalPreview(data.preview || null);
         return;
-    }
-    if (data.type === 'erp-profile-updated') {
-        bdfgPreviewProfile = null;
-        bdfgUserProfile = data.profile || null;
-        renderBdfg();
+    }        if (data.type === 'erp-profile-updated') {
+            bdfgPreviewProfile = null;
+            bdfgUserProfile = data.profile || null;
+            aplicarTransicionesCss();
+            renderBdfg();
+            return;
+        }
+    if (data.type === 'erp-transiciones-preview-profile') {
+        aplicarTransicionesPreviewPerfil(data.preview || null);
         return;
     }
     if (data.type === 'erp-bdfg-preview-profile') {
@@ -3002,11 +3798,16 @@ window.addEventListener('erp-bdfg-preview-global', (event) => {
 window.addEventListener('erp-profile-updated', (event) => {
     bdfgPreviewProfile = null;
     bdfgUserProfile = event.detail || null;
+    aplicarTransicionesCss();
     renderBdfg();
 });
 
 window.addEventListener('erp-bdfg-preview-profile', (event) => {
     applyBdfgProfilePreview(event.detail || null);
+});
+
+window.addEventListener('erp-transiciones-preview-profile', (event) => {
+    aplicarTransicionesPreviewPerfil(event.detail || null);
 });
 
 window.addEventListener('resize', () => {
@@ -3052,6 +3853,72 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
+// Impresion nativa del shell (Ctrl+P, menu del navegador, clic derecho -> Imprimir):
+// el modulo activo esta en un <iframe>. En beforeprint se marca su contenedor como
+// objetivo (lo aprovecha el @media print de dashboard.html para retirar el cromo y
+// aplanar el layout) y se fija la altura del iframe a la altura real de su contenido
+// EN LAYOUT DE IMPRESION, para que el navegador pueda paginar el documento completo.
+// afterprint deja todo exactamente como estaba.
+let printReflowState = null;
+
+function measureFramePrintHeight(frame) {
+    const cd = frame.contentDocument;
+    if (!cd) return 0;
+    const restored = [];
+    const prevInlineHeight = frame.style.height;
+    try {
+        // Sonda alta: un <iframe> cuya altura sigue a su contenido es circular (el
+        // viewport recorta el contenido que se quiere medir). Se le da un viewport
+        // muy alto para que el layout interno fluya completo, se mide, y se revierte.
+        frame.style.setProperty('height', '30000px', 'important');
+        for (const sheet of cd.styleSheets) {
+            let rules;
+            try { rules = sheet.cssRules; } catch (_) { continue; }
+            for (const rule of rules) {
+                if (rule.type === CSSRule.MEDIA_RULE && /(^|[^-])print/.test(rule.media.mediaText)) {
+                    restored.push([rule, rule.media.mediaText]);
+                    rule.media.mediaText = 'all';
+                }
+            }
+        }
+        void cd.documentElement.offsetHeight;
+        // Altura EXACTA del contenido en layout de impresion. Se mide el fondo real del
+        // contenido que fluye (el contenedor de la ficha), no scrollHeight del documento,
+        // que queda "pegado" al viewport por reglas de pantalla y deja hojas en blanco.
+        const content = cd.getElementById('orderContent')
+            || cd.querySelector('.production-order-card')
+            || cd.body;
+        const rect = content ? content.getBoundingClientRect() : null;
+        const measured = rect ? (rect.top + rect.height) : 0;
+        return Math.max(1, Math.ceil(measured));
+    } finally {
+        restored.forEach(([rule, mediaText]) => { rule.media.mediaText = mediaText; });
+        if (prevInlineHeight) frame.style.setProperty('height', prevInlineHeight);
+        else frame.style.removeProperty('height');
+    }
+}
+
+window.addEventListener('beforeprint', () => {
+    if (printReflowState) return;
+    const frame = tabFrames.get(activeTabId);
+    const host = frameHosts.get(activeTabId);
+    if (!frame || !host || !frame.contentDocument) return;
+    const height = measureFramePrintHeight(frame);
+    if (!height) return;
+    printReflowState = { frame, host, prevInlineHeight: frame.style.height };
+    host.classList.add('is-print-target');
+    frame.style.setProperty('height', height + 'px', 'important');
+});
+
+window.addEventListener('afterprint', () => {
+    if (!printReflowState) return;
+    const { frame, host, prevInlineHeight } = printReflowState;
+    host.classList.remove('is-print-target');
+    if (prevInlineHeight) frame.style.setProperty('height', prevInlineHeight);
+    else frame.style.removeProperty('height');
+    printReflowState = null;
+});
+
 bindBdfg();
 loadBdfgPosition();
 loadBdfgNotifications().catch(() => {});
@@ -3062,6 +3929,24 @@ applyDashboardConfig().catch(console.error);
 renderTabs();
 renderFavoriteDocuments();
 renderBdfg();
-loadSalesPipeline();
+document.getElementById('dashboardSalesPipelineVendorSelect')?.addEventListener('change', (event) => {
+    viewAsVendorCode = event.target.value || '';
+    persistViewAsVendorState();
+    refreshSalesPipelineSection();
+});
+
+applyDashboardCardsVisibility();
+refreshSalesPipelineSection();
 activateTab(HOME_TAB_ID);
+
+// Si la entrada configurada del usuario (Configuración → Seguridad → Entrada
+// Predeterminada) es "Tu Actividad", se abre esa pestaña sola junto al Dashboard
+// al entrar — mi-actividad.html no es una pagina aparte, vive dentro de este
+// mismo sistema de pestañas con iframes (ver openTab()).
+if (activeUserSession?.defaultLanding === 'mi-actividad') {
+    openTab('/mi-actividad.html', 'Tu Actividad');
+}
 window.addEventListener('resize', renderTabs);
+window.addEventListener('resize', () => {
+    tabs.forEach((tab) => { if (tab.floating) applyFloatGeometry(tab); });
+});

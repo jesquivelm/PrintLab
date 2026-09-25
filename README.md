@@ -168,4 +168,4 @@ Para soporte técnico o reportar issues:
 
 ## Licencia
 
-MIT License - Mayaprint 2024
+MIT License - JEM Desarrollos 2024

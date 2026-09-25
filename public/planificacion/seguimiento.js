@@ -1,9 +1,29 @@
 /* ── CONSTANTES ── */
 const API='/api';
-const LABELS={orden_creada:'Creación de Orden',solicitud_vendedor:'Solicitud de Vendedor',planeacion:'Planificación',diseno:'Diseño',preprensa:'Preprensa',visto_bueno:'Visto Bueno',planchas:'Planchas',impresion:'Impresión',laminado:'Laminado',troquelado:'Troquelado',estampado:'Estampado',barnizado:'Barniz',embosado:'Embosado',numeracion:'Numeración',rebobinado:'Rebobinado',empaque:'Empaque'};
-const PROCESS_ICON_KEYS={orden_creada:'produccionCreacionOrden',solicitud_vendedor:'produccionSolicitudVendedor',planeacion:'produccionPlanificacion',diseno:'produccionDiseno',preprensa:'produccionPreprensa',visto_bueno:'produccionVistoBueno',planchas:'produccionPlanchas',impresion:'produccionImpresion',laminado:'produccionLaminado',troquelado:'produccionTroquelado',estampado:'produccionEstampado',barnizado:'produccionBarniz',embosado:'produccionEmbozado',numeracion:'produccionNumerado',rebobinado:'produccionRebobinado',empaque:'produccionEmpaque'};
-const ICONS={orden_creada:'+',solicitud_vendedor:'→',planeacion:'✓',diseno:'✏',preprensa:'⬛',visto_bueno:'✓',planchas:'▣',impresion:'◼',laminado:'◧',troquelado:'◈',estampado:'◆',barnizado:'◐',embosado:'◉',numeracion:'#',rebobinado:'↻',empaque:'□'};
+const LABELS={orden_creada:'Creación de Orden',solicitud_vendedor:'Solicitud de Vendedor',planeacion:'Seguimiento',diseno:'Diseño',preprensa:'Preprensa',visto_bueno:'Aprobaciones',programacion:'Planeación',sellos:'Sellos',tintas:'Tintas',impresion:'Impresión',laminado:'Laminado',troquelado:'Troquelado',estampado:'Estampado',barnizado:'Barniz',embosado:'Embosado',numeracion:'Numeración',rebobinado:'Rebobinado',empaque:'Empaque'};
+const PROCESS_ICON_KEYS={orden_creada:'produccionCreacionOrden',solicitud_vendedor:'produccionSolicitudVendedor',planeacion:'produccionPlanificacion',diseno:'produccionDiseno',preprensa:'produccionPreprensa',visto_bueno:'produccionVistoBueno',programacion:'produccionPlanificacion',sellos:'produccionSellos',tintas:'produccionTintas',impresion:'produccionImpresion',laminado:'produccionLaminado',troquelado:'produccionTroquelado',estampado:'produccionEstampado',barnizado:'produccionBarniz',embosado:'produccionEmbozado',numeracion:'produccionNumerado',rebobinado:'produccionRebobinado',empaque:'produccionEmpaque'};
+const ICONS={orden_creada:'+',solicitud_vendedor:'→',planeacion:'✓',diseno:'✏',preprensa:'⬛',visto_bueno:'✓',programacion:'▤',sellos:'▣',tintas:'◍',impresion:'◼',laminado:'◧',troquelado:'◈',estampado:'◆',barnizado:'◐',embosado:'◉',numeracion:'#',rebobinado:'↻',empaque:'□'};
 let trackingConfig={icons:{},general:{}};
+let operatorAllowedProcessKeys=null;
+function readTrackingUserSession(){try{return JSON.parse(localStorage.getItem('erp-user-session')||sessionStorage.getItem('erp-user-session')||'null')}catch(e){return null}}
+function isTrackingImplementerSession(session){return /administrador(?:es)?|implementador(?:es)?|emergencia/i.test(String(session?.permissionName||'').trim())}
+function normalizeTrackingAreaText(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim()}
+const TRACKING_OPERATOR_PROCESS_GROUPS={diseno:['diseno','preprensa'],preprensa:['diseno','preprensa'],tintas:['tintas'],impresion:['impresion'],prensa:['impresion'],prensas:['impresion'],rebobinado:['rebobinado'],empaque:['empaque']};
+function getOperatorAllowedProcessKeys(session){return TRACKING_OPERATOR_PROCESS_GROUPS[normalizeTrackingAreaText(session?.process)]||null}
+function applyTrackingRoleBasedProcessView(){
+  const session=readTrackingUserSession();
+  if(!session||isTrackingImplementerSession(session))return;
+  const keys=getOperatorAllowedProcessKeys(session);
+  if(!keys){console.warn('Seguimiento: no se pudo determinar el área del operario a partir del campo Proceso ("'+(session?.process||'')+'"); se muestra la tira de procesos completa.');return}
+  operatorAllowedProcessKeys=keys;
+  const tabs=document.querySelector('.process-tabs');
+  if(tabs)tabs.style.display='none';
+}
+function matchesTrackingActiveProcess(o){
+  if(operatorAllowedProcessKeys)return Array.isArray(o.activeProcessKeys)&&o.activeProcessKeys.some(k=>operatorAllowedProcessKeys.includes(k));
+  if(currentProcessFilter==='all')return true;
+  return Array.isArray(o.activeProcessKeys)&&o.activeProcessKeys.includes(currentProcessFilter);
+}
 function isDarkMode(){return document.documentElement.getAttribute('data-theme')==='dark'}
 function getIconConfig(key){const suffix=key.charAt(0).toUpperCase()+key.slice(1);const g=trackingConfig.general||{};return{value:trackingConfig.icons?.[key]||'',color1:g[`iconColor${suffix}`]||'#1e516d',color2:g[`iconColor2${suffix}`]||'#ffffff',hover:g[`iconColorHover${suffix}`]||'#0b81b8',size:Number(g[`iconSize${suffix}`])||18}}
 function processIconConfig(processKey){const iconKey=PROCESS_ICON_KEYS[processKey];if(!iconKey)return null;const cfg=getIconConfig(iconKey);if(!cfg.value)return null;return cfg}
@@ -17,9 +37,37 @@ function iconMarkup(value,fallback,altText,size,color,hoverColor){
     if(/^(\/|data:image\/)/i.test(v)){
         return`<img class="process-icon-img" src="${esc(v)}" alt="${esc(altText||'')}" style="width:${size}px;height:${size}px;object-fit:contain;display:block">`;
     }
-    return`<span class="process-icon-glyph" style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;font-size:${Math.round(size*.85)}px;color:${color};--ic-h:${hc}">${esc(v||'·')}</span>`;
+    return`<span class="process-icon-glyph" style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;font-size:${Math.round(size*.85)}px;color:${color};--ic-h:${hc}">${esc(v||fallback||'·')}</span>`;
 }
 function processIcon(processKey){const cfg=processIconConfig(processKey);if(!cfg)return`<span>${esc(ICONS[processKey]||'·')}</span>`;const color=isDarkMode()?cfg.color2:cfg.color1;return iconMarkup(cfg.value,ICONS[processKey]||'·',LABELS[processKey]||processKey,cfg.size,color,cfg.hover)}
+
+// Ícono grande para cuando una combinación de filtros no tiene ninguna orden —
+// configurable desde Configuración → Diseño → Íconos (grupo "Seguimiento y Producción").
+// Tamaño por defecto más grande (48) que el resto de íconos de proceso (18), para
+// que llame la atención y no parezca que la pantalla está rota.
+function trackingEmptyStateIcon(){
+  const key='produccionFiltrosSinCoincidencias';
+  const suffix=key.charAt(0).toUpperCase()+key.slice(1);
+  const g=trackingConfig.general||{};
+  const value=trackingConfig.icons?.[key]||'';
+  const color=isDarkMode()?(g[`iconColor2${suffix}`]||'#ffffff'):(g[`iconColor${suffix}`]||'#1e516d');
+  const hover=g[`iconColorHover${suffix}`]||'#0b81b8';
+  const size=Number(g[`iconSize${suffix}`])||48;
+  return iconMarkup(value,'🗃','Sin coincidencias',size,color,hover);
+}
+
+// Etiquetas en español de los filtros activos, para armar el mensaje de "sin resultados".
+const PROCESS_FILTER_LABELS={all:'Todos',pending_planning:'Seguimiento',diseno:'Diseño',preprensa:'Preprensa',visto_bueno:'Aprobaciones',programacion:'Planificación',tintas:'Tintas',impresion:'Impresión',rebobinado:'Rebobinado',empaque:'Empaque'};
+const STATUS_FILTER_LABELS={all:'Todas',late:'Atrasadas',risk:'Riesgo',running:'En Producción',done:'Listas',impact:'Impactadas',detenida:'Detenidas',anulada:'Anuladas'};
+function trackingEmptyStateMessage(){
+  const parts=[];
+  if(currentProcessFilter&&currentProcessFilter!=='all')parts.push(`el proceso "${PROCESS_FILTER_LABELS[currentProcessFilter]||currentProcessFilter}"`);
+  if(currentFilter&&currentFilter!=='all')parts.push(`el estado "${STATUS_FILTER_LABELS[currentFilter]||currentFilter}"`);
+  if(searchTerm&&searchTerm.trim())parts.push(`la búsqueda "${esc(searchTerm.trim())}"`);
+  if(!parts.length)return 'Todavía no hay ninguna orden registrada.';
+  const filtrosTexto=parts.length===1?parts[0]:parts.slice(0,-1).join(', ')+' y '+parts[parts.length-1];
+  return`Tienes seleccionado ${filtrosTexto}.<br>Ahora mismo no hay ninguna orden que cumpla con ${parts.length>1?'esos filtros a la vez':'ese filtro'}.`;
+}
 const TRACKING_BASE_KEYS=['orden_creada','solicitud_vendedor','planeacion'];
 const WORK_HRS=8;
 const WORK_START=8;   // hora de inicio de jornada
@@ -32,12 +80,12 @@ const impacts={};
 
 let allOrders=[];
 let currentFilter='all';
+let currentProcessFilter='all';
 let searchTerm='';
 let drawerOrder=null;
 let drawerPriority='normal';
 let drawerBuffer=2;
 let drawerResult=null;
-const openRows=new Set();
 const flowCache={};
 
 function esc(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
@@ -79,7 +127,9 @@ function orderStatus(o){
   if(procs.length&&procs.every(p=>p.status==='done'||p.status==='complete'))return'done';
   if(load.some(r=>r.isLate)||days!==null&&days<0)return'late';
   if(days!==null&&days<=2)return'risk';
-  if(procs.some(p=>p.status==='running'||p.status==='active'))return'running';
+  // "En Producción" = la orden ya la liberó Planeación al Gantt y no ha
+  // terminado — no depende de que una máquina esté trabajándola justo ahora.
+  if(o.planningStatus==='EN_GANTT')return'running';
   return'ok';
 }
 
@@ -103,10 +153,17 @@ function buildSteps(o){
     const l=lr.find(r=>r.processKey===key)||{};
     return{key,label:LABELS[key]||p.label||p.processName||key,icon:processIcon(key),
       status:p.status?normalizeStepStatus(p.status):(l.status?normalizeStepStatus(l.status):(i===0?'active':'pending')),
-      endDate:l.endDate||null,machine:l.machineName||p.machineName||null,
+      startDate:l.startDate||null,endDate:l.endDate||null,machine:l.machineName||p.machineName||null,
       hrs:l.durationHours?Math.round(l.durationHours):null,
       ordersAhead:l.ordersAhead??null,daysAhead:l.daysAhead??null,quoted:p.quoted};
   });
+}
+
+function orderCurrentStepKey(o){
+  const steps=buildSteps(o);
+  if(!steps.length)return null;
+  const current=steps.find(s=>s.status!=='done'&&s.status!=='complete');
+  return(current||steps[steps.length-1]).key;
 }
 
 function findOrdersAhead(order,steps,detail){
@@ -179,6 +236,16 @@ function currentProcLabel(steps){
   return p?`Siguiente: ${p.label}`:'Terminada';
 }
 
+// Proceso actual según el flujo real (mismo criterio que las pestañas y que Producción).
+const PROC_FLOW_ORDER=['diseno','preprensa','visto_bueno','programacion','sellos','tintas','impresion','laminado','troquelado','estampado','barnizado','embosado','numeracion','rebobinado','empaque'];
+function orderProcLabel(o){
+  const keys=Array.isArray(o.activeProcessKeys)?o.activeProcessKeys.slice():[];
+  if(!keys.length)return currentProcLabel(buildSteps(o));
+  keys.sort((a,b)=>PROC_FLOW_ORDER.indexOf(a)-PROC_FLOW_ORDER.indexOf(b));
+  const labels=keys.map(k=>LABELS[k]||k);
+  return labels.length>1?`${labels[0]} +${labels.length-1}`:labels[0];
+}
+
 function estimate(order,priority,bufferDays){
   const steps=buildSteps(order);
   const qf=Q_FACTOR[priority];
@@ -205,12 +272,22 @@ function estimate(order,priority,bufferDays){
     return{...s,procH,qH,start,end:new Date(cursor)};
   });
 
-  const bufH=bufferDays*WORK_HRS;
-  const earlyEnd=new Date(cursor);
-  const lateEnd=addWorkHours(cursor,bufH);
+  // Fecha real: si Planeación ya calculó cuándo termina cada paso pendiente
+  // (orden_proceso.fecha_plan_fin), esa es la verdad — no la simulación de
+  // arriba, que solo sirve de respaldo para órdenes que aún no tienen ese
+  // cálculo real (p. ej. todavía en Diseño/Preprensa/Aprobación).
+  const realEndCandidates=steps
+    .filter(s=>s.status!=='done'&&s.status!=='complete'&&s.endDate)
+    .map(s=>new Date(s.endDate))
+    .filter(d=>!isNaN(d));
+  const realEnd=realEndCandidates.length?new Date(Math.max(...realEndCandidates.map(d=>d.getTime()))):null;
 
-  const hasLoad=(order.processLoadSummary||[]).length>=steps.length*.6;
-  const conf=hasLoad?'high':'med';
+  const bufH=bufferDays*WORK_HRS;
+  const earlyEnd=realEnd||new Date(cursor);
+  const lateEnd=addWorkHours(earlyEnd,bufH);
+
+  const hasLoad=!!realEnd||(order.processLoadSummary||[]).length>=steps.length*.6;
+  const conf=realEnd?'high':hasLoad?'med':'low';
 
   return{detail,earlyEnd,lateEnd,totalProc,totalQ,bufH,conf,priority,bufferDays};
 }
@@ -261,9 +338,27 @@ function renderProcessRow(s){
   </div>`;
 }
 
+function fmtHourMin(v){if(!v)return'';const d=new Date(v);if(isNaN(d))return'';return d.toLocaleString('es-CR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
+function fmtEspera(ms){if(!(ms>0))return'';const h=ms/3600000;if(h<1)return`${Math.round(h*60)} min`;if(h<48)return`${Math.round(h*10)/10} h`;return`${Math.round(h/24)} d`}
+
+function detAgo(iso){
+  if(!iso)return'';
+  const ms=Date.now()-new Date(iso).getTime();
+  if(!(ms>0))return'recién';
+  const min=Math.floor(ms/60000);
+  if(min<60)return`hace ${min} min`;
+  const h=Math.floor(min/60);
+  if(h<24)return`hace ${h} h`;
+  const d=Math.floor(h/24);
+  return`hace ${d} d`;
+}
+
 function renderOrderCard(o){
   const steps=buildSteps(o);
   const status=orderStatus(o);
+  const det=o.detencion;
+  const detBanner=det?`<div class="tracking-detencion-banner${det.estado==='ANULADA'?' is-anulada':''}"><strong>${det.estado==='ANULADA'?'Orden anulada':'Orden detenida'}</strong>${det.motivoEtiqueta?' — '+esc(det.motivoEtiqueta):''}${det.descripcion?'<span class="tdb-meta">'+esc(det.descripcion)+'</span>':''}<span class="tdb-meta">${det.por?'Por '+esc(det.por)+' · ':''}${detAgo(det.desde)}</span></div>`:'';
+  const noPlanBanner=o.arrancoSinProgramar?`<div class="tracking-noplan-banner"><strong>Arrancó en piso sin programarse</strong> en el Gantt${o.arrancoSinProgramarProceso?' — proceso: '+esc(o.arrancoSinProgramarProceso):''}<span class="tdb-meta">${o.arrancoSinProgramarEn?detAgo(o.arrancoSinProgramarEn):''}</span></div>`:'';
   const pct=calcPct(steps);
   const days=daysUntil(o.promisedDeliveryDate||o.scheduledDeliveryDate);
   const eta=fmtDate(o.promisedDeliveryDate||o.scheduledDeliveryDate);
@@ -275,71 +370,92 @@ function renderOrderCard(o){
   const daysLabel=days===null?'':days<0?`hace ${Math.abs(days)}d`:days===0?'Hoy':`${days}d`;
   const stLabel={done:'Lista',running:'En proceso',ok:'En cola',risk:'En riesgo',late:'Atrasada'}[status]||status;
 
-  const pips=steps.slice(0,8).map(s=>{
-    const sc=s.status==='done'||s.status==='complete'?'done':s.status==='active'||s.status==='running'?'active':'pending';
-    return`<div class="step-pip ${sc}" title="${esc(s.label)}"></div>`;
+  const orderLate=status==='late';
+  const flowSteps=steps;
+  const currentIdx=flowSteps.findIndex(s=>s.status!=='done'&&s.status!=='complete');
+  const dots=flowSteps.map((s,i)=>{
+    const isDone=s.status==='done'||s.status==='complete';
+    const isCurrent=i===currentIdx;
+    const start=s.startDate?new Date(s.startDate):null;
+    const startOk=start&&!isNaN(start);
+    let sev='pending';
+    const tip=[];
+    if(isDone){
+      sev='done';
+      tip.push(s.hrs?`Duracion: ${s.hrs} h`:'Completado');
+    }else if(isCurrent){
+      const waitMs=startOk?Date.now()-start.getTime():0;
+      sev=s.status==='late'||orderLate||waitMs>4*3600000?'late':waitMs>0?'risk':'active';
+      if(startOk)tip.push(`Programado: ${fmtHourMin(start)}`);
+      if(s.hrs)tip.push(`Estimado: ${s.hrs} h`);
+      if(waitMs>0)tip.push(`Esperando: ${fmtEspera(waitMs)}`);
+    }else{
+      if(startOk)tip.push(`Programado: ${fmtHourMin(start)}`);
+      if(s.hrs)tip.push(`Estimado: ${s.hrs} h`);
+    }
+    const prevDone=i>0&&(flowSteps[i-1].status==='done'||flowSteps[i-1].status==='complete');
+    const line=i>0?`<div class="step-line${prevDone?' done':''}"></div>`:'';
+    const tipHtml=`<b>${esc(s.label)}</b>${tip.map(t=>'<br>'+esc(t)).join('')}`;
+    const check=isDone?'<svg class="step-check" viewBox="0 0 16 16" width="11" height="11"><path d="M3.5 8.5l3 3 6-6.5" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>':'';
+    return`${line}<div class="step-pip-wrap" tabindex="0" data-tip="${esc(tipHtml)}"><div class="step-pip ${sev}">${check}</div></div>`;
   }).join('');
 
   const impactTag=imp?`<span class="impact-tag">↑${imp.days}d · ${fmtShort(imp.newDate)}</span>`:'';
+  const pctCls=status==='late'?'late':status==='running'?'running':status==='risk'?'risk':'';
 
   return`<div class="order-row ${rowCls}${imp?' has-impact':''}" id="row-${esc(o.orderCode)}" data-code="${esc(o.orderCode)}" data-status="${esc(status)}">
-    <div class="order-head" onclick="toggleRow('${esc(o.orderCode)}')">
-      <div>
+    <div class="order-head">
+      <div class="order-identity">
         <div class="order-code">${esc(o.orderCode)}${impactTag}</div>
         <div class="order-customer">${esc(o.customerName||'Sin cliente')}</div>
       </div>
-      <div class="order-job">${esc(currentProcLabel(steps))}</div>
-      <div class="order-eta">
-        <div class="order-eta-label">Entrega${daysLabel?' · '+daysLabel:''}</div>
-        <div class="order-eta-date ${etaCls}">${eta||'Sin fecha'}</div>
-        ${sl?`<div style="font-size:10px;color:var(--accent);margin-top:2px">Est. ${fmtShort(sl.earlyEnd)}</div>`:''}
-      </div>
-      <button class="btn-estimate${hasEst?' has-estimate':''}" onclick="event.stopPropagation();openDrawer('${esc(o.orderCode)}')">${hasEst?'◈ Estimada':'◎ Estimar'}</button>
-      <span class="order-status-badge ${status}">${stLabel}</span>
-      <div class="order-toggle"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-    </div>
-    <div class="order-progress-row">
-      <div class="order-progress-track"><div class="order-progress-fill ${status}" style="width:${pct}%"></div></div>
-      <div class="order-progress-steps">${pips}</div>
-      <div class="order-pct ${status==='late'?'late':status==='running'?'running':status==='risk'?'risk':''}">${pct}%</div>
-    </div>
-    <div class="order-detail" id="detail-${esc(o.orderCode)}">
-      <div class="proc-panel">
-        <div class="proc-panel-header">
-          <span class="proc-panel-title">Flujo de producción</span>
-        </div>
-        <div class="flow-panel" id="flow-${esc(o.orderCode)}">
-          <div class="flow-loading"><div class="spinner"></div> Cargando flujo...</div>
+      <div class="order-progress-inline">
+        <div class="order-timeline">${dots}</div>
+        <div class="order-pct ${pctCls}">${pct}%</div>
+        <span class="order-status-badge ${status}">${stLabel}</span>
+        <div class="order-eta">
+          <div class="order-eta-label">Entrega${daysLabel?' · '+daysLabel:''}</div>
+          <div class="order-eta-date ${etaCls}">${eta||'Sin fecha'}</div>
+          ${sl?`<div style="font-size:10px;color:var(--accent);margin-top:2px">Est. ${fmtShort(sl.earlyEnd)}</div>`:''}
         </div>
       </div>
-      ${imp?`<div style="padding:10px 20px;background:var(--red-bg);border-top:1px solid var(--red-border)">
-        <span style="font-size:12px;color:var(--red);font-weight:600">⚠ Fecha desplazada por urgencia</span>
-        <span style="font-size:11px;color:var(--red);margin-left:8px">Fecha anterior: ${fmtShort(imp.prevDate)} → Nueva estimacion: ${fmtShort(imp.newDate)}</span>
-      </div>`:''}
-      <div class="order-info-bar">
-        <div class="info-cell"><div class="info-cell-label">Trabajo</div><div class="info-cell-value">${esc(o.jobName||o.productName||'—')}</div></div>
-        <div class="info-cell"><div class="info-cell-label">Cantidad</div><div class="info-cell-value">${o.orderedQuantity?Number(o.orderedQuantity).toLocaleString('es-CR'):'—'}</div></div>
-        <div class="info-cell"><div class="info-cell-label">Maquina</div><div class="info-cell-value">${esc(o.machineName||'—')}</div></div>
-        <div class="info-cell"><div class="info-cell-label">Sustrato</div><div class="info-cell-value">${esc(o.materialName||'—')}</div></div>
-        <div class="info-cell"><div class="info-cell-label">Tintas</div><div class="info-cell-value">${esc(o.tintDescription||'—')}</div></div>
-        <div class="info-cell"><div class="info-cell-label">Vendedor</div><div class="info-cell-value">${esc(o.salespersonName||'—')}</div></div>
-        <div class="info-cell"><div class="info-cell-label">Acciones</div><div class="info-cell-value" style="display:flex;gap:6px;margin-top:4px">
-          <a class="hdr-btn" href="/orden-produccion/${esc(o.orderCode)}" style="font-size:11px;padding:4px 10px">Ver orden</a>
-          <a class="hdr-btn" href="/planificacion/gantt?orderCode=${esc(o.orderCode)}" style="font-size:11px;padding:4px 10px">Gantt</a>
-        </div></div>
+      <div class="order-head-right">
+        <a class="hdr-btn" href="/orden-produccion/${esc(o.orderCode)}" onclick="return openOrderModal(event,'${esc(o.orderCode)}')">Ver orden</a>
+        <button type="button" class="hdr-btn" onclick="event.stopPropagation();openLiberarInventario('${esc(o.orderCode)}')" title="Liberar insumos de inventario contra SAP">Liberar inventario</button>
+        <button class="btn-estimate${hasEst?' has-estimate':''}" onclick="event.stopPropagation();openDrawer('${esc(o.orderCode)}')">${hasEst?'◈ Estimada':'◎ Estimar'}</button>
       </div>
     </div>
+    ${detBanner}
+    ${noPlanBanner}
   </div>`;
 }
 
+// Pestaña "Arte" del modal de la orden (openOrderModal).
+function sgArtHtml(o){
+  const art=o.artwork||null;
+  const artSrc=art&&art.isImage?(art.downloadUrl||art.value||''):'';
+  return artSrc
+    ? `<img src="${esc(artSrc)}" alt="Arte ${esc(o.orderCode)}" style="max-width:100%;max-height:100%;object-fit:contain" onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('span'),{className:'ph',textContent:'No se pudo cargar el arte'}))">`
+    : `<span class="ph">${esc(art?(art.label||'Arte adjunto'):'Sin arte adjunto')}</span>`;
+}
+
 function updateSummary(){
-  const active=allOrders.filter(o=>!isPendingPlanning(o));
-  const pending=allOrders.filter(isPendingPlanning);
-  const t=active.length,run=active.filter(o=>orderStatus(o)==='running').length,
-    risk=active.filter(o=>orderStatus(o)==='risk').length,
-    late=active.filter(o=>orderStatus(o)==='late').length,
-    done=active.filter(o=>orderStatus(o)==='done').length,
-    imp=Object.keys(impacts).length;
+  const isAnulada=o=>o.detencion&&o.detencion.estado==='ANULADA';
+  const isDetenida=o=>o.detencion&&o.detencion.estado==='DETENIDA';
+  const visibles=allOrders.filter(o=>!isAnulada(o));
+  const active=visibles.filter(o=>!isPendingPlanning(o));
+  const pending=visibles.filter(isPendingPlanning);
+  const cd=document.getElementById('countDetenida');if(cd)cd.textContent=allOrders.filter(isDetenida).length;
+  const ca=document.getElementById('countAnulada');if(ca)ca.textContent=allOrders.filter(isAnulada).length;
+  // Los números de arriba deben coincidir siempre con lo que la lista de abajo
+  // realmente muestra — si hay una pestaña de proceso seleccionada (ej. "Impresión"),
+  // el conteo se calcula solo sobre esas órdenes, no sobre todas.
+  const visibleForStatus=active.filter(matchesTrackingActiveProcess);
+  const t=visibleForStatus.length,run=visibleForStatus.filter(o=>orderStatus(o)==='running').length,
+    risk=visibleForStatus.filter(o=>orderStatus(o)==='risk').length,
+    late=visibleForStatus.filter(o=>orderStatus(o)==='late').length,
+    done=visibleForStatus.filter(o=>orderStatus(o)==='done').length,
+    imp=visibleForStatus.filter(o=>!!impacts[o.orderCode]).length;
   document.getElementById('statTotal').textContent=t;
   document.getElementById('statRunning').textContent=run;
   document.getElementById('statRisk').textContent=risk;
@@ -354,6 +470,22 @@ function updateSummary(){
   const countPP=document.getElementById('countPendingPlanning');
   if(countPP)countPP.textContent=pending.length;
   renderPendingPlanningSummary(pending);
+  updateProcessTabCounts(active, pending);
+}
+
+// Contador por pestaña de proceso — mismo criterio que el filtro (activeProcessKeys).
+function updateProcessTabCounts(active, pending){
+  document.querySelectorAll('.process-tab[data-process-filter]').forEach(tab=>{
+    const key=tab.dataset.processFilter;
+    let n;
+    if(key==='all') n=active.length;
+    else if(key==='pending_planning') n=pending.length;
+    else n=active.filter(o=>Array.isArray(o.activeProcessKeys)&&o.activeProcessKeys.includes(key)).length;
+    let badge=tab.querySelector('.pt-count');
+    if(!badge){ badge=document.createElement('span'); badge.className='pt-count'; tab.appendChild(document.createTextNode(' ')); tab.appendChild(badge); }
+    badge.textContent=n;
+    badge.style.opacity=n?'1':'.4';
+  });
 }
 
 function renderPendingPlanningSummary(pending){
@@ -381,12 +513,6 @@ function renderPendingPlanningSummary(pending){
   `;
 }
 
-function toggleRow(code){
-  const r=document.getElementById(`row-${code}`);if(!r)return;
-  const open=r.classList.toggle('is-open');
-  if(open){openRows.add(code);loadFlowPanel(code);}else openRows.delete(code);
-}
-
 function openDrawer(code){
   const order=allOrders.find(o=>o.orderCode===code);
   if(!order)return;
@@ -404,6 +530,7 @@ function openDrawer(code){
   const tier=String(order.customerTier||order.clientTier||'').toUpperCase();
   setPriority(tier==='A'?'premium':'normal');
   updateBuffer();
+  document.getElementById('lockToggle').checked=!!order.fechaComprometidaBloqueada;
 
   const steps=buildSteps(order);
   const lr=Array.isArray(order.processLoadSummary)?order.processLoadSummary:[];
@@ -533,6 +660,126 @@ function openOrdersAheadModal(){
   document.body.style.overflow='hidden';
 }
 
+// ── Ventana flotante reutilizable ──
+// Cualquier .oam-overlay/.oam-panel puede volverse una ventana que se arrastra
+// desde su encabezado y se redimensiona desde la esquina — sin tapar ni bloquear
+// lo que está detrás. Se activa una sola vez por ventana (initFloatingWindow),
+// y solo "arma" el modo flotante (position:fixed con left/top propios) la primera
+// vez que alguien la mueve o la redimensiona; antes de eso se ve/abre igual que
+// cualquier otro modal centrado.
+function initFloatingWindow(overlayId,opts){
+  const overlay=document.getElementById(overlayId);
+  const panel=document.getElementById(opts.panelId);
+  const handle=panel?.querySelector('.oam-resize-handle');
+  const header=panel?.querySelector('.oam-header');
+  if(!overlay||!panel||!header)return;
+  const minWidth=opts.minWidth||600;
+  const minHeight=opts.minHeight||360;
+  let drag=null,resize=null;
+
+  function armFloating(){
+    if(panel.classList.contains('is-floating'))return;
+    const r=panel.getBoundingClientRect();
+    panel.style.left=r.left+'px';
+    panel.style.top=r.top+'px';
+    panel.style.width=r.width+'px';
+    panel.style.height=r.height+'px';
+    panel.classList.add('is-floating');
+    overlay.classList.add('is-floating');
+  }
+
+  header.addEventListener('pointerdown',(e)=>{
+    if(e.target.closest('button,.oam-tab'))return;
+    armFloating();
+    const r=panel.getBoundingClientRect();
+    drag={startX:e.clientX,startY:e.clientY,origLeft:r.left,origTop:r.top,pointerId:e.pointerId};
+    header.setPointerCapture(e.pointerId);
+  });
+  header.addEventListener('pointermove',(e)=>{
+    if(!drag||drag.pointerId!==e.pointerId)return;
+    const dx=e.clientX-drag.startX,dy=e.clientY-drag.startY;
+    const maxLeft=Math.max(0,window.innerWidth-60);
+    const maxTop=Math.max(0,window.innerHeight-40);
+    panel.style.left=Math.min(Math.max(-panel.offsetWidth+80,drag.origLeft+dx),maxLeft)+'px';
+    panel.style.top=Math.min(Math.max(0,drag.origTop+dy),maxTop)+'px';
+  });
+  const endDrag=(e)=>{if(drag&&drag.pointerId===e.pointerId)drag=null};
+  header.addEventListener('pointerup',endDrag);
+  header.addEventListener('pointercancel',endDrag);
+
+  if(handle){
+    handle.addEventListener('pointerdown',(e)=>{
+      e.stopPropagation();
+      armFloating();
+      const r=panel.getBoundingClientRect();
+      resize={startX:e.clientX,startY:e.clientY,origW:r.width,origH:r.height,pointerId:e.pointerId};
+      handle.setPointerCapture(e.pointerId);
+    });
+    handle.addEventListener('pointermove',(e)=>{
+      if(!resize||resize.pointerId!==e.pointerId)return;
+      const dx=e.clientX-resize.startX,dy=e.clientY-resize.startY;
+      panel.style.width=Math.max(minWidth,resize.origW+dx)+'px';
+      panel.style.height=Math.max(minHeight,resize.origH+dy)+'px';
+    });
+    const endResize=(e)=>{if(resize&&resize.pointerId===e.pointerId)resize=null};
+    handle.addEventListener('pointerup',endResize);
+    handle.addEventListener('pointercancel',endResize);
+  }
+
+  // Al cerrar, se vuelve a dejar en su posición y tamaño centrados de siempre —
+  // la próxima vez que se abra, abre "de fábrica" y no donde quedó la última vez.
+  overlay._resetFloating=function(){
+    panel.classList.remove('is-floating');
+    overlay.classList.remove('is-floating');
+    panel.style.left='';panel.style.top='';panel.style.width=opts.defaultWidth||'';panel.style.height=opts.defaultHeight||'';
+  };
+  overlay._armFloating=armFloating;
+}
+initFloatingWindow('orderViewModal',{panelId:'orderViewPanel',minWidth:760,minHeight:420,defaultWidth:'96vw',defaultHeight:'92vh'});
+
+let orderModalCode=null;
+function openOrderModal(e,code){
+  if(e)e.preventDefault();
+  const overlay=document.getElementById('orderViewModal');
+  const frame=document.getElementById('orderViewFrame');
+  if(!overlay||!frame)return false;
+  orderModalCode=code;
+  document.getElementById('orderViewTitle').textContent=code;
+  frame.src=`/orden-produccion/${encodeURIComponent(code)}`;
+  document.getElementById('orderViewFlow').innerHTML='';
+  document.getElementById('orderViewArt').innerHTML='';
+  switchOrderModalTab('orden');
+  overlay.classList.add('open');
+  // Flota desde que abre (no bloquea lo que está detrás) — el layout centrado ya
+  // está calculado en cuanto se agrega la clase "open" (la transición solo anima
+  // la opacidad/escala), así que se puede leer su posición y "soltarla" ya mismo.
+  overlay._armFloating?.();
+  return false;
+}
+function switchOrderModalTab(tab){
+  document.querySelectorAll('.oam-tab').forEach(btn=>btn.classList.toggle('active',btn.dataset.oamTab===tab));
+  document.getElementById('orderViewFrame').style.display=tab==='orden'?'block':'none';
+  document.getElementById('orderViewFlow').style.display=tab==='flujo'?'block':'none';
+  document.getElementById('orderViewArt').style.display=tab==='arte'?'flex':'none';
+  if(!orderModalCode)return;
+  if(tab==='flujo'){
+    const box=document.getElementById('orderViewFlow');
+    box.innerHTML=`<div class="flow-panel" id="flow-${esc(orderModalCode)}"><div class="flow-loading"><div class="spinner"></div> Cargando flujo...</div></div>`;
+    loadFlowPanel(orderModalCode,true);
+  } else if(tab==='arte'){
+    const order=allOrders.find(o=>o.orderCode===orderModalCode);
+    document.getElementById('orderViewArt').innerHTML=order?sgArtHtml(order):'';
+  }
+}
+function closeOrderModal(){
+  const overlay=document.getElementById('orderViewModal');
+  if(!overlay)return;
+  overlay.classList.remove('open');
+  overlay._resetFloating?.();
+  document.getElementById('orderViewFrame').src='about:blank';
+  orderModalCode=null;
+  if(!document.getElementById('drawer').classList.contains('open'))document.body.style.overflow='';
+}
 function closeOrdersAheadModal(){
   document.getElementById('ordersAheadModal').classList.remove('open');
   if(!document.getElementById('drawer').classList.contains('open')){
@@ -540,17 +787,36 @@ function closeOrdersAheadModal(){
   }
 }
 
-function setPriority(p){
+function setPriority(p,persist){
+  const previous=drawerPriority;
   drawerPriority=p;
   ['normal','premium','urgent'].forEach(id=>{
     const el=document.getElementById(`opt-${id}`)||document.querySelector(`.priority-opt[data-priority="${id}"]`);
     if(el)el.className='priority-opt'+(id===p?` sel-${id}`:'');
   });
+  // Solo cuando la persona lo elige a mano (no cuando el cajón se abre y pone
+  // un valor por defecto) se actualiza la prioridad real de la orden. Normal
+  // y Cliente A son solo para ver "qué pasaría"; Urgente sí mueve la fila real.
+  if(persist&&drawerOrder&&(p==='urgent'||previous==='urgent')){
+    const real=p==='urgent'?'urgente':'normal';
+    if(p==='urgent'&&!confirm(`Esto va a marcar la orden ${drawerOrder.orderCode} como urgente DE VERDAD en el sistema — va a saltar delante de las demás en la cola real. ¿Confirma?`)){
+      drawerPriority=previous;
+      setPriority(previous,false);
+      return;
+    }
+    fetch(`${API}/planificacion/${encodeURIComponent(drawerOrder.orderCode)}/prioridad`,{
+      method:'PATCH',
+      headers:Object.assign({'Content-Type':'application/json'},sessionHeader()),
+      body:JSON.stringify({prioridad:real})
+    }).catch(()=>null);
+  }
+  if(drawerResult)runCalc();
 }
 
 function updateBuffer(){
   drawerBuffer=parseInt(document.getElementById('bufferSlider').value)||0;
   document.getElementById('bufferVal').textContent=drawerBuffer===0?'0d':`+${drawerBuffer}d`;
+  if(drawerResult)runCalc();
 }
 
 function runCalc(){
@@ -638,15 +904,23 @@ function renderDrawerResult(r){
 }
 
 function updateLock(){
-  if(!drawerResult)return;
+  if(!drawerOrder)return;
   const on=document.getElementById('lockToggle').checked;
-  if(on&&drawerOrder){
+  if(on&&drawerResult){
     softLocks[drawerOrder.orderCode]={earlyEnd:drawerResult.earlyEnd,lateEnd:drawerResult.lateEnd,priority:drawerPriority};
-  }else if(drawerOrder){
+  }else{
     delete softLocks[drawerOrder.orderCode];
     delete impacts[drawerOrder.orderCode];
     if(drawerOrder._impacted){delete drawerOrder._impacted;renderList()}
   }
+  // Bloqueo suave real: esto es lo que hace que el recálculo de Planeación
+  // avise en vez de mover en silencio una fecha ya prometida al cliente.
+  drawerOrder.fechaComprometidaBloqueada=on;
+  fetch(`${API}/planificacion/${encodeURIComponent(drawerOrder.orderCode)}/bloqueo-comprometido`,{
+    method:'PATCH',
+    headers:Object.assign({'Content-Type':'application/json'},sessionHeader()),
+    body:JSON.stringify({bloqueada:on})
+  }).catch(()=>null);
 }
 
 async function setDateInOrder(){
@@ -675,7 +949,7 @@ async function setDateInOrder(){
     });
     const data=await response.json().catch(()=>({}));
     if(!response.ok||data.ok===false)throw new Error(data.error||'No fue posible guardar la fecha.');
-    drawerOrder.promisedDeliveryDate=dateInputValue(committedEnd);
+    if(!data.fechaEntregaIgnorada)drawerOrder.promisedDeliveryDate=dateInputValue(committedEnd);
     drawerOrder.scheduledDeliveryDate=dateInputValue(earlyEnd);
     drawerOrder.productionEndDate=earlyEnd.toISOString();
     drawerOrder.estimatedDeliveryDateEarly=earlyEnd.toISOString();
@@ -691,54 +965,130 @@ async function setDateInOrder(){
   }
 }
 
+async function recalcularPlanificacion(){
+  const btn=document.getElementById('recalcBtn');
+  const original=btn.textContent;
+  btn.textContent='Revisando...';btn.disabled=true;
+  try{
+    const res=await fetch(`${API}/planificacion/proyeccion/previsualizar`);
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok||data.ok===false)throw new Error(data.error||'No fue posible revisar los cambios.');
+    mostrarVistaPreviaRecalculo(data);
+  }catch(error){
+    alert(error.message||'No fue posible revisar los cambios.');
+  }finally{
+    btn.textContent=original;btn.disabled=false;
+  }
+}
+
+function mostrarVistaPreviaRecalculo(data){
+  const cambios=Array.isArray(data.cambios)?data.cambios:[];
+  const riesgo=data.totalEnRiesgoDeCompromiso||0;
+  const body=document.getElementById('recalcPreviewBody');
+  const applyBtn=document.getElementById('recalcPreviewApplyBtn');
+
+  if(!cambios.length){
+    body.innerHTML=`<div class="oam-empty">Revisé las ${data.totalOrdenesRevisadas||0} órdenes activas.<br><strong>Ninguna fecha cambiaría</strong> si aplica el recálculo ahora — está todo al día.</div>`;
+    applyBtn.style.display='none';
+  }else{
+    applyBtn.style.display='';
+    let html=`<div class="oam-summary">
+      <div class="oam-summary-row">
+        <div class="oam-summary-item"><div class="oam-si-icon">📋</div><div><div class="oam-si-val">${data.totalOrdenesRevisadas||0}</div><div class="oam-si-lbl">Revisadas</div></div></div>
+        <div class="oam-summary-item"><div class="oam-si-icon">🔄</div><div><div class="oam-si-val">${cambios.length}</div><div class="oam-si-lbl">Cambiarían de fecha</div></div></div>
+        <div class="oam-summary-item ${riesgo?'oam-si-buffer':''}"><div class="oam-si-icon">${riesgo?'⚠':'✓'}</div><div><div class="oam-si-val">${riesgo}</div><div class="oam-si-lbl">Con fecha comprometida en riesgo</div></div></div>
+      </div>
+      <div class="oam-summary-eta">${riesgo
+        ?`<strong>Ojo:</strong> ${riesgo} orden${riesgo>1?'es':''} ya tenían una fecha prometida al cliente y, con este recálculo, ya no se alcanzaría. Revíselas antes de avisarle a nadie.`
+        :'Ninguna de las órdenes con fecha ya prometida a un cliente se ve afectada.'}</div>
+    </div>`;
+    html+=`<div class="oam-section-title">Detalle orden por orden</div>`;
+    cambios.forEach(c=>{
+      const flechaColor=c.seAtrasa?'var(--pl-red,#E24B4A)':'var(--accent)';
+      const diasTxt=c.diasDiferencia>0?`+${c.diasDiferencia}d`:`${c.diasDiferencia}d`;
+      html+=`<div class="oam-order" style="grid-template-columns:1fr 1.4fr 70px">
+        <div class="oam-order-left">
+          <div class="oam-order-code">${esc(c.codigoOrden)}${c.enRiesgoDeCompromiso?' ⚠':''}</div>
+          <div class="oam-order-customer">${esc(c.cliente||'Sin cliente')}${c.enRiesgoDeCompromiso?' · Fecha comprometida: '+esc(fmtDate(c.fechaComprometida)||''):''}</div>
+        </div>
+        <div style="font-size:12px;color:var(--text2);text-align:center">${esc(fmtShort(c.fechaAntes)||'sin fecha')} → ${esc(fmtShort(c.fechaDespues)||'sin fecha')}</div>
+        <div style="text-align:right;font-weight:700;font-family:'DM Mono',monospace;color:${flechaColor}">${diasTxt}</div>
+      </div>`;
+    });
+    body.innerHTML=html;
+  }
+  document.getElementById('recalcPreviewModal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function closeRecalcPreviewModal(){
+  document.getElementById('recalcPreviewModal').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+async function confirmarRecalculoAplicado(){
+  const btn=document.getElementById('recalcPreviewApplyBtn');
+  btn.textContent='Aplicando...';btn.disabled=true;
+  try{
+    const res=await fetch(`${API}/planificacion/proyeccion/aplicar`,{method:'POST',headers:sessionHeader()});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok||data.ok===false)throw new Error(data.error||'No fue posible aplicar el recálculo.');
+    closeRecalcPreviewModal();
+    await loadData();
+    alert('Listo, se aplicaron los cambios.');
+  }catch(error){
+    alert(error.message||'No fue posible aplicar el recálculo.');
+  }finally{
+    btn.textContent='Sí, aplicar los cambios';btn.disabled=false;
+  }
+}
+
+let seguimientoCargadoUnaVez=false;
 async function loadData(){
   const btn=document.getElementById('refreshBtn');
   btn.textContent='...';btn.disabled=true;
   try{
-    const [segRes,lanRes]=await Promise.all([
-      fetch(`${API}/planificacion/seguimiento`).catch(()=>null),
-      fetch(`${API}/planificacion/lanzamiento`).catch(()=>null)
-    ]);
-    const segData=segRes&&segRes.ok?await segRes.json():{ok:false,items:[]};
-    const lanData=lanRes&&lanRes.ok?await lanRes.json():{ok:false,items:[]};
-    if(!segData.ok&&!lanData.ok)throw new Error(segData.error||lanData.error||'Error al cargar ordenes.');
-    const byCode=new Map();
-    (segData.items||[]).forEach(o=>byCode.set(o.orderCode,o));
-    (lanData.items||[]).forEach(o=>{if(!byCode.has(o.orderCode))byCode.set(o.orderCode,o)});
-    allOrders=Array.from(byCode.values());
-    const listBox=document.getElementById('orderList');
-    const scrollY=listBox?listBox.scrollTop:0;
+    const segRes=await fetch(`${API}/planificacion/seguimiento`).catch(()=>null);
+    const parseRes=async r=>{
+      if(!r)return{ok:false,error:'Sin respuesta del servidor.'};
+      let body=null;
+      try{body=await r.json();}catch(_){}
+      if(body&&typeof body==='object')return body;
+      return{ok:false,error:`Respuesta invalida del servidor (HTTP ${r.status}).`};
+    };
+    const segData=await parseRes(segRes);
+    if(!segData.ok)throw new Error(segData.error||'Error al cargar ordenes.');
+    allOrders=Array.isArray(segData.items)?segData.items:[];
+    seguimientoCargadoUnaVez=true;
+    const scrollY=window.scrollY;
+    const activeCode=document.activeElement&&document.activeElement.id==='searchInput'?'searchInput':null;
     updateSummary();renderAll();
-    if(listBox)listBox.scrollTop=scrollY;
+    window.scrollTo(0,scrollY);
+    if(activeCode)document.getElementById(activeCode)?.focus();
     document.getElementById('liveIndicator').style.background='#1D9E75';
   }catch(err){
-    document.getElementById('liveIndicator').style.background='#E24B4A';
-    loadDemoData();
+    document.getElementById('liveIndicator').style.background='#EF9F27';
+    // Si ya se habían cargado órdenes, un refresco lento no borra lo que se ve:
+    // se queda la última información y se vuelve a intentar en el próximo ciclo.
+    if(seguimientoCargadoUnaVez)return;
+    allOrders=[];
+    updateSummary();
+    renderLoadError(err);
   }finally{btn.textContent='↻ Actualizar';btn.disabled=false}
 }
 
-function loadDemoData(){
-  const today=new Date();
-  const dd=o=>{const d=new Date(today);d.setDate(d.getDate()+o);return d.toISOString().split('T')[0]};
-  allOrders=[
-    {orderCode:'ORD-2044',customerName:'Envases del Pacifico',customerTier:'B',jobName:'Etiqueta Mango 500ml',promisedDeliveryDate:dd(-1),machineName:'Flexo 4',orderedQuantity:85000,materialName:'BOPP Trans. 40u',tintDescription:'CMYK + Blanco',salespersonName:'M. Vargas',
-      processChecklist:[{key:'diseno',selected:true,status:'done'},{key:'preprensa',selected:true,status:'done'},{key:'impresion',selected:true,status:'active'},{key:'laminado',selected:true,status:'pending'},{key:'troquelado',selected:true,status:'pending'}],
-      processLoadSummary:[{processKey:'impresion',machineName:'Flexo 4',endDate:dd(-1),ordersAhead:0,daysAhead:0,isLate:true,durationHours:18},{processKey:'laminado',machineName:'Laminadora 1',endDate:dd(0),ordersAhead:1,daysAhead:.5,durationHours:4},{processKey:'troquelado',machineName:'Troquel A',endDate:dd(1),ordersAhead:2,daysAhead:1,durationHours:3}]},
-    {orderCode:'ORD-2041',customerName:'Lacteos La Meseta',customerTier:'A',jobName:'Flow Pack Queso 250g',promisedDeliveryDate:dd(1),machineName:'Flexo 2',orderedQuantity:120000,materialName:'PE Termo 60u',tintDescription:'3 Tintas',salespersonName:'K. Montero',
-      processChecklist:[{key:'diseno',selected:true,status:'done'},{key:'impresion',selected:true,status:'active'},{key:'empaque',selected:true,status:'pending'}],
-      processLoadSummary:[{processKey:'impresion',machineName:'Flexo 2',endDate:dd(1),ordersAhead:0,durationHours:24},{processKey:'empaque',machineName:'Emp. 3',endDate:dd(2),ordersAhead:1,durationHours:2}]},
-    {orderCode:'ORD-2038',customerName:'Cafe Britt',customerTier:'B',jobName:'Bolsa Cafe Molido Premium',promisedDeliveryDate:dd(3),machineName:'Flexo 1',orderedQuantity:45000,materialName:'PET/FOIL/PE',tintDescription:'CMYK',salespersonName:'A. Solis',
-      processChecklist:[{key:'diseno',selected:true,status:'done'},{key:'preprensa',selected:true,status:'done'},{key:'impresion',selected:true,status:'done'},{key:'laminado',selected:true,status:'active'},{key:'barnizado',selected:true,status:'pending'},{key:'empaque',selected:true,status:'pending'}],
-      processLoadSummary:[{processKey:'laminado',machineName:'Laminadora 2',endDate:dd(2),ordersAhead:0,durationHours:8},{processKey:'barnizado',machineName:'Barniz UV',endDate:dd(3),ordersAhead:1,durationHours:2},{processKey:'empaque',machineName:'Emp. 1',endDate:dd(3),ordersAhead:0,durationHours:1}]},
-    {orderCode:'ORD-2036',customerName:'Pepsico CR',customerTier:'B',jobName:'Bolsa Papas Fritas XL',promisedDeliveryDate:dd(5),machineName:'Flexo 3',orderedQuantity:200000,materialName:'BOPP Metalizado',tintDescription:'6 Tintas',salespersonName:'R. Jimenez',
-      processChecklist:[{key:'diseno',selected:true,status:'done'},{key:'preprensa',selected:true,status:'done'},{key:'impresion',selected:true,status:'pending'},{key:'laminado',selected:true,status:'pending'},{key:'troquelado',selected:true,status:'pending'},{key:'empaque',selected:true,status:'pending'}],
-      processLoadSummary:[{processKey:'impresion',machineName:'Flexo 3',endDate:dd(4),ordersAhead:2,durationHours:36},{processKey:'laminado',machineName:'Laminadora 1',endDate:dd(5),ordersAhead:1,durationHours:6},{processKey:'troquelado',machineName:'Troquel B',endDate:dd(6),ordersAhead:0,durationHours:3},{processKey:'empaque',machineName:'Emp. 2',endDate:dd(6),ordersAhead:0,durationHours:2}]},
-    {orderCode:'ORD-2033',customerName:'Dos Pinos',customerTier:'A',jobName:'Etiqueta Leche Descremada',promisedDeliveryDate:dd(7),machineName:'Flexo 4',orderedQuantity:300000,materialName:'PP Blanco 60u',tintDescription:'5 Tintas + Barniz',salespersonName:'M. Vargas',
-      processChecklist:[{key:'diseno',selected:true,status:'done'},{key:'preprensa',selected:true,status:'done'},{key:'impresion',selected:true,status:'done'},{key:'barnizado',selected:true,status:'done'},{key:'troquelado',selected:true,status:'done'},{key:'empaque',selected:true,status:'done'}],
-      processLoadSummary:[]},
-  ];
-  updateSummary();renderAll();
-  document.getElementById('liveIndicator').style.background='#F5A623';
+// Sin datos inventados: si la primera carga falla, se muestra un aviso suave y un
+// boton para reintentar. Nunca se rellena la pantalla con ordenes de ejemplo.
+function renderLoadError(){
+  document.getElementById('kanbanView').style.display='none';
+  const box=document.getElementById('orderList');
+  box.style.display='grid';
+  box.innerHTML=`<div class="empty-state">`
+    +`<div style="font-size:14px;color:var(--text3);max-width:440px;text-align:center;line-height:1.5">`
+    +`Seguimos esperando al servidor.<br>`
+    +`<span style="font-size:12px;opacity:.75">La conexión está lenta y las órdenes todavía no llegan. Toca el botón para intentarlo de nuevo.</span></div>`
+    +`<button onclick="loadData()" style="display:inline-block;margin-top:14px;padding:7px 16px;border:1px solid var(--border2,#cfd8df);border-radius:8px;background:var(--surface,#fff);color:var(--text2,#334);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer">Reintentar</button>`
+    +`</div>`;
 }
 
 let currentView='list';
@@ -749,7 +1099,6 @@ function setView(v){
     btn.classList.toggle('active',btn.dataset.view===v);
   });
   document.getElementById('orderList').style.display=v==='list'?'grid':'none';
-  document.getElementById('semaforoView').style.display=v==='sem'?'block':'none';
   document.getElementById('kanbanView').style.display=v==='kanban'?'grid':'none';
   renderAll();
 }
@@ -760,8 +1109,14 @@ function renderAll(){
   let filtered=allOrders.filter(o=>{
     const match=!term||norm([o.orderCode,o.customerName,o.jobName,o.productName].join(' ')).includes(term);
     if(!match)return false;
-    if(currentFilter==='pending_planning')return isPendingPlanning(o);
+    const det=o.detencion&&o.detencion.estado;
+    if(currentFilter==='detenida')return det==='DETENIDA';
+    if(currentFilter==='anulada')return det==='ANULADA';
+    if(det==='ANULADA')return false;
+    if(currentProcessFilter==='pending_planning')return isPendingPlanning(o);
     if(isPendingPlanning(o))return false;
+    if(!matchesTrackingActiveProcess(o))return false;
+    if(currentFilter==='pending_planning')return isPendingPlanning(o);
     if(currentFilter==='all')return true;
     if(currentFilter==='impact')return!!impacts[o.orderCode];
     return orderStatus(o)===currentFilter;
@@ -773,7 +1128,6 @@ function renderAll(){
     return String(a.orderCode||'').localeCompare(String(b.orderCode||''));
   });
   if(currentView==='list')renderList(filtered);
-  else if(currentView==='sem')renderSemaforo(filtered);
   else renderKanban(filtered);
 }
 
@@ -785,8 +1139,14 @@ function renderList(orders){
     orders=allOrders.filter(o=>{
       const match=!term||norm([o.orderCode,o.customerName,o.jobName,o.productName].join(' ')).includes(term);
       if(!match)return false;
-      if(currentFilter==='pending_planning')return isPendingPlanning(o);
+      const det=o.detencion&&o.detencion.estado;
+      if(currentFilter==='detenida')return det==='DETENIDA';
+      if(currentFilter==='anulada')return det==='ANULADA';
+      if(det==='ANULADA')return false;
+      if(currentProcessFilter==='pending_planning')return isPendingPlanning(o);
       if(isPendingPlanning(o))return false;
+      if(!matchesTrackingActiveProcess(o))return false;
+      if(currentFilter==='pending_planning')return isPendingPlanning(o);
       if(currentFilter==='all')return true;
       if(currentFilter==='impact')return!!impacts[o.orderCode];
       return orderStatus(o)===currentFilter;
@@ -801,61 +1161,10 @@ function renderList(orders){
 
   const box=document.getElementById('orderList');
   if(!orders.length){
-    box.innerHTML=`<div class="empty-state"><div class="empty-state-icon">◎</div><div style="font-size:14px;color:var(--text3)">No hay ordenes que coincidan.</div></div>`;
+    box.innerHTML=`<div class="empty-state"><div class="empty-state-icon-big">${trackingEmptyStateIcon()}</div><div class="tracking-empty-msg">${trackingEmptyStateMessage()}</div></div>`;
     return;
   }
   box.innerHTML=orders.map(renderOrderCard).join('');
-  openRows.forEach(code=>{const r=document.getElementById(`row-${code}`);if(r){r.classList.add('is-open');loadFlowPanel(code,true);}});
-}
-
-function renderSemaforo(orders){
-  const box=document.getElementById('semaforoList');
-  if(!orders.length){
-    box.innerHTML=`<div class="empty-state"><div class="empty-state-icon">◎</div><div style="font-size:14px">No hay ordenes que coincidan.</div></div>`;
-    return;
-  }
-  const stLabels={done:'Lista',running:'En proceso',ok:'En cola',risk:'En riesgo',late:'Atrasada'};
-  box.innerHTML=orders.map(o=>{
-    const steps=buildSteps(o);
-    const status=orderStatus(o);
-    const pct=calcPct(steps);
-    const days=daysUntil(o.promisedDeliveryDate||o.scheduledDeliveryDate);
-    const eta=fmtShort(o.promisedDeliveryDate||o.scheduledDeliveryDate);
-    const etaCls=status==='late'?'late':status==='risk'?'risk':'ok';
-    const rowCls=status==='late'?'is-late':status==='risk'?'is-risk':'is-ok';
-    const imp=impacts[o.orderCode];
-    const sl=softLocks[o.orderCode];
-    const hasEst=!!sl;
-    const daysLabel=days===null?'':days<0?`Hace ${Math.abs(days)}d`:days===0?'Hoy':`En ${days}d`;
-
-    const maxPips=Math.min(steps.length,12);
-    const pips=steps.slice(0,maxPips).map(s=>{
-      const sc=s.status==='done'||s.status==='complete'?'done':
-               s.status==='active'||s.status==='running'?'active':
-               (status==='late'&&s.status==='active')?'late':'pending';
-      return`<div class="sem-stage ${sc}" title="${esc(s.label)}"></div>`;
-    }).join('');
-
-    return`<div class="sem-row ${rowCls}${imp?' has-impact':''}" onclick="openDrawer('${esc(o.orderCode)}')">
-      <div>
-        <div class="sem-code">${esc(o.orderCode)}${imp?`<span style="font-size:9px;color:var(--red);font-weight:700;margin-left:4px">↑${imp.days}d</span>`:''}</div>
-        <div class="sem-customer">${esc(o.customerName||'—')}</div>
-      </div>
-      <div class="sem-process">${esc(currentProcLabel(steps))}</div>
-      <div class="sem-stages">${pips}</div>
-      <div class="sem-light">
-        <div class="sem-dot ${status}"></div>
-        <span class="sem-label">${esc(stLabels[status]||status)}</span>
-      </div>
-      <div class="sem-dates">
-        <div class="sem-eta ${etaCls}">${eta||'—'}</div>
-        <div class="sem-days">${esc(daysLabel)}</div>
-        ${sl?`<div class="sem-est">Est. ${fmtShort(sl.earlyEnd)}</div>`:''}
-        ${imp?`<div style="font-size:10px;color:var(--red);font-weight:600">→ ${fmtShort(imp.newDate)}</div>`:''}
-      </div>
-      <button class="sem-btn${hasEst?' has-estimate':''}" onclick="event.stopPropagation();openDrawer('${esc(o.orderCode)}')">${hasEst?'◈ Est.':'◎ Estimar'}</button>
-    </div>`;
-  }).join('');
 }
 
 function renderKanban(orders){
@@ -897,13 +1206,16 @@ function renderKanban(orders){
       return`<div class="kanban-card ${rowCls}${imp?' has-impact':''}" onclick="openDrawer('${esc(o.orderCode)}')">
         <div class="kc-code">${esc(o.orderCode)}${imp?`<span class="impact-tag" style="font-size:9px;padding:1px 5px;margin-left:5px">+${imp.days}d</span>`:''}</div>
         <div class="kc-customer">${esc(o.customerName||'—')}</div>
-        <div class="kc-process">${esc(currentProcLabel(steps))}</div>
+        <div class="kc-process">${esc(orderProcLabel(o))}</div>
         <div class="kc-pips">${pips}</div>
         ${sl?`<div class="kc-est">◈ Est. ${fmtShort(sl.earlyEnd)}${drawerBuffer>0?` – ${fmtShort(sl.lateEnd)}`:''}</div>`:''}
         ${imp?`<div class="kc-impact">⚠ Desplazada → ${fmtShort(imp.newDate)}</div>`:''}
         <div class="kc-bottom">
           <div class="kc-eta ${etaCls}">${eta||'Sin fecha'}${daysLabel?' · '+daysLabel:''}</div>
-          <button class="kc-btn" onclick="event.stopPropagation();openDrawer('${esc(o.orderCode)}')">${sl?'◈':'◎'} Estimar</button>
+          <div style="display:flex;gap:4px">
+            <a class="kc-btn" href="/orden-produccion/${esc(o.orderCode)}" onclick="event.stopPropagation();return openOrderModal(event,'${esc(o.orderCode)}')">Ver orden</a>
+            <button class="kc-btn" onclick="event.stopPropagation();openDrawer('${esc(o.orderCode)}')">${sl?'◈':'◎'} Estimar</button>
+          </div>
         </div>
       </div>`;
     }).join('');
@@ -918,22 +1230,44 @@ function setFilter(f,btn){
   renderAll();
 }
 
-document.getElementById('searchInput').addEventListener('input',e=>{searchTerm=e.target.value;renderAll()});
-document.getElementById('ganttLink').addEventListener('click',e=>{
-  if(window.parent&&window.location.search.includes('shell=1')){
-    e.preventDefault();
-    window.parent.postMessage({type:'erp-open-tab',route:'/planificacion/gantt?shell=1',label:'Gantt'},'*');
+function setProcessFilter(f,btn){
+  currentProcessFilter=f;
+  document.querySelectorAll('.process-tab').forEach(t=>t.classList.remove('is-active'));
+  if(btn)btn.classList.add('is-active');
+  // "Todos" es el único botón visible que puede sacar a alguien de Detenidas/Anuladas
+  // (las demás pastillas de estado quedaron ocultas pero no eliminadas), así que también
+  // limpia ese filtro para no dejar a nadie atrapado viendo solo detenidas o anuladas.
+  if(f==='all'){
+    currentFilter='all';
+    document.querySelectorAll('.filter-pill').forEach(p=>p.classList.remove('active'));
+    document.querySelector('.filter-pill[data-filter="all"]')?.classList.add('active');
   }
-});
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
+  updateSummary();
+  renderAll();
+}
+
+function navShellAware(e,route,label){
+  if(window.parent&&window.parent!==window&&window.location.search.includes('shell=1')){
+    e.preventDefault();
+    window.parent.postMessage({type:'erp-open-tab',route:route+(route.includes('?')?'&':'?')+'shell=1',label:label},window.location.origin);
+    return false;
+  }
+  return true;
+}
+document.getElementById('searchInput').addEventListener('input',e=>{searchTerm=e.target.value;renderAll()});
+document.getElementById('ganttLink').addEventListener('click',e=>{navShellAware(e,'/planificacion/gantt','Gantt')});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDrawer();closeOrderModal();}});
 document.querySelectorAll('.priority-opt[data-priority]').forEach(opt=>{
-  opt.addEventListener('click',()=>setPriority(opt.dataset.priority));
+  opt.addEventListener('click',()=>setPriority(opt.dataset.priority,true));
 });
 document.querySelectorAll('.view-btn[data-view]').forEach(btn=>{
   btn.addEventListener('click',()=>setView(btn.dataset.view));
 });
 document.querySelectorAll('.filter-pill[data-filter]').forEach(btn=>{
   btn.addEventListener('click',()=>setFilter(btn.dataset.filter,btn));
+});
+document.querySelectorAll('.process-tab[data-process-filter]').forEach(btn=>{
+  btn.addEventListener('click',()=>setProcessFilter(btn.dataset.processFilter,btn));
 });
 document.getElementById('bufferSlider')?.addEventListener('input',updateBuffer);
 document.getElementById('lockToggle')?.addEventListener('change',updateLock);
@@ -942,13 +1276,95 @@ document.getElementById('drawerOverlay')?.addEventListener('click',closeDrawer);
 document.getElementById('calcBtn')?.addEventListener('click',runCalc);
 document.getElementById('btnSetDate')?.addEventListener('click',setDateInOrder);
 document.getElementById('refreshBtn')?.addEventListener('click',loadData);
+document.getElementById('recalcBtn')?.addEventListener('click',recalcularPlanificacion);
 document.getElementById('sortSelect')?.addEventListener('change',renderAll);
 setInterval(loadData,60000);
+applyTrackingRoleBasedProcessView();
+
+// Arrastrar con el mouse para desplazar el calendario de feriados/fines de semana.
+(function initCalStripDrag(){
+  const strip=document.getElementById('calAlertStrip');
+  if(!strip)return;
+  let dragging=false,startX=0,startScroll=0,moved=false;
+  strip.addEventListener('mousedown',e=>{
+    dragging=true;moved=false;startX=e.pageX;startScroll=strip.scrollLeft;
+    strip.classList.add('dragging');
+  });
+  window.addEventListener('mousemove',e=>{
+    if(!dragging)return;
+    const dx=e.pageX-startX;
+    if(Math.abs(dx)>3)moved=true;
+    strip.scrollLeft=startScroll-dx;
+  });
+  window.addEventListener('mouseup',()=>{
+    if(!dragging)return;
+    dragging=false;strip.classList.remove('dragging');
+  });
+  // Evita que un arrastre se interprete como clic en un día del calendario.
+  strip.addEventListener('click',e=>{if(moved){e.preventDefault();e.stopPropagation();moved=false;}},true);
+})();
 fetch('/api/config/shell').then(r=>r.ok?r.json():{}).catch(()=>({})).then(cfg=>{trackingConfig=cfg||trackingConfig;loadData()});
+loadCalendarAlert();
+
+function computeAlertDayCount(){
+  const strip=document.getElementById('calAlertStrip');
+  const width=(strip&&strip.clientWidth)||document.body.clientWidth||1200;
+  const cardWidth=96,gap=8,padding=48;
+  const usable=Math.max(0,width-padding);
+  const count=Math.floor((usable+gap)/(cardWidth+gap));
+  return Math.min(30,Math.max(4,count));
+}
+
+async function loadCalendarAlert(){
+  const strip=document.getElementById('calAlertStrip');
+  if(!strip)return;
+  try{
+    const dias=computeAlertDayCount();
+    const res=await fetch(`${API}/planificacion/calendarios/proximos-eventos?dias=${dias}`,{headers:sessionHeader()});
+    const data=await res.json();
+    if(!data.ok||!Array.isArray(data.data?.days)){strip.classList.remove('visible');return;}
+    const days=data.data.days;
+    const todayKey=days[0]?.date;
+    strip.innerHTML=days.map(d=>{
+      const dt=new Date(d.date+'T12:00:00');
+      const dowLabel=dt.toLocaleDateString('es-CR',{weekday:'short'});
+      const dateLabel=dt.toLocaleDateString('es-CR',{day:'2-digit',month:'short'});
+      const isToday=d.date===todayKey;
+      const hasEvent=d.events.length>0;
+      const cls=['cal-alert-day'];
+      if(isToday)cls.push('is-today');
+      if(d.isWeekend)cls.push('is-weekend');
+      if(hasEvent)cls.push('has-event');
+      let tag='';
+      if(hasEvent){
+        const names=[...new Set(d.events.map(e=>e.description||e.exceptionType))].join(', ');
+        tag=`<div class="cal-alert-day-tag" title="${esc(names)}">⚠ ${esc(names.length>18?names.slice(0,18)+'…':names)}</div>`;
+      }else if(d.isWeekend){
+        tag=`<div class="cal-alert-day-tag">Fin de semana</div>`;
+      }
+      return`<div class="${cls.join(' ')}">
+        <div class="cal-alert-day-label">${isToday?'Hoy':capitalise(dowLabel)}</div>
+        <div class="cal-alert-day-date">${dateLabel}</div>
+        ${tag}
+      </div>`;
+    }).join('');
+    strip.classList.add('visible');
+  }catch(e){strip.classList.remove('visible');}
+}
+setInterval(loadCalendarAlert,15*60000);
+let calAlertResizeTimer=null;
+let calAlertLastDayCount=computeAlertDayCount();
+window.addEventListener('resize',()=>{
+  clearTimeout(calAlertResizeTimer);
+  calAlertResizeTimer=setTimeout(()=>{
+    const count=computeAlertDayCount();
+    if(count!==calAlertLastDayCount){calAlertLastDayCount=count;loadCalendarAlert();}
+  },250);
+});
 new MutationObserver(()=>renderAll()).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 
 const TRACKING_FIXED_KEYS = new Set(['orden_creada','solicitud_vendedor','planeacion']);
-const TRACKING_MACHINE_KEYS = new Set(['planchas','impresion','acabados','barnizado','laminado','troquelado','estampado','embosado','numeracion','rebobinado']);
+const TRACKING_MACHINE_KEYS = new Set(['sellos','impresion','acabados','barnizado','laminado','troquelado','estampado','embosado','numeracion','rebobinado']);
 
 async function loadFlowPanel(code, silent) {
   const box = document.getElementById(`flow-${code}`);
@@ -959,12 +1375,12 @@ async function loadFlowPanel(code, silent) {
     const res = await fetch(`${API}/ordenes-produccion/${encodeURIComponent(code)}/seguimiento`, { headers: sessionHeader() });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || 'no-flow');
-    const steps = Array.isArray(data.steps) ? data.steps : [];
+    const steps = (Array.isArray(data.steps) ? data.steps : []).filter(s => s.processKey !== 'barnizado' && s.processKey !== 'troquelado');
     flowCache[code] = steps;
     renderFlowPanel(box, code, steps);
     bindTrackingAvatarFallback(box);
   } catch(e) {
-    box.innerHTML = '<div class="flow-empty">No se pudo cargar el flujo de producción.</div>';
+    box.innerHTML = '<div class="flow-empty">No pudimos traer el flujo de producción en este momento. Revisa la conexión y ábrelo de nuevo.</div>';
   }
 }
 
@@ -973,91 +1389,121 @@ function renderFlowPanel(box, code, steps) {
     box.innerHTML = '<div class="flow-empty">No hay flujo de producción registrado para esta orden.</div>';
     return;
   }
+  // Configuración ESTIMADA por proceso (solo lectura) — se muestra bajo cada paso.
+  const procCfg = ((allOrders || []).find(o => o.orderCode === code) || {}).procesoConfig || {};
   const doneCount = steps.filter(s => String(s.routeStatus||'').toUpperCase() === 'COMPLETADO').length;
   const total = steps.length;
-  const pct   = Math.round(doneCount / total * 100);
 
-  const cntBg  = doneCount === total ? 'var(--accent-bg)' : doneCount > 0 ? 'var(--amber-bg)' : 'var(--surface2)';
-  const cntClr = doneCount === total ? 'var(--accent)'    : doneCount > 0 ? 'var(--amber)'    : 'var(--text3)';
+  let nextPendingIndex = -1;
+  for (let np = 0; np < steps.length; np++) {
+    const npStatus = String(steps[np].routeStatus || 'PENDIENTE').toUpperCase();
+    if (npStatus !== 'COMPLETADO' && !['RUN','SETUP'].includes(npStatus) && npStatus !== 'PARO') { nextPendingIndex = np; break; }
+  }
 
   let tlHtml = '';
-  steps.forEach((s, i) => {
-    const status   = String(s.routeStatus || 'PENDIENTE').toUpperCase();
-    const isDone   = status === 'COMPLETADO';
+  for (let i = 0; i < steps.length; i++) {
+    const s = steps[i];
+    const status = String(s.routeStatus || 'PENDIENTE').toUpperCase();
+    const isDone = status === 'COMPLETADO';
     const isActive = ['RUN','SETUP'].includes(status);
-    const isStopped= status === 'PARO';
-    const isLast   = i === steps.length - 1;
+    const isStopped = status === 'PARO';
+    const isNextPending = i === nextPendingIndex;
+    const isLast = i === steps.length - 1;
 
-    const markerName  = String(s.completedBy || s.startedBy || '').trim();
-    const markerPhoto = String(s.completedByPhoto || s.startedByPhoto || '').trim() || (markerName ? trackingUserPhotos.get(trackingUserLookupKey(markerName)) : '');
-    let nodeCls = 'flow-tl-node';
-    if (isDone)    nodeCls += ' done';
-    else if (isActive)  nodeCls += ' active';
-    else if (isStopped) nodeCls += ' stopped';
-
+    let nodeClass = isDone ? 'tl-node done' : (isActive ? 'tl-node avail in-progress' : (isStopped ? 'tl-node warn' : 'tl-node locked'));
+    const markerName = String(s.completedBy || s.startedBy || '').trim();
+    const markerPhoto = String(s.completedByPhoto || s.startedByPhoto || '').trim();
+    const hasMarkerPhoto = Boolean(markerPhoto || trackingUserPhotos.get(trackingUserLookupKey(markerName)));
     let nodeInner = '';
-    if (markerName) {
-      const hasPhoto = Boolean(markerPhoto);
-      nodeCls += ' has-avatar' + (hasPhoto ? ' has-photo' : '');
-      nodeInner = `<span class="flow-tl-avatar-clip">${trackingAvatarMarkup(markerName, markerPhoto)}</span><span class="flow-tl-badge">✓</span>`;
+    if (isDone && markerName) {
+      nodeClass += ' has-avatar' + (hasMarkerPhoto ? ' has-photo' : '');
+      nodeInner = `<span class="tl-avatar-clip">${trackingAvatarMarkup(markerName, markerPhoto)}</span><span class="tl-node-badge"><i class="ti ti-check" style="font-size:12px;"></i></span>`;
     } else if (isDone) {
-      nodeInner = `<span>✓</span>`;
+      nodeInner = '<i class="ti ti-check" style="font-size:20px;"></i>';
+    } else if (isNextPending) {
+      nodeInner = '<i class="ti ti-circle-dotted" style="font-size:20px;opacity:.5;"></i><span class="tl-node-badge badge-pending"><i class="ti ti-arrow-right" style="font-size:11px;"></i></span>';
     } else if (isActive) {
-      nodeInner = `<span style="font-size:9px;font-weight:700">▶</span>`;
+      nodeInner = '<div style="width:16px;height:16px;border-radius:50%;background:var(--flow-blue);"></div>';
     } else {
-      nodeInner = `<span style="font-size:10px;color:var(--text3)">${i+1}</span>`;
+      nodeInner = '<div style="width:12px;height:12px;border-radius:50%;background:var(--ink-5);opacity:.5;"></div>';
     }
 
-    const nextDone = !isLast && String(steps[i+1]?.routeStatus||'').toUpperCase() === 'COMPLETADO';
-    const connector = isLast ? '' : `<div class="flow-tl-connector ${isDone && nextDone ? 'solid' : 'dashed'}"></div>`;
+    const solid = isDone && !isLast && steps[i+1] && String(steps[i+1].routeStatus||'').toUpperCase() === 'COMPLETADO';
+    const line = isLast ? '' : `<div class="tl-connector ${solid ? 'solid' : 'dashed'}"></div>`;
 
-    const titleCls  = isDone?'done':isActive?'active':isStopped?'stopped':'pending';
-    const markerDate= s.completedAt || s.startedAt || '';
+    let detailRows = '';
+    if (TRACKING_MACHINE_KEYS.has(s.processKey) && s.planned && s.planned.machineName) {
+      detailRows += `<span class="flow-detail-row"><i class="ti ti-cpu" style="font-size:11px;"></i>${esc(s.planned.machineName)}</span>`;
+    }
+    if (!isDone && s.planned && s.planned.scheduledStart) {
+      detailRows += `<span class="flow-detail-row"><i class="ti ti-calendar-event" style="font-size:11px;"></i>Programado: ${formatDate(s.planned.scheduledStart, true)}</span>`;
+    }
+    if (s.processKey === 'sellos') {
+      const planSource = (s.actual && s.actual.planSourceLabel) || (s.planned && s.planned.planSource);
+      const planDias = (s.actual && s.actual.diasEstimados) || (s.planned && s.planned.diasEstimados);
+      if (planSource) detailRows += `<span class="flow-detail-row"><i class="ti ti-layers-subtract" style="font-size:11px;"></i>${esc(planSource)}</span>`;
+      if (planDias > 0) detailRows += `<span class="flow-detail-row"><i class="ti ti-calendar" style="font-size:11px;"></i>${planDias}${planDias===1?' día est.':' días est.'}</span>`;
+    }
+    const plannedTime = s.planned && s.planned.minutes > 0 ? fmtFlowTime(s.planned.minutes) : '';
+    const showTimeInTitle = isDone && plannedTime && s.processKey !== 'empaque';
+    if (plannedTime && !showTimeInTitle) {
+      detailRows += `<span class="flow-detail-row"><i class="ti ti-clock" style="font-size:11px;"></i>${plannedTime}</span>`;
+    }
+    // Configuración estimada de este proceso (solo lectura).
+    const stepCfg = procCfg[s.processKey];
+    if (Array.isArray(stepCfg) && stepCfg.length) {
+      detailRows += stepCfg.map(r => `<span class="flow-detail-row flow-cfg-row"><b>${esc(r.k)}:</b>&nbsp;${esc(r.v)}</span>`).join('');
+    }
+
+    const markerDate = s.completedAt || s.startedAt || '';
     const metaParts = [];
     if (markerName) metaParts.push(esc(markerName));
-    if (markerDate) metaParts.push(fmtFlowDate(markerDate));
-    const metaHtml = metaParts.length ? `<div class="flow-step-meta">${metaParts.join(' · ')}</div>` : '';
-    const machine   = TRACKING_MACHINE_KEYS.has(s.processKey) ? (s.planned?.machineName || '') : '';
-    const machHtml  = machine ? `<div class="flow-step-machine">◼ ${esc(machine)}</div>` : '';
-    const mins      = s.planned?.minutes || 0;
-    const timeHtml  = mins > 0 ? `<div class="flow-step-hint">⏱ ${fmtFlowMins(mins)}</div>` : '';
-    const pctHtml   = `<div class="flow-step-pct">${isDone?'100%':isActive?'~50%':'0%'}</div>`;
+    if (markerDate) metaParts.push(formatDate(markerDate, true));
+    const metaHtml = metaParts.length ? `<div class="tl-step-meta">${metaParts.join(' · ')}</div>` : '';
+    const titleStateClass = isDone ? 'done' : (isActive ? 'active' : (isStopped ? 'stopped' : 'pending'));
+    const titleText = esc(s.processName || 'Proceso') + (showTimeInTitle ? ` <span class="tl-title-time">(${plannedTime})</span>` : '');
+    const advertenciaPillHtml = s.advertencia ? `<button type="button" class="production-state-pill is-alert" style="margin-left:8px;min-height:22px;padding:0 9px;font-size:11px;border:0;cursor:pointer;vertical-align:middle;" onclick="event.stopPropagation();showFlowStepAdvertencia(&quot;${esc(s.advertencia)}&quot;)">⚠ Advertencia</button>` : '';
+    const titleHtml = `<div class="tl-step-title ${titleStateClass}">${titleText}${advertenciaPillHtml}</div>`;
+    const hintHtml = (!isDone && !isActive && !isStopped) ? `<div class="tl-step-hint">${isNextPending ? 'Siguiente paso' : 'Pendiente'}</div>` : '';
+    const detailHtml = detailRows ? `<div class="flow-detail-stack">${detailRows}</div>` : '';
+    const contentHtml = `<div class="tl-step-grid"><div class="tl-step-main">${titleHtml}${metaHtml}${hintHtml}${detailHtml}</div></div>`;
 
-    tlHtml += `<div class="flow-tl-row">
-      <div class="flow-tl-left">
-        <button type="button" class="${nodeCls}" data-flow-step-index="${i}" title="${isDone?'Quitar marca':'Marcar completado'}">${nodeInner}</button>
-        ${connector}
-      </div>
-      <div class="flow-tl-content">
-        <div class="flow-step-name ${titleCls}">${esc(s.processName||'Proceso')}</div>
-        ${metaHtml}${machHtml}${timeHtml}${pctHtml}
-      </div>
+    tlHtml += `<div class="tl-row">
+      <div class="tl-col-left"><button type="button" class="${nodeClass}" data-flow-step-index="${i}" aria-label="${isDone ? 'Quitar marca de ' : 'Marcar '}${esc(s.processName || 'Proceso')}">${nodeInner}</button>${line}</div>
+      <div class="tl-content">${contentHtml}</div>
     </div>`;
-  });
+  }
 
-  box.innerHTML = `
-    <div class="flow-panel-head">
-      <div class="flow-panel-title">Flujo de producción</div>
-      <span class="flow-panel-counter" style="background:${cntBg};color:${cntClr}">${doneCount}/${total} · ${pct}%</span>
-    </div>
-    <div class="flow-progress"><div class="flow-progress-fill" style="width:${pct}%"></div></div>
-    <div class="flow-tl">${tlHtml}</div>`;
+  box.innerHTML = `<div class="fp-panel">
+    <div class="fp-panel-head"><div><div class="fp-panel-title">Flujo de Producción</div><div class="fp-panel-sub">${doneCount} de ${total} etapas completas</div></div>
+    <span class="fp-counter" style="background:${doneCount===total?'var(--green-light)':(doneCount>0?'var(--amber-light)':'var(--ink-7)')};color:${doneCount===total?'var(--green)':(doneCount>0?'var(--amber)':'var(--ink-4)')};">${doneCount}/${total}</span></div>
+    <div class="fp-progress"><div class="fp-progress-fill" style="width:${Math.round(doneCount/total*100)}%;background:linear-gradient(90deg,var(--green),#34d399);"></div></div>
+    <div class="fp-body" style="padding-top:0;">${tlHtml}</div>
+  </div>`;
 }
 
-function fmtFlowDate(v) {
-  if (!v) return '';
-  const d = new Date(v);
-  if (isNaN(d)) return String(v);
-  return d.toLocaleDateString('es-CR',{day:'2-digit',month:'short'}) + ' ' +
-         d.toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit'});
+function showFlowStepAdvertencia(text) {
+  alert(text || 'Sin detalle.');
 }
 
-function fmtFlowMins(min) {
-  const t = Math.round(Number(min||0));
-  if (!t || t <= 0) return '';
-  if (t < 60) return t + ' min';
-  const h = Math.floor(t/60), m = t%60;
-  return h + 'h' + (m ? ' ' + m + 'min' : '');
+function formatDate(value, withTime = false) {
+  if (!value) return '';
+  const dateOnly = !withTime && String(value || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[T\s])/);
+  if (dateOnly) return `${dateOnly[3]}/${dateOnly[2]}/${dateOnly[1]}`;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString('es-CR', withTime
+    ? { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }
+    : { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function fmtFlowTime(min) {
+  const total = Math.round(Number(min || 0));
+  if (!Number.isFinite(total) || total <= 0) return '—';
+  if (total < 60) return total + ' min';
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return h + ' h' + (m ? ' ' + m + ' min' : '');
 }
 
 // ── Sesion para APIs ──
@@ -1079,6 +1525,16 @@ function sessionHeader() {
             permissionName: s.permissionName || ''
         })
     };
+}
+
+function seguimientoTieneAccesoImplementador() {
+    var raw;
+    try { raw = localStorage.getItem('erp-user-session'); } catch (_) {}
+    if (!raw) return false;
+    var s;
+    try { s = JSON.parse(raw); } catch (_) { return false; }
+    var permissionName = String(s.permissionName || '').toLowerCase();
+    return permissionName.includes('admin') || permissionName.includes('implement');
 }
 
 // ── USER PHOTOS ──
@@ -1132,10 +1588,18 @@ document.addEventListener('click', (e) => {
         const isDone = String(step.routeStatus || '').toUpperCase() === 'COMPLETADO';
         const isFixed = TRACKING_FIXED_KEYS.has(step.processKey);
 
-        // Special intercept: planeacion step marking opens verification modal
-        if (step.processKey === 'planeacion' && !isDone) {
+        // Special intercept: empaque step marking opens the PT lote form
+        if (step.processKey === 'empaque' && !isDone) {
             stepBtn.disabled = false;
-            openInventoryVerification(code, step.processKey, stepBtn);
+            openEmpaqueLoteForm(code, stepBtn);
+            return;
+        }
+
+        // Special intercept: diseño/preprensa piden capturar cuántos artes se
+        // hicieron (con imagen de referencia) antes de marcar el paso completo.
+        if ((step.processKey === 'diseno' || step.processKey === 'preprensa') && !isDone) {
+            stepBtn.disabled = false;
+            openArtesForm(code, step.processKey, stepBtn);
             return;
         }
 
@@ -1155,7 +1619,7 @@ document.addEventListener('click', (e) => {
               });
 
         req.then(r => r.json()).then((p) => {
-            if (p && p.ok === false && p.error) { stepBtn.disabled = false; stepBtn.innerHTML = prevText; return; }
+            if (p && p.ok === false && p.error) { stepBtn.disabled = false; stepBtn.innerHTML = prevText; alert(p.error); return; }
             delete flowCache[code];
             loadFlowPanel(code);
         }).catch(() => {
@@ -1166,22 +1630,40 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// ── Inventory Verification Modal ──
+// ── Inventory Verification Modal (Liberar Inventario contra SAP) ──
 let pendingVerifCode = '';
 let pendingVerifStepBtn = null;
+let pendingVerifProcessKey = 'impresion';
 let currentVerifMaterials = [];
+let verifSapSearchTimers = {};
+let verifSapItemsCache = {};
 
 function openInventoryVerification(code, processKey, stepBtn) {
     pendingVerifCode = code;
     pendingVerifStepBtn = stepBtn;
+    pendingVerifProcessKey = processKey || 'impresion';
     currentVerifMaterials = [];
+    verifSapItemsCache = {};
     const modal = document.getElementById('inventoryVerificationModal');
     if (!modal) return;
-    document.getElementById('invVerifSubtitle').textContent = 'Verificando materiales para orden ' + code;
-    document.getElementById('invVerifBody').innerHTML = '<div class="spinner"></div>';
-    document.getElementById('invVerifCompleteBtn').disabled = true;
+    const title = document.getElementById('invVerifTitle');
+    const completeBtn = document.getElementById('invVerifCompleteBtn');
+    if (stepBtn) {
+        if (title) title.textContent = 'Verificación de Inventario';
+        document.getElementById('invVerifSubtitle').textContent = 'Verificando materiales para orden ' + code;
+        if (completeBtn) { completeBtn.style.display = ''; completeBtn.disabled = true; }
+    } else {
+        if (title) title.textContent = 'Liberar Inventario';
+        document.getElementById('invVerifSubtitle').textContent = 'Insumos requeridos por la orden ' + code + ' — selecciona el ítem de SAP y descarga cada línea';
+        if (completeBtn) completeBtn.style.display = 'none';
+    }
+    document.getElementById('invVerifBody').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:120px"><div class="spinner"></div></div>';
     modal.classList.add('open');
     loadVerificationMaterials(code, processKey);
+}
+
+function openLiberarInventario(code) {
+    openInventoryVerification(code, 'impresion', null);
 }
 
 function closeInventoryVerification() {
@@ -1192,62 +1674,511 @@ function closeInventoryVerification() {
     currentVerifMaterials = [];
 }
 
+// ── Formulario de Lote PT al finalizar Empaque ──
+function ensureEmpaqueLoteModal() {
+    let modal = document.getElementById('empaqueLoteModal');
+    if (modal) return modal;
+    modal = document.createElement('div');
+    modal.className = 'oam-overlay';
+    modal.id = 'empaqueLoteModal';
+    modal.innerHTML = `
+      <div class="oam-panel" style="max-width:520px">
+        <div class="oam-header">
+          <div>
+            <div class="oam-title">Finalizar Empaque</div>
+            <div class="oam-subtitle" id="empaqueLoteSubtitle">Datos del lote de producto terminado</div>
+          </div>
+          <button type="button" class="oam-close" onclick="closeEmpaqueLoteForm()">×</button>
+        </div>
+        <div class="oam-body">
+          <div class="cr-form" style="display:grid;gap:10px">
+            <label>Cantidad Producida *<input type="number" id="empLoteCantidad" min="0" step="0.01" class="cr-input"></label>
+            <label>Fecha Producción *<input type="date" id="empLoteFecha" class="cr-input"></label>
+            <label>Turno<input type="text" id="empLoteTurno" class="cr-input" placeholder="A, B o C"></label>
+            <label>Número de Rollos<input type="number" id="empLoteRollos" min="0" class="cr-input"></label>
+            <label>Número de Cajas<input type="number" id="empLoteCajas" min="0" class="cr-input"></label>
+            <label>Notas<textarea id="empLoteNotas" class="cr-textarea"></textarea></label>
+          </div>
+        </div>
+        <div class="oam-footer" style="display:flex;gap:8px">
+          <button type="button" class="btn-secondary" onclick="closeEmpaqueLoteForm()" style="margin:0;flex:1">Cancelar</button>
+          <button type="button" class="btn-commit" id="empaqueLoteSubmitBtn" style="flex:1">Finalizar Empaque</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('empaqueLoteSubmitBtn').addEventListener('click', submitEmpaqueLoteForm);
+    return modal;
+}
+
+let pendingEmpaqueCode = '';
+let pendingEmpaqueStepBtn = null;
+
+function openEmpaqueLoteForm(code, stepBtn) {
+    pendingEmpaqueCode = code;
+    pendingEmpaqueStepBtn = stepBtn;
+    const modal = ensureEmpaqueLoteModal();
+    document.getElementById('empaqueLoteSubtitle').textContent = 'Datos del lote de producto terminado — orden ' + code;
+    document.getElementById('empLoteCantidad').value = '';
+    document.getElementById('empLoteFecha').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('empLoteTurno').value = '';
+    document.getElementById('empLoteRollos').value = '';
+    document.getElementById('empLoteCajas').value = '';
+    document.getElementById('empLoteNotas').value = '';
+    modal.classList.add('open');
+}
+
+function closeEmpaqueLoteForm() {
+    const modal = document.getElementById('empaqueLoteModal');
+    if (modal) modal.classList.remove('open');
+    pendingEmpaqueCode = '';
+    pendingEmpaqueStepBtn = null;
+}
+
+function submitEmpaqueLoteForm() {
+    const cantidad = Number(document.getElementById('empLoteCantidad').value);
+    const fecha = document.getElementById('empLoteFecha').value;
+    if (!(cantidad > 0) || !fecha) {
+        alert('Debes ingresar la Cantidad Producida y la Fecha de Producción.');
+        return;
+    }
+    const code = pendingEmpaqueCode;
+    const stepBtn = pendingEmpaqueStepBtn;
+    const submitBtn = document.getElementById('empaqueLoteSubmitBtn');
+    submitBtn.disabled = true;
+    fetch(`${API}/ordenes-produccion/${encodeURIComponent(code)}/seguimiento/completar`, {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
+        body: JSON.stringify({
+            processKey: 'empaque',
+            loteData: {
+                cantidad_producida: cantidad,
+                fecha_produccion: fecha,
+                turno: document.getElementById('empLoteTurno').value || null,
+                numero_rollos: document.getElementById('empLoteRollos').value || null,
+                numero_cajas: document.getElementById('empLoteCajas').value || null,
+                notas: document.getElementById('empLoteNotas').value || null
+            }
+        })
+    }).then(r => r.json()).then(async (p) => {
+        submitBtn.disabled = false;
+        if (p && p.ok === false && p.error) { alert(p.error); return; }
+        closeEmpaqueLoteForm();
+        await preguntarProductoTerminadoYFacturaSap(code, cantidad);
+        if (stepBtn) { delete flowCache[code]; loadFlowPanel(code); }
+    }).catch((err) => {
+        submitBtn.disabled = false;
+        alert(err.message || 'No fue posible completar Empaque.');
+    });
+}
+
+// ── Captura de Artes Reales (Diseño / Preprensa) ──
+// Antes de marcar Diseño o Preprensa como completado, se piden los artes que
+// realmente se hicieron (nombre + imagen de referencia opcional). La imagen
+// se redimensiona en el navegador antes de enviarse — es solo una vista
+// previa, no el archivo final de impresión — y el servidor la comprime de
+// nuevo por seguridad (ver guardarImagenArte en server.js).
+let pendingArtesCode = '';
+let pendingArtesProcessKey = '';
+let pendingArtesStepBtn = null;
+let artesRowSeq = 0;
+
+const ARTES_PROCESS_LABELS = { diseno: 'Diseño', preprensa: 'Preprensa' };
+
+function ensureArtesModal() {
+    let modal = document.getElementById('artesModal');
+    if (modal) return modal;
+    modal = document.createElement('div');
+    modal.className = 'oam-overlay';
+    modal.id = 'artesModal';
+    modal.innerHTML = `
+      <div class="oam-panel" style="max-width:560px">
+        <div class="oam-header">
+          <div>
+            <div class="oam-title" id="artesModalTitle">Finalizar</div>
+            <div class="oam-subtitle" id="artesModalSubtitle">Artes realizados en este proceso</div>
+          </div>
+          <button type="button" class="oam-close" onclick="closeArtesForm()">×</button>
+        </div>
+        <div class="oam-body">
+          <div id="artesRows" style="display:flex;flex-direction:column;gap:10px"></div>
+          <button type="button" class="btn-secondary" style="margin-top:10px" onclick="addArteRow()">+ Agregar arte</button>
+        </div>
+        <div class="oam-footer" style="display:flex;gap:8px">
+          <button type="button" class="btn-secondary" onclick="closeArtesForm()" style="margin:0;flex:1">Cancelar</button>
+          <button type="button" class="btn-commit" id="artesSubmitBtn" style="flex:1">Finalizar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('artesSubmitBtn').addEventListener('click', submitArtesForm);
+    return modal;
+}
+
+function arteRowMarkup(rowId) {
+    return `
+      <div class="cr-form" data-arte-row="${rowId}" style="display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:8px;border:1px solid var(--ink-8, #2a2a2a);border-radius:8px">
+        <img data-arte-thumb style="width:44px;height:44px;border-radius:6px;object-fit:cover;background:var(--ink-9,#1a1a1a);display:none">
+        <input type="text" class="cr-input" data-arte-nombre placeholder="Nombre del arte" style="margin:0">
+        <div style="display:flex;gap:6px;align-items:center">
+          <label class="btn-secondary" style="margin:0;cursor:pointer;padding:6px 10px">
+            Imagen<input type="file" accept="image/*" data-arte-file style="display:none">
+          </label>
+          <button type="button" class="oam-close" data-arte-remove title="Quitar">×</button>
+        </div>
+      </div>`;
+}
+
+function addArteRow() {
+    const rowId = 'arte-' + (artesRowSeq++);
+    const container = document.getElementById('artesRows');
+    const wrap = document.createElement('div');
+    wrap.innerHTML = arteRowMarkup(rowId);
+    const rowEl = wrap.firstElementChild;
+    container.appendChild(rowEl);
+    const fileInput = rowEl.querySelector('[data-arte-file]');
+    const thumb = rowEl.querySelector('[data-arte-thumb]');
+    fileInput.addEventListener('change', () => {
+        const file = fileInput.files && fileInput.files[0];
+        if (!file) return;
+        resizeImageToDataUrl(file, 480).then((dataUrl) => {
+            rowEl.dataset.arteImagen = dataUrl;
+            thumb.src = dataUrl;
+            thumb.style.display = 'block';
+        }).catch(() => {});
+    });
+    rowEl.querySelector('[data-arte-remove]').addEventListener('click', () => rowEl.remove());
+}
+
+function resizeImageToDataUrl(file, maxDim) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const reader = new FileReader();
+        reader.onload = () => {
+            img.onload = () => {
+                const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+                const w = Math.max(1, Math.round(img.width * scale));
+                const h = Math.max(1, Math.round(img.height * scale));
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL('image/jpeg', 0.75));
+            };
+            img.onerror = reject;
+            img.src = reader.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+function openArtesForm(code, processKey, stepBtn) {
+    pendingArtesCode = code;
+    pendingArtesProcessKey = processKey;
+    pendingArtesStepBtn = stepBtn;
+    const modal = ensureArtesModal();
+    const label = ARTES_PROCESS_LABELS[processKey] || processKey;
+    document.getElementById('artesModalTitle').textContent = 'Finalizar ' + label;
+    document.getElementById('artesModalSubtitle').textContent = 'Artes realizados — orden ' + code;
+    document.getElementById('artesRows').innerHTML = '';
+    addArteRow();
+    modal.classList.add('open');
+}
+
+function closeArtesForm() {
+    const modal = document.getElementById('artesModal');
+    if (modal) modal.classList.remove('open');
+    pendingArtesCode = '';
+    pendingArtesProcessKey = '';
+    pendingArtesStepBtn = null;
+}
+
+function submitArtesForm() {
+    const rows = [...document.querySelectorAll('#artesRows [data-arte-row]')];
+    const artes = rows.map((row) => ({
+        nombre: row.querySelector('[data-arte-nombre]').value.trim(),
+        imagenBase64: row.dataset.arteImagen || null
+    })).filter((a) => a.nombre || a.imagenBase64);
+    if (!artes.length) {
+        alert('Agrega al menos un arte con nombre o imagen.');
+        return;
+    }
+    const code = pendingArtesCode;
+    const processKey = pendingArtesProcessKey;
+    const stepBtn = pendingArtesStepBtn;
+    const submitBtn = document.getElementById('artesSubmitBtn');
+    submitBtn.disabled = true;
+    fetch(`${API}/ordenes-produccion/${encodeURIComponent(code)}/seguimiento/completar`, {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
+        body: JSON.stringify({ processKey, artes })
+    }).then(r => r.json()).then((p) => {
+        submitBtn.disabled = false;
+        if (p && p.ok === false && p.error) { alert(p.error); return; }
+        closeArtesForm();
+        if (stepBtn) { delete flowCache[code]; loadFlowPanel(code); }
+    }).catch((err) => {
+        submitBtn.disabled = false;
+        alert(err.message || 'No fue posible completar el paso.');
+    });
+}
+
+async function preguntarProductoTerminadoYFacturaSap(code, cantidad) {
+    if (window.confirm('Lote de Producto Terminado creado. ¿Deseas registrar la entrada de Producto Terminado en SAP?')) {
+        try {
+            var res = await fetch(API + '/ordenes-produccion/' + encodeURIComponent(code) + '/producto-terminado-sap', {
+                method: 'POST',
+                headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
+                body: JSON.stringify({ cantidad: cantidad })
+            });
+            var result = await res.json();
+            if (!res.ok) throw new Error(result.error || 'No fue posible registrar el Producto Terminado en SAP.');
+            alert('Producto Terminado registrado en SAP. DocEntry: ' + (result.docEntry || '(sin DocEntry)'));
+        } catch (e) {
+            alert((e.message || 'No fue posible registrar el Producto Terminado en SAP.') + '\n\nPuedes intentarlo más tarde.');
+        }
+    }
+
+    // Facturación queda gateada al implementador hasta que Finanzas confirme
+    // que Empaque es el actor correcto para disparar un documento fiscal.
+    if (seguimientoTieneAccesoImplementador()) {
+        if (window.confirm('(Solo implementador — pendiente aprobación de Finanzas) ¿Deseas crear la Factura en SAP para esta orden?')) {
+            try {
+                var facturaRes = await fetch(API + '/ordenes-produccion/' + encodeURIComponent(code) + '/factura-sap', { method: 'POST', headers: sessionHeader() });
+                var facturaResult = await facturaRes.json();
+                if (!facturaRes.ok) throw new Error(facturaResult.error || 'No fue posible crear la Factura en SAP.');
+                alert('Factura creada en SAP. DocEntry: ' + (facturaResult.docEntry || '(sin DocEntry)'));
+            } catch (e) {
+                alert(e.message || 'No fue posible crear la Factura en SAP.');
+            }
+        }
+    }
+}
+
 async function loadVerificationMaterials(code, processKey) {
     try {
         const pKey = processKey || 'impresion';
         const res = await fetch(API + '/ordenes-produccion/' + encodeURIComponent(code) + '/materiales-verificacion?process=' + encodeURIComponent(pKey), { headers: sessionHeader() });
         const data = await res.json();
-        if (!res.ok || !data.ok) throw new Error(data.error || 'Error al cargar materiales');
-        currentVerifMaterials = data.materials || [];
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Error al cargar los insumos de la orden.');
+        const prevByKey = {};
+        (currentVerifMaterials || []).forEach(function(m) { if (m && m.key) prevByKey[m.key] = m; });
+        currentVerifMaterials = (data.materials || []).map(function(m) {
+            const prev = prevByKey[m.key];
+            if (prev && m.kind !== 'checklist' && !m.sapItemCode) {
+                m.sapItemCode = prev.sapItemCode || '';
+                m.sapItemLabel = prev.sapItemLabel || '';
+                m.sapItemName = prev.sapItemName || '';
+                m.sapAvailableQty = prev.sapAvailableQty != null ? prev.sapAvailableQty : null;
+            }
+            return m;
+        });
         renderVerificationMaterials();
     } catch (e) {
-        document.getElementById('invVerifBody').innerHTML = '<div class="inv-empty">Error al cargar materiales: ' + escHtml(e.message) + '</div>';
+        document.getElementById('invVerifBody').innerHTML = '<div class="inv-empty">No fue posible cargar los insumos: ' + escHtml(e.message) + '</div>';
     }
+}
+
+function verifFamilyLabel(family) {
+    var map = { sustrato: 'Sustrato', tinta: 'Tinta', barniz: 'Barniz', laminado: 'Laminante', foil: 'Foil', goma_laminante: 'Goma Laminante', goma_foil: 'Goma Foil', cores: 'Cores', cajas: 'Cajas', troquel: 'Troquel', sello: 'Sellos', material: 'Insumo' };
+    return map[family] || (family || 'Insumo');
+}
+
+function verifTintaTipoLabel(tipo) {
+    var map = { cmyk: 'Proceso', blanco: 'Blanca', pantone: 'Directa' };
+    return map[tipo] || '';
+}
+
+function verifSapOptionLabel(item) {
+    var code = item.ItemCode || item.itemCode || '';
+    var name = item.ItemName || item.itemName || '';
+    return code + (name ? ' — ' + name : '');
+}
+
+function verifSapSearchHint(family) {
+    var map = { tinta: 'tinta' };
+    return map[family] || '';
+}
+
+async function searchSapItemsForRow(i, term) {
+    var datalist = document.getElementById('sapItemsList-' + i);
+    if (!datalist) return;
+    try {
+        var q = encodeURIComponent(term || '');
+        var res = await fetch(API + '/sap/items?source=local&top=25&search=' + q, { headers: sessionHeader() });
+        var data = await res.json();
+        var rows = (data && data.value) || [];
+        verifSapItemsCache[i] = rows;
+        datalist.innerHTML = rows.map(function(item) {
+            return '<option value="' + escHtml(verifSapOptionLabel(item)) + '"></option>';
+        }).join('');
+        applySapMatchToRow(i);
+    } catch (e) {
+        // Catálogo local de SAP no disponible; el usuario puede escribir el código manualmente.
+    }
+}
+
+function applySapMatchToRow(i) {
+    var mat = currentVerifMaterials[i];
+    if (!mat || !mat.sapItemCode) return;
+    var list = verifSapItemsCache[i] || [];
+    var found = list.find(function(item) {
+        return (item.ItemCode || item.itemCode || '') === mat.sapItemCode;
+    });
+    mat.sapItemName = found ? (found.ItemName || found.itemName || '') : (mat.sapItemName || '');
+    mat.sapAvailableQty = found ? Number(found.AvailableQuantity ?? found.availableQuantity ?? found.OnHand ?? found.onHand ?? 0) : mat.sapAvailableQty;
+    var sapInput = document.getElementById('sapInput-' + i);
+    if (sapInput && mat.sapItemCode) sapInput.value = mat.sapItemCode + (mat.sapItemName ? ' — ' + mat.sapItemName : '');
+    var availEl = document.getElementById('sapAvail-' + i);
+    if (availEl && mat.sapAvailableQty != null) {
+        var short = Number(mat.sapAvailableQty).toLocaleString('es-CR', { maximumFractionDigits: 2 });
+        var low = Number(mat.sapAvailableQty) < Number(mat.plannedQuantity || 0);
+        availEl.textContent = short;
+        availEl.className = 'inv-item-qty' + (low ? ' inv-qty-low' : '');
+    }
+}
+
+function onSapItemInput(i, value) {
+    var mat = currentVerifMaterials[i];
+    if (!mat) return;
+    var match = /^(\S+)\s+—/.exec(value || '');
+    var typedCode = (match ? match[1] : (value || '').trim());
+    mat.sapItemCode = typedCode;
+    mat.sapItemLabel = value || '';
+    mat.sapItemName = '';
+    mat.sapAvailableQty = null;
+    var actionBtn = document.getElementById('sapAction-' + i);
+    var availEl = document.getElementById('sapAvail-' + i);
+    if (availEl) { availEl.textContent = ''; availEl.className = 'inv-item-qty'; }
+    if (actionBtn) actionBtn.disabled = !typedCode;
+    if (typedCode) applySapMatchToRow(i);
+    clearTimeout(verifSapSearchTimers[i]);
+    verifSapSearchTimers[i] = setTimeout(function() { searchSapItemsForRow(i, value); }, 250);
 }
 
 function renderVerificationMaterials() {
     const body = document.getElementById('invVerifBody');
     const mats = currentVerifMaterials;
+    const completeBtn = document.getElementById('invVerifCompleteBtn');
+    const requestAllBtn = document.getElementById('invVerifRequestAllBtn');
     if (!mats || !mats.length) {
-        body.innerHTML = '<div class="inv-empty">No hay materiales que verificar para esta orden.</div>';
-        document.getElementById('invVerifCompleteBtn').disabled = false;
+        body.innerHTML = '<div class="inv-empty">No se encontraron insumos (sustrato, tintas, barniz, laminante, foil, troquel o sellos) registrados en esta orden.</div>';
+        if (completeBtn && pendingVerifStepBtn) completeBtn.disabled = false;
+        if (requestAllBtn) requestAllBtn.style.display = 'none';
         return;
     }
-    const statusLabel = { PENDIENTE: 'Pendiente', SOLICITADO: 'Solicitado', SUPLIDO: 'Suplido', ERROR: 'Error' };
-    const statusClass = function(s) { return (s || 'PENDIENTE').toLowerCase(); };
-    let html = '<div class="inv-table-header"><span>Material</span><span>Cantidad</span><span>Estado</span><span>Acción</span></div>';
+    let html = '<div class="inv-table-header"><span>Insumo</span><span>Necesidad</span><span>Ítem SAP</span><span>Disponible</span><span>Acción</span></div><div class="inv-list">';
     var allDone = true;
+    var sapRowCount = 0;
+    var missingSapSelection = false;
     mats.forEach(function(m, i) {
+        if (m.kind === 'checklist') {
+            if (!m.checked) allDone = false;
+            var who = m.checked ? (escHtml(m.checkedBy || '') + (m.checkedAt ? ' · ' + new Date(m.checkedAt).toLocaleString('es-CR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '')) : 'No vive en inventario SAP — confirmo que está disponible/aprobado';
+            html += '<div class="inv-item">' +
+                '<div class="inv-item-name">' + escHtml(verifFamilyLabel(m.materialFamily)) + '</div>' +
+                '<div></div>' +
+                '<label class="inv-plate-check" title="' + escHtml(who) + '">' +
+                    '<input type="checkbox" ' + (m.checked ? 'checked' : '') + ' onchange="togglePlateChecklist(\'' + escHtml(m.approvalKey) + '\', this.checked)">' +
+                '</label>' +
+                '<div></div>' +
+                '<div></div>' +
+            '</div>';
+            return;
+        }
+        sapRowCount++;
         var st = (m.verificationStatus || 'PENDIENTE').toUpperCase();
+        var hasCode = !!m.sapItemCode;
+        var availLow = m.sapAvailableQty != null && Number(m.sapAvailableQty) < Number(m.plannedQuantity || 0);
         if (st !== 'SUPLIDO') allDone = false;
+        if (st !== 'SUPLIDO' && (!hasCode || availLow)) missingSapSelection = true;
         var qty = Number(m.plannedQuantity || 0).toLocaleString('es-CR', { maximumFractionDigits: 2 });
         var unit = escHtml(m.unitCode || '');
-        var name = escHtml(m.materialName || m.sapItemCode || '');
-        var fam = escHtml(m.materialFamily || '');
+        var name = escHtml(m.materialName || m.sapItemCode || 'Insumo');
+        var canDischarge = hasCode && !availLow;
+        var disabledAttr = canDischarge ? '' : ' disabled';
+        var disabledTitle = availLow ? ' title="El disponible en SAP es menor a lo requerido — no se puede descargar esta cantidad."' : '';
         var actionHtml = '';
         if (st === 'SUPLIDO') {
-            actionHtml = '<span class="inv-item-action suplido">✓ Suplido</span>';
-        } else if (st === 'SOLICITADO') {
-            actionHtml = '<button type="button" class="inv-item-action" onclick="suplirMaterial(' + i + ')">Suplido</button>';
+            actionHtml = '<span class="inv-item-action suplido">✓ Descargado</span>';
         } else if (st === 'ERROR') {
-            actionHtml = '<button type="button" class="inv-item-action error" onclick="solicitarMaterial(' + i + ')">Reintentar</button>';
+            actionHtml = '<button type="button" id="sapAction-' + i + '" class="inv-item-action error"' + disabledAttr + disabledTitle + ' onclick="solicitarMaterial(' + i + ')">Reintentar</button>';
         } else {
-            actionHtml = '<button type="button" class="inv-item-action" onclick="solicitarMaterial(' + i + ')">Solicitar en SAP</button>';
+            actionHtml = '<button type="button" id="sapAction-' + i + '" class="inv-item-action"' + disabledAttr + disabledTitle + ' onclick="solicitarMaterial(' + i + ')">Descargar</button>';
         }
+        var currentLabel = m.sapItemLabel || (m.sapItemCode ? (m.sapItemCode + (m.sapItemName ? ' — ' + m.sapItemName : '')) : '');
+        var errorHtml = (st === 'ERROR' && m.sapError) ? '<div class="inv-item-error">' + escHtml(m.sapError) + '</div>' : '';
+        var availText = m.sapAvailableQty != null ? Number(m.sapAvailableQty).toLocaleString('es-CR', { maximumFractionDigits: 2 }) : '';
         html += '<div class="inv-item">' +
-            '<div class="inv-item-name">' + name + ' <small>' + fam + '</small></div>' +
+            '<div class="inv-item-name">' + name + '</div>' +
             '<div class="inv-item-qty">' + qty + ' ' + unit + '</div>' +
-            '<div class="inv-item-status ' + statusClass(st) + '">' + (statusLabel[st] || 'Pendiente') + '</div>' +
+            '<div>' +
+                '<input type="text" id="sapInput-' + i + '" class="inv-sap-select" list="sapItemsList-' + i + '" placeholder="Buscar código o nombre en SAP..." value="' + escHtml(currentLabel) + '" oninput="onSapItemInput(' + i + ', this.value)">' +
+                '<datalist id="sapItemsList-' + i + '"></datalist>' +
+                errorHtml +
+            '</div>' +
+            '<div class="inv-item-qty' + (availLow ? ' inv-qty-low' : '') + '" id="sapAvail-' + i + '">' + availText + '</div>' +
             '<div>' + actionHtml + '</div>' +
         '</div>';
     });
+    html += '</div>';
     body.innerHTML = html;
-    document.getElementById('invVerifCompleteBtn').disabled = !allDone;
+    mats.forEach(function(m, i) {
+        if (m.kind === 'checklist') return;
+        var term = m.sapItemLabel || m.sapItemCode || verifSapSearchHint(m.materialFamily) || '';
+        searchSapItemsForRow(i, term);
+    });
+    if (completeBtn && pendingVerifStepBtn) completeBtn.disabled = !allDone;
+    if (requestAllBtn) {
+        requestAllBtn.style.display = sapRowCount ? '' : 'none';
+        requestAllBtn.disabled = missingSapSelection;
+        requestAllBtn.title = missingSapSelection ? 'Selecciona un ítem de SAP con disponible suficiente en todas las filas pendientes antes de descargar todo.' : '';
+    }
+}
+
+async function togglePlateChecklist(approvalKey, checked) {
+    try {
+        var res = await fetch(API + '/ordenes-produccion/' + encodeURIComponent(pendingVerifCode) + '/materiales-aprobacion', {
+            method: 'PATCH',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
+            body: JSON.stringify({ approvalKey: approvalKey, checked: checked })
+        });
+        var data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Error');
+        await loadVerificationMaterials(pendingVerifCode, pendingVerifProcessKey);
+    } catch (e) {
+        alert(e.message || 'No fue posible actualizar la verificación de sellos.');
+        await loadVerificationMaterials(pendingVerifCode, pendingVerifProcessKey);
+    }
+}
+
+async function solicitarTodosMateriales() {
+    var btn = document.getElementById('invVerifRequestAllBtn');
+    var pending = [];
+    currentVerifMaterials.forEach(function(m, i) {
+        if (m.kind === 'checklist') return;
+        var st = (m.verificationStatus || 'PENDIENTE').toUpperCase();
+        var availLow = m.sapAvailableQty != null && Number(m.sapAvailableQty) < Number(m.plannedQuantity || 0);
+        if ((st === 'PENDIENTE' || st === 'ERROR') && m.sapItemCode && !availLow) pending.push(i);
+    });
+    if (!pending.length) return;
+    if (btn) btn.disabled = true;
+    for (var p = 0; p < pending.length; p++) {
+        await solicitarMaterial(pending[p]);
+    }
+    if (btn) btn.disabled = false;
 }
 
 async function solicitarMaterial(index) {
     var mat = currentVerifMaterials[index];
     if (!mat) return;
+    if (!mat.sapItemCode) {
+        alert('Debes seleccionar un ítem de SAP antes de hacer la descarga.');
+        return;
+    }
+    if (mat.sapAvailableQty != null && Number(mat.sapAvailableQty) < Number(mat.plannedQuantity || 0)) {
+        alert('El disponible en SAP (' + mat.sapAvailableQty + ') es menor a lo requerido (' + mat.plannedQuantity + '). No se puede descargar esta cantidad.');
+        return;
+    }
     var body = document.getElementById('invVerifBody');
     var btns = body ? body.querySelectorAll('.inv-item-action') : [];
     btns.forEach(function(b) { b.disabled = true; });
@@ -1256,7 +2187,7 @@ async function solicitarMaterial(index) {
             method: 'POST',
             headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
             body: JSON.stringify({
-                processKey: 'impresion',
+                processKey: pendingVerifProcessKey,
                 sapItemCode: mat.sapItemCode,
                 materialName: mat.materialName,
                 materialFamily: mat.materialFamily,
@@ -1264,15 +2195,16 @@ async function solicitarMaterial(index) {
                 unitCode: mat.unitCode
             })
         });
-        var data = await res.json();
-        if (!res.ok || !data.ok) throw new Error(data.error || data.verification && data.verification.sapError || 'Error al solicitar en SAP');
-        await loadVerificationMaterials(pendingVerifCode, 'impresion');
+        var data = await res.json().catch(function() { return {}; });
+        if (!res.ok || !data.ok) {
+            throw new Error((data && (data.error || (data.verification && data.verification.sapError))) || 'No fue posible conectar con el servidor.');
+        }
+        await loadVerificationMaterials(pendingVerifCode, pendingVerifProcessKey);
     } catch (e) {
         mat.verificationStatus = 'ERROR';
-        mat.sapError = e.message;
+        mat.sapError = e.message || 'Sin conexión con el servidor.';
         renderVerificationMaterials();
     }
-    btns.forEach(function(b) { b.disabled = false; });
 }
 
 async function suplirMaterial(index) {
@@ -1321,6 +2253,49 @@ async function completeAndMarkVerification() {
     }
 }
 
+async function ejecutarLiberacionParcial() {
+    var code = pendingVerifCode;
+    var btn = document.getElementById('invVerifPartialBtn');
+    if (!code) { closeInventoryVerification(); return; }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;display:inline-block"></span> Liberando...';
+    }
+
+    try {
+        if (Array.isArray(currentVerifMaterials)) {
+            for (var i = 0; i < currentVerifMaterials.length; i++) {
+                var m = currentVerifMaterials[i];
+                if (m && m.kind === 'checklist' && m.approvalKey && !m.checked) {
+                    await togglePlateChecklist(m.approvalKey, true).catch(function() {});
+                }
+            }
+        }
+
+        var res = await fetch(API + '/ordenes-produccion/' + encodeURIComponent(code) + '/planeacion/liberacion-parcial', {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
+            body: JSON.stringify({ processKey: 'planeacion', marked: true })
+        });
+        var data = await res.json().catch(function() { return {}; });
+        if (!res.ok || !data.ok) {
+            throw new Error((data && data.error) || 'No fue posible registrar la liberación parcial.');
+        }
+
+        closeInventoryVerification();
+        delete flowCache[code];
+        loadFlowPanel(code);
+    } catch (e) {
+        alert(e.message || 'Error al ejecutar la liberación parcial.');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = 'Liberación Parcial';
+        }
+    }
+}
+
 // ── Pending List ──
 function openPendingList() {
     var modal = document.getElementById('pendingListModal');
@@ -1360,9 +2335,10 @@ function renderPendingList(items) {
         var unit = escHtml(item.unit_code || '');
         var name = escHtml(item.material_name || item.sap_item_code || '');
         var code = escHtml(item.order_code || '');
+        var errorHint = (st === 'ERROR' && item.sap_error) ? '<div class="inv-item-error">' + escHtml(item.sap_error) + '</div>' : '';
         html += '<div class="pl-item">' +
             '<div><div class="pl-order-code" onclick="closePendingList();searchByOrder(\'' + escHtml(item.order_code) + '\')">' + code + '</div>' +
-            '<div class="pl-material">' + name + '</div></div>' +
+            '<div class="pl-material">' + name + '</div>' + errorHint + '</div>' +
             '<div class="pl-qty">' + qty + ' ' + unit + '</div>' +
             '<div class="pl-status inv-item-status ' + st.toLowerCase() + '">' + (statusLabel[st] || st) + '</div>' +
         '</div>';
@@ -1381,6 +2357,8 @@ function searchByOrder(code) {
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('pendingListBtn')?.addEventListener('click', openPendingList);
     document.getElementById('invVerifCompleteBtn')?.addEventListener('click', completeAndMarkVerification);
+    document.getElementById('invVerifRequestAllBtn')?.addEventListener('click', solicitarTodosMateriales);
+    document.getElementById('invVerifPartialBtn')?.addEventListener('click', ejecutarLiberacionParcial);
 });
 
 (function injectSeguimientoStyles(){
@@ -1393,8 +2371,32 @@ document.addEventListener('DOMContentLoaded', function() {
 .pp-stat-label{font-size:10px;color:var(--text3)}
 .pp-stat.pp-late .pp-stat-num{color:var(--red,#E24B4A)}
 .pp-stat.pp-risk .pp-stat-num{color:var(--amber,#F5A623)}
+.step-tip-portal{position:fixed;background:var(--text);color:var(--surface);border-radius:7px;padding:7px 10px;font-size:11.5px;line-height:1.45;white-space:nowrap;pointer-events:none;z-index:9999;box-shadow:0 8px 20px rgba(20,26,46,.18);opacity:0;transform:translate(-50%,-100%) translateY(-8px);transition:opacity .12s}
+.step-tip-portal.show{opacity:1}
 `;
   const style = document.createElement('style');
   style.textContent = css;
   document.head.appendChild(style);
+})();
+
+// Tooltip de los puntitos del flujo: flota fuera de la tarjeta (position:fixed en <body>)
+// para que nunca quede recortado por el overflow:hidden de .order-row.
+(function initStepTipPortal(){
+  const portal = document.createElement('div');
+  portal.className = 'step-tip-portal';
+  document.body.appendChild(portal);
+  function show(wrap){
+    const tip = wrap.getAttribute('data-tip');
+    if (!tip) return;
+    portal.innerHTML = tip;
+    const r = wrap.querySelector('.step-pip').getBoundingClientRect();
+    portal.style.left = (r.left + r.width / 2) + 'px';
+    portal.style.top = r.top + 'px';
+    portal.classList.add('show');
+  }
+  function hide(){ portal.classList.remove('show'); }
+  document.addEventListener('mouseover', (e) => { const w = e.target.closest('.step-pip-wrap'); if (w) show(w); });
+  document.addEventListener('mouseout', (e) => { if (e.target.closest('.step-pip-wrap')) hide(); });
+  document.addEventListener('focusin', (e) => { const w = e.target.closest('.step-pip-wrap'); if (w) show(w); });
+  document.addEventListener('focusout', (e) => { if (e.target.closest('.step-pip-wrap')) hide(); });
 })();
