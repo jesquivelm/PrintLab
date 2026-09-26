@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reprogramar producción</title>
+<title>Reprogramar Producción</title>
 <script>
 (function(){try{var t=localStorage.getItem('theme')||localStorage.getItem('erp-theme');if(!t&&window.parent&&window.parent!==window){t=window.parent.document.documentElement.getAttribute('data-theme');}if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
@@ -11,306 +11,568 @@
 :root{
   --bg:#f5f7fb;--surface:#ffffff;--surface2:#f8fafc;--border:#e2e8f0;--border2:#cbd5e1;
   --text:#0f172a;--text2:#475569;--text3:#94a3b8;--grid:#eef2f7;
-  --good:#0ca30c;--warn:#b7791f;--crit:#d03b3b;--neutral:#94a3b8;--accent:#6d28d9;
-  --good-bg:rgba(12,163,12,.08);--warn-bg:rgba(250,178,25,.12);--crit-bg:rgba(208,59,59,.08);--accent-bg:rgba(109,40,217,.08);
-  --before:#b6c0cd;--link:#cbd5e1;
+  --good:#0f9d58;--warn:#d97706;--crit:#d03b3b;--neutral:#94a3b8;--accent:#6d28d9;--amber:#b7791f;
+  --good-bg:rgba(15,157,88,.10);--warn-bg:rgba(217,119,6,.12);--crit-bg:rgba(208,59,59,.09);--accent-bg:rgba(109,40,217,.08);--amber-bg:rgba(250,178,25,.14);
+  --before:#c3ccd8;--before-b:#aab5c4;
 }
 html[data-theme="dark"]{
   --bg:#0b1220;--surface:#111a2e;--surface2:#0f172a;--border:#1f2c44;--border2:#2b3a57;
   --text:#e2e8f0;--text2:#a3b1c6;--text3:#6b7a92;--grid:#1a2539;
-  --good:#34c759;--warn:#fab219;--crit:#ff6b6b;--neutral:#64748b;--accent:#a78bfa;
-  --good-bg:rgba(52,199,89,.12);--warn-bg:rgba(250,178,25,.12);--crit-bg:rgba(255,107,107,.12);--accent-bg:rgba(167,139,250,.12);
-  --before:#4b5b75;--link:#334155;
+  --good:#34c759;--warn:#fb923c;--crit:#ff6b6b;--neutral:#64748b;--accent:#a78bfa;--amber:#fab219;
+  --good-bg:rgba(52,199,89,.13);--warn-bg:rgba(251,146,60,.14);--crit-bg:rgba(255,107,107,.13);--accent-bg:rgba(167,139,250,.13);--amber-bg:rgba(250,178,25,.13);
+  --before:#3a4863;--before-b:#4b5b75;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 'DM Sans',system-ui,-apple-system,Segoe UI,sans-serif}
-.wrap{max-width:1280px;margin:0 auto;padding:20px 20px 120px}
-header.top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
-h1{font-size:22px;margin:0}
-.sub{color:var(--text2);margin-top:4px}
-.pill-preview{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--accent-bg);color:var(--accent);font-weight:700;font-size:12px;margin-top:8px}
-.btn{font:inherit;font-weight:600;padding:9px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--surface);color:var(--text);cursor:pointer}
+.wrap{max-width:1300px;margin:0 auto;padding:18px 20px 110px}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 44px 14px 0}
+h1{font-size:22px;margin:0;display:flex;align-items:center;gap:10px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:var(--accent-bg);color:var(--accent);font-weight:700;font-size:12px}
+.acciones-top{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:600;padding:8px 14px;border-radius:10px;border:1px solid var(--border2);background:var(--surface);color:var(--text);cursor:pointer;transition:border-color .15s,box-shadow .15s,background .15s;text-decoration:none}
 .btn:hover{border-color:var(--accent)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{box-shadow:0 6px 18px rgba(109,40,217,.3)}
 .btn.danger{color:var(--crit);border-color:var(--crit)}
-.btn:disabled{opacity:.5;cursor:not-allowed}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
-.tile{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px}
-.tile .n{font-size:26px;font-weight:800;line-height:1.1}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.small{padding:4px 10px;font-size:12px}
+.btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.btn.pulso{animation:pulso 1.4s ease-in-out infinite;border-color:var(--accent);color:var(--accent)}
+@keyframes pulso{0%,100%{box-shadow:0 0 0 0 rgba(109,40,217,.35)}50%{box-shadow:0 0 0 6px rgba(109,40,217,0)}}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:10px;margin-bottom:14px}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:10px 14px;cursor:pointer;text-align:left;font:inherit;color:inherit;transition:transform .15s,border-color .15s}
+.tile:hover{transform:translateY(-1px);border-color:var(--border2)}
+.tile.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-bg)}
+.tile .n{font-size:24px;font-weight:800;line-height:1.1}
 .tile .l{font-size:12px;color:var(--text2);margin-top:2px}
-.tile .i{font-size:12px;margin-right:4px}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px}
-.card h2{font-size:16px;margin:0 0 4px}
-.card .hint{color:var(--text2);font-size:13px;margin-bottom:12px}
-.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin-bottom:8px}
-.legend span{display:inline-flex;align-items:center;gap:6px}
-.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
-.tick{width:3px;height:12px;background:var(--text);display:inline-block;border-radius:2px}
-.chart-scroll{overflow-x:auto}
-svg text{fill:var(--text2);font-size:11px}
-.tt{position:fixed;pointer-events:none;background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;font-size:12px;box-shadow:0 10px 30px rgba(15,23,42,.18);max-width:320px;z-index:50;display:none}
-.tt b{font-size:13px}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);padding:6px 8px;border-bottom:1px solid var(--border)}
-td{padding:8px;border-top:1px solid var(--grid);vertical-align:middle}
-tr.excl td{opacity:.55}
-.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
-.b-tarde{color:var(--crit);background:var(--crit-bg)}
-.b-sin-colchon{color:var(--warn);background:var(--warn-bg)}
-.b-a-tiempo{color:var(--good);background:var(--good-bg)}
-.b-neutral{color:var(--text2);background:var(--surface2);border:1px solid var(--border)}
-.mov-adelanta{color:var(--good);font-weight:700}
-.mov-atrasa{color:var(--crit);font-weight:700}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 16px;margin-bottom:14px}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.card h2{font-size:15px;margin:0}
 .muted{color:var(--text3)}
 .small{font-size:12px}
-details summary{cursor:pointer;font-weight:700;margin-bottom:8px}
-.bar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:12px;justify-content:flex-end;flex-wrap:wrap;box-shadow:0 -8px 24px rgba(15,23,42,.08)}
+.aviso{border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:13px}
+.aviso.warn{background:var(--amber-bg);color:var(--text)}
+.aviso.crit{background:var(--crit-bg)}
+/* ── Cortina antes / después ── */
+.leyenda{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text2);align-items:center}
+.leyenda span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:18px;height:9px;border-radius:3px;display:inline-block}
+.sw-cli{width:3px;height:12px;border-radius:2px;background:var(--text);display:inline-block}
+.sw-comp{width:9px;height:9px;transform:rotate(45deg);background:var(--accent);display:inline-block}
+.cortina-scroll{max-height:470px;overflow:auto;border:1px solid var(--border);border-radius:12px;position:relative}
+.cortina{display:grid;grid-template-columns:230px 1fr;position:relative}
+.eti-col{position:sticky;left:0;z-index:6;background:var(--surface);border-right:1px solid var(--border)}
+.eti-h,.tl-h{height:34px;position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--border)}
+.eti-h{z-index:7;display:flex;align-items:center;padding:0 10px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em}
+.eti{height:32px;display:flex;flex-direction:column;justify-content:center;padding:0 10px;border-bottom:1px solid var(--grid);cursor:pointer;overflow:hidden}
+.eti:hover{background:var(--surface2)}
+.eti b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+.eti span{font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+.tl{position:relative}
+.tl-h{overflow:hidden}
+.tl-h .tk{position:absolute;top:0;height:100%;font-size:11px;color:var(--text3);padding:9px 0 0 4px;border-left:1px solid var(--grid);white-space:nowrap}
+.tl-cuerpo{position:relative}
+.grid-v{position:absolute;top:0;bottom:0;width:1px;background:var(--grid)}
+.grid-dom{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,transparent 0 5px,var(--grid) 5px 7px)}
+.fila-bg{height:32px;border-bottom:1px solid var(--grid)}
+.capa{position:absolute;inset:0;pointer-events:none}
+.capa .blk{position:absolute;height:14px;border-radius:5px;pointer-events:auto;cursor:pointer}
+.capa-antes .blk{background:var(--before);border:1px solid var(--before-b)}
+.capa-despues .blk{box-shadow:0 2px 6px rgba(15,23,42,.15)}
+.blk.e-bien{background:var(--good)}
+.blk.e-atrasa{background:var(--crit)}
+.blk.e-negociar{background:var(--warn)}
+.blk.e-colchon{background:var(--amber)}
+.blk.e-neutral{background:var(--neutral)}
+.mk{position:absolute;pointer-events:auto}
+.mk-cli{width:3px;height:20px;border-radius:2px;background:var(--text);margin-left:-1.5px}
+.mk-comp{width:10px;height:10px;transform:rotate(45deg);background:var(--accent);border:2px solid var(--surface);margin-left:-5px}
+.mk-fuera{font-size:12px;line-height:1;color:var(--crit);padding:2px 3px;background:var(--surface);border-radius:4px;z-index:2}
+.hoy{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);opacity:.7;z-index:3}
+.cortina-linea{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--text);z-index:4;cursor:ew-resize;touch-action:none}
+.cortina-linea::before{content:'';position:absolute;top:0;bottom:0;left:-9px;right:-9px}
+.pomo{position:sticky;top:130px;margin:40px 0 0 -15px;width:32px;height:32px;border-radius:50%;background:var(--surface);border:2px solid var(--text);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;box-shadow:0 4px 14px rgba(15,23,42,.25);user-select:none}
+.lado{position:absolute;top:6px;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:999px;pointer-events:none;white-space:nowrap}
+.lado.a{right:10px;background:var(--before);color:var(--text)}
+.lado.d{left:10px;background:var(--accent);color:#fff}
+/* ── Tabla compacta ── */
+.filtros{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font:inherit;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.tabla-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--surface)}
+td{padding:6px 8px;border-top:1px solid var(--grid);vertical-align:middle}
+tr.mantenida td{opacity:.55}
+.op{font:600 11.5px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text3);text-decoration:none;border-bottom:1px dotted var(--text3);cursor:pointer;white-space:nowrap}
+.op:hover{color:var(--accent);border-color:var(--accent)}
+.tc b{display:block;max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc span{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px}
+.clase{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;border-radius:6px;font-size:10.5px;font-weight:800;color:#fff}
+.clase-A{background:linear-gradient(135deg,#7c3aed,#c026d3)}
+.clase-B{background:linear-gradient(135deg,#0284c7,#06b6d4)}
+.clase-C{background:linear-gradient(135deg,#64748b,#94a3b8)}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.b-bien{color:var(--good);background:var(--good-bg)}
+.b-atrasa{color:var(--crit);background:var(--crit-bg)}
+.b-negociar{color:var(--warn);background:var(--warn-bg)}
+.b-colchon{color:var(--amber);background:var(--amber-bg)}
+.b-neutral{color:var(--text2);background:var(--surface2);border:1px solid var(--border)}
+.delta{font-size:11px;font-weight:700;margin-left:4px}
+.delta.mas{color:var(--crit)}
+.delta.menos{color:var(--good)}
+.fecha{white-space:nowrap}
+select.mini,input.mini{font:inherit;font-size:12px;padding:3px 6px;border-radius:8px;border:1px solid var(--border2);background:var(--surface);color:var(--text)}
+input.mini{width:52px}
+.mini.tocado{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-bg)}
+.candado{font-size:13px;cursor:help;white-space:nowrap}
+.vacio{padding:18px;text-align:center;color:var(--text2)}
+/* ── Barra inferior ── */
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:10px;justify-content:flex-end;flex-wrap:wrap;box-shadow:0 -8px 24px rgba(15,23,42,.08);z-index:20}
 .bar .info{margin-right:auto;color:var(--text2);font-size:13px}
 .loading{padding:60px;text-align:center;color:var(--text2)}
-.res-row{display:grid;grid-template-columns:180px 1fr 60px;gap:10px;align-items:center;margin:6px 0;font-size:13px}
-.res-track{height:10px;border-radius:999px;background:var(--surface2);border:1px solid var(--border);overflow:hidden}
-.res-fill{height:100%;background:var(--accent);border-radius:999px}
-.empty{padding:14px;color:var(--text2);font-size:13px}
-@media (max-width:720px){.res-row{grid-template-columns:110px 1fr 50px}}
-.ayuda summary{font-size:15px}
-.ayuda-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:12px}
-.ayuda h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);margin:0 0 8px}
-.ayuda ol{margin:0;padding-left:18px;display:grid;gap:8px;font-size:13px}
-.ayuda dl{margin:0;display:grid;grid-template-columns:150px 1fr;gap:6px 12px;font-size:13px}
-.ayuda dt{font-weight:700}
-.ayuda dd{margin:0;color:var(--text2)}
-@media (max-width:860px){.ayuda-grid{grid-template-columns:1fr}.ayuda dl{grid-template-columns:1fr}}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:gira .8s linear infinite;vertical-align:-3px;margin-right:8px}
+@keyframes gira{to{transform:rotate(360deg)}}
+.tt{position:fixed;pointer-events:none;background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:9px 12px;font-size:12px;box-shadow:0 10px 30px rgba(15,23,42,.18);max-width:320px;z-index:60;display:none}
+/* ── Modales ── */
+.modal-fondo{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:40;padding:16px}
+.modal-fondo.open{display:flex}
+.modal{background:var(--surface);border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.35);width:min(620px,100%);max-height:calc(100vh - 32px);overflow:auto;padding:20px 22px;animation:entra .25s ease}
+.modal.ancho{width:min(900px,100%)}
+@keyframes entra{from{transform:translateY(10px) scale(.98);opacity:0}}
+.modal h3{margin:0 0 4px;font-size:18px}
+.modal label{display:block;font-size:12px;font-weight:700;color:var(--text2);margin:12px 0 4px}
+.modal select,.modal textarea{width:100%;font:inherit;padding:8px 10px;border-radius:10px;border:1px solid var(--border2);background:var(--surface);color:var(--text)}
+.modal textarea{min-height:64px;resize:vertical}
+.modal-acc{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.resumen-ap{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.resumen-ap div{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:8px 10px}
+.resumen-ap b{font-size:20px;display:block}
+.dest{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;padding:6px 0;border-top:1px solid var(--grid)}
+.modal .check{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;margin-top:14px;color:var(--text)}
+.lista-bloq{max-height:280px;overflow:auto;border:1px solid var(--border);border-radius:12px;margin-top:8px}
+.modal .lista-bloq label{display:flex;align-items:center;gap:10px;margin:0;padding:7px 10px;border-top:1px solid var(--grid);font-weight:500;color:var(--text);font-size:13px}
+.barras-h{display:flex;align-items:flex-end;gap:6px;height:90px;padding:6px 0 0;border-bottom:1px solid var(--border);margin:10px 0 14px}
+.barras-h>div{flex:1;max-width:36px;background:var(--accent);border-radius:5px 5px 0 0;min-height:2px;position:relative}
+/* ── Visor flotante de la orden ── */
+.visor{position:fixed;top:60px;right:40px;width:880px;height:620px;min-width:420px;min-height:300px;max-width:calc(100vw - 20px);max-height:calc(100vh - 20px);background:var(--surface);border:1px solid var(--border2);border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.35);z-index:50;display:none;flex-direction:column;resize:both;overflow:hidden}
+.visor.open{display:flex}
+.visor-h{display:flex;align-items:center;gap:6px;padding:6px 8px 6px 14px;border-bottom:1px solid var(--border);cursor:move;user-select:none;background:var(--surface2);touch-action:none}
+.visor-h b{margin-right:auto;font-size:13px}
+.visor iframe{flex:1;border:0;width:100%}
+.visor.moviendo iframe{pointer-events:none}
+/* ── Paso a paso ── */
+.guia{width:min(720px,100%);padding:0;overflow:hidden}
+.guia-top{padding:18px 22px 0}
+.guia-escena{height:250px;margin:12px 22px;border-radius:16px;background:linear-gradient(180deg,var(--accent-bg),transparent);position:relative;overflow:hidden}
+.guia-texto{padding:0 22px;min-height:48px;font-size:15px}
+.guia-pie{display:flex;align-items:center;gap:8px;padding:14px 22px 18px}
+.puntos{display:flex;gap:6px;margin-right:auto}
+.puntos i{width:8px;height:8px;border-radius:50%;background:var(--border2);transition:all .25s}
+.puntos i.on{width:22px;border-radius:999px;background:var(--accent)}
+.tarjeta{position:absolute;background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:8px 12px;box-shadow:0 8px 20px rgba(15,23,42,.12);font-size:13px}
+.a-entra{animation:aEntra .6s cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes aEntra{from{transform:translateY(24px) scale(.9);opacity:0}}
+.a-cae{animation:aCae 1s cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes aCae{from{transform:translateY(-90px);opacity:0}}
+.a-aparece{animation:aAparece .5s ease both}
+@keyframes aAparece{from{opacity:0}}
+.a-crece{transform-origin:left;animation:aCrece .7s ease both}
+@keyframes aCrece{from{transform:scaleX(0)}}
+.a-flecha{transform-origin:right;animation:aCrece 1s ease both}
+.dia{position:absolute;top:90px;width:62px;height:62px;border-radius:12px;background:var(--surface);border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:var(--text2)}
+.dia b{font-size:18px;color:var(--text)}
+.carril{position:absolute;left:136px;right:24px;height:30px;border-radius:8px;background:var(--surface);border:1px solid var(--border)}
+.carril-n{position:absolute;left:14px;width:120px;white-space:nowrap;font-size:12px;font-weight:700;height:30px;display:flex;align-items:center}
+.bloque{position:absolute;top:4px;height:20px;border-radius:6px;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;padding:0 6px;white-space:nowrap;overflow:hidden}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
-    <div>
-      <h1>Reprogramar producción</h1>
-      <div class="sub">Así quedaría la programación. Revísala antes de aplicar.</div>
-      <div class="pill-preview">👁 Vista previa — todavía no se ha cambiado nada</div>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn" id="btnRecalcular" type="button">↻ Recalcular con mis cambios</button>
+    <h1>Reprogramar Producción <span class="pill">👁 Vista previa</span></h1>
+    <div class="acciones-top">
+      <button class="btn" id="btnGuia" type="button">❓ ¿Cómo funciona?</button>
+      <button class="btn" id="btnHistorial" type="button">🕘 Historial</button>
+      <button class="btn" id="btnRecalcular" type="button" disabled>↻ Recalcular</button>
     </div>
   </header>
-  <details class="card ayuda" id="ayuda">
-    <summary>❓ ¿Cómo decide el reprogramador? <span class="muted small">— léelo antes de aplicar</span></summary>
-    <div class="ayuda-grid">
-      <div>
-        <h3>Los pasos, en orden</h3>
-        <ol>
-          <li><b>Toma las órdenes pendientes</b>: no entregadas, no detenidas y no anuladas.</li>
-          <li><b>Solo programa los procesos con “Activo en Gantt”</b> (Costos → Procesos del Cálculo), en ese orden: hoy Impresión → Rebobinado → Empaque. Ningún proceso empieza antes de que termine el anterior de su orden.</li>
-          <li><b>Aparta las órdenes en aprobación</b>: si todavía tienen Diseño, Preprensa o Aprobaciones pendientes, no se programan (la fecha se da después de aprobar).</li>
-          <li><b>Respeta lo fijo</b>: lo que está en marcha, lo movido a mano en el Gantt (🔒), lo que tiene bloqueo suave y lo que tú marques como <i>Mantener</i>. Eso no se mueve; lo demás se acomoda alrededor.</li>
-          <li><b>Acomoda el resto por prioridad</b>: primero las de fecha forzada, luego Urgentes, Clase A y Regulares. Dentro de cada grupo, la que tiene la fecha objetivo más cercana va primero.</li>
-          <li><b>Coloca cada proceso en el primer hueco libre</b> de su máquina o estación, dentro de su horario, sin encimar trabajos y rellenando huecos para que no queden paradas.</li>
-          <li><b>Te muestra el resultado sin guardar nada.</b> Solo al pulsar “Aplicar” cambia la programación; queda registrado a tu nombre y se puede deshacer.</li>
-        </ol>
-      </div>
-      <div>
-        <h3>Qué significa cada término</h3>
-        <dl>
-          <dt>Fecha del cliente</dt><dd>La que pidió el cliente; vive en la orden y el reprogramador nunca la cambia.</dd>
-          <dt>Buffer (colchón)</dt><dd>Días de margen antes de la fecha del cliente. Sale de Costos, salvo que se ajuste en Estimar para esa orden.</dd>
-          <dt>Fecha objetivo</dt><dd>Fecha del cliente menos el buffer (sin contar domingos ni feriados). Es la meta para terminar producción.</dd>
-          <dt>Tiempo de cada proceso</dt><dd>El que calculó la orden (Impresión, Rebobinado, Empaque); si producción lo corrigió, el valor vigente.</dd>
-          <dt>Horario</dt><dd>El turno del proceso o de la máquina (Calendarios), menos feriados y mantenimientos, más horas extra vigentes.</dd>
-          <dt>✓ A tiempo</dt><dd>Termina antes de la fecha objetivo. Se entrega en la fecha del cliente.</dd>
-          <dt>⚠ Sin colchón</dt><dd>Termina después de la fecha objetivo pero antes de la del cliente: llega, sin margen.</dd>
-          <dt>⏰ Tarde</dt><dd>Termina después de la fecha del cliente. La entrega estimada es el siguiente día laborable: hay que avisar al vendedor.</dd>
-          <dt>Entrega estimada</dt><dd>La fecha que se le puede dar al cliente con esta programación.</dd>
-          <dt>Se adelanta / se atrasa</dt><dd>Comparación entre cuándo termina hoy (lo guardado) y cuándo terminaría si aplicas.</dd>
-          <dt>🔒 Fija</dt><dd>No se mueve en esta corrida (en marcha, movida a mano, bloqueo suave o mantenida por ti).</dd>
-          <dt>Bloqueo suave</dt><dd>Se marca en Estimar cuando la fecha ya se prometió. Se respeta, salvo que marques <i>Liberar</i>.</dd>
-          <dt>Fecha forzada</dt><dd>“Esta orden sale en esta fecha”: se programa antes que las demás.</dd>
-          <dt>⏳ En aprobación</dt><dd>Aún no pasa Diseño/Preprensa/Aprobaciones; se programará cuando se apruebe.</dd>
-          <dt>Falta dato del cálculo</dt><dd>La orden no trae el tiempo o las personas del proceso; no se programa hasta corregirlo.</dd>
-        </dl>
-      </div>
-    </div>
-  </details>
-  <div id="contenido"><div class="loading">Calculando la programación…</div></div>
+  <div id="contenido"><div class="loading"><span class="spin"></span>Calculando la programación…</div></div>
 </div>
+
 <div class="bar">
   <div class="info" id="barInfo"></div>
-  <button class="btn danger" id="btnDeshacer" type="button" title="Vuelve las fechas a como estaban antes de la última reprogramación aplicada">⟲ Deshacer la última</button>
   <button class="btn" id="btnCerrar" type="button">Cancelar</button>
-  <button class="btn primary" id="btnAplicar" type="button" disabled>Aplicar reprogramación</button>
+  <button class="btn primary" id="btnAplicar" type="button" disabled>Aplicar…</button>
 </div>
 <div class="tt" id="tt"></div>
+
+<!-- Visor flotante de la orden: se arrastra por la barra y se redimensiona por la esquina -->
+<div class="visor" id="visor">
+  <div class="visor-h" id="visorH"><b id="visorT">Orden</b>
+    <a class="btn ghost small" id="visorNueva" target="_blank" rel="noopener" title="Abrir en otra pestaña">↗</a>
+    <button class="btn ghost small" id="visorX" type="button" title="Cerrar">✕</button></div>
+  <iframe id="visorF" title="Orden de producción"></iframe>
+</div>
+
+<div class="modal-fondo" id="mAplicar"><div class="modal" id="mAplicarC"></div></div>
+<div class="modal-fondo" id="mHist"><div class="modal ancho" id="mHistC"></div></div>
+<div class="modal-fondo" id="mGuia"><div class="modal guia">
+  <div class="guia-top"><h3 id="guiaT"></h3></div>
+  <div class="guia-escena" id="guiaE"></div>
+  <div class="guia-texto" id="guiaX"></div>
+  <div class="guia-pie"><div class="puntos" id="guiaP"></div>
+    <button class="btn ghost" id="guiaAnt" type="button">Anterior</button>
+    <button class="btn primary" id="guiaSig" type="button">Siguiente</button></div>
+</div></div>
+
 <script>
 const API='/api/planificacion/reprogramar';
-const ESTADO={ 'tarde':['b-tarde','⏰ Tarde'], 'sin-colchon':['b-sin-colchon','⚠ Sin colchón'], 'a-tiempo':['b-a-tiempo','✓ A tiempo'], 'en-aprobacion':['b-neutral','⏳ En aprobación'], 'sin-programar':['b-neutral','— Sin horario'], 'sin-fecha':['b-neutral','Sin fecha del cliente'], 'falta-dato':['b-sin-colchon','⚠ Falta dato del cálculo'] };
-const MOTIVO={ 'bloqueo-suave':'Bloqueo suave', 'movida-a-mano':'Movida a mano en el Gantt', 'en-marcha':'En marcha', 'mantenida':'La mantuviste como está' };
-const PRIORIDAD={ forzada:'📌 Fecha forzada', urgente:'Urgente', clase_a:'Clase A', normal:'Regular' };
-const ESTADO_ORDEN={ PENDIENTE_VENTAS:'Pendiente de Ventas', PENDIENTE_PLANIFICACION:'Pendiente de Planeación', EN_GANTT:'Programada', EN_PRODUCCION:'En producción', COMPLETADA:'Completada' };
-const estadoOrden=v=>ESTADO_ORDEN[v]||String(v||'').replace(/_/g,' ').toLowerCase();
-let datos=null;
-const mantener=new Set();
-const liberar=new Set();
+// Estado → [clase del bloque / insignia, texto]
+const ESTADO={
+  'cumple':['bien','✓ Cumple'], 'adelanta':['bien','▼ Se adelanta'], 'a-tiempo':['bien','✓ A tiempo'],
+  'atrasa':['atrasa','⏰ Atrasa'], 'negociar':['negociar','🤝 Negociar'], 'sin-colchon':['colchon','⚠ Sin colchón'],
+  'en-aprobacion':['neutral','⏳ En aprobación'], 'sin-programar':['neutral','— Sin horario'], 'falta-dato':['colchon','⚠ Falta dato']
+};
+const FIJA={ 'bloqueo-suave':'Bloqueo suave', 'movida-a-mano':'Movida a mano en el Gantt', 'en-marcha':'En marcha', 'mantenida':'La mantuviste' };
+let datos=null, filtro='todas', pendiente=false;
+const mantener=new Set(), liberar=new Set(), ajustes={};
 
 function sesion(){try{const s=JSON.parse(localStorage.getItem('erp-user-session')||'null');if(!s)return{};return{'x-erp-session':JSON.stringify({id:s.id||s.userId||'',userId:s.userId||s.id||'',username:s.username||s.user||'',user:s.user||s.username||'',name:s.fullName||s.name||s.user||'',fullName:s.fullName||s.name||''})};}catch(e){return{};}}
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=id=>document.getElementById(id);
 function fDia(v){if(!v)return'—';const d=new Date(String(v).length===10?v+'T12:00:00':v);return d.toLocaleDateString('es',{weekday:'short',day:'2-digit',month:'short'});}
-function fHora(v){if(!v)return'—';const d=new Date(v);return d.toLocaleDateString('es',{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});}
-function dif(h){if(h===null||h===undefined)return'—';const a=Math.abs(h);const t=a>=24?`${Math.round(a/24*10)/10} días`:`${Math.round(a)} h`;return h>0?`<span class="mov-atrasa">▲ ${t} más tarde</span>`:h<0?`<span class="mov-adelanta">▼ ${t} antes</span>`:'Igual';}
-function badge(e){const[c,l]=ESTADO[e]||['b-neutral',e||'—'];return`<span class="badge ${c}">${l}</span>`;}
+function fHora(v){if(!v)return'—';const d=new Date(v);return d.toLocaleDateString('es',{weekday:'short',day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});}
+function badge(e){const[c,l]=ESTADO[e]||['neutral',e||'—'];return`<span class="badge b-${c}">${l}</span>`;}
+const clase=c=>c?`<span class="clase clase-${esc(c)}" title="Cliente clase ${esc(c)}">${esc(c)}</span>`:'';
+const programada=o=>!!(o.inicioDespues||o.finDespues);
+// Cambia si es su primera fecha, si la fecha nueva difiere de la comprometida o si se mueve de hora.
+const cambia=o=>!['en-aprobacion','falta-dato','sin-programar'].includes(o.estado)&&(o.primeraProgramacion||(o.fechaEstimada&&o.fechaEstimada!==o.fechaComprometida)||(o.diferenciaHoras&&Math.abs(o.diferenciaHoras)>=1));
+function avisarPadre(tipo){if(window.parent!==window)window.parent.postMessage({tipo},location.origin);}
 
 async function cargar(){
-  document.getElementById('btnAplicar').disabled=true;
-  document.getElementById('contenido').innerHTML='<div class="loading">Calculando la programación…</div>';
-  const q=new URLSearchParams();if(mantener.size)q.set('mantener',[...mantener].join(','));if(liberar.size)q.set('liberar',[...liberar].join(','));
+  $('btnAplicar').disabled=true;$('btnRecalcular').disabled=true;$('btnRecalcular').classList.remove('pulso');
+  if(!datos)$('contenido').innerHTML='<div class="loading"><span class="spin"></span>Calculando la programación…</div>';
+  else $('barInfo').innerHTML='<span class="spin"></span>Recalculando…';
+  const q=new URLSearchParams();
+  if(mantener.size)q.set('mantener',[...mantener].join(','));
+  if(liberar.size)q.set('liberar',[...liberar].join(','));
+  if(Object.keys(ajustes).length)q.set('ajustes',JSON.stringify(ajustes));
   try{
     const r=await fetch(`${API}/vista-previa?${q}`,{headers:sesion()});
-    datos=await r.json();
-    if(!datos.ok)throw new Error(datos.error||'No se pudo calcular');
-    pintar();
-  }catch(e){document.getElementById('contenido').innerHTML=`<div class="card"><b>No se pudo calcular la vista previa.</b><div class="hint">${esc(e.message)}</div></div>`;}
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.error||'No se pudo calcular');
+    datos=j;pendiente=false;pintar();
+  }catch(e){$('contenido').innerHTML=`<div class="card"><b>No se pudo calcular la vista previa.</b><div class="muted">${esc(e.message)}</div></div>`;$('barInfo').textContent='';}
 }
 
 function pintar(){
-  const r=datos.resumen, o=datos.ordenes;
+  const r=datos.resumen,o=datos.ordenes;
   const tiles=[
-    ['▼','Se adelantan',r.adelantan,'var(--good)'],
-    ['▲','Se atrasan',r.atrasan,'var(--crit)'],
-    ['=','Sin cambio',r.igual,'var(--text2)'],
-    ['⏰','Quedarían tarde',r.tarde,'var(--crit)'],
-    ['⚠','Sin colchón',r.sinColchon,'var(--warn)'],
-    ['✓','A tiempo',r.aTiempo,'var(--good)'],
-    ['🔒','Fijas (no se mueven)',r.fijas,'var(--accent)'],
-    ['⏳','En aprobación',r.enAprobacion,'var(--text2)']
-  ].map(([i,l,n,c])=>`<div class="tile"><div class="n" style="color:${c}">${n}</div><div class="l"><span class="i">${i}</span>${l}</div></div>`).join('');
-  const afectadas=o.filter(x=>['tarde','sin-colchon'].includes(x.estado)).sort((a,b)=>(a.fechaCliente||'').localeCompare(b.fechaCliente||''));
-  const fijas=o.filter(x=>x.fija||x.bloqueoSuave);
-  const espera=o.filter(x=>x.movimiento==='en-aprobacion');
-  const sinHorario=(r.sinHorario||[]);
-  document.getElementById('contenido').innerHTML=`
+    ['todas','Órdenes',o.length,'var(--text)'],
+    ['bien','Cumplen',r.cumplen,'var(--good)'],
+    ['atrasa','Atrasan su fecha',r.atrasanCompromiso,'var(--crit)'],
+    ['negociar','A negociar',r.negociar,'var(--warn)'],
+    ['primera','Primera vez',r.primeraProgramacion,'var(--accent)'],
+    ['fijas','Fijas',r.fijas,'var(--text2)'],
+    ['espera','En aprobación',r.enAprobacion,'var(--text2)']
+  ].map(([k,l,n,c])=>`<button class="tile ${filtro===k?'on':''}" data-f="${k}" type="button"><div class="n" style="color:${c}">${n}</div><div class="l">${l}</div></button>`).join('');
+  const sinDato=o.filter(x=>x.faltaDato);
+  const sinHorario=r.sinHorario||[];
+  const saturados=(datos.recursos||[]).filter(x=>x.utilizacion>100);
+  $('contenido').innerHTML=`
     <div class="tiles">${tiles}</div>
-    ${(r.faltaDato||0)?`<div class="card" style="border-color:var(--warn)"><b style="color:var(--warn)">⚠ ${r.faltaDato} órdenes sin programar: les falta un dato del cálculo</b><div class="hint">${o.filter(x=>x.faltaDato).map(x=>`<b>${esc(x.orderCode)}</b> (${esc(x.faltaDato)})`).join(', ')}. El tiempo y las personas vienen del cálculo de la orden; corrígelo ahí.</div></div>`:''}
-    ${sinHorario.length?`<div class="card" style="border-color:var(--crit)"><b style="color:var(--crit)">⚠ Procesos sin horario</b><div class="hint">No se pueden programar hasta que tengan horario: ${sinHorario.map(s=>esc(s.proceso+(s.maquina?' · '+s.maquina:''))).join(', ')}.</div></div>`:''}
+    ${sinDato.length?`<div class="aviso warn">⚠ <b>${sinDato.length} sin programar</b>: al cálculo le falta un dato — ${sinDato.map(x=>`<a class="op" data-op="${esc(x.orderCode)}">${esc(x.orderCode)}</a> (${esc(x.faltaDato)})`).join(', ')}.</div>`:''}
+    ${sinHorario.length?`<div class="aviso crit">⚠ Sin horario: ${sinHorario.map(s=>esc(s.proceso+(s.maquina?' · '+s.maquina:''))).join(', ')}.</div>`:''}
+    ${saturados.length?`<div class="aviso warn">🔥 ${saturados.map(x=>`<b>${esc(x.nombre)}</b> está al ${x.utilizacion}% (${x.colaDias} días de cola)`).join(' · ')}.</div>`:''}
     <div class="card">
-      <h2>Antes y después</h2>
-      <div class="hint">Cada fila es una orden. El punto gris es cuándo termina hoy; el punto de color, cuándo terminaría si aplicas. La rayita negra es la fecha que pidió el cliente.</div>
-      <div class="legend">
-        <span><i class="dot" style="background:var(--before)"></i>Termina hoy</span>
-        <span><i class="dot" style="background:var(--good)"></i>✓ Nuevo: a tiempo</span>
-        <span><i class="dot" style="background:var(--warn)"></i>⚠ Nuevo: sin colchón</span>
-        <span><i class="dot" style="background:var(--crit)"></i>⏰ Nuevo: tarde</span>
-        <span><i class="tick"></i>Fecha del cliente</span>
-      </div>
-      <div class="chart-scroll" id="chart"></div>
+      <div class="card-h"><h2>Antes y después</h2>
+        <div class="leyenda"><span><i class="sw" style="background:var(--before)"></i>Antes</span><span><i class="sw" style="background:var(--good)"></i>Cumple</span><span><i class="sw" style="background:var(--crit)"></i>Atrasa</span><span><i class="sw" style="background:var(--warn)"></i>Negociar</span><span><i class="sw-cli"></i>Cliente</span><span><i class="sw-comp"></i>Comprometida</span></div></div>
+      <div class="cortina-scroll" id="cortinaScroll"></div>
+      <div class="muted small" style="margin-top:6px">Arrastra la línea ⇆ para comparar. Cada barra es una orden completa, de que entra a planta hasta que sale de Empaque.</div>
     </div>
     <div class="card">
-      <h2>Órdenes afectadas en su fecha de entrega (${afectadas.length})</h2>
-      <div class="hint">Estas no llegarían con margen o no llegarían a la fecha del cliente. Marca <b>Mantener</b> para dejar una orden como está y luego pulsa <b>Recalcular con mis cambios</b>.</div>
-      ${afectadas.length?tablaOrdenes(afectadas):'<div class="empty">Ninguna orden queda afectada. 🎉</div>'}
-    </div>
-    <div class="card">
-      <h2>Fijas: no se mueven (${fijas.length})</h2>
-      <div class="hint">Se respetan tal como están. Si una con bloqueo suave debe ceder (por ejemplo, ante una urgente), marca <b>Liberar</b> y recalcula.</div>
-      ${fijas.length?tablaFijas(fijas):'<div class="empty">No hay órdenes fijas en esta corrida.</div>'}
-    </div>
-    <div class="card">
-      <h2>Carga de cada máquina o puesto</h2>
-      <div class="hint">Qué tan ocupado queda cada recurso en los próximos 60 días.</div>
-      ${datos.recursos.map(x=>`<div class="res-row"><div><b>${esc(x.nombre)}</b><div class="muted small">${esc(x.proceso)}</div></div><div class="res-track"><div class="res-fill" style="width:${Math.min(100,x.utilizacion)}%"></div></div><div>${x.utilizacion}%</div></div>`).join('')}
-    </div>
-    <div class="card">
-      <details><summary>Todas las órdenes (${o.length})</summary>${tablaOrdenes(o.slice().sort((a,b)=>(a.fechaCliente||'').localeCompare(b.fechaCliente||'')))}</details>
-    </div>
-    ${espera.length?`<div class="card"><details><summary>⏳ En espera de aprobación (${espera.length})</summary><div class="hint">Todavía no pasan Diseño, Preprensa o Aprobaciones; se programan cuando se aprueben.</div><table><thead><tr><th>Orden</th><th>Cliente</th><th>Pendiente</th><th>Fecha del cliente</th></tr></thead><tbody>${espera.map(x=>`<tr><td><b>${esc(x.orderCode)}</b></td><td>${esc(x.cliente)}</td><td>${esc(x.enAprobacion||'')}</td><td>${fDia(x.fechaCliente)}</td></tr>`).join('')}</tbody></table></details></div>`:''}
-  `;
-  dibujar(o.filter(x=>x.movimiento!=='en-aprobacion'&&(x.finDespues||x.finAntes)).sort((a,b)=>(a.fechaCliente||'9').localeCompare(b.fechaCliente||'9')||a.orderCode.localeCompare(b.orderCode)));
-  document.querySelectorAll('[data-mantener]').forEach(c=>c.addEventListener('change',()=>{c.checked?mantener.add(c.dataset.mantener):mantener.delete(c.dataset.mantener);marcarPendiente();}));
-  document.querySelectorAll('[data-liberar]').forEach(c=>c.addEventListener('change',()=>{c.checked?liberar.add(c.dataset.liberar):liberar.delete(c.dataset.liberar);marcarPendiente();}));
-  const movidas=r.adelantan+r.atrasan+r.nuevas;
-  document.getElementById('barInfo').innerHTML=movidas?`Al aplicar cambian <b>${movidas}</b> órdenes. ${r.nuevasTarde?`<span style="color:var(--crit)">${r.nuevasTarde} quedarían tarde frente al cliente.</span>`:''}`:'No hay cambios que aplicar.';
-  document.getElementById('btnAplicar').disabled=!movidas;
-}
-function marcarPendiente(){document.getElementById('barInfo').innerHTML='<b>Hiciste cambios.</b> Pulsa “Recalcular con mis cambios” para ver cómo queda.';document.getElementById('btnAplicar').disabled=true;}
-
-function tablaOrdenes(lista){
-  return `<table><thead><tr><th>Mantener</th><th>Orden</th><th>Cliente</th><th>Ahora está en</th><th>Prioridad</th><th>Fecha del cliente</th><th>Termina hoy</th><th>Terminaría</th><th>Cambio</th><th>Resultado</th><th>Entrega estimada</th></tr></thead><tbody>${lista.map(x=>`
-    <tr class="${mantener.has(x.orderCode)?'excl':''}">
-      <td><input type="checkbox" data-mantener="${esc(x.orderCode)}" ${mantener.has(x.orderCode)?'checked':''} title="Dejar esta orden como está"></td>
-      <td><b>${esc(x.orderCode)}</b></td><td>${esc(x.cliente)}</td>
-      <td>${esc(x.procesoActual||'—')}<div class="muted small">${esc(estadoOrden(x.estadoOrden))}</div></td>
-      <td>${esc(PRIORIDAD[x.prioridad]||x.prioridad)}</td>
-      <td>${fDia(x.fechaCliente)}<div class="muted small">objetivo ${fDia(x.fechaObjetivo)} · buffer ${x.bufferDias}d</div></td>
-      <td>${fHora(x.finAntes)}</td><td>${fHora(x.finDespues)}</td><td>${dif(x.diferenciaHoras)}</td>
-      <td>${badge(x.estado)}</td><td><b>${fDia(x.fechaEstimada)}</b>${x.fechaEstimadaAntes&&x.fechaEstimadaAntes!==x.fechaEstimada?`<div class="muted small">antes ${fDia(x.fechaEstimadaAntes)}</div>`:''}</td>
-    </tr>`).join('')}</tbody></table>`;
-}
-function tablaFijas(lista){
-  return `<table><thead><tr><th>Liberar</th><th>Orden</th><th>Cliente</th><th>Por qué no se mueve</th><th>Quién</th><th>Termina</th><th>Resultado</th></tr></thead><tbody>${lista.map(x=>{
-    const motivos=x.motivosFija.length?x.motivosFija:(x.bloqueoSuave?['bloqueo-suave']:[]);
-    const puedeLiberar=x.bloqueoSuave;
-    return `<tr><td>${puedeLiberar?`<input type="checkbox" data-liberar="${esc(x.orderCode)}" ${liberar.has(x.orderCode)?'checked':''} title="Permitir moverla en esta reprogramación">`:'<span class="muted small">—</span>'}</td>
-      <td><b>${esc(x.orderCode)}</b></td><td>${esc(x.cliente)}</td><td>${motivos.map(m=>esc(MOTIVO[m]||m)).join(', ')}</td><td>${esc(x.fijaPor||x.bloqueoSuavePor||'—')}</td><td>${fHora(x.finDespues)}</td><td>${badge(x.estado)}</td></tr>`;}).join('')}</tbody></table>`;
+      <div class="card-h"><h2 id="tablaT"></h2><div class="filtros" id="filtros"></div></div>
+      <div class="tabla-wrap" id="tabla"></div>
+    </div>`;
+  document.querySelectorAll('.tile').forEach(b=>b.onclick=()=>{filtro=b.dataset.f;pintarTabla();});
+  dibujarCortina(o.filter(programada).sort((a,b)=>(a.inicioDespues||a.finDespues||'').localeCompare(b.inicioDespues||b.finDespues||'')));
+  pintarTabla();
+  const n=o.filter(cambia).length;
+  $('barInfo').innerHTML=n?`Al aplicar cambian <b>${n}</b> órdenes${r.atrasanCompromiso?` · <span style="color:var(--crit)">${r.atrasanCompromiso} atrasan su fecha</span>`:''}${r.negociar?` · <span style="color:var(--warn)">${r.negociar} a negociar</span>`:''}.`:'✓ Todo sigue igual: no hay nada que aplicar.';
+  $('btnAplicar').disabled=!n;
 }
 
-function dibujar(lista){
-  const cont=document.getElementById('chart');
-  if(!lista.length){cont.innerHTML='<div class="empty">No hay órdenes programadas para comparar.</div>';return;}
-  const fechas=[];
-  lista.forEach(x=>{[x.finAntes,x.finDespues].forEach(v=>v&&fechas.push(new Date(v).getTime()));if(x.fechaCliente)fechas.push(new Date(x.fechaCliente+'T12:00:00').getTime());});
-  const DIA=86400000;let min=Math.min(...fechas),max=Math.max(...fechas);min=Math.floor(min/DIA)*DIA-DIA;max=Math.ceil(max/DIA)*DIA+DIA;
-  const rowH=26,left=190,right=24,top=28,W=Math.max(760,cont.clientWidth||900),H=top+lista.length*rowH+10;
-  const x=t=>left+(t-min)/(max-min)*(W-left-right);
-  const ticks=[];const paso=Math.max(1,Math.ceil((max-min)/DIA/10));for(let t=min;t<=max;t+=paso*DIA)ticks.push(t);
-  const css=getComputedStyle(document.documentElement);const col=n=>css.getPropertyValue(n).trim();
-  const colorEstado={ 'tarde':col('--crit'),'sin-colchon':col('--warn'),'a-tiempo':col('--good') };
-  let s=`<svg width="${W}" height="${H}" role="img" aria-label="Antes y después por orden">`;
-  ticks.forEach(t=>{s+=`<line x1="${x(t)}" x2="${x(t)}" y1="${top-6}" y2="${H-6}" stroke="${col('--grid')}"/><text x="${x(t)}" y="${top-12}" text-anchor="middle">${new Date(t).toLocaleDateString('es',{day:'2-digit',month:'short'})}</text>`;});
-  const hoy=Date.now();if(hoy>min&&hoy<max)s+=`<line x1="${x(hoy)}" x2="${x(hoy)}" y1="${top-6}" y2="${H-6}" stroke="${col('--accent')}" stroke-dasharray="4 4"/><text x="${x(hoy)+4}" y="${H-10}" style="fill:${col('--accent')}">hoy</text>`;
+function marcarPendiente(){
+  pendiente=true;
+  $('btnRecalcular').disabled=false;$('btnRecalcular').classList.add('pulso');
+  $('btnAplicar').disabled=true;
+  $('barInfo').innerHTML='<b>Hiciste cambios.</b> Pulsa <b>Recalcular</b> para verlos.';
+}
+
+// ── Cortina: bloques grises (antes) y de color (después), con una línea que se arrastra ──
+function dibujarCortina(lista){
+  const cont=$('cortinaScroll');
+  if(!lista.length){cont.innerHTML='<div class="vacio">No hay órdenes programadas para comparar.</div>';return;}
+  const DIA=86400000,ahora=Date.now(),ms=v=>new Date(v).getTime();
+  const ts=[];
+  lista.forEach(x=>[x.inicioAntes,x.finAntes,x.inicioDespues,x.finDespues].forEach(v=>v&&ts.push(ms(v))));
+  lista.forEach(x=>x.fechaComprometida&&ts.push(ms(x.fechaComprometida+'T18:00:00')));
+  let min=Math.min(ahora,...ts),max=Math.max(...ts);
+  min=new Date(new Date(min).toDateString()).getTime();max=new Date(new Date(max).toDateString()).getTime()+DIA;
+  const dias=Math.max(1,Math.round((max-min)/DIA));
+  const ancho=Math.max(600,cont.clientWidth-232);
+  const pxDia=Math.max(22,ancho/dias),W=Math.round(dias*pxDia);
+  const X=t=>(t-min)/(max-min)*100;
+  const paso=pxDia<34?7:pxDia<60?2:1;
+  let ticks='',dom='',grid='';
+  for(let i=0;i<dias;i++){const t=min+i*DIA,d=new Date(t);
+    if(d.getDay()===0)dom+=`<div class="grid-dom" style="left:${X(t)}%;width:${100/dias}%" title="Domingo"></div>`;
+    if(i%paso===0){ticks+=`<div class="tk" style="left:${X(t)}%">${d.toLocaleDateString('es',{day:'2-digit',month:'short'})}</div>`;grid+=`<div class="grid-v" style="left:${X(t)}%"></div>`;}}
+  const blk=(ini,fin,cls,i)=>{if(!ini&&!fin)return'';const a=ms(ini||fin),b=ms(fin||ini);return`<div class="blk ${cls}" data-i="${i}" style="top:${i*32+9}px;left:${X(a)}%;width:max(5px,${X(b)-X(a)}%)"></div>`;};
+  let antes='',despues='',marcas='',etis='',filas='';
   lista.forEach((o,i)=>{
-    const y=top+i*rowH+rowH/2;
-    s+=`<g class="fila" data-i="${i}"><rect x="0" y="${y-rowH/2}" width="${W}" height="${rowH}" fill="transparent"/>`;
-    s+=`<text x="8" y="${y+4}" style="fill:${col('--text')};font-weight:600">${esc(o.orderCode)}</text><text x="92" y="${y+4}">${esc((o.cliente||'').slice(0,14))}</text>`;
-    const a=o.finAntes?x(new Date(o.finAntes).getTime()):null,b=o.finDespues?x(new Date(o.finDespues).getTime()):null;
-    if(a!==null&&b!==null)s+=`<line x1="${a}" x2="${b}" y1="${y}" y2="${y}" stroke="${col('--link')}" stroke-width="2" stroke-linecap="round"/>`;
-    if(o.fechaCliente){const c=x(new Date(o.fechaCliente+'T12:00:00').getTime());s+=`<rect x="${c-1.5}" y="${y-8}" width="3" height="16" rx="1.5" fill="${col('--text')}"/>`;}
-    if(a!==null)s+=`<circle cx="${a}" cy="${y}" r="5" fill="${col('--before')}" stroke="${col('--surface')}" stroke-width="2"/>`;
-    if(b!==null)s+=`<circle cx="${b}" cy="${y}" r="6" fill="${colorEstado[o.estado]||col('--neutral')}" stroke="${col('--surface')}" stroke-width="2"/>`;
-    s+='</g>';
+    etis+=`<div class="eti" data-op="${esc(o.orderCode)}" title="Ver la orden"><b>${esc(o.trabajo||o.orderCode)}</b><span>${esc(o.orderCode)} · ${esc(o.cliente||'')}</span></div>`;
+    filas+='<div class="fila-bg"></div>';
+    antes+=blk(o.inicioAntes,o.finAntes,'',i);
+    despues+=blk(o.inicioDespues,o.finDespues,'e-'+(ESTADO[o.estado]||['neutral'])[0],i);
+    if(o.fechaCliente){const t=ms(o.fechaCliente+'T12:00:00');
+      marcas+=t>=min?`<div class="mk mk-cli" style="top:${i*32+6}px;left:${X(t)}%" title="Fecha del cliente: ${fDia(o.fechaCliente)}"></div>`
+        :`<div class="mk mk-fuera" style="top:${i*32+8}px;left:0" title="La fecha del cliente (${fDia(o.fechaCliente)}) ya pasó">◂</div>`;}
+    if(o.fechaComprometida){const t=ms(o.fechaComprometida+'T12:00:00');if(t>=min)marcas+=`<div class="mk mk-comp" style="top:${i*32+11}px;left:${X(t)}%" title="Fecha comprometida: ${fDia(o.fechaComprometida)}"></div>`;}
   });
-  s+='</svg>';cont.innerHTML=s;
-  const tt=document.getElementById('tt');
-  cont.querySelectorAll('.fila').forEach(g=>{
-    g.addEventListener('mousemove',e=>{const o=lista[g.dataset.i];tt.innerHTML=`<b>${esc(o.orderCode)}</b> · ${esc(o.cliente)}<br>Ahora está en: ${esc(o.procesoActual||'—')}<br>Fecha del cliente: <b>${fDia(o.fechaCliente)}</b><br>Termina hoy: ${fHora(o.finAntes)}<br>Terminaría: <b>${fHora(o.finDespues)}</b><br>${dif(o.diferenciaHoras)}<br>${badge(o.estado)}`;tt.style.display='block';tt.style.left=Math.min(e.clientX+14,innerWidth-330)+'px';tt.style.top=(e.clientY+14)+'px';});
-    g.addEventListener('mouseleave',()=>{tt.style.display='none';});
+  cont.innerHTML=`<div class="cortina" style="width:${232+W}px;grid-template-columns:232px ${W}px">
+    <div class="eti-col"><div class="eti-h">Orden</div>${etis}</div>
+    <div class="tl"><div class="tl-h">${ticks}</div>
+      <div class="tl-cuerpo" id="tlC">${dom}${grid}${filas}
+        ${ahora>=min&&ahora<=max?`<div class="hoy" style="left:${X(ahora)}%" title="Ahora"></div>`:''}
+        <div class="capa capa-antes" id="capaA">${antes}</div>
+        <div class="capa capa-despues" id="capaD">${despues}</div>
+        <div class="capa">${marcas}</div>
+        <div class="cortina-linea" id="linea"><div class="pomo">⇆</div><span class="lado a">Antes</span><span class="lado d">Después</span></div>
+      </div></div></div>`;
+  const cuerpo=$('tlC'),linea=$('linea');
+  const poner=p=>{p=Math.max(0,Math.min(100,p));linea.style.left=p+'%';$('capaA').style.clipPath=`inset(0 ${100-p}% 0 0)`;$('capaD').style.clipPath=`inset(0 0 0 ${p}%)`;};
+  // Entrada: la cortina barre desde "antes" hasta la mitad de lo que se ve.
+  const vis=Math.min(100,(cont.clientWidth-232)/W*100),meta=vis/2,ini=performance.now();
+  const anim=t=>{const k=Math.min(1,(t-ini)/1100),e=1-Math.pow(1-k,3);poner(vis-(vis-meta)*e);if(k<1)requestAnimationFrame(anim);};
+  poner(vis);requestAnimationFrame(anim);
+  let arrastre=false;
+  const mover=ev=>{const r=cuerpo.getBoundingClientRect();poner((ev.clientX-r.left)/r.width*100);};
+  linea.addEventListener('pointerdown',ev=>{arrastre=true;linea.setPointerCapture(ev.pointerId);ev.preventDefault();});
+  linea.addEventListener('pointermove',ev=>arrastre&&mover(ev));
+  linea.addEventListener('pointerup',()=>arrastre=false);
+  cuerpo.addEventListener('dblclick',mover);
+  const tt=$('tt');
+  cont.querySelectorAll('.blk').forEach(b=>{
+    b.addEventListener('mousemove',e=>{const o=lista[b.dataset.i];
+      tt.innerHTML=`<b>${esc(o.trabajo||'')}</b><br><span class="muted">${esc(o.orderCode)} · ${esc(o.cliente)}</span><br><br>Antes: ${fHora(o.inicioAntes)} → ${fHora(o.finAntes)}<br>Después: <b>${fHora(o.inicioDespues)} → ${fHora(o.finDespues)}</b><br>Cliente ${fDia(o.fechaCliente)} · Comprometida ${fDia(o.fechaComprometida)}<br><br>${badge(o.estado)}`;
+      tt.style.display='block';tt.style.left=Math.min(e.clientX+14,innerWidth-330)+'px';tt.style.top=Math.min(e.clientY+14,innerHeight-200)+'px';});
+    b.addEventListener('mouseleave',()=>tt.style.display='none');
+    b.addEventListener('click',()=>abrirOrden(lista[b.dataset.i].orderCode));
   });
+  cont.querySelectorAll('.eti').forEach(e=>e.onclick=()=>abrirOrden(e.dataset.op));
 }
 
-document.getElementById('btnRecalcular').addEventListener('click',cargar);
-document.getElementById('btnCerrar').addEventListener('click',()=>{if(window.parent!==window)window.parent.postMessage({tipo:'reprogramar-cerrar'},location.origin);else history.back();});
-document.getElementById('btnAplicar').addEventListener('click',async()=>{
-  const r=datos.resumen;const movidas=r.adelantan+r.atrasan+r.nuevas;
-  if(!confirm(`Vas a aplicar la reprogramación:\n\n• ${r.adelantan} órdenes se adelantan\n• ${r.atrasan} órdenes se atrasan\n• ${r.tarde} quedarían tarde frente al cliente\n• ${mantener.size} órdenes se mantienen como están\n\nQueda registrado a tu nombre y se puede deshacer. ¿Aplicar?`))return;
-  const b=document.getElementById('btnAplicar');b.disabled=true;b.textContent='Aplicando…';
+// ── Tabla compacta ──
+const FILTROS={
+  todas:['Todas',o=>true],
+  cambian:['Cambian',o=>cambia(o)],
+  bien:['Cumplen',o=>['cumple','adelanta','a-tiempo','sin-colchon'].includes(o.estado)],
+  atrasa:['Atrasan',o=>o.estado==='atrasa'],
+  negociar:['Negociar',o=>o.estado==='negociar'],
+  primera:['Primera vez',o=>o.primeraProgramacion],
+  fijas:['Fijas',o=>o.fija||o.bloqueoSuave],
+  espera:['En aprobación',o=>o.estado==='en-aprobacion']
+};
+function pintarTabla(){
+  const o=datos.ordenes;
+  document.querySelectorAll('.tile').forEach(t=>t.classList.toggle('on',t.dataset.f===filtro));
+  $('filtros').innerHTML=Object.entries(FILTROS).map(([k,[l,f]])=>`<button class="chip ${filtro===k?'on':''}" data-f="${k}" type="button">${l} ${o.filter(f).length}</button>`).join('');
+  $('filtros').querySelectorAll('.chip').forEach(c=>c.onclick=()=>{filtro=c.dataset.f;pintarTabla();});
+  const lista=o.filter(FILTROS[filtro][1]).sort((a,b)=>(a.fechaEstimada||'9').localeCompare(b.fechaEstimada||'9')||a.orderCode.localeCompare(b.orderCode));
+  $('tablaT').textContent=`Órdenes (${lista.length})`;
+  if(!lista.length){$('tabla').innerHTML='<div class="vacio">Nada por aquí. 🎉</div>';return;}
+  $('tabla').innerHTML=`<table><thead><tr><th>Orden</th><th>Trabajo · Cliente</th><th>Está en</th><th>Cliente</th><th>Comprometida</th><th>Nueva</th><th>Resultado</th><th>Prioridad</th><th title="Días de colchón antes de la fecha del cliente">Buffer</th><th title="Mantener como está / liberar bloqueo suave">🔒</th></tr></thead><tbody>${lista.map(fila).join('')}</tbody></table>`;
+  $('tabla').querySelectorAll('[data-prio]').forEach(s=>s.onchange=()=>{ajuste(s.dataset.prio,'prioridad',s.value,s.dataset.orig);s.classList.toggle('tocado',s.value!==s.dataset.orig);});
+  $('tabla').querySelectorAll('[data-buf]').forEach(s=>s.onchange=()=>{ajuste(s.dataset.buf,'buffer',s.value===''?undefined:Number(s.value),s.dataset.orig);s.classList.toggle('tocado',s.value!==s.dataset.orig);});
+  $('tabla').querySelectorAll('[data-mantener]').forEach(c=>c.onchange=()=>{c.checked?mantener.add(c.dataset.mantener):mantener.delete(c.dataset.mantener);c.closest('tr').classList.toggle('mantenida',c.checked);marcarPendiente();});
+  $('tabla').querySelectorAll('[data-liberar]').forEach(c=>c.onchange=()=>{c.checked?liberar.add(c.dataset.liberar):liberar.delete(c.dataset.liberar);marcarPendiente();});
+}
+function ajuste(codigo,campo,valor,original){
+  ajustes[codigo]=ajustes[codigo]||{};
+  if(valor===undefined||String(valor)===String(original))delete ajustes[codigo][campo];else ajustes[codigo][campo]=valor;
+  if(!Object.keys(ajustes[codigo]).length)delete ajustes[codigo];
+  marcarPendiente();
+}
+function fila(x){
+  const a=ajustes[x.orderCode]||{};
+  const prio=x.prioridad==='forzada'?'<span class="small">📌 Forzada</span>':`<select class="mini ${a.prioridad?'tocado':''}" data-prio="${esc(x.orderCode)}" data-orig="${esc(x.prioridad)}">${[['normal','Regular'],['clase_a','Clase A'],['urgente','Urgente']].map(([v,l])=>`<option value="${v}" ${(a.prioridad||x.prioridad)===v?'selected':''}>${l}</option>`).join('')}</select>`;
+  const buf=`<input class="mini ${a.buffer!==undefined?'tocado':''}" type="number" min="0" max="30" data-buf="${esc(x.orderCode)}" data-orig="${x.bufferDias??''}" value="${a.buffer??x.bufferDias??''}" title="${x.bufferPropio?'Ajustado para esta orden':'El de Costos'}">`;
+  const d=x.diasVsCompromiso;
+  const delta=d?`<span class="delta ${d>0?'mas':'menos'}">${d>0?'+':''}${d} d</span>`:'';
+  let candado='';
+  if(x.bloqueoSuave)candado=`<label class="candado" title="Bloqueo suave de ${esc(x.bloqueoSuavePor||'—')}. Márcalo para liberarla en esta corrida."><input type="checkbox" data-liberar="${esc(x.orderCode)}" ${liberar.has(x.orderCode)?'checked':''}>🔓</label>`;
+  else if(x.fija&&!mantener.has(x.orderCode))candado=`<span class="candado" title="${esc((x.motivosFija||[]).map(m=>FIJA[m]||m).join(', '))}${x.fijaPor?' · '+esc(x.fijaPor):''}">🔒</span>`;
+  else if(!['en-aprobacion','falta-dato','sin-programar'].includes(x.estado))candado=`<input type="checkbox" data-mantener="${esc(x.orderCode)}" ${mantener.has(x.orderCode)?'checked':''} title="Dejarla como está">`;
+  return `<tr class="${mantener.has(x.orderCode)?'mantenida':''}">
+    <td><a class="op" data-op="${esc(x.orderCode)}" href="/orden-produccion/${encodeURIComponent(x.orderCode)}">${esc(x.orderCode)}</a></td>
+    <td class="tc"><b title="${esc(x.trabajo)}">${esc(x.trabajo||'—')}</b><span>${esc(x.cliente||'')} ${clase(x.claseCliente)}</span></td>
+    <td class="small">${esc(x.estado==='en-aprobacion'?(x.enAprobacion||'Aprobación'):(x.procesoActual||'—'))}</td>
+    <td class="fecha">${fDia(x.fechaCliente)}</td>
+    <td class="fecha">${x.fechaComprometida?fDia(x.fechaComprometida):'<span class="muted small">primera vez</span>'}</td>
+    <td class="fecha"><b>${fDia(x.fechaEstimada)}</b>${delta}</td>
+    <td>${badge(x.estado)}</td><td>${prio}</td><td>${buf}</td><td style="text-align:center">${candado}</td></tr>`;
+}
+
+// ── Visor flotante (arrastrable y redimensionable) ──
+function abrirOrden(codigo){
+  const url=`/orden-produccion/${encodeURIComponent(codigo)}`;
+  $('visorT').textContent=codigo;$('visorNueva').href=url;
+  if($('visorF').dataset.op!==codigo){$('visorF').src=url;$('visorF').dataset.op=codigo;}
+  $('visor').classList.add('open');
+}
+document.addEventListener('click',e=>{const a=e.target.closest('a.op');if(a){e.preventDefault();abrirOrden(a.dataset.op);}});
+$('visorX').onclick=()=>$('visor').classList.remove('open');
+(()=>{const v=$('visor'),h=$('visorH');let dx=0,dy=0,on=false;
+  h.addEventListener('pointerdown',e=>{if(e.target.closest('button,a'))return;on=true;const r=v.getBoundingClientRect();dx=e.clientX-r.left;dy=e.clientY-r.top;v.classList.add('moviendo');h.setPointerCapture(e.pointerId);});
+  h.addEventListener('pointermove',e=>{if(!on)return;v.style.right='auto';v.style.left=Math.max(0,Math.min(innerWidth-120,e.clientX-dx))+'px';v.style.top=Math.max(0,Math.min(innerHeight-40,e.clientY-dy))+'px';});
+  h.addEventListener('pointerup',()=>{on=false;v.classList.remove('moviendo');});})();
+
+// ── Aplicar: motivo obligatorio, aviso a vendedores y luego bloqueo suave ──
+function abrirAplicar(){
+  const r=datos.resumen,o=datos.ordenes,n=o.filter(cambia).length;
+  const avisos=datos.avisos||[];
+  const sugerido=r.primeraProgramacion&&r.primeraProgramacion===n?'primera':'';
+  $('mAplicarC').innerHTML=`<h3>Aplicar reprogramación</h3>
+    <div class="muted small">Queda a tu nombre en el historial y se puede deshacer.</div>
+    <div class="resumen-ap"><div><b>${n}</b><span class="small">órdenes cambian</span></div><div><b style="color:var(--crit)">${r.atrasanCompromiso}</b><span class="small">atrasan su fecha</span></div><div><b style="color:var(--warn)">${r.negociar}</b><span class="small">a negociar</span></div></div>
+    <label for="apMotivo">Motivo</label>
+    <select id="apMotivo"><option value="">Elige un motivo…</option>${Object.entries(datos.motivos||{}).map(([k,l])=>`<option value="${k}" ${k===sugerido?'selected':''}>${esc(l)}</option>`).join('')}</select>
+    <label for="apComentario">Comentario <span class="muted" id="apReq">(opcional)</span></label>
+    <textarea id="apComentario" placeholder="Ej.: la Gallus estuvo parada el martes"></textarea>
+    ${avisos.length?`<label class="check"><input type="checkbox" id="apNotificar" checked> ✉️ Avisar a los vendedores de las órdenes que atrasan o hay que negociar</label>
+    <div style="margin-top:6px">${avisos.map(a=>`<div class="dest"><span><b>${esc(a.vendedor||'Sin vendedor')}</b> · ${a.ordenes.length} orden${a.ordenes.length===1?'':'es'}</span><span class="${a.correo?'':'muted'}">${a.correo?esc(a.correo):'sin correo en su usuario'}</span></div>`).join('')}</div>`:''}
+    <div class="modal-acc"><button class="btn" type="button" id="apCancelar">Cancelar</button><button class="btn primary" type="button" id="apOk">Aplicar</button></div>`;
+  $('mAplicar').classList.add('open');
+  const req=()=>{$('apReq').textContent=$('apMotivo').value==='otro'?'(obligatorio)':'(opcional)';};
+  $('apMotivo').onchange=()=>{$('apMotivo').style.borderColor='';req();};req();
+  $('apCancelar').onclick=()=>$('mAplicar').classList.remove('open');
+  $('apOk').onclick=aplicar;
+}
+async function aplicar(){
+  const motivo=$('apMotivo').value,comentario=$('apComentario').value.trim();
+  if(!motivo){$('apMotivo').focus();$('apMotivo').style.borderColor='var(--crit)';return;}
+  if(motivo==='otro'&&!comentario){$('apComentario').focus();$('apComentario').style.borderColor='var(--crit)';return;}
+  const b=$('apOk');b.disabled=true;b.innerHTML='<span class="spin"></span>Aplicando…';
   try{
-    const res=await fetch(`${API}/aplicar`,{method:'POST',headers:{'Content-Type':'application/json',...sesion()},body:JSON.stringify({mantener:[...mantener],liberar:[...liberar]})});
+    const res=await fetch(`${API}/aplicar`,{method:'POST',headers:{'Content-Type':'application/json',...sesion()},body:JSON.stringify({motivo,comentario,mantener:[...mantener],liberar:[...liberar],ajustes,notificar:$('apNotificar')?$('apNotificar').checked:false})});
     const j=await res.json();if(!j.ok)throw new Error(j.error||'No se pudo aplicar');
-    alert(`Listo: se movieron ${j.rutasMovidas} procesos. Si algo no te convence, usa “Deshacer la última”.`);
-    if(window.parent!==window)window.parent.postMessage({tipo:'reprogramar-aplicado'},location.origin);
-    mantener.clear();liberar.clear();cargar();
-  }catch(e){alert('No se pudo aplicar: '+e.message);}
-  finally{b.textContent='Aplicar reprogramación';}
+    avisarPadre('reprogramar-aplicado');
+    despuesDeAplicar(j);
+  }catch(e){b.disabled=false;b.textContent='Aplicar';alert('No se pudo aplicar: '+e.message);}
+}
+function despuesDeAplicar(j){
+  const porCodigo=new Map(datos.ordenes.map(o=>[o.orderCode,o]));
+  const cambiadas=(j.ordenesCambiadas||[]).map(c=>porCodigo.get(c)||{orderCode:c});
+  const env=j.correosEnviados||[],fal=j.correosFallidos||[];
+  $('mAplicarC').innerHTML=`<h3>✅ Listo</h3>
+    <div class="muted">${cambiadas.length} órdenes con fecha nueva.${env.length?` ✉️ Avisamos a ${env.map(esc).join(', ')}.`:''}</div>
+    ${fal.length?`<div class="aviso warn" style="margin-top:10px">No se pudo enviar el correo a ${fal.map(f=>esc(f.correo)).join(', ')}: ${esc(fal[0].error)}</div>`:''}
+    ${cambiadas.length?`<label>¿Dejamos alguna con bloqueo suave? <span class="muted">(la próxima reprogramación no la moverá)</span></label>
+    <div class="lista-bloq">${cambiadas.map(o=>`<label><input type="checkbox" value="${esc(o.orderCode)}"><span class="op">${esc(o.orderCode)}</span><span style="flex:1">${esc(o.trabajo||'')} <span class="muted small">· ${esc(o.cliente||'')}</span></span><span class="small">${fDia(o.fechaEstimada)}</span></label>`).join('')}</div>`:''}
+    <div class="modal-acc"><button class="btn" type="button" id="apFin">Terminar</button>${cambiadas.length?'<button class="btn primary" type="button" id="apBloq">🔒 Bloquear seleccionadas</button>':''}</div>`;
+  const fin=()=>{$('mAplicar').classList.remove('open');mantener.clear();liberar.clear();Object.keys(ajustes).forEach(k=>delete ajustes[k]);cargar();};
+  $('apFin').onclick=fin;
+  if($('apBloq'))$('apBloq').onclick=async()=>{
+    const ordenes=[...$('mAplicarC').querySelectorAll('.lista-bloq input:checked')].map(i=>i.value);
+    if(!ordenes.length){fin();return;}
+    const r=await fetch(`${API}/bloquear`,{method:'POST',headers:{'Content-Type':'application/json',...sesion()},body:JSON.stringify({ordenes})}).then(r=>r.json());
+    if(!r.ok){alert(r.error||'No se pudo bloquear');return;}
+    avisarPadre('reprogramar-aplicado');fin();
+  };
+}
+
+// ── Historial ──
+async function abrirHistorial(){
+  $('mHistC').innerHTML='<div class="loading"><span class="spin"></span>Cargando…</div>';$('mHist').classList.add('open');
+  const h=await fetch(`${API}/historial`,{headers:sesion()}).then(r=>r.json()).catch(()=>({data:[]}));
+  const lista=h.data||[],motivos=(datos&&datos.motivos)||{};
+  const ult=lista.find(x=>!x.deshecho_en);
+  const ult12=lista.slice(0,12).reverse(),maxN=Math.max(1,...ult12.map(x=>Number(x.ordenes_cambiadas)||0));
+  $('mHistC').innerHTML=`<div class="card-h"><h3>Historial de reprogramaciones</h3><button class="btn ghost" type="button" id="hX">✕</button></div>
+    ${ult12.length?`<div class="muted small">Órdenes que cambiaron en cada una · en rojo, las que se atrasaron</div><div class="barras-h">${ult12.map(x=>{const n=Number(x.ordenes_cambiadas)||0,r=Number(x.ordenes_atrasadas)||0;return`<div style="height:${n/maxN*100}%;opacity:${x.deshecho_en?.35:1}" title="${fHora(x.creado_en)} · ${n} cambiaron, ${r} se atrasaron"><div style="position:absolute;bottom:0;left:0;right:0;height:${n?r/n*100:0}%;background:var(--crit);border-radius:5px 5px 0 0"></div></div>`;}).join('')}</div>`:''}
+    ${lista.length?`<div class="tabla-wrap"><table><thead><tr><th>Cuándo</th><th>Quién</th><th>Motivo</th><th>Cambiaron</th><th>Se atrasaron</th><th></th></tr></thead><tbody>${lista.map(x=>`<tr style="${x.deshecho_en?'opacity:.5':''}"><td class="fecha">${fHora(x.creado_en)}</td><td>${esc(x.usuario||'—')}</td><td>${esc(motivos[x.motivo]||x.motivo||'—')}${x.comentario?`<div class="muted small">${esc(x.comentario)}</div>`:''}</td><td>${x.motivo?(x.ordenes_cambiadas??'—'):'<span class="muted" title="Anterior al historial por orden">—</span>'}</td><td>${Number(x.ordenes_atrasadas)?`<b style="color:var(--crit)">${x.ordenes_atrasadas}</b> <span class="muted small">(${x.dias_atraso} d)</span>`:'0'}</td><td>${x.deshecho_en?`<span class="muted small">deshecha por ${esc(x.deshecho_por||'—')}</span>`:(x===ult?'<button class="btn danger small" type="button" id="hDeshacer">⟲ Deshacer</button>':'')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="vacio">Todavía no hay reprogramaciones.</div>'}`;
+  $('hX').onclick=()=>$('mHist').classList.remove('open');
+  if($('hDeshacer'))$('hDeshacer').onclick=async()=>{
+    if(!confirm(`¿Deshacer la reprogramación del ${fHora(ult.creado_en)} (${ult.usuario||'—'})? Las fechas vuelven a como estaban.`))return;
+    const j=await fetch(`${API}/deshacer`,{method:'POST',headers:sesion()}).then(r=>r.json());
+    if(!j.ok){alert(j.error||'No se pudo deshacer');return;}
+    avisarPadre('reprogramar-aplicado');abrirHistorial();cargar();
+  };
+}
+
+// ── Paso a paso con una orden de ejemplo ──
+const DIAS=[['lun',6],['mar',7],['mié',8],['jue',9],['vie',10],['sáb',11]];
+const PASOS=[
+  {t:'📦 Llega una orden',x:'El cliente quiere sus etiquetas el <b>viernes 10</b>.',e:()=>`
+    <div class="tarjeta a-entra" style="left:180px;top:62px;width:280px;text-align:center">
+      <div class="muted small">OP-0123</div><div style="font-size:18px;font-weight:800">Etiquetas Café Luna</div>
+      <div style="margin-top:8px">📅 Cliente: <b>viernes 10</b></div></div>`},
+  {t:'🛟 Le dejamos un colchón',x:'Apuntamos a terminar <b>2 días antes</b> (el buffer). Si algo falla, todavía llegamos.',e:()=>
+    DIAS.map(([n,d],i)=>`<div class="dia a-aparece" style="left:${38+i*96}px;animation-delay:${i*.07}s;${i===4?'border:2px solid var(--text)':''}${i===2?'border:2px solid var(--accent);background:var(--accent-bg)':''}"><span>${n}</span><b>${d}</b></div>`).join('')
+    +`<div class="a-aparece" style="position:absolute;left:${38+4*96+4}px;top:60px;font-size:12px;font-weight:700">🏁 cliente</div>
+      <div class="a-flecha" style="position:absolute;left:${38+2*96+31}px;top:170px;height:3px;border-radius:2px;background:var(--accent);width:${2*96}px;animation-delay:.5s"></div>
+      <div class="a-aparece" style="position:absolute;left:${38+2*96+24}px;top:162px;color:var(--accent);font-size:14px;animation-delay:1.4s">◀</div>
+      <div class="a-aparece" style="position:absolute;left:${38+2*96+6}px;top:60px;font-size:12px;font-weight:700;color:var(--accent);animation-delay:1.4s">🎯 meta</div>
+      <div class="a-aparece" style="position:absolute;left:${38+3*96-6}px;top:182px;font-size:12px;color:var(--accent);animation-delay:1s">2 días</div>`},
+  {t:'🚦 Hace fila',x:'Primero las <b>urgentes</b>, luego <b>Clase A</b> y luego el resto. En cada grupo, la meta más cercana va primero.',e:()=>{
+    const f=[['🔥 Urgente','var(--crit)'],['⭐ Clase A','#7c3aed'],['Regular · meta 5',''],['Café Luna · meta 8','var(--accent)'],['Regular · meta 12','']];
+    return f.map(([n,c],i)=>`<div class="tarjeta ${i===3?'a-cae':'a-entra'}" style="left:${18+i*122}px;top:96px;width:112px;text-align:center;animation-delay:${i===3?1:i*.12}s;${c?`border:2px solid ${c};color:${c};font-weight:800`:''}">${n}</div>`).join('')
+      +`<div class="a-aparece" style="position:absolute;left:18px;top:60px;font-size:12px;color:var(--text3)">▶ se atiende primero</div>`;}},
+  {t:'🏭 Pasa por cada máquina, en orden',x:'Impresión → Rebobinado → Empaque. Solo en horario (6:00–14:00): sin domingos, feriados ni mantenimientos.',e:()=>{
+    const c=[['🖨️ Impresión',2,26],['🌀 Rebobinado',28,14],['📦 Empaque',42,40]];
+    return c.map(([n,a,w],i)=>`<div class="carril-n" style="top:${46+i*56}px">${n}</div><div class="carril" style="top:${46+i*56}px">
+      <div style="position:absolute;left:56%;width:12%;top:0;bottom:0;background:repeating-linear-gradient(135deg,transparent 0 5px,var(--grid) 5px 8px)"></div>
+      <div class="bloque a-crece" style="left:${a}%;width:${Math.min(w,56-a)}%;background:var(--accent);animation-delay:${.3+i*.8}s">Café Luna</div>
+      ${a+w>56?`<div class="bloque a-crece" style="left:68%;width:${a+w-56}%;background:var(--accent);animation-delay:${.9+i*.8}s">sigue ▸</div>`:''}</div>`).join('')
+    +`<div class="a-aparece" style="position:absolute;left:calc(136px + (100% - 160px) * .56);top:22px;font-size:11px;color:var(--text3)">domingo: no se trabaja</div>`;}},
+  {t:'📅 Le damos una fecha',x:'Termina el <b>miércoles 8</b>: esa es la <b>fecha comprometida</b>. Si otro día se corre, avisamos al vendedor ✉️.',e:()=>`
+    <div class="tarjeta a-entra" style="left:30px;top:34px;width:270px"><div class="muted small">Primera programación</div><div style="font-size:16px;font-weight:800;margin:4px 0">Comprometida: mié 8</div>${badge('cumple')} <span class="small">antes del cliente</span></div>
+    <div class="tarjeta a-entra" style="left:330px;top:120px;width:270px;animation-delay:.9s"><div class="muted small">Una reprogramación después</div><div style="font-size:16px;font-weight:800;margin:4px 0">Nueva: jue 9 <span class="delta mas">+1 d</span></div>${badge('atrasa')} <span class="small">✉️ vendedor avisado</span></div>
+    <div class="a-aparece" style="position:absolute;left:290px;top:100px;font-size:22px;color:var(--text3);animation-delay:.7s">↘</div>`},
+  {t:'👀 Tú decides',x:'Miras el antes y el después, eliges un motivo y aplicas. Queda en el historial y <b>se puede deshacer</b>.',e:()=>
+    [['👀','Mira'],['✍️','Motivo'],['✅','Aplica'],['⟲','Deshacer']].map(([i,n],k)=>`<div class="tarjeta a-entra" style="left:${36+k*150}px;top:78px;width:122px;text-align:center;animation-delay:${k*.25}s"><div style="font-size:30px">${i}</div><b>${n}</b></div>`).join('')
+    +[0,1,2].map(k=>`<div class="a-aparece" style="position:absolute;left:${164+k*150}px;top:110px;font-size:18px;color:var(--text3);animation-delay:${.2+k*.25}s">→</div>`).join('')}
+];
+let paso=0;
+function pintarPaso(){
+  const p=PASOS[paso];
+  $('guiaT').textContent=`${paso+1}. ${p.t}`;
+  $('guiaE').innerHTML=`<div style="position:absolute;top:0;bottom:0;width:640px;left:50%;margin-left:-320px">${p.e()}</div>`;
+  $('guiaX').innerHTML=p.x;
+  $('guiaP').innerHTML=PASOS.map((_,i)=>`<i class="${i===paso?'on':''}"></i>`).join('');
+  $('guiaAnt').style.visibility=paso?'visible':'hidden';
+  $('guiaSig').textContent=paso===PASOS.length-1?'¡Entendido!':'Siguiente';
+}
+function abrirGuia(){paso=0;pintarPaso();$('mGuia').classList.add('open');}
+$('guiaSig').onclick=()=>{if(paso===PASOS.length-1){$('mGuia').classList.remove('open');try{localStorage.setItem('reprogramar-guia-vista','1');}catch(e){}return;}paso++;pintarPaso();};
+$('guiaAnt').onclick=()=>{if(paso){paso--;pintarPaso();}};
+
+document.querySelectorAll('.modal-fondo').forEach(f=>f.addEventListener('click',e=>{if(e.target===f)f.classList.remove('open');}));
+document.addEventListener('keydown',e=>{
+  const guia=$('mGuia').classList.contains('open');
+  if(e.key==='Escape')document.querySelectorAll('.modal-fondo.open').forEach(f=>f.classList.remove('open'));
+  if(guia&&e.key==='ArrowRight')$('guiaSig').click();
+  if(guia&&e.key==='ArrowLeft')$('guiaAnt').click();
 });
-document.getElementById('btnDeshacer').addEventListener('click',async()=>{
-  const h=await fetch(`${API}/historial`).then(r=>r.json()).catch(()=>({data:[]}));
-  const ult=(h.data||[]).find(x=>!x.deshecho_en);
-  if(!ult){alert('No hay ninguna reprogramación aplicada para deshacer.');return;}
-  if(!confirm(`Deshacer la reprogramación del ${fHora(ult.creado_en)} hecha por ${ult.usuario||'—'} (${ult.rutas} procesos movidos)?`))return;
-  const j=await fetch(`${API}/deshacer`,{method:'POST',headers:sesion()}).then(r=>r.json());
-  if(!j.ok){alert(j.error||'No se pudo deshacer');return;}
-  alert(`Listo: se restauraron ${j.rutasRestauradas} procesos.`);
-  if(window.parent!==window)window.parent.postMessage({tipo:'reprogramar-aplicado'},location.origin);
-  cargar();
-});
+$('btnGuia').onclick=abrirGuia;
+$('btnHistorial').onclick=abrirHistorial;
+$('btnRecalcular').onclick=cargar;
+$('btnAplicar').onclick=()=>{if(!pendiente)abrirAplicar();};
+$('btnCerrar').onclick=()=>{if(window.parent!==window)avisarPadre('reprogramar-cerrar');else history.back();};
 cargar();
+try{if(!localStorage.getItem('reprogramar-guia-vista'))setTimeout(abrirGuia,700);}catch(e){}
 </script>
 </body>
 </html>

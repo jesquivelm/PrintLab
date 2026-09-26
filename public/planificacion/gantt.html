@@ -1029,10 +1029,10 @@ async function loadFromAPI() {
       dep:         r.dep || null,
       dep_ruta_id: r.dep_ruta_id || null,
       estado:      r.estado,
-      // Resultado del Reprogramador (ficha de la orden): tarde / sin-colchon / a-tiempo.
+      // Resultado del Reprogramador (ficha de la orden): cumple / adelanta / atrasa / negociar…
       estado_programacion: r.estado_programacion || null,
       fecha_entrega_estimada: r.fecha_entrega_estimada || null,
-      alerta:      r.estado_programacion === 'tarde',
+      alerta:      r.estado_programacion === 'atrasa',
       alerta_tipo: r.estado_programacion || null,
       fecha_fin_produccion:     r.fecha_fin_produccion || null,
       fecha_entrega_prometida:  r.fecha_entrega_prometida || null,
@@ -1212,10 +1212,12 @@ function detectScheduleAlerts() {
     seen.add(op.id);
     const entrega = op.fecha_entrega_prometida ? String(op.fecha_entrega_prometida).slice(0, 10) : 'sin fecha';
     const estimada = op.fecha_entrega_estimada ? String(op.fecha_entrega_estimada).slice(0, 10) : '';
-    if (op.estado_programacion === 'tarde') {
-      alerts.push({ type:'late', orderCode:op.id, slack:-24, message:`${op.id} terminaría después de la fecha del cliente (${entrega})${estimada ? ` · entrega estimada ${estimada}` : ''}` });
-    } else if (op.estado_programacion === 'sin-colchon') {
-      alerts.push({ type:'tight', orderCode:op.id, slack:0, message:`${op.id} llega a la fecha del cliente (${entrega}) pero sin el colchón del buffer` });
+    // Atrasa: la última reprogramación la corrió después de la fecha comprometida.
+    // Negociar: la fecha comprometida quedó después de la fecha del cliente.
+    if (op.estado_programacion === 'atrasa') {
+      alerts.push({ type:'late', orderCode:op.id, slack:-24, message:`${op.id} se atrasó respecto a la fecha comprometida${estimada ? ` · ahora ${estimada}` : ''}` });
+    } else if (estimada && entrega !== 'sin fecha' && estimada > entrega) {
+      alerts.push({ type:'tight', orderCode:op.id, slack:0, message:`${op.id} se entrega el ${estimada}, después de la fecha del cliente (${entrega}): hay que negociar` });
     }
   });
   return alerts;
@@ -2419,19 +2421,19 @@ async function abrirImpactoMovimiento(op, newStart, newMaq) {
       const dh = o.finDespues && b.finDespues ? (new Date(o.finDespues) - new Date(b.finDespues)) / 3600000 : 0;
       return { ...o, finSin: b.finDespues, estadoSin: b.estado, dh };
     }).filter(o => o.orderCode !== movida.orderCode && o.dh > 1).sort((a, b) => b.dh - a.dh);
-    const nuevasTarde = afectadas.filter(o => o.estado === 'tarde' && o.estadoSin !== 'tarde');
+    const nuevasTarde = afectadas.filter(o => ['atrasa', 'negociar'].includes(o.estado) && !['atrasa', 'negociar'].includes(o.estadoSin));
     const dias = h => h >= 24 ? `${Math.round(h / 24 * 10) / 10} días` : `${Math.round(h)} h`;
-    const badge = e => e === 'tarde' ? '<span class="imp-b imp-tarde">⏰ Tarde</span>' : e === 'sin-colchon' ? '<span class="imp-b imp-warn">⚠ Sin colchón</span>' : e === 'a-tiempo' ? '<span class="imp-b imp-ok">✓ A tiempo</span>' : '<span class="imp-b">—</span>';
+    const badge = e => e === 'atrasa' ? '<span class="imp-b imp-tarde">⏰ Atrasa</span>' : e === 'negociar' ? '<span class="imp-b imp-warn">🤝 Negociar</span>' : e === 'sin-colchon' ? '<span class="imp-b imp-warn">⚠ Sin colchón</span>' : ['a-tiempo', 'cumple', 'adelanta'].includes(e) ? '<span class="imp-b imp-ok">✓ Cumple</span>' : '<span class="imp-b">—</span>';
     capa.querySelector('.imp-body').innerHTML = `
       <div class="imp-resumen">
         <div><div class="imp-k">Quedaría en</div><div class="imp-v">${esc(maquina)}<br>${fHora(rutaMovida.inicio)} → ${fHora(rutaMovida.fin)}</div></div>
         <div><div class="imp-k">Su orden</div><div class="imp-v">${badge(movida.estado)}<br>entrega estimada ${fDia(movida.fechaEstimada)}</div></div>
         <div><div class="imp-k">Órdenes que se atrasan</div><div class="imp-v imp-big ${afectadas.length ? 'imp-rojo' : 'imp-verde'}">${afectadas.length}</div></div>
-        <div><div class="imp-k">Pasarían a estar tarde</div><div class="imp-v imp-big ${nuevasTarde.length ? 'imp-rojo' : 'imp-verde'}">${nuevasTarde.length}</div></div>
+        <div><div class="imp-k">Incumplirían su fecha</div><div class="imp-v imp-big ${nuevasTarde.length ? 'imp-rojo' : 'imp-verde'}">${nuevasTarde.length}</div></div>
       </div>
       ${afectadas.length ? `<div class="imp-sub">Si la mueves, estas órdenes se atrasan:</div>
       <div class="imp-tabla"><table><thead><tr><th>Orden</th><th>Cliente</th><th>Ahora está en</th><th>Fecha del cliente</th><th>Terminaría</th><th>Se atrasa</th><th>Resultado</th></tr></thead><tbody>
-      ${afectadas.map(o => `<tr${o.estado === 'tarde' && o.estadoSin !== 'tarde' ? ' class="imp-nueva-tarde"' : ''}><td><b>${esc(o.orderCode)}</b></td><td>${esc(o.cliente)}</td><td>${esc(o.procesoActual || '—')}</td><td>${fDia(o.fechaCliente)}</td><td>${fHora(o.finDespues)}</td><td class="imp-rojo">▲ ${dias(o.dh)}</td><td>${badge(o.estado)}</td></tr>`).join('')}
+      ${afectadas.map(o => `<tr${o.estado === 'atrasa' && o.estadoSin !== 'atrasa' ? ' class="imp-nueva-tarde"' : ''}><td><b>${esc(o.orderCode)}</b></td><td>${esc(o.cliente)}</td><td>${esc(o.procesoActual || '—')}</td><td>${fDia(o.fechaCliente)}</td><td>${fHora(o.finDespues)}</td><td class="imp-rojo">▲ ${dias(o.dh)}</td><td>${badge(o.estado)}</td></tr>`).join('')}
       </tbody></table></div>` : '<div class="imp-sub imp-verde">✓ No atrasa a ninguna otra orden.</div>'}
       <div class="imp-nota">Al confirmar, este proceso queda <b>fijo</b> (🔒) a tu nombre: el Reprogramador no lo moverá y el resto se acomoda. Se puede deshacer desde el Reprogramador.</div>
       <div class="imp-acciones"><button type="button" class="btn" id="impCancelar">Cancelar</button><button type="button" class="btn primary" id="impConfirmar">Mover y fijar</button></div>`;
@@ -3357,13 +3359,11 @@ function closeDrawerCalendarios() { cerrarDrawer('calDrawerOverlay', 'calDrawer'
 // embebido de Configuración — mismas funciones que la pantalla original, sin duplicarlas.)
 
 // ── CAJÓN: CAPACIDAD FINITA (vista previa + críticas + conflictos) ──
+// El botón abre directamente la vista previa del Reprogramador: ahí se ve el antes y el
+// después, los atrasos, lo que hay que negociar y los conflictos de hoy.
 function toggleCapacidadPopover() {
-  const drawer = document.getElementById('cfDrawer');
-  if (!drawer) return;
-  if (drawer.classList.contains('open')) { closeDrawerCapacidad(); return; }
   cerrarDrawer('calDrawerOverlay', 'calDrawer');
-  abrirDrawer('cfDrawerOverlay', 'cfDrawer');
-  renderCapacidadPreview();
+  abrirReprogramador(() => loadFromAPI());
 }
 function closeDrawerCapacidad() { cerrarDrawer('cfDrawerOverlay', 'cfDrawer'); }
 // Qué haría la reprogramación, ANTES de aceptar: cuántas rutas cambiarían, en qué orden
@@ -3395,15 +3395,15 @@ function renderCapacidadPreview() {
   const justas = alertasFecha.filter(a => a.type === 'tight');
   const kpis = `
     <div class="cf-kpis">
-      <button type="button" class="cf-kpi ${tarde.length ? 'cf-kpi-crit' : 'cf-kpi-ok'}" ${tarde.length ? `onclick="verFueraDeFechaDetalle('late')"` : 'disabled'} title="Órdenes que, con la programación guardada, terminan después de la fecha que pidió el cliente">
+      <button type="button" class="cf-kpi ${tarde.length ? 'cf-kpi-crit' : 'cf-kpi-ok'}" ${tarde.length ? `onclick="verFueraDeFechaDetalle('late')"` : 'disabled'} title="Órdenes que la última reprogramación corrió después de su fecha comprometida">
         <span class="cf-kpi-num">${tarde.length}</span>
-        <span class="cf-kpi-lbl">⏰ Tarde</span>
-        <span class="cf-kpi-hint">órdenes que terminan después de la fecha del cliente</span>
+        <span class="cf-kpi-lbl">⏰ Atrasan</span>
+        <span class="cf-kpi-hint">se corrieron después de la fecha comprometida</span>
       </button>
-      <button type="button" class="cf-kpi ${justas.length ? 'cf-kpi-warn' : 'cf-kpi-ok'}" ${justas.length ? `onclick="verFueraDeFechaDetalle('tight')"` : 'disabled'} title="Llegan a la fecha del cliente pero se comen el buffer (colchón)">
+      <button type="button" class="cf-kpi ${justas.length ? 'cf-kpi-warn' : 'cf-kpi-ok'}" ${justas.length ? `onclick="verFueraDeFechaDetalle('tight')"` : 'disabled'} title="Su fecha comprometida quedó después de la fecha del cliente: el vendedor debe negociarla">
         <span class="cf-kpi-num">${justas.length}</span>
-        <span class="cf-kpi-lbl">⚠ Sin colchón</span>
-        <span class="cf-kpi-hint">llegan a la fecha del cliente, pero sin margen</span>
+        <span class="cf-kpi-lbl">🤝 Negociar</span>
+        <span class="cf-kpi-hint">se entregan después de la fecha del cliente</span>
       </button>
       <button type="button" class="cf-kpi ${conflictos.length ? 'cf-kpi-warn' : 'cf-kpi-ok'}" ${conflictos.length ? `onclick="verConflictosDetalle()"` : 'disabled'} title="Dos órdenes en la misma máquina al mismo tiempo, o un proceso que empieza antes de que termine el anterior">
         <span class="cf-kpi-num">${ordenesConConflicto.size}</span>
@@ -3447,11 +3447,11 @@ function verFueraDeFechaDetalle(tipo) {
     return { codigo: a.orderCode, cliente: op.cliente || '', cliente_fecha: op.fecha_entrega_prometida, estimada: op.fecha_entrega_estimada };
   }).sort((x, y) => String(x.estimada || '').localeCompare(String(y.estimada || '')));
   const overlay = document.getElementById('confOverlay');
-  overlay.querySelector('.gcal-modal-title').textContent = `${tipo === 'tight' ? 'Sin colchón' : 'Tarde'} (${alertas.length} órdenes)`;
+  overlay.querySelector('.gcal-modal-title').textContent = `${tipo === 'tight' ? 'Negociar' : 'Atrasan'} (${alertas.length} órdenes)`;
   document.getElementById('confOverlayBody').innerHTML = `
-    <div style="font-size:12px;color:#60707f;margin-bottom:8px">${tipo === 'tight' ? 'Llegan a la fecha del cliente, pero sin el margen del buffer.' : 'Terminan después de la fecha que pidió el cliente: hay que avisar al vendedor con la entrega estimada.'}</div>
+    <div style="font-size:12px;color:#60707f;margin-bottom:8px">${tipo === 'tight' ? 'La fecha comprometida quedó después de la fecha del cliente: el vendedor debe negociarla.' : 'La última reprogramación las corrió después de su fecha comprometida.'}</div>
     <table style="width:100%;border-collapse:collapse;font-size:13px;color:#1f2b3d">
-      <thead><tr style="text-align:left;font-size:11px;color:#7a8a9c;text-transform:uppercase"><th style="padding:6px">Orden</th><th style="padding:6px">Cliente</th><th style="padding:6px">Fecha del cliente</th><th style="padding:6px">Entrega estimada</th></tr></thead>
+      <thead><tr style="text-align:left;font-size:11px;color:#7a8a9c;text-transform:uppercase"><th style="padding:6px">Orden</th><th style="padding:6px">Cliente</th><th style="padding:6px">Fecha del cliente</th><th style="padding:6px">Fecha comprometida</th></tr></thead>
       <tbody>${filas.map(f => `<tr style="border-top:1px solid #eef2f7"><td style="padding:6px;font-weight:700">${esc(f.codigo)}</td><td style="padding:6px">${esc(f.cliente)}</td><td style="padding:6px">${fDia(f.cliente_fecha)}</td><td style="padding:6px;font-weight:700;color:${tipo === 'tight' ? '#a16207' : '#c43a39'}">${fDia(f.estimada)}</td></tr>`).join('')}</tbody>
     </table>`;
   overlay.classList.add('open');

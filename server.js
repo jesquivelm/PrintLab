@@ -23081,6 +23081,27 @@ async function ensureProgramacionSchema() {
             CHECK (fecha_hasta >= fecha_desde),
             CHECK (proceso_key IS NOT NULL OR maquina_id IS NOT NULL)
         )`);
+    // Clase del cliente (A/B/C): los clientes que más producen van primero.
+    await pgQuery(`ALTER TABLE business_partners ADD COLUMN IF NOT EXISTS clase_cliente TEXT`);
+    // Detalle por orden de cada reprogramación (historial y métricas de atraso).
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS reprogramacion_orden (
+            id SERIAL PRIMARY KEY,
+            log_id INTEGER NOT NULL,
+            codigo_orden TEXT NOT NULL,
+            fecha_cliente DATE,
+            fecha_comprometida_antes DATE,
+            fecha_comprometida_despues DATE,
+            dias INTEGER,
+            estado TEXT,
+            prioridad TEXT,
+            buffer_dias INTEGER,
+            vendedor TEXT,
+            correo TEXT,
+            notificado BOOLEAN NOT NULL DEFAULT FALSE,
+            creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_reprogramacion_orden_codigo ON reprogramacion_orden (codigo_orden)`);
     // Registro de cada reprogramación aplicada, con lo que había antes (para deshacer).
     await pgQuery(`
         CREATE TABLE IF NOT EXISTS reprogramacion_log (
@@ -23093,6 +23114,7 @@ async function ensureProgramacionSchema() {
             deshecho_en TIMESTAMPTZ,
             deshecho_por TEXT
         )`);
+    await pgQuery(`ALTER TABLE reprogramacion_log ADD COLUMN IF NOT EXISTS motivo TEXT, ADD COLUMN IF NOT EXISTS comentario TEXT`);
     await pgQuery(`ALTER TABLE proceso_maquina ALTER COLUMN proceso_id DROP NOT NULL`);
     await pgQuery(`
         UPDATE proceso_maquina pm
@@ -24315,7 +24337,8 @@ async function getFiniteCapacityResult(options = {}) {
     const fromDate = capacityDateKey(options.fromDate || new Date());
     const horizonDays = Math.max(1, Math.min(365, Number(options.horizonDays || 30)));
     const hasScenario = scenario.resourceAdjustments.length > 0 || scenario.addedResources.length > 0
-        || (options.mantener || []).length > 0 || (options.liberar || []).length > 0;
+        || (options.mantener || []).length > 0 || (options.liberar || []).length > 0
+        || Object.keys(options.ajustes || {}).length > 0;
     const cacheKey = `${fromDate}|${horizonDays}`;
     if (!hasScenario && finiteCapacityEngineCache.key === cacheKey && finiteCapacityEngineCache.expiresAt > Date.now() && finiteCapacityEngineCache.result) {
         return finiteCapacityEngineCache.result;
@@ -24350,6 +24373,8 @@ async function runFiniteCapacityEngine(options = {}) {
     // y órdenes con bloqueo suave que sí se permite mover.
     const mantenerOrdenes = new Set((options.mantener || []).map(String));
     const liberarOrdenes = new Set((options.liberar || []).map(String));
+    // Ajustes hechos en la vista previa: { OP-1: { prioridad, buffer } }.
+    const ajustes = options.ajustes && typeof options.ajustes === 'object' ? options.ajustes : {};
     // Movimiento desde el Gantt: { routeId, start, maquinaId } — esa ruta queda fija ahí.
     const mover = options.mover && options.mover.routeId ? options.mover : null;
 
@@ -24388,6 +24413,9 @@ async function runFiniteCapacityEngine(options = {}) {
                    -- Fecha que pidió el cliente: vive SOLO en la ficha de la orden.
                    opl.fecha_entrega_prometida::text AS promised_date,
                    COALESCE(opl.prioridad, 'normal') AS prioridad,
+                   opl.fecha_entrega_estimada::text AS fecha_comprometida,
+                   UPPER(NULLIF(bp.clase_cliente, '')) AS clase_cliente,
+                   o.salesperson_name AS vendedor,
                    opl.fecha_forzada::text AS fecha_forzada,
                    CASE WHEN r.clave_proceso = 'empaque'
                         THEN COALESCE(NULLIF(o.empaque_operarios_vigente, 0), NULLIF(o.empaque_operarios, 0)) END AS personas_orden,
@@ -24409,6 +24437,7 @@ async function runFiniteCapacityEngine(options = {}) {
             FROM vista_orden_proceso r
             JOIN flexo_orders o ON o.order_code = r.codigo_orden
             LEFT JOIN orden_planificacion opl ON opl.codigo_orden = r.codigo_orden
+            LEFT JOIN business_partners bp ON bp.partner_code = o.customer_code
             WHERE r.estado <> 'COMPLETADO'
               AND o.delivered_on IS NULL
               AND LOWER(COALESCE(o.order_status, o.raw_data->>'status', '')) NOT IN ('entregada', 'completada', 'cerrada', 'cancelada')
@@ -24691,6 +24720,7 @@ async function runFiniteCapacityEngine(options = {}) {
     const ahora = new Date(arranque);
     const esEnMarcha = (route) => ['RUN', 'SETUP', 'PARO'].includes(String(route.route_status || '').toUpperCase());
     const fechaClave = (valor) => (valor ? capacityDateKey(valor) : null);
+    const calDiffDias = (desde, hasta) => Math.round((new Date(`${hasta}T00:00:00Z`) - new Date(`${desde}T00:00:00Z`)) / 86400000);
     // Buffer: días laborables antes de la fecha del cliente (se saltan domingos y feriados).
     function fechaObjetivo(fechaCliente, dias) {
         let k = fechaClave(fechaCliente);
@@ -24788,19 +24818,29 @@ async function runFiniteCapacityEngine(options = {}) {
     }
 
     // ── Fase 2: el resto, por prioridad y fecha objetivo (cliente − buffer)
+    const RANGO_CLASE = { A: 0, B: 1, C: 2 };
     const orderGroups = Array.from(routesByOrder.values()).map((orderRoutes) => {
         const primera = orderRoutes[0] || {};
-        const buffer = primera.dias_buffer_entrega == null ? bufferDefecto : Math.max(0, Number(primera.dias_buffer_entrega));
+        const ajuste = ajustes[primera.order_code] || {};
+        const bufferOrden = ajuste.buffer != null && ajuste.buffer !== '' ? Number(ajuste.buffer) : primera.dias_buffer_entrega;
+        const buffer = bufferOrden == null ? bufferDefecto : Math.max(0, Number(bufferOrden));
         const forzada = primera.fecha_forzada || null;
+        // Prioridad: la de la orden (o la elegida en la vista previa); si es regular y
+        // el cliente es clase A, entra como Clase A.
+        let prioridadTexto = String(ajuste.prioridad || primera.prioridad || 'normal');
+        if (prioridadTexto === 'normal' && primera.clase_cliente === 'A' && !ajuste.prioridad) prioridadTexto = 'clase_a';
         return {
             orderRoutes,
-            prioridad: forzada ? RANGO_PRIORIDAD.forzada : (RANGO_PRIORIDAD[String(primera.prioridad || 'normal')] ?? 2),
+            prioridadTexto,
+            prioridad: forzada ? RANGO_PRIORIDAD.forzada : (RANGO_PRIORIDAD[prioridadTexto] ?? 2),
+            clase: RANGO_CLASE[primera.clase_cliente] ?? 3,
             buffer: forzada ? 0 : buffer,
             forzada,
             objetivo: forzada || fechaObjetivo(primera.promised_date, buffer)
         };
     }).sort((x, y) => x.prioridad - y.prioridad
         || String(x.objetivo || '9999').localeCompare(String(y.objetivo || '9999'))
+        || x.clase - y.clase
         || String(x.orderRoutes[0]?.order_code || '').localeCompare(String(y.orderRoutes[0]?.order_code || '')));
 
     for (const grupo of orderGroups) {
@@ -24812,7 +24852,10 @@ async function runFiniteCapacityEngine(options = {}) {
             customerName: primera.customer_name || '',
             jobName: primera.job_name || '',
             promisedDate: primera.promised_date || null,
-            priority: grupo.forzada ? 'forzada' : String(primera.prioridad || 'normal'),
+            priority: grupo.forzada ? 'forzada' : grupo.prioridadTexto,
+            customerClass: primera.clase_cliente || null,
+            salesperson: primera.vendedor || '',
+            committedDate: primera.fecha_comprometida || null,
             forcedDate: grupo.forzada,
             forcedBy: primera.fecha_forzada_por || null,
             bufferDays: grupo.buffer,
@@ -24924,27 +24967,39 @@ async function runFiniteCapacityEngine(options = {}) {
         //  - a-tiempo: termina antes de la fecha objetivo (se entrega en la fecha del cliente)
         //  - sin-colchon: termina dentro del buffer (se entrega en la fecha del cliente, sin margen)
         //  - tarde: termina después de la fecha del cliente (hay que negociar la nueva fecha)
+        // Tres fechas: la del cliente (guía), la comprometida (la que dimos; nace en la
+        // primera programación) y la de esta reprogramación, que al aplicarse pasa a ser
+        // la comprometida. "Atrasa" solo existe contra la comprometida.
         const finKey = orderSummary.latestEnd ? capacityDateKey(orderSummary.latestEnd) : null;
         const clienteKey = fechaClave(orderSummary.promisedDate);
+        const comprometida = fechaClave(orderSummary.committedDate);
         let estado = 'sin-fecha';
         let fechaEstimada = null;
+        let diasVsCompromiso = null;
         if (orderSummary.missingData) estado = 'falta-dato';
         else if (chainBlocked) estado = 'sin-programar';
-        else if (finKey && clienteKey) {
-            if (finKey > clienteKey) {
-                // Tarde: se entrega el siguiente día laborable después de terminar.
-                estado = 'tarde';
+        else if (finKey) {
+            // Entrega estimada: la fecha del cliente si se llega; si no, el siguiente
+            // día laborable después de terminar.
+            if (clienteKey && finKey <= clienteKey) fechaEstimada = clienteKey;
+            else {
                 fechaEstimada = capacityAddDays(finKey, 1);
                 while (new Date(`${fechaEstimada}T00:00:00.000Z`).getUTCDay() === 0 || esFeriado(feriados, fechaEstimada)) {
                     fechaEstimada = capacityAddDays(fechaEstimada, 1);
                 }
             }
-            else if (grupo.objetivo && finKey > grupo.objetivo) { estado = 'sin-colchon'; fechaEstimada = clienteKey; }
-            else { estado = 'a-tiempo'; fechaEstimada = clienteKey; }
+            if (comprometida) {
+                diasVsCompromiso = calDiffDias(comprometida, fechaEstimada);
+                estado = diasVsCompromiso > 0 ? 'atrasa' : (diasVsCompromiso < 0 ? 'adelanta' : 'cumple');
+            } else if (clienteKey && finKey > clienteKey) estado = 'negociar';
+            else if (grupo.objetivo && finKey > grupo.objetivo) estado = 'sin-colchon';
+            else estado = 'a-tiempo';
         }
+        orderSummary.firstProgramming = !comprometida;
+        orderSummary.daysVsCommitted = diasVsCompromiso;
         orderSummary.scheduleState = estado;
         orderSummary.estimatedDelivery = fechaEstimada;
-        orderSummary.projectedLate = estado === 'tarde';
+        orderSummary.projectedLate = estado === 'atrasa';
         orderSummaries.push(orderSummary);
         resumenPorOrden.set(orderSummary.orderCode, orderSummary);
     }
@@ -25042,15 +25097,37 @@ async function runFiniteCapacityEngine(options = {}) {
 // motor en memoria y lo compara contra lo guardado; aplicar vuelve a correrlo con
 // las mismas decisiones (órdenes mantenidas / bloqueos liberados), guarda lo que
 // había antes en reprogramacion_log y se puede deshacer.
-function moverParam(fuente) {
-    const m = fuente && typeof fuente === 'object' ? fuente : null;
-    if (!m || !m.routeId || !m.start || Number.isNaN(new Date(m.start).getTime())) return null;
-    return { routeId: String(m.routeId), start: new Date(m.start).toISOString(), maquinaId: m.maquinaId ? String(m.maquinaId) : null };
+// Motivos de una reprogramación (obligatorio al aplicar, con comentario).
+const MOTIVOS_REPROGRAMACION = Object.freeze({
+    primera: 'Primera programación',
+    falla_maquina: 'Falla o mantenimiento de máquina',
+    urgente_cliente: 'Urgencia de un cliente',
+    falta_material: 'Falta de material',
+    cambio_prioridad: 'Cambio de prioridades',
+    carga_trabajo: 'Carga de trabajo / órdenes nuevas',
+    otro: 'Otro'
+});
+
+function fechaTexto(v) {
+    if (!v) return null;
+    if (v instanceof Date) return v.toISOString().slice(0, 10);
+    return String(v).slice(0, 10);
 }
 
-function listaParam(valor) {
-    if (Array.isArray(valor)) return valor.map(String).filter(Boolean);
-    return String(valor || '').split(',').map((v) => v.trim()).filter(Boolean);
+async function correosDeVendedores(nombres) {
+    const lista = [...new Set(nombres.filter(Boolean))];
+    if (!lista.length) return new Map();
+    const { rows } = await pgQuery(`
+        SELECT full_name, sap_salesperson_name, email FROM admin_users
+         WHERE LOWER(full_name) = ANY($1::text[]) OR LOWER(sap_salesperson_name) = ANY($1::text[])
+    `, [lista.map((n) => n.toLowerCase())]);
+    const mapa = new Map();
+    rows.forEach((u) => {
+        const correo = String(u.email || '').trim();
+        if (!correo) return;
+        [u.full_name, u.sap_salesperson_name].filter(Boolean).forEach((n) => mapa.set(n.toLowerCase(), correo));
+    });
+    return mapa;
 }
 
 async function construirVistaPreviaReprogramacion(opciones = {}) {
@@ -25058,7 +25135,8 @@ async function construirVistaPreviaReprogramacion(opciones = {}) {
         horizonDays: 60,
         mantener: opciones.mantener || [],
         liberar: opciones.liberar || [],
-        mover: opciones.mover || null
+        mover: opciones.mover || null,
+        ajustes: opciones.ajustes || {}
     });
     const codigos = engine.orders.map((o) => o.orderCode);
     // Proceso en el que va cada orden ahora mismo (toda su ruta, no solo lo programable).
@@ -25070,13 +25148,16 @@ async function construirVistaPreviaReprogramacion(opciones = {}) {
          ORDER BY r.codigo_orden, COALESCE(c.orden, 9999), r.secuencia
     `, [codigos])).rows : [];
     const procesoActual = new Map(actuales.map((r) => [r.codigo_orden, { proceso: r.nombre_proceso, estado: r.estado }]));
-    const previos = codigos.length ? (await pgQuery(`
-        SELECT codigo_orden, fecha_entrega_estimada, estado_programacion FROM orden_planificacion WHERE codigo_orden = ANY($1::text[])
+    const planes = codigos.length ? (await pgQuery(`
+        SELECT codigo_orden, dias_buffer_entrega, fecha_comprometida_bloqueada FROM orden_planificacion WHERE codigo_orden = ANY($1::text[])
     `, [codigos])).rows : [];
-    const previoPorOrden = new Map(previos.map((r) => [r.codigo_orden, r]));
+    const planPorOrden = new Map(planes.map((r) => [r.codigo_orden, r]));
+    const correos = await correosDeVendedores(engine.orders.map((o) => o.salesperson));
 
     const UNA_HORA = 3600000;
     const ordenes = engine.orders.map((o) => {
+        // La orden como BLOQUE: desde que entra a planta hasta que termina su último proceso.
+        const inicioAntes = o.routes.reduce((min, r) => (r.previousStart && (!min || r.previousStart < min) ? r.previousStart : min), null);
         const antes = o.previousEnd ? new Date(o.previousEnd).getTime() : null;
         const despues = o.latestEnd ? new Date(o.latestEnd).getTime() : null;
         let movimiento = 'igual';
@@ -25085,35 +25166,42 @@ async function construirVistaPreviaReprogramacion(opciones = {}) {
         else if (antes === null) movimiento = 'nueva';
         else if (despues - antes > UNA_HORA) movimiento = 'atrasa';
         else if (antes - despues > UNA_HORA) movimiento = 'adelanta';
-        const previo = previoPorOrden.get(o.orderCode) || {};
         const fija = o.routes.filter((r) => r.status === 'fixed');
         const actual = procesoActual.get(o.orderCode) || {};
+        const plan = planPorOrden.get(o.orderCode) || {};
+        const correo = correos.get(String(o.salesperson || '').toLowerCase()) || null;
         return {
             orderCode: o.orderCode,
             cliente: o.customerName,
+            claseCliente: o.customerClass,
             trabajo: o.jobName,
+            vendedor: o.salesperson || '',
+            correoVendedor: correo,
             prioridad: o.priority,
-            fechaCliente: o.promisedDate ? capacityDateKey(o.promisedDate) : null,
             bufferDias: o.bufferDays,
+            bufferPropio: plan.dias_buffer_entrega != null,
+            fechaCliente: o.promisedDate ? capacityDateKey(o.promisedDate) : null,
             fechaObjetivo: o.targetDate,
+            fechaComprometida: fechaTexto(o.committedDate),
+            primeraProgramacion: o.firstProgramming,
+            diasVsCompromiso: o.daysVsCommitted,
+            inicioAntes,
             finAntes: o.previousEnd,
+            inicioDespues: o.earliestStart,
             finDespues: o.latestEnd,
             diferenciaHoras: antes !== null && despues !== null ? capacityRound((despues - antes) / UNA_HORA, 1) : null,
             movimiento,
             estado: o.scheduleState,
-            estadoAntes: previo.estado_programacion || null,
             fechaEstimada: o.estimatedDelivery,
-            fechaEstimadaAntes: previo.fecha_entrega_estimada ? capacityDateKey(previo.fecha_entrega_estimada) : null,
             bloqueoSuave: o.softLocked,
             bloqueoSuavePor: o.softLockedBy,
             fija: fija.length > 0,
             motivosFija: [...new Set(fija.map((r) => r.fixedReason))],
             fijaPor: fija.map((r) => r.fixedBy).find(Boolean) || null,
             estadoOrden: o.planningStatus || o.orderStatus || '',
+            procesoActual: actual.proceso || null,
             enAprobacion: o.waitingApproval || null,
             faltaDato: o.missingData || null,
-            procesoActual: actual.proceso || null,
-            procesoActualEstado: actual.estado || null,
             rutas: o.routes.map((r) => ({
                 routeId: r.routeId,
                 idRuta: r.idRuta,
@@ -25133,6 +25221,15 @@ async function construirVistaPreviaReprogramacion(opciones = {}) {
         };
     });
     const cuenta = (fn) => ordenes.filter(fn).length;
+    // A quién se le avisa: órdenes que se atrasan contra lo comprometido o que en su
+    // primera programación no llegan a la fecha del cliente (hay que negociar).
+    const avisar = ordenes.filter((o) => o.estado === 'atrasa' || o.estado === 'negociar');
+    const vendedores = new Map();
+    avisar.forEach((o) => {
+        const clave = o.vendedor || 'Sin vendedor';
+        if (!vendedores.has(clave)) vendedores.set(clave, { vendedor: clave, correo: o.correoVendedor, ordenes: [] });
+        vendedores.get(clave).ordenes.push(o.orderCode);
+    });
     const resumen = {
         calculadoEn: engine.computedAt,
         ordenes: ordenes.length,
@@ -25140,11 +25237,10 @@ async function construirVistaPreviaReprogramacion(opciones = {}) {
         atrasan: cuenta((o) => o.movimiento === 'atrasa'),
         igual: cuenta((o) => o.movimiento === 'igual'),
         nuevas: cuenta((o) => o.movimiento === 'nueva'),
-        sinProgramar: cuenta((o) => o.movimiento === 'sin-programar'),
-        tarde: cuenta((o) => o.estado === 'tarde'),
-        sinColchon: cuenta((o) => o.estado === 'sin-colchon'),
-        aTiempo: cuenta((o) => o.estado === 'a-tiempo'),
-        nuevasTarde: cuenta((o) => o.estado === 'tarde' && o.estadoAntes !== 'tarde'),
+        primeraProgramacion: cuenta((o) => o.primeraProgramacion && !['en-aprobacion', 'falta-dato', 'sin-programar'].includes(o.estado)),
+        cumplen: cuenta((o) => ['cumple', 'adelanta', 'a-tiempo', 'sin-colchon'].includes(o.estado)),
+        atrasanCompromiso: cuenta((o) => o.estado === 'atrasa'),
+        negociar: cuenta((o) => o.estado === 'negociar'),
         fijas: cuenta((o) => o.fija),
         faltaDato: cuenta((o) => o.estado === 'falta-dato'),
         enAprobacion: cuenta((o) => o.movimiento === 'en-aprobacion'),
@@ -25156,7 +25252,37 @@ async function construirVistaPreviaReprogramacion(opciones = {}) {
         utilizacion: r.utilizationPct,
         colaDias: r.queueDays
     }));
-    return { ok: true, resumen, ordenes, recursos, mantener: opciones.mantener || [], liberar: opciones.liberar || [], mover: opciones.mover || null };
+    return {
+        ok: true, resumen, ordenes, recursos,
+        avisos: [...vendedores.values()],
+        motivos: MOTIVOS_REPROGRAMACION,
+        mantener: opciones.mantener || [], liberar: opciones.liberar || [], ajustes: opciones.ajustes || {}, mover: opciones.mover || null
+    };
+}
+
+function moverParam(fuente) {
+    const m = fuente && typeof fuente === 'object' ? fuente : null;
+    if (!m || !m.routeId || !m.start || Number.isNaN(new Date(m.start).getTime())) return null;
+    return { routeId: String(m.routeId), start: new Date(m.start).toISOString(), maquinaId: m.maquinaId ? String(m.maquinaId) : null };
+}
+
+function listaParam(valor) {
+    if (Array.isArray(valor)) return valor.map(String).filter(Boolean);
+    return String(valor || '').split(',').map((v) => v.trim()).filter(Boolean);
+}
+
+function ajustesParam(valor) {
+    let fuente = valor;
+    if (typeof fuente === 'string') { try { fuente = JSON.parse(fuente); } catch (e) { fuente = {}; } }
+    const salida = {};
+    Object.entries(fuente && typeof fuente === 'object' ? fuente : {}).forEach(([codigo, a]) => {
+        if (!a || typeof a !== 'object') return;
+        const item = {};
+        if (['normal', 'clase_a', 'urgente'].includes(a.prioridad)) item.prioridad = a.prioridad;
+        if (a.buffer !== undefined && a.buffer !== null && a.buffer !== '' && Number(a.buffer) >= 0) item.buffer = Math.min(30, Math.round(Number(a.buffer)));
+        if (Object.keys(item).length) salida[String(codigo)] = item;
+    });
+    return salida;
 }
 
 app.get('/api/planificacion/reprogramar/vista-previa', async (req, res) => {
@@ -25166,6 +25292,7 @@ app.get('/api/planificacion/reprogramar/vista-previa', async (req, res) => {
         res.json(await construirVistaPreviaReprogramacion({
             mantener: listaParam(req.query.mantener),
             liberar: listaParam(req.query.liberar),
+            ajustes: ajustesParam(req.query.ajustes),
             mover
         }));
     } catch (error) {
@@ -25173,13 +25300,44 @@ app.get('/api/planificacion/reprogramar/vista-previa', async (req, res) => {
     }
 });
 
+function htmlCorreoReprogramacion(vendedor, ordenes, motivoTexto, comentario, usuario) {
+    const fila = (o) => `<tr>
+        <td style="padding:6px 10px;border-top:1px solid #eee"><b>${escapeHtmlServer(o.orderCode)}</b><br><span style="color:#667">${escapeHtmlServer(o.trabajo || '')}</span></td>
+        <td style="padding:6px 10px;border-top:1px solid #eee">${escapeHtmlServer(o.cliente || '')}</td>
+        <td style="padding:6px 10px;border-top:1px solid #eee">${escapeHtmlServer(o.fechaCliente || '—')}</td>
+        <td style="padding:6px 10px;border-top:1px solid #eee">${escapeHtmlServer(o.fechaComprometida || '—')}</td>
+        <td style="padding:6px 10px;border-top:1px solid #eee;color:#c43a39"><b>${escapeHtmlServer(o.fechaEstimada || '—')}</b>${o.diasVsCompromiso > 0 ? ` (+${o.diasVsCompromiso} d)` : ''}</td>
+    </tr>`;
+    return `<p>Hola ${escapeHtmlServer(vendedor)},</p>
+<p>Planeación reprogramó la producción y estas órdenes tuyas <b>cambian su fecha de entrega</b>. Por favor comunícate con el cliente.</p>
+<table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px">
+<tr style="background:#f5f7fb;text-align:left"><th style="padding:6px 10px">Orden</th><th style="padding:6px 10px">Cliente</th><th style="padding:6px 10px">Fecha que pidió el cliente</th><th style="padding:6px 10px">Fecha que teníamos</th><th style="padding:6px 10px">Nueva fecha</th></tr>
+${ordenes.map(fila).join('')}
+</table>
+<p><b>Motivo:</b> ${escapeHtmlServer(motivoTexto)}${comentario ? ` — ${escapeHtmlServer(comentario)}` : ''}<br><span style="color:#667">Reprogramó: ${escapeHtmlServer(usuario)}</span></p>`;
+}
+
+function escapeHtmlServer(v) {
+    return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 app.post('/api/planificacion/reprogramar/aplicar', async (req, res) => {
     try {
         const usuario = getRequestUserName(req, 'Planeación');
         const mover = moverParam(req.body?.mover);
+        const motivo = String(req.body?.motivo || (mover ? 'cambio_prioridad' : '')).trim();
+        const comentario = sanitizeAdminUserText(req.body?.comentario || '');
+        if (!MOTIVOS_REPROGRAMACION[motivo]) {
+            return res.status(400).json({ ok: false, error: 'Indica el motivo de la reprogramación.' });
+        }
+        if (motivo === 'otro' && !comentario) {
+            return res.status(400).json({ ok: false, error: 'Explica el motivo en el comentario.' });
+        }
+        const ajustes = ajustesParam(req.body?.ajustes);
         const vista = await construirVistaPreviaReprogramacion({
             mantener: listaParam(req.body?.mantener),
             liberar: listaParam(req.body?.liberar),
+            ajustes,
             mover
         });
         const rutasCambian = [];
@@ -25198,13 +25356,14 @@ app.post('/api/planificacion/reprogramar/aplicar', async (req, res) => {
         if (mover && !rutaMovida) return res.status(400).json({ ok: false, error: 'No se pudo colocar la ruta en ese lugar (sin horario disponible).' });
         const ids = rutasCambian.map((r) => r.routeId);
         const antesRutas = ids.length ? (await pgQuery(`
-            SELECT id::text, fecha_plan_inicio, fecha_plan_fin, maquina_id::text, bloqueo_manual,
+            SELECT id::text, fecha_plan_inicio, fecha_plan_fin, maquina_id::text, bloqueo_manual, duracion_horas,
                    datos_extra->>'manualLockBy' AS manual_lock_by, datos_extra->>'manualLockAt' AS manual_lock_at
               FROM orden_proceso WHERE id = ANY($1::uuid[])
         `, [ids])).rows : [];
         const codigos = vista.ordenes.map((o) => o.orderCode);
         const antesOrdenes = codigos.length ? (await pgQuery(`
-            SELECT codigo_orden, fecha_entrega_estimada, estado_programacion, fecha_fin_produccion_proyectada, alerta_atraso
+            SELECT codigo_orden, fecha_entrega_estimada, estado_programacion, fecha_fin_produccion_proyectada, alerta_atraso,
+                   prioridad, dias_buffer_entrega
               FROM orden_planificacion WHERE codigo_orden = ANY($1::text[])
         `, [codigos])).rows : [];
 
@@ -25233,27 +25392,92 @@ app.post('/api/planificacion/reprogramar/aplicar', async (req, res) => {
                  WHERE id = $1::uuid
             `, [r.routeId, r.inicio, r.fin, maquinaPorRecurso.get(r.recurso) || null, r.horas > 0 ? r.horas : null]);
         }
+        // La fecha de esta reprogramación pasa a ser la comprometida; los ajustes de
+        // prioridad y buffer hechos en la vista previa quedan en la orden.
         for (const o of vista.ordenes) {
+            const ajuste = ajustes[o.orderCode] || {};
             await pgQuery(`
                 UPDATE orden_planificacion
-                   SET fecha_entrega_estimada = $2::date,
+                   SET fecha_entrega_estimada = COALESCE($2::date, fecha_entrega_estimada),
                        estado_programacion = $3,
                        fecha_fin_produccion_proyectada = $4::timestamptz,
-                       alerta_atraso = ($3 = 'tarde'),
+                       alerta_atraso = ($3 = 'atrasa'),
+                       prioridad = COALESCE($5, prioridad),
+                       dias_buffer_entrega = CASE WHEN $6::int IS NULL THEN dias_buffer_entrega ELSE $6::int END,
                        programado_en = NOW(),
                        actualizado_en = NOW()
                  WHERE codigo_orden = $1
-            `, [o.orderCode, o.fechaEstimada, o.estado, o.finDespues]);
+            `, [o.orderCode, o.fechaEstimada, o.estado, o.finDespues, ajuste.prioridad || null, ajuste.buffer ?? null]);
         }
+        const motivoTexto = MOTIVOS_REPROGRAMACION[motivo];
         const log = await pgQuery(`
-            INSERT INTO reprogramacion_log (usuario, resumen, rutas, ordenes)
-            VALUES ($1, $2::jsonb, $3::jsonb, $4::jsonb) RETURNING id, creado_en
-        `, [usuario, JSON.stringify({ ...vista.resumen, rutasMovidas: rutasCambian.length, mantener: vista.mantener, liberar: vista.liberar, movidaAMano: rutaMovida ? { routeId: rutaMovida.routeId, inicio: rutaMovida.inicio } : null }),
-            JSON.stringify(antesRutas), JSON.stringify(antesOrdenes)]);
+            INSERT INTO reprogramacion_log (usuario, resumen, rutas, ordenes, motivo, comentario)
+            VALUES ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5, $6) RETURNING id, creado_en
+        `, [usuario, JSON.stringify({ ...vista.resumen, rutasMovidas: rutasCambian.length, mantener: vista.mantener, liberar: vista.liberar, ajustes, movidaAMano: rutaMovida ? { routeId: rutaMovida.routeId, inicio: rutaMovida.inicio } : null }),
+            JSON.stringify(antesRutas), JSON.stringify(antesOrdenes), motivo, comentario]);
+        const logId = log.rows[0].id;
+
+        // Historial por orden (solo las que cambian su fecha comprometida o la estrenan).
+        const cambian = vista.ordenes.filter((o) => o.fechaEstimada && o.fechaEstimada !== o.fechaComprometida);
+        for (const o of cambian) {
+            await pgQuery(`
+                INSERT INTO reprogramacion_orden (log_id, codigo_orden, fecha_cliente, fecha_comprometida_antes, fecha_comprometida_despues,
+                                                  dias, estado, prioridad, buffer_dias, vendedor, correo)
+                VALUES ($1, $2, $3::date, $4::date, $5::date, $6, $7, $8, $9, $10, $11)
+            `, [logId, o.orderCode, o.fechaCliente, o.fechaComprometida, o.fechaEstimada,
+                o.diasVsCompromiso, o.estado, o.prioridad, o.bufferDias, o.vendedor, o.correoVendedor]);
+        }
+
+        // Correo al vendedor: órdenes que se atrasan contra lo comprometido o que hay que negociar.
+        const notificar = req.body?.notificar !== false;
+        const correosEnviados = [];
+        const correosFallidos = [];
+        if (notificar) {
+            const porVendedor = new Map();
+            vista.ordenes.filter((o) => (o.estado === 'atrasa' || o.estado === 'negociar') && o.correoVendedor).forEach((o) => {
+                if (!porVendedor.has(o.correoVendedor)) porVendedor.set(o.correoVendedor, { vendedor: o.vendedor, ordenes: [] });
+                porVendedor.get(o.correoVendedor).ordenes.push(o);
+            });
+            for (const [correo, grupo] of porVendedor) {
+                try {
+                    await sendEmail({
+                        to: correo,
+                        subject: `Cambio de fecha de entrega: ${grupo.ordenes.map((o) => o.orderCode).join(', ')}`,
+                        html: htmlCorreoReprogramacion(grupo.vendedor, grupo.ordenes, motivoTexto, comentario, usuario)
+                    });
+                    correosEnviados.push(correo);
+                    await pgQuery(`UPDATE reprogramacion_orden SET notificado = TRUE WHERE log_id = $1 AND correo = $2`, [logId, correo]);
+                } catch (e) {
+                    correosFallidos.push({ correo, error: e.message });
+                }
+            }
+        }
         invalidateFiniteCapacityCache();
-        res.json({ ok: true, logId: log.rows[0].id, rutasMovidas: rutasCambian.length, resumen: vista.resumen });
+        res.json({
+            ok: true, logId, rutasMovidas: rutasCambian.length, resumen: vista.resumen,
+            ordenesCambiadas: cambian.map((o) => o.orderCode),
+            correosEnviados, correosFallidos
+        });
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible aplicar la reprogramación.' });
+    }
+});
+
+// Después de aplicar: dejar con bloqueo suave las órdenes que el programador elija.
+app.post('/api/planificacion/reprogramar/bloquear', async (req, res) => {
+    try {
+        const usuario = getRequestUserName(req, 'Planeación');
+        const ordenes = listaParam(req.body?.ordenes);
+        if (!ordenes.length) return res.status(400).json({ ok: false, error: 'Elige al menos una orden.' });
+        const { rowCount } = await pgQuery(`
+            UPDATE orden_planificacion
+               SET fecha_comprometida_bloqueada = TRUE, bloqueo_comprometido_por = $2, bloqueo_comprometido_en = NOW(), actualizado_en = NOW()
+             WHERE codigo_orden = ANY($1::text[])
+        `, [ordenes, usuario]);
+        invalidateFiniteCapacityCache();
+        res.json({ ok: true, bloqueadas: rowCount });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible bloquear las órdenes.' });
     }
 });
 
@@ -25267,23 +25491,44 @@ app.post('/api/planificacion/reprogramar/deshacer', async (req, res) => {
             await pgQuery(`
                 UPDATE orden_proceso SET fecha_plan_inicio = $2::timestamptz, fecha_plan_fin = $3::timestamptz,
                        maquina_id = $4::uuid, bloqueo_manual = COALESCE($5, bloqueo_manual),
+                       duracion_horas = COALESCE($6::numeric, duracion_horas),
                        datos_extra = CASE WHEN $5 IS FALSE THEN COALESCE(datos_extra, '{}'::jsonb) - 'manualLock' - 'manualLockBy' - 'manualLockAt' ELSE datos_extra END,
                        actualizado_en = NOW()
                  WHERE id = $1::uuid
-            `, [r.id, r.fecha_plan_inicio, r.fecha_plan_fin, r.maquina_id || null, r.bloqueo_manual == null ? null : Boolean(r.bloqueo_manual)]);
+            `, [r.id, r.fecha_plan_inicio, r.fecha_plan_fin, r.maquina_id || null, r.bloqueo_manual == null ? null : Boolean(r.bloqueo_manual), r.duracion_horas == null ? null : Number(r.duracion_horas)]);
         }
         for (const o of (log.ordenes || [])) {
             await pgQuery(`
                 UPDATE orden_planificacion SET fecha_entrega_estimada = $2::date, estado_programacion = $3,
-                       fecha_fin_produccion_proyectada = $4::timestamptz, alerta_atraso = COALESCE($5, alerta_atraso), actualizado_en = NOW()
+                       fecha_fin_produccion_proyectada = $4::timestamptz, alerta_atraso = COALESCE($5, alerta_atraso),
+                       prioridad = COALESCE($6, prioridad),
+                       dias_buffer_entrega = CASE WHEN $8 THEN $7::int ELSE dias_buffer_entrega END, actualizado_en = NOW()
                  WHERE codigo_orden = $1
-            `, [o.codigo_orden, o.fecha_entrega_estimada, o.estado_programacion, o.fecha_fin_produccion_proyectada, o.alerta_atraso]);
+            `, [o.codigo_orden, o.fecha_entrega_estimada, o.estado_programacion, o.fecha_fin_produccion_proyectada, o.alerta_atraso,
+                o.prioridad || null, o.dias_buffer_entrega == null ? null : Number(o.dias_buffer_entrega),
+                Object.prototype.hasOwnProperty.call(o, 'dias_buffer_entrega')]);
         }
         await pgQuery(`UPDATE reprogramacion_log SET deshecho_en = NOW(), deshecho_por = $2 WHERE id = $1`, [log.id, usuario]);
         invalidateFiniteCapacityCache();
         res.json({ ok: true, logId: log.id, rutasRestauradas: (log.rutas || []).length });
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible deshacer la reprogramación.' });
+    }
+});
+
+// Historial de una orden: cada vez que se programó o reprogramó, quién y por qué.
+app.get('/api/planificacion/:codigo/historial-programacion', async (req, res) => {
+    try {
+        const { rows } = await pgQuery(`
+            SELECT ro.creado_en, ro.fecha_cliente::text, ro.fecha_comprometida_antes::text, ro.fecha_comprometida_despues::text,
+                   ro.dias, ro.estado, ro.prioridad, ro.buffer_dias, ro.notificado,
+                   l.usuario, l.motivo, l.comentario, l.deshecho_en
+              FROM reprogramacion_orden ro JOIN reprogramacion_log l ON l.id = ro.log_id
+             WHERE ro.codigo_orden = $1 ORDER BY ro.creado_en DESC
+        `, [String(req.params.codigo || '')]);
+        res.json({ ok: true, data: rows.map((r) => ({ ...r, motivoTexto: MOTIVOS_REPROGRAMACION[r.motivo] || r.motivo })) });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar el historial.' });
     }
 });
 
@@ -25347,8 +25592,12 @@ app.delete('/api/planificacion/horas-extra/:id', async (req, res) => {
 app.get('/api/planificacion/reprogramar/historial', async (req, res) => {
     try {
         const { rows } = await pgQuery(`
-            SELECT id, creado_en, usuario, resumen, deshecho_en, deshecho_por, jsonb_array_length(rutas) AS rutas
-              FROM reprogramacion_log ORDER BY id DESC LIMIT 20
+            SELECT l.id, l.creado_en, l.usuario, l.resumen, l.deshecho_en, l.deshecho_por, jsonb_array_length(l.rutas) AS rutas,
+                   l.motivo, l.comentario,
+                   (SELECT COUNT(*) FROM reprogramacion_orden ro WHERE ro.log_id = l.id)::int AS ordenes_cambiadas,
+                   (SELECT COUNT(*) FROM reprogramacion_orden ro WHERE ro.log_id = l.id AND ro.dias > 0)::int AS ordenes_atrasadas,
+                   (SELECT COALESCE(SUM(ro.dias) FILTER (WHERE ro.dias > 0), 0) FROM reprogramacion_orden ro WHERE ro.log_id = l.id)::int AS dias_atraso
+              FROM reprogramacion_log l ORDER BY l.id DESC LIMIT 30
         `);
         res.json({ ok: true, data: rows });
     } catch (error) {
