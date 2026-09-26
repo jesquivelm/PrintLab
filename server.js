@@ -22413,6 +22413,13 @@ app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
                     opm.maquina_id AS maquina,
                     COALESCE(r.datos_extra->>'capacityResourceName', r.nombre_maquina, o.machine_name) AS maquina_nombre,
                     COALESCE((r.datos_extra->>'start_turn_hour')::numeric, 0) AS inicio,
+                    r.fecha_plan_inicio,
+                    r.fecha_plan_fin,
+                    COALESCE(r.bloqueo_manual, FALSE) AS bloqueo_manual,
+                    r.datos_extra->>'manualLockBy' AS bloqueo_por,
+                    r.datos_extra->>'manualLockAt' AS bloqueo_en,
+                    opl.fecha_entrega_estimada,
+                    opl.estado_programacion,
                     COALESCE(r.duracion_horas, 0) AS dur,
                     r.transicion_min AS trans_costo,
                     COALESCE(NULLIF(dep.datos_extra->>'migrado_de_route_id',''), dep.id::text) AS dep_ruta_id,
@@ -22431,12 +22438,7 @@ app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
                         ELSE NULL::text
                     END AS alerta,
                     o.raw_data->'planning_control'->>'productionEndDate' AS fecha_fin_produccion,
-                    COALESCE(
-                        opl.fecha_entrega_programada::timestamptz,
-                        opl.fecha_entrega_prometida::timestamptz,
-                        NULLIF(o.raw_data->'quote_snapshot'->>'due_on', '')::timestamptz,
-                        NULLIF(o.raw_data->'line_snapshot'->>'dueOn', '')::timestamptz
-                    ) AS fecha_entrega_prometida
+                    opl.fecha_entrega_prometida::text AS fecha_entrega_prometida
                 FROM vista_orden_proceso r
                 JOIN flexo_orders o ON o.order_code = r.codigo_orden
                 LEFT JOIN orden_planificacion opl ON opl.codigo_orden = r.codigo_orden
@@ -22532,6 +22534,16 @@ app.patch('/api/planificacion/gantt/mover', async (req, res) => {
             ...(route_payload_updates || {}),
             ...capacityResourceUpdate
         };
+        // Fijar a mano: queda registrado quién y cuándo (lo muestran el Gantt y el Reprogramador).
+        if (route_payload_updates && Object.prototype.hasOwnProperty.call(route_payload_updates, 'manualLock')) {
+            if (route_payload_updates.manualLock) {
+                mergedRoutePayloadUpdates.manualLockBy = getRequestUserName(req, 'Planeación');
+                mergedRoutePayloadUpdates.manualLockAt = new Date().toISOString();
+            } else {
+                mergedRoutePayloadUpdates.manualLockBy = null;
+                mergedRoutePayloadUpdates.manualLockAt = null;
+            }
+        }
         if (inicio !== undefined) mergedRoutePayloadUpdates.start_turn_hour = Number(inicio);
         // id_ruta puede ser el id de orden_proceso o el route_id viejo migrado.
         const proc = await resolverOrdenProceso(id_ruta);
@@ -24259,6 +24271,8 @@ async function runFiniteCapacityEngine(options = {}) {
     // y órdenes con bloqueo suave que sí se permite mover.
     const mantenerOrdenes = new Set((options.mantener || []).map(String));
     const liberarOrdenes = new Set((options.liberar || []).map(String));
+    // Movimiento desde el Gantt: { routeId, start, maquinaId } — esa ruta queda fija ahí.
+    const mover = options.mover && options.mover.routeId ? options.mover : null;
 
     const [routesRes, resourcesRes, calendarsRes, shiftsRes, exceptionsRes] = await Promise.all([
         pgQuery(`
@@ -24603,6 +24617,7 @@ async function runFiniteCapacityEngine(options = {}) {
     // Por qué una ruta no se mueve en esta corrida (null = se programa).
     function motivoFija(route) {
         const code = String(route.order_code);
+        if (mover && (String(route.id) === String(mover.routeId) || idRutaGantt.get(String(route.id)) === String(mover.routeId))) return 'movida-ahora';
         if (mantenerOrdenes.has(code)) return 'mantenida';
         if (route.bloqueo_suave && !liberarOrdenes.has(code)) return 'bloqueo-suave';
         if (route.bloqueo_manual) return 'movida-a-mano';
@@ -24642,12 +24657,18 @@ async function runFiniteCapacityEngine(options = {}) {
         for (const route of orderRoutes) {
             const motivo = motivoFija(route);
             if (!motivo) continue;
-            const recurso = recursoParaFija(route);
+            let recurso = recursoParaFija(route);
+            if (motivo === 'movida-ahora' && mover.maquinaId) {
+                recurso = resources.find((r) => r.maquinaId && r.maquinaId === String(mover.maquinaId)) || recurso;
+            }
             if (!recurso) continue;
             const ini = route.planned_start_at ? new Date(route.planned_start_at) : null;
             const fin = route.planned_end_at ? new Date(route.planned_end_at) : null;
             let plan = null;
-            if (ini && fin && fin > ahora) {
+            if (motivo === 'movida-ahora') {
+                // Donde la soltaron, respetando el horario del recurso.
+                plan = simulateLane(recurso, new Date(mover.start), Math.max(0.01, Number(route.duration_hours || 0.01)), canonicalProductionFlowKey(route.process_key));
+            } else if (ini && fin && fin > ahora) {
                 plan = { start: ini, end: fin, segments: [{ date: capacityDateKey(ini), hours: Math.max(0, Number(route.duration_hours || 0)) }] };
             } else if (esEnMarcha(route)) {
                 // En marcha sin fechas vigentes: ocupa la máquina desde ahora.
@@ -24918,6 +24939,12 @@ async function runFiniteCapacityEngine(options = {}) {
 // motor en memoria y lo compara contra lo guardado; aplicar vuelve a correrlo con
 // las mismas decisiones (órdenes mantenidas / bloqueos liberados), guarda lo que
 // había antes en reprogramacion_log y se puede deshacer.
+function moverParam(fuente) {
+    const m = fuente && typeof fuente === 'object' ? fuente : null;
+    if (!m || !m.routeId || !m.start || Number.isNaN(new Date(m.start).getTime())) return null;
+    return { routeId: String(m.routeId), start: new Date(m.start).toISOString(), maquinaId: m.maquinaId ? String(m.maquinaId) : null };
+}
+
 function listaParam(valor) {
     if (Array.isArray(valor)) return valor.map(String).filter(Boolean);
     return String(valor || '').split(',').map((v) => v.trim()).filter(Boolean);
@@ -24927,7 +24954,8 @@ async function construirVistaPreviaReprogramacion(opciones = {}) {
     const engine = await runFiniteCapacityEngine({
         horizonDays: 60,
         mantener: opciones.mantener || [],
-        liberar: opciones.liberar || []
+        liberar: opciones.liberar || [],
+        mover: opciones.mover || null
     });
     const codigos = engine.orders.map((o) => o.orderCode);
     // Proceso en el que va cada orden ahora mismo (toda su ruta, no solo lo programable).
@@ -24984,6 +25012,8 @@ async function construirVistaPreviaReprogramacion(opciones = {}) {
             procesoActualEstado: actual.estado || null,
             rutas: o.routes.map((r) => ({
                 routeId: r.routeId,
+                idRuta: r.idRuta,
+                maquinaId: r.maquinaId || null,
                 proceso: r.processName,
                 processKey: r.processKey,
                 recurso: r.resourceName,
@@ -25020,14 +25050,17 @@ async function construirVistaPreviaReprogramacion(opciones = {}) {
         utilizacion: r.utilizationPct,
         colaDias: r.queueDays
     }));
-    return { ok: true, resumen, ordenes, recursos, mantener: opciones.mantener || [], liberar: opciones.liberar || [] };
+    return { ok: true, resumen, ordenes, recursos, mantener: opciones.mantener || [], liberar: opciones.liberar || [], mover: opciones.mover || null };
 }
 
 app.get('/api/planificacion/reprogramar/vista-previa', async (req, res) => {
     try {
+        let mover = null;
+        try { mover = req.query.mover ? moverParam(JSON.parse(String(req.query.mover))) : null; } catch (e) { mover = null; }
         res.json(await construirVistaPreviaReprogramacion({
             mantener: listaParam(req.query.mantener),
-            liberar: listaParam(req.query.liberar)
+            liberar: listaParam(req.query.liberar),
+            mover
         }));
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible calcular la vista previa.' });
@@ -25037,24 +25070,31 @@ app.get('/api/planificacion/reprogramar/vista-previa', async (req, res) => {
 app.post('/api/planificacion/reprogramar/aplicar', async (req, res) => {
     try {
         const usuario = getRequestUserName(req, 'Planeación');
+        const mover = moverParam(req.body?.mover);
         const vista = await construirVistaPreviaReprogramacion({
             mantener: listaParam(req.body?.mantener),
-            liberar: listaParam(req.body?.liberar)
+            liberar: listaParam(req.body?.liberar),
+            mover
         });
         const rutasCambian = [];
+        let rutaMovida = null;
         vista.ordenes.forEach((o) => o.rutas.forEach((r) => {
             // En espera de aprobación: se quitan sus fechas viejas (todavía no se programan).
             if (r.estado === 'waiting-approval') {
                 if (r.inicioAntes || r.finAntes) rutasCambian.push({ ...r, inicio: null, fin: null });
                 return;
             }
+            if (r.motivoFija === 'movida-ahora' && r.inicio && r.fin) { rutaMovida = r; rutasCambian.push(r); return; }
             if (r.estado !== 'scheduled' || !r.inicio || !r.fin) return;
             if (r.inicioAntes === r.inicio && r.finAntes === r.fin) return;
             rutasCambian.push(r);
         }));
+        if (mover && !rutaMovida) return res.status(400).json({ ok: false, error: 'No se pudo colocar la ruta en ese lugar (sin horario disponible).' });
         const ids = rutasCambian.map((r) => r.routeId);
         const antesRutas = ids.length ? (await pgQuery(`
-            SELECT id::text, fecha_plan_inicio, fecha_plan_fin, maquina_id::text FROM orden_proceso WHERE id = ANY($1::uuid[])
+            SELECT id::text, fecha_plan_inicio, fecha_plan_fin, maquina_id::text, bloqueo_manual,
+                   datos_extra->>'manualLockBy' AS manual_lock_by, datos_extra->>'manualLockAt' AS manual_lock_at
+              FROM orden_proceso WHERE id = ANY($1::uuid[])
         `, [ids])).rows : [];
         const codigos = vista.ordenes.map((o) => o.orderCode);
         const antesOrdenes = codigos.length ? (await pgQuery(`
@@ -25064,7 +25104,19 @@ app.post('/api/planificacion/reprogramar/aplicar', async (req, res) => {
 
         const maquinaPorRecurso = new Map();
         (await pgQuery(`SELECT m.nombre, m.id::text FROM maquina m`)).rows.forEach((m) => maquinaPorRecurso.set(m.nombre, m.id));
+        if (rutaMovida) {
+            // Movida a mano en el Gantt: queda fija, con quién y cuándo.
+            await pgQuery(`
+                UPDATE orden_proceso
+                   SET fecha_plan_inicio = $2::timestamptz, fecha_plan_fin = $3::timestamptz,
+                       maquina_id = COALESCE($4::uuid, maquina_id), bloqueo_manual = TRUE,
+                       datos_extra = COALESCE(datos_extra, '{}'::jsonb) || jsonb_build_object('manualLock', true, 'manualLockBy', $5::text, 'manualLockAt', NOW()::text, 'scheduleMode', 'manual'),
+                       actualizado_en = NOW()
+                 WHERE id = $1::uuid
+            `, [rutaMovida.routeId, rutaMovida.inicio, rutaMovida.fin, mover.maquinaId || null, usuario]);
+        }
         for (const r of rutasCambian) {
+            if (r === rutaMovida) continue;
             await pgQuery(`
                 UPDATE orden_proceso
                    SET fecha_plan_inicio = $2::timestamptz, fecha_plan_fin = $3::timestamptz,
@@ -25089,7 +25141,7 @@ app.post('/api/planificacion/reprogramar/aplicar', async (req, res) => {
         const log = await pgQuery(`
             INSERT INTO reprogramacion_log (usuario, resumen, rutas, ordenes)
             VALUES ($1, $2::jsonb, $3::jsonb, $4::jsonb) RETURNING id, creado_en
-        `, [usuario, JSON.stringify({ ...vista.resumen, rutasMovidas: rutasCambian.length, mantener: vista.mantener, liberar: vista.liberar }),
+        `, [usuario, JSON.stringify({ ...vista.resumen, rutasMovidas: rutasCambian.length, mantener: vista.mantener, liberar: vista.liberar, movidaAMano: rutaMovida ? { routeId: rutaMovida.routeId, inicio: rutaMovida.inicio } : null }),
             JSON.stringify(antesRutas), JSON.stringify(antesOrdenes)]);
         invalidateFiniteCapacityCache();
         res.json({ ok: true, logId: log.rows[0].id, rutasMovidas: rutasCambian.length, resumen: vista.resumen });
@@ -25107,9 +25159,11 @@ app.post('/api/planificacion/reprogramar/deshacer', async (req, res) => {
         for (const r of (log.rutas || [])) {
             await pgQuery(`
                 UPDATE orden_proceso SET fecha_plan_inicio = $2::timestamptz, fecha_plan_fin = $3::timestamptz,
-                       maquina_id = $4::uuid, actualizado_en = NOW()
+                       maquina_id = $4::uuid, bloqueo_manual = COALESCE($5, bloqueo_manual),
+                       datos_extra = CASE WHEN $5 IS FALSE THEN COALESCE(datos_extra, '{}'::jsonb) - 'manualLock' - 'manualLockBy' - 'manualLockAt' ELSE datos_extra END,
+                       actualizado_en = NOW()
                  WHERE id = $1::uuid
-            `, [r.id, r.fecha_plan_inicio, r.fecha_plan_fin, r.maquina_id || null]);
+            `, [r.id, r.fecha_plan_inicio, r.fecha_plan_fin, r.maquina_id || null, r.bloqueo_manual == null ? null : Boolean(r.bloqueo_manual)]);
         }
         for (const o of (log.ordenes || [])) {
             await pgQuery(`

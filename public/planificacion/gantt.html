@@ -702,6 +702,37 @@ html[data-theme="dark"] .cf-kpi-ok .cf-kpi-num,html[data-theme="dark"] .cf-kpi-o
 html[data-theme="dark"] .cf-explicacion{background:var(--app-surface-raised,#16223a);border-color:var(--app-border,#334155)}
 html[data-theme="dark"] .cf-fila{background:var(--app-surface-raised,#16223a);border-color:var(--app-border,#334155)}
 html[data-theme="dark"] .cf-secc-title{color:var(--app-text-muted,#94a3b8)}
+
+/* Impacto de mover una barra */
+.imp-overlay{position:fixed;inset:0;z-index:9500;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;padding:18px}
+.imp-overlay.open{display:flex}
+.imp-modal{background:#fff;color:#0f172a;border-radius:16px;width:min(920px,100%);max-height:92vh;display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(0,0,0,.3)}
+.imp-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #e2e8f0;font-size:16px}
+.imp-x{border:0;background:transparent;font-size:18px;cursor:pointer;color:#64748b}
+.imp-body{padding:16px 18px;overflow:auto}
+.imp-loading{padding:30px;text-align:center;color:#64748b}
+.imp-resumen{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.imp-resumen>div{border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px}
+.imp-k{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;margin-bottom:4px}
+.imp-v{font-size:13px}
+.imp-big{font-size:26px;font-weight:800}
+.imp-rojo{color:#d03b3b}.imp-verde{color:#0ca30c}
+.imp-sub{font-weight:700;margin:6px 0 8px}
+.imp-tabla{max-height:320px;overflow:auto;border:1px solid #e2e8f0;border-radius:10px}
+.imp-tabla table{width:100%;border-collapse:collapse;font-size:12px}
+.imp-tabla th{position:sticky;top:0;background:#f8fafc;text-align:left;padding:6px 8px;font-size:11px;color:#64748b}
+.imp-tabla td{padding:6px 8px;border-top:1px solid #f1f5f9}
+.imp-nueva-tarde td{background:rgba(208,59,59,.06)}
+.imp-b{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:#f1f5f9;color:#475569}
+.imp-tarde{background:rgba(208,59,59,.1);color:#d03b3b}.imp-warn{background:rgba(250,178,25,.15);color:#a16207}.imp-ok{background:rgba(12,163,12,.1);color:#0a7d0a}
+.imp-nota{margin-top:12px;font-size:12px;color:#475569;background:#f8fafc;border-radius:10px;padding:10px 12px}
+.imp-acciones{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.task-lock-icon{position:absolute;top:2px;left:4px;font-size:10px;z-index:2}
+html[data-theme="dark"] .imp-modal{background:#111a2e;color:#e2e8f0}
+html[data-theme="dark"] .imp-resumen>div,html[data-theme="dark"] .imp-tabla{border-color:#1f2c44}
+html[data-theme="dark"] .imp-tabla th,html[data-theme="dark"] .imp-nota{background:#0f172a;color:#a3b1c6}
+html[data-theme="dark"] .imp-tabla td{border-color:#1a2539}
+@media (max-width:720px){.imp-resumen{grid-template-columns:1fr 1fr}}
 </style>
 
 <link rel="stylesheet" href="/theme-extensions.css">
@@ -845,6 +876,13 @@ function getPipelineProc(processKey) {
   return found || getPIPELINE_PROCESSES()[0];
 }
 
+// Inicio del eje del Gantt: hoy a las 6:00 (inicio del turno).
+function ganttBaseDate() {
+  const base = new Date();
+  base.setHours(6, 0, 0, 0);
+  return base;
+}
+
 function configureTimelineHorizon() {
   const cfg = ZOOM_CONFIG[zoomLevel];
   // SLOTS = number of half-hour blocks in day mode, hours otherwise
@@ -855,8 +893,7 @@ function configureTimelineHorizon() {
   SLOTS = useHalfHours
     ? minSlots
     : Math.max(cfg.hours, Math.min(cfg.hours * 2, Math.ceil(maxEnd) + 2));
-  const base = new Date();
-  base.setHours(6, 0, 0, 0);
+  const base = ganttBaseDate();
 
   if (useHalfHours) {
     HOURS = Array.from({ length: SLOTS }, (_, i) => {
@@ -964,7 +1001,13 @@ async function loadFromAPI() {
     window._costsTurnos = turnosData;
 
     machines = data.maquinas;
-    orders = data.rutas.map(r => ({
+    // Las barras se dibujan con las fechas reales planificadas de cada proceso
+    // (antes: un desfase en horas guardado contra otra fecha base → barras mezcladas).
+    const base = ganttBaseDate();
+    const horasDesdeBase = (v) => (new Date(v).getTime() - base.getTime()) / 3600000;
+    orders = data.rutas
+      .filter(r => r.fecha_plan_inicio && r.fecha_plan_fin && new Date(r.fecha_plan_fin) > base)
+      .map(r => ({
       id:          r.codigo_op,
       id_ruta:     r.id_ruta,
       cliente:     r.cliente,
@@ -976,19 +1019,27 @@ async function loadFromAPI() {
       proceso_key: normalizeProcessKey(r.proceso),
       clave_proceso: r.clave_proceso || '',
       maquina:     r.maquina,
-      inicio:      parseFloat(r.inicio),
-      dur:         parseFloat(r.dur),
+      inicio:      Math.max(0, horasDesdeBase(r.fecha_plan_inicio)),
+      dur:         Math.max(0.25, horasDesdeBase(r.fecha_plan_fin) - Math.max(0, horasDesdeBase(r.fecha_plan_inicio))),
+      horas_trabajo: parseFloat(r.dur),
+      plan_inicio: r.fecha_plan_inicio,
+      plan_fin:    r.fecha_plan_fin,
       trans_costo: r.trans_costo || 0,
       dep:         r.dep || null,
       dep_ruta_id: r.dep_ruta_id || null,
       estado:      r.estado,
-      alerta:      !!r.alerta,
-      alerta_tipo: r.alerta || null,
+      // Resultado del Reprogramador (ficha de la orden): tarde / sin-colchon / a-tiempo.
+      estado_programacion: r.estado_programacion || null,
+      fecha_entrega_estimada: r.fecha_entrega_estimada || null,
+      alerta:      r.estado_programacion === 'tarde',
+      alerta_tipo: r.estado_programacion || null,
       fecha_fin_produccion:     r.fecha_fin_produccion || null,
       fecha_entrega_prometida:  r.fecha_entrega_prometida || null,
       route_payload:    r.route_payload || {},
       planning_snapshot: r.planning_snapshot || null,
-      manual_lock:  Boolean(r.route_payload?.manualLock),
+      manual_lock:  Boolean(r.bloqueo_manual || r.route_payload?.manualLock),
+      bloqueo_por:  r.bloqueo_por || '',
+      bloqueo_en:   r.bloqueo_en || '',
       schedule_mode: r.route_payload?.scheduleMode || r.route_payload?.schedule_mode || '',
     }));
     configureTimelineHorizon();
@@ -1156,29 +1207,20 @@ function promisedHourSlot(value) {
   return isFinite(slot) ? Math.max(0, Math.min(SLOTS, slot)) : null;
 }
 
+// Fuera de fecha / sin colchón: lo decide el Reprogramador y queda en la ficha de la
+// orden, así el Gantt, Capacidad Finita y Seguimiento dicen lo mismo.
 function detectScheduleAlerts() {
   const alerts = [];
   const seen = new Set();
   orders.forEach(op => {
     if (seen.has(op.id)) return;
     seen.add(op.id);
-    const productionEnd = firstOrderValue(op.id, 'fecha_fin_produccion');
-    const promisedDate  = firstOrderValue(op.id, 'fecha_entrega_prometida');
-    if (productionEnd && promisedDate) {
-      if (dateKey(productionEnd) > dateKey(promisedDate)) {
-        alerts.push({ type:'late', orderCode:op.id, slack:-24, message:`${op.id} termina producción después de fecha estimada` });
-        return;
-      }
-    }
-    const dueSlot = promisedHourSlot(op.fecha_entrega_prometida);
-    if (dueSlot === null) return;
-    const bounds = getOrderChainBounds(op.id);
-    if (!bounds) return;
-    const slack = Number((dueSlot - bounds.maxEnd).toFixed(2));
-    if (slack < 0) {
-      alerts.push({ type:'late', orderCode:op.id, slack, message:`${op.id} termina ${Math.abs(slack).toFixed(2)}h después de entrega prometida` });
-    } else if (slack <= 1) {
-      alerts.push({ type:'tight', orderCode:op.id, slack, message:`${op.id} queda con solo ${slack.toFixed(2)}h de margen` });
+    const entrega = op.fecha_entrega_prometida ? String(op.fecha_entrega_prometida).slice(0, 10) : 'sin fecha';
+    const estimada = op.fecha_entrega_estimada ? String(op.fecha_entrega_estimada).slice(0, 10) : '';
+    if (op.estado_programacion === 'tarde') {
+      alerts.push({ type:'late', orderCode:op.id, slack:-24, message:`${op.id} terminaría después de la fecha del cliente (${entrega})${estimada ? ` · entrega estimada ${estimada}` : ''}` });
+    } else if (op.estado_programacion === 'sin-colchon') {
+      alerts.push({ type:'tight', orderCode:op.id, slack:0, message:`${op.id} llega a la fecha del cliente (${entrega}) pero sin el colchón del buffer` });
     }
   });
   return alerts;
@@ -1459,8 +1501,9 @@ function taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlerts
     ondragstart="dragStart(event,'${routeArg}')"
     ondragend="dragEnd(event)"
     onclick="openDP('${routeArg}')"
-    title="${op.id} · ${op.cliente} · ${op.proceso} · ${op.dur}h"
+    title="${op.id} · ${op.cliente} · ${op.proceso} · ${op.horas_trabajo ?? op.dur}h${op.manual_lock ? ` · 🔒 Fija${op.bloqueo_por ? ` — la movió ${op.bloqueo_por}` : ''}${op.bloqueo_en ? ` el ${new Date(op.bloqueo_en).toLocaleString('es')}` : ''}` : ''}"
   >
+    ${op.manual_lock ? '<div class="task-lock-icon" title="Fija: el Reprogramador no la mueve">🔒</div>' : ''}
     ${isLate ? '<div class="task-late-icon" title="Fuera de fecha prometida">⚠</div>' : ''}
     ${hasProgress ? `<div class="task-progress-track"><div class="task-progress-fill" style="width:${progressPct}%;background:rgba(255,255,255,.55)"></div></div>` : ''}
     ${!isVeryNarrow ? `<button type="button" class="task-config-btn" onclick="event.stopPropagation();openDP('${routeArg}')" title="Configurar">⋯</button>` : ''}
@@ -2312,6 +2355,10 @@ async function handleDrop(e, tl) {
 
   if (newStart === movedOp.inicio && newMaq === movedOp.maquina) return;
 
+  // Antes de mover: mostrar a quién atrasa. Nada se guarda sin confirmar.
+  abrirImpactoMovimiento(movedOp, newStart, newMaq);
+  return;
+
   const issues  = checkMove(movedOp.id_ruta, newStart, movedOp.dur, newMaq);
 
   if (issues.length > 0) {
@@ -2340,6 +2387,79 @@ async function handleDrop(e, tl) {
     await loadFromAPI();
   } catch (err) {
     showError('Error guardando movimiento: ' + err.message);
+  }
+}
+
+// ── Mover una barra: primero el impacto, después (si confirma) se fija ──
+// Compara la programación CON el movimiento contra la programación SIN él, para
+// mostrar solo lo que causa este movimiento: qué órdenes se atrasan y a qué fecha.
+async function abrirImpactoMovimiento(op, newStart, newMaq) {
+  const inicio = new Date(ganttBaseDate().getTime() + newStart * 3600000);
+  const mover = { routeId: op.id_ruta, start: inicio.toISOString(), maquinaId: newMaq || null };
+  const maquina = (machines.find(m => String(m._matchId) === String(newMaq)) || {}).nombre_recurso || 'la misma máquina';
+  let capa = document.getElementById('impactoMover');
+  if (!capa) {
+    capa = document.createElement('div');
+    capa.id = 'impactoMover';
+    capa.className = 'imp-overlay';
+    document.body.appendChild(capa);
+  }
+  const fHora = v => v ? new Date(v).toLocaleString('es', { weekday:'short', day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '—';
+  const fDia = v => v ? new Date(String(v).length === 10 ? v + 'T12:00:00' : v).toLocaleDateString('es', { weekday:'short', day:'2-digit', month:'short' }) : '—';
+  const cerrar = () => { capa.classList.remove('open'); render(); };
+  capa.innerHTML = `<div class="imp-modal"><div class="imp-head"><b>Mover ${esc(op.id)} · ${esc(op.proceso)}</b><button type="button" class="imp-x">✕</button></div>
+    <div class="imp-body"><div class="imp-loading"><span class="spinner"></span> Calculando a quién afecta…</div></div></div>`;
+  capa.classList.add('open');
+  capa.querySelector('.imp-x').onclick = cerrar;
+  try {
+    const [con, sin] = await Promise.all([
+      fetch(`${API}/reprogramar/vista-previa?mover=${encodeURIComponent(JSON.stringify(mover))}`, { headers: sessionHeader() }).then(r => r.json()),
+      fetch(`${API}/reprogramar/vista-previa`, { headers: sessionHeader() }).then(r => r.json())
+    ]);
+    if (!con.ok) throw new Error(con.error || 'No se pudo calcular');
+    const base = new Map((sin.ordenes || []).map(o => [o.orderCode, o]));
+    const movida = con.ordenes.find(o => o.rutas.some(r => r.motivoFija === 'movida-ahora'));
+    const rutaMovida = movida && movida.rutas.find(r => r.motivoFija === 'movida-ahora');
+    if (!rutaMovida) throw new Error('Ese proceso no se puede colocar ahí: la máquina no tiene horario disponible.');
+    const afectadas = con.ordenes.map(o => {
+      const b = base.get(o.orderCode) || {};
+      const dh = o.finDespues && b.finDespues ? (new Date(o.finDespues) - new Date(b.finDespues)) / 3600000 : 0;
+      return { ...o, finSin: b.finDespues, estadoSin: b.estado, dh };
+    }).filter(o => o.orderCode !== movida.orderCode && o.dh > 1).sort((a, b) => b.dh - a.dh);
+    const nuevasTarde = afectadas.filter(o => o.estado === 'tarde' && o.estadoSin !== 'tarde');
+    const dias = h => h >= 24 ? `${Math.round(h / 24 * 10) / 10} días` : `${Math.round(h)} h`;
+    const badge = e => e === 'tarde' ? '<span class="imp-b imp-tarde">⏰ Tarde</span>' : e === 'sin-colchon' ? '<span class="imp-b imp-warn">⚠ Sin colchón</span>' : e === 'a-tiempo' ? '<span class="imp-b imp-ok">✓ A tiempo</span>' : '<span class="imp-b">—</span>';
+    capa.querySelector('.imp-body').innerHTML = `
+      <div class="imp-resumen">
+        <div><div class="imp-k">Quedaría en</div><div class="imp-v">${esc(maquina)}<br>${fHora(rutaMovida.inicio)} → ${fHora(rutaMovida.fin)}</div></div>
+        <div><div class="imp-k">Su orden</div><div class="imp-v">${badge(movida.estado)}<br>entrega estimada ${fDia(movida.fechaEstimada)}</div></div>
+        <div><div class="imp-k">Órdenes que se atrasan</div><div class="imp-v imp-big ${afectadas.length ? 'imp-rojo' : 'imp-verde'}">${afectadas.length}</div></div>
+        <div><div class="imp-k">Pasarían a estar tarde</div><div class="imp-v imp-big ${nuevasTarde.length ? 'imp-rojo' : 'imp-verde'}">${nuevasTarde.length}</div></div>
+      </div>
+      ${afectadas.length ? `<div class="imp-sub">Si la mueves, estas órdenes se atrasan:</div>
+      <div class="imp-tabla"><table><thead><tr><th>Orden</th><th>Cliente</th><th>Ahora está en</th><th>Fecha del cliente</th><th>Terminaría</th><th>Se atrasa</th><th>Resultado</th></tr></thead><tbody>
+      ${afectadas.map(o => `<tr${o.estado === 'tarde' && o.estadoSin !== 'tarde' ? ' class="imp-nueva-tarde"' : ''}><td><b>${esc(o.orderCode)}</b></td><td>${esc(o.cliente)}</td><td>${esc(o.procesoActual || '—')}</td><td>${fDia(o.fechaCliente)}</td><td>${fHora(o.finDespues)}</td><td class="imp-rojo">▲ ${dias(o.dh)}</td><td>${badge(o.estado)}</td></tr>`).join('')}
+      </tbody></table></div>` : '<div class="imp-sub imp-verde">✓ No atrasa a ninguna otra orden.</div>'}
+      <div class="imp-nota">Al confirmar, este proceso queda <b>fijo</b> (🔒) a tu nombre: el Reprogramador no lo moverá y el resto se acomoda. Se puede deshacer desde el Reprogramador.</div>
+      <div class="imp-acciones"><button type="button" class="btn" id="impCancelar">Cancelar</button><button type="button" class="btn primary" id="impConfirmar">Mover y fijar</button></div>`;
+    capa.querySelector('#impCancelar').onclick = cerrar;
+    capa.querySelector('#impConfirmar').onclick = async (ev) => {
+      ev.target.disabled = true; ev.target.textContent = 'Guardando…';
+      try {
+        const res = await fetch(`${API}/reprogramar/aplicar`, { method:'POST', headers: Object.assign({ 'Content-Type':'application/json' }, sessionHeader()), body: JSON.stringify({ mover }) });
+        const j = await res.json();
+        if (!j.ok) throw new Error(j.error || 'No se pudo mover');
+        capa.classList.remove('open');
+        showToast(`✓ ${op.id} movida y fijada. ${afectadas.length ? afectadas.length + ' órdenes se reacomodaron.' : ''}`, 'ok');
+        await loadFromAPI();
+      } catch (err) {
+        ev.target.disabled = false; ev.target.textContent = 'Mover y fijar';
+        showError('No se pudo mover: ' + err.message);
+      }
+    };
+  } catch (err) {
+    capa.querySelector('.imp-body').innerHTML = `<div class="imp-sub imp-rojo">${esc(err.message)}</div><div class="imp-acciones"><button type="button" class="btn" id="impCancelar">Cerrar</button></div>`;
+    capa.querySelector('#impCancelar').onclick = cerrar;
   }
 }
 
@@ -3136,21 +3256,19 @@ async function saveDP() {
   const newOrderLock = Boolean(document.getElementById('dp-lock-order')?.checked);
   const newColor  = document.querySelector('input[name="dp-color"]:checked')?.value || '';
 
-  if (newInicio !== currentDP.inicio) {
-    const downstream = getDownstreamOps(currentDP.id_ruta);
-    if (downstream.length > 0) {
-      const delta = newInicio - currentDP.inicio;
-      if (!confirm(`Mover "${currentDP.id}" ${delta>0?'+':''}${delta.toFixed(2)}h desplazará ${downstream.length} proceso(s) aguas abajo.\n\n¿Confirmar?`)) {
-        btn.textContent = 'Guardar cambios';
-        btn.classList.remove('saving');
-        return;
-      }
-    }
+  // Cambiar inicio o máquina = mover: primero se ve el impacto y se confirma allá.
+  if (newInicio !== currentDP.inicio || newMaq !== currentDP.maquina) {
+    btn.textContent = 'Guardar cambios';
+    btn.classList.remove('saving');
+    const op = currentDP;
+    closeDP();
+    abrirImpactoMovimiento(op, newInicio, newMaq);
+    return;
   }
 
   try {
-    if (newInicio !== currentDP.inicio || newDur !== currentDP.dur || newMaq !== currentDP.maquina) {
-      await apiPatch(`${API}/gantt/mover`, { id_ruta:currentDP.id_ruta, inicio:newInicio, duracion:newDur, id_maquina:newMaq });
+    if (newDur !== currentDP.dur) {
+      await apiPatch(`${API}/gantt/mover`, { id_ruta:currentDP.id_ruta, duracion:newDur });
     }
     if (newLock !== Boolean(currentDP.manual_lock)) {
       await apiPatch(`${API}/gantt/mover`, { id_ruta:currentDP.id_ruta, route_payload_updates:{ manualLock:newLock } });
