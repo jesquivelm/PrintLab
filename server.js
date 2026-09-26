@@ -25201,6 +25201,30 @@ async function correosDeVendedores(nombres) {
     return mapa;
 }
 
+// Datos inconsistentes: un proceso posterior (orden de Costos) marcado COMPLETADO mientras
+// el anterior de la misma orden sigue sin terminar. El Reprogramador no puede corregirlo
+// (no se deshace lo hecho), pero lo avisa para que se revise en la orden.
+async function procesosFueraDeSecuencia() {
+    const { rows } = await pgQuery(`
+        WITH r AS (
+            SELECT op.codigo_orden, op.nombre_proceso, op.estado, c.orden
+              FROM orden_proceso op
+              JOIN costo_proceso_defaults c ON c.proceso_key = op.clave_proceso AND c.activo AND c.gantt_habilitado
+              JOIN flexo_orders o ON o.order_code = op.codigo_orden
+             WHERE o.delivered_on IS NULL
+               AND lower(COALESCE(o.order_status, o.raw_data->>'status', '')) NOT IN ('entregada','completada','cerrada','cancelada')
+        )
+        SELECT b.codigo_orden AS orden,
+               string_agg(DISTINCT b.nombre_proceso, ' y ') AS proceso,
+               string_agg(DISTINCT a.nombre_proceso, ' y ') AS anterior
+          FROM r a JOIN r b ON a.codigo_orden = b.codigo_orden AND b.orden > a.orden
+         WHERE b.estado = 'COMPLETADO' AND a.estado <> 'COMPLETADO'
+         GROUP BY b.codigo_orden
+         ORDER BY b.codigo_orden
+    `).catch(() => ({ rows: [] }));
+    return rows;
+}
+
 async function construirVistaPreviaReprogramacion(opciones = {}) {
     const engine = await runFiniteCapacityEngine({
         horizonDays: 60,
@@ -25315,7 +25339,8 @@ async function construirVistaPreviaReprogramacion(opciones = {}) {
         fijas: cuenta((o) => o.fija),
         faltaDato: cuenta((o) => o.estado === 'falta-dato'),
         enAprobacion: cuenta((o) => o.movimiento === 'en-aprobacion'),
-        sinHorario: engine.sinHorario
+        sinHorario: engine.sinHorario,
+        fueraDeSecuencia: await procesosFueraDeSecuencia()
     };
     const recursos = engine.resources.map((r) => ({
         nombre: r.resourceName,

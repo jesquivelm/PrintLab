@@ -284,6 +284,7 @@ function pintar(){
   $('contenido').innerHTML=`
     <div class="tiles">${tiles}</div>
     ${sinDato.length?`<div class="aviso warn">⚠ <b>${sinDato.length} sin programar</b>: al cálculo le falta un dato — ${sinDato.map(x=>`<a class="op" data-op="${esc(x.orderCode)}">${esc(x.orderCode)}</a> (${esc(x.faltaDato)})`).join(', ')}.</div>`:''}
+    ${(r.fueraDeSecuencia||[]).length?`<div class="aviso crit">⚠ <b>${r.fueraDeSecuencia.length} órdenes con procesos terminados fuera de orden</b> (un proceso no puede terminar antes que el anterior; revísalas en la orden): ${r.fueraDeSecuencia.map(f=>`<a class="op" data-op="${esc(f.orden)}" title="${esc(f.proceso)} terminado, ${esc(f.anterior)} no">${esc(f.orden)}</a>`).join(', ')}.</div>`:''}
     ${sinHorario.length?`<div class="aviso crit">⚠ Sin horario: ${sinHorario.map(s=>esc(s.proceso+(s.maquina?' · '+s.maquina:''))).join(', ')}.</div>`:''}
     ${saturados.length?`<div class="aviso warn">🔥 ${saturados.map(x=>`<b>${esc(x.nombre)}</b> está al ${x.utilizacion}% (${x.colaDias} días de cola)`).join(' · ')}.</div>`:''}
     <div class="card">

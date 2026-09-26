@@ -798,8 +798,8 @@ let zoomLevel = 'week';
 const ZOOM_CONFIG = {
   day:    { label: '1 día',   hours: 24,  slotW: 160, granularity: 'halfhour' },
   '3day': { label: '3 días',  hours: 72,  slotW: 80,  granularity: 'hour'     },
-  week:   { label: '1 sem',   hours: 168, slotW: 52,  granularity: 'day'      },
-  '2week':{ label: '15 días', hours: 360, slotW: 36,  granularity: 'day'      }
+  week:   { label: '1 sem',   hours: 168, slotW: 9,   granularity: 'day'      },
+  '2week':{ label: '15 días', hours: 360, slotW: 4,   granularity: 'day'      }
 };
 
 // Los únicos procesos que aparecen en el Gantt — en este orden exacto
@@ -906,7 +906,8 @@ function configureTimelineHorizon() {
   const minSlots = Math.ceil(cfg.hours / slotUnit);
   SLOTS = useHalfHours
     ? minSlots
-    : Math.max(cfg.hours, Math.min(cfg.hours * 2, Math.ceil(maxEnd) + 2));
+    // Hasta 60 días: que se vea la cadena completa (p. ej. el Empaque de una orden lejana).
+    : Math.max(cfg.hours, Math.min(60 * 24, Math.ceil(maxEnd) + 2));
   const base = ganttBaseDate();
 
   if (useHalfHours) {
@@ -1071,6 +1072,23 @@ async function loadFromAPI() {
       bloqueo_en:   r.bloqueo_en || '',
       schedule_mode: r.route_payload?.scheduleMode || r.route_payload?.schedule_mode || '',
     }));
+    // La cadena de cada orden sale del orden de Costos (procesos "Activo en Gantt"), no del
+    // campo "depende de" de la ruta: ese puede apuntar a un proceso que no está en el Gantt
+    // (p. ej. Troquelado) y cortaba la línea Impresión → Rebobinado → Empaque.
+    const ordenCostos = new Map((data.procesos || []).map((p, i) => [String(p.process_key), Number(p.orden_secuencia ?? i)]));
+    const porOrden = new Map();
+    orders.forEach(o => { if (!porOrden.has(o.id)) porOrden.set(o.id, []); porOrden.get(o.id).push(o); });
+    porOrden.forEach(lista => {
+      lista.sort((a, b) => (ordenCostos.get(a.clave_proceso) ?? 999) - (ordenCostos.get(b.clave_proceso) ?? 999));
+      lista.forEach((o, i) => {
+        const previa = lista[i - 1] || null;
+        o.dep_ruta_id = previa ? previa.id_ruta : null;
+        o.dep = previa ? previa.id : null;
+        o.dep_proceso = previa ? previa.proceso : '';
+        // Dato inconsistente: un proceso posterior terminado con el anterior aún pendiente.
+        o.fuera_de_secuencia = Boolean(previa && o.terminado === true && !previa.terminado && previa.estado !== 'COMPLETADO');
+      });
+    });
     configureTimelineHorizon();
 
     machines.forEach(m => {
@@ -1389,9 +1407,7 @@ function checkMove(id_ruta, newStart, newDur, newMaq) {
         message:`Máquina ${newMaq}: conflicto con "${o.id}" · ${o.proceso} (${formatHora(o.inicio)}–${formatHora(oEnd)})` });
     }
   });
-  const pred = orders.find(o =>
-    op.dep_ruta_id === o.id_ruta || (op.dep && op.dep === o.id && o.id_ruta !== id_ruta)
-  );
+  const pred = op.dep_ruta_id ? orders.find(o => o.id_ruta === op.dep_ruta_id) : null;
   if (pred) {
     const predEnd = pred.inicio + pred.dur;
     if (newStart < predEnd) {
@@ -1399,7 +1415,7 @@ function checkMove(id_ruta, newStart, newDur, newMaq) {
         message:`"${pred.proceso}" de ${pred.id} termina a las ${formatHora(predEnd)} — no puede empezar antes` });
     }
   }
-  orders.filter(o => o.dep_ruta_id === id_ruta || (o.dep === op.id && o.id !== op.id)).forEach(succ => {
+  orders.filter(o => o.dep_ruta_id === id_ruta).forEach(succ => {
     if (succ.inicio < newEnd) {
       issues.push({ type:'sequence', id_ruta:succ.id_ruta,
         message:`"${succ.proceso}" empieza a las ${formatHora(succ.inicio)}, antes de que este proceso termine` });
@@ -1410,9 +1426,7 @@ function checkMove(id_ruta, newStart, newDur, newMaq) {
 
 function autoFix(id_ruta, newEnd) {
   function push(rid, mustStartAfter) {
-    orders.filter(o =>
-      o.dep_ruta_id === rid || (o.dep && orders.find(x => x.id_ruta === rid)?.id === o.dep)
-    ).forEach(succ => {
+    orders.filter(o => o.dep_ruta_id === rid).forEach(succ => {
       if (succ.inicio < mustStartAfter) {
         succ.inicio = parseFloat(mustStartAfter.toFixed(2));
         push(succ.id_ruta, succ.inicio + succ.dur);
@@ -1427,9 +1441,8 @@ function getMachineKey(machine) {
 }
 
 function getDirectSuccessors(id_ruta) {
-  const current = orders.find(o => o.id_ruta === id_ruta);
   return orders
-    .filter(o => o.dep_ruta_id === id_ruta || (o.dep && current && o.dep === current.id && o.id !== current.id))
+    .filter(o => o.dep_ruta_id === id_ruta)
     .sort((a, b) => {
       const dueDiff = parsePromisedTime(a.fecha_entrega_prometida) - parsePromisedTime(b.fecha_entrega_prometida);
       return dueDiff !== 0 ? dueDiff : a.inicio - b.inicio;
@@ -2121,10 +2134,13 @@ function renderGantt() {
           const dayWidth = (nextSlot - d.slot) * slotW;
           return `<div class="day-hdr-item" style="width:${dayWidth}px">${d.label}</div>`;
         }).join('')}</div>
-        <div class="time-hdr">${HOURS.map((h, i) => {
+        ${ZOOM_CONFIG[zoomLevel].granularity === 'day'
+          // Vista por días: la fila de días ya rotula; cada hora es una franja fina sin texto.
+          ? `<div class="time-hdr" style="height:6px">${HOURS.map(() => `<div class="t-slot" style="min-width:${slotW}px;max-width:${slotW}px;padding:0;border-right:0"></div>`).join('')}</div>`
+          : `<div class="time-hdr">${HOURS.map((h, i) => {
           if (!h) return `<div class="t-slot" style="min-width:${slotW}px"></div>`;
           return `<div class="t-slot" style="min-width:${slotW}px">${h}</div>`;
-        }).join('')}</div>
+        }).join('')}</div>`}
       </div>
     </div>`;
 
@@ -2844,7 +2860,7 @@ function showTT(e, id_ruta) {
     ${op.fecha_entrega_estimada ? `<div class="tt-row"><span>Comprometida</span><span class="tt-val">${formatPromisedDate(op.fecha_entrega_estimada)}</span></div>` : ''}
     ${scheduleAlert?.type==='late'  ? `<div class="tt-row" style="color:#E24B4A"><span>⏰ Atrasa</span><span class="tt-val" style="color:#E24B4A">vs. fecha comprometida</span></div>` : ''}
     ${scheduleAlert?.type==='tight' ? `<div class="tt-row" style="color:#BA7517"><span>🤝 Negociar</span><span class="tt-val" style="color:#BA7517">después de la fecha del cliente</span></div>` : ''}
-    ${op.dep ? `<div class="tt-row"><span>Depende de</span><span class="tt-val">${op.dep}</span></div>` : ''}
+    ${op.dep_proceso ? `<div class="tt-row"><span>Viene de</span><span class="tt-val">${op.dep_proceso}</span></div>` : ''}
     ${op.terminado ? `<div class="tt-pausas">✓ Terminado: ${_diaHora(_ms(op.fecha_plan_inicio_iso))} → ${_diaHora(_ms(op.fecha_plan_fin_iso))}</div>` : ''}
     ${(() => { const pz = op.terminado ? [] : pausasDeBarra(op); const esp = esperaDeBarra(op);
       return (pz.length || esp) ? `<div class="tt-pausas">${esp ? `<div>⏳ ${esc(esp)}</div>` : ''}${pz.length ? `<div><b>⏸ Pausas</b></div>${pz.slice(0, 6).map(p => `<div>· ${esc(p.texto)}</div>`).join('')}${pz.length > 6 ? `<div>· y ${pz.length - 6} más</div>` : ''}` : ''}</div>` : ''; })()}
@@ -3020,7 +3036,7 @@ function renderDPInfo() {
         return `<div class="chain-item${o.id_ruta===id_ruta?' active':''}">
           <span class="chain-dot" style="background:${c.bg}"></span>
           <span><strong>${o.id}</strong> · ${o.proceso}</span>
-          <span style="margin-left:auto;font-size:10px;color:#888">${formatHora(o.inicio)} · ${o.dur}h</span>
+          <span style="margin-left:auto;font-size:10px;color:#888">${formatHora(o.inicio)} · ${(Number(o.horas_trabajo) || o.dur).toFixed(1)} h</span>
         </div>`;
       }).join('')}
     </div>
@@ -3064,7 +3080,7 @@ function renderDPInfo() {
     </div>
     <div class="dp-section">Planificación</div>
     <div class="dp-field">
-      <div class="dp-lbl">Inicio (horas desde 6am)</div>
+      <div class="dp-lbl">Inicio (horas desde el inicio del tablero · ${formatHora(op.inicio)})</div>
       <input class="dp-input" type="number" id="dp-inicio" value="${op.inicio}" min="0" max="${SLOTS}" step="0.25">
     </div>
     <div class="dp-field">
@@ -3084,7 +3100,7 @@ function renderDPInfo() {
           `<option value="${s}"${s===op.estado?' selected':''}>${s}</option>`).join('')}
       </select>
     </div>
-    ${op.dep ? `<div class="dp-field"><div class="dp-lbl">Depende de</div><div class="dp-val">${op.dep}</div></div>` : ''}
+    ${op.dep_proceso ? `<div class="dp-field"><div class="dp-lbl">Viene de</div><div class="dp-val">${escHtml(op.dep_proceso)}</div></div>` : ''}
     ${op.trans_costo ? `<div class="dp-field"><div class="dp-lbl">Costo lavado</div><div class="dp-val" style="color:#854F0B">${op.trans_costo} min</div></div>` : ''}
 
     ${downstream.length ? `
