@@ -23037,6 +23037,24 @@ async function ensureProgramacionSchema() {
         ADD COLUMN IF NOT EXISTS fecha_forzada DATE,
         ADD COLUMN IF NOT EXISTS fecha_forzada_por TEXT,
         ADD COLUMN IF NOT EXISTS fecha_forzada_en TIMESTAMPTZ`);
+    // Horas extra aprobadas, con vigencia: solo cuentan en ese rango y esos días.
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS horas_extra (
+            id SERIAL PRIMARY KEY,
+            proceso_key TEXT,
+            maquina_id UUID REFERENCES maquina(id) ON DELETE CASCADE,
+            fecha_desde DATE NOT NULL,
+            fecha_hasta DATE NOT NULL,
+            dias_semana INTEGER[] NOT NULL DEFAULT '{1,2,3,4,5,6}',
+            horas NUMERIC(5,2) NOT NULL CHECK (horas > 0),
+            motivo TEXT,
+            aprobado_por TEXT,
+            activo BOOLEAN NOT NULL DEFAULT TRUE,
+            creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            creado_por TEXT,
+            CHECK (fecha_hasta >= fecha_desde),
+            CHECK (proceso_key IS NOT NULL OR maquina_id IS NOT NULL)
+        )`);
     // Registro de cada reprogramación aplicada, con lo que había antes (para deshacer).
     await pgQuery(`
         CREATE TABLE IF NOT EXISTS reprogramacion_log (
@@ -23748,6 +23766,28 @@ function mantenimientoFechasPlan(plan, excepciones, desde, hasta) {
     return new Set([...fechas].filter((k) => k >= desde && k <= hasta));
 }
 
+// Horas extra vigentes que tocan el rango pedido (dias_semana: 0=domingo … 6=sábado).
+async function cargarHorasExtra(desde, hasta) {
+    const { rows } = await pgQuery(`
+        SELECT id, proceso_key, maquina_id::text, fecha_desde::text, fecha_hasta::text, dias_semana, horas::float AS horas
+          FROM horas_extra
+         WHERE activo = TRUE AND fecha_hasta >= $1::date AND fecha_desde <= $2::date
+    `, [desde, hasta]);
+    return rows;
+}
+
+function horasExtraDelDia(recurso, dateKey, horasExtra) {
+    if (!Array.isArray(horasExtra) || !horasExtra.length) return 0;
+    const dow = new Date(`${dateKey}T00:00:00.000Z`).getUTCDay();
+    const proceso = recurso.processKey ? canonicalProductionFlowKey(recurso.processKey) : '';
+    return horasExtra
+        .filter((h) => dateKey >= h.fecha_desde && dateKey <= h.fecha_hasta
+            && (h.dias_semana || []).map(Number).includes(dow)
+            && ((h.maquina_id && recurso.maquinaId && String(h.maquina_id) === String(recurso.maquinaId))
+                || (!h.maquina_id && h.proceso_key && proceso && canonicalProductionFlowKey(h.proceso_key) === proceso)))
+        .reduce((sum, h) => sum + Math.max(0, Number(h.horas || 0)), 0);
+}
+
 // Map maquina_id → { fechas:Set<YYYY-MM-DD>, horas } para el rango pedido.
 async function cargarMantenimientos(desde, hasta) {
     const [planes, excepciones] = await Promise.all([
@@ -23772,7 +23812,8 @@ function disponibilidadRecursoEnDia(recurso, dateKey, contexto = {}) {
         turnosPorCalendario = new Map(),
         excepcionesPorCalendario = new Map(),
         feriados = null,
-        mantenimientos = null
+        mantenimientos = null,
+        horasExtra = null
     } = contexto;
 
     if (esFeriado(feriados, dateKey)) return [];
@@ -23817,6 +23858,19 @@ function disponibilidadRecursoEnDia(recurso, dateKey, contexto = {}) {
 
     // Sin horario no hay disponibilidad: el recurso no se programa y se avisa
     // (ya no se inventa un turno de lunes a viernes de 7:00 a 15:00).
+
+    // Horas extra aprobadas (con vigencia): alargan el turno de ese día; en un día sin
+    // turno (p. ej. domingo) abren uno desde las 6:00.
+    const extra = horasExtraDelDia(recurso, dateKey, horasExtra);
+    if (extra > 0) {
+        if (intervals.length) {
+            intervals = intervals.slice().sort((a, b) => a.startHour - b.startHour);
+            const last = intervals[intervals.length - 1];
+            intervals[intervals.length - 1] = { startHour: last.startHour, endHour: Math.min(24, last.endHour + extra) };
+        } else {
+            intervals = [{ startHour: 6, endHour: Math.min(24, 6 + extra) }];
+        }
+    }
 
     // Mantenimiento de la máquina: ocupa el inicio del turno de ese día.
     const mant = recurso.maquinaId && mantenimientos ? mantenimientos.get(String(recurso.maquinaId)) : null;
@@ -23979,7 +24033,8 @@ async function recalcularCompromisos(codigoOrden) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(anclaISO)) return { ok: false, motivo: 'fecha-entrega-invalida' };
     const anclaBase = restarDiasHabiles(new Date(`${anclaISO}T22:00:00.000Z`), plan.dias_buffer_entrega, feriados);
     const mantenimientos = await cargarMantenimientos(capacityAddDays(anclaISO, -400), anclaISO);
-    const contextoBase = { turnosPorCalendario, excepcionesPorCalendario, feriados, mantenimientos };
+    const horasExtra = await cargarHorasExtra(capacityAddDays(anclaISO, -400), anclaISO);
+    const contextoBase = { turnosPorCalendario, excepcionesPorCalendario, feriados, mantenimientos, horasExtra };
 
     let finSiguiente = anclaBase;
     const updates = [];
@@ -23989,7 +24044,7 @@ async function recalcularCompromisos(codigoOrden) {
         const calId = p.maquina_id
             ? (calPorProcesoMaquina.get(`${claveProceso}|${p.maquina_id}`) || null)
             : (calPorProceso.get(claveProceso) || null);
-        const recurso = { scenarioAdjustment: {}, calendarId: calId, maquinaId: p.maquina_id ? String(p.maquina_id) : '' };
+        const recurso = { scenarioAdjustment: {}, calendarId: calId, maquinaId: p.maquina_id ? String(p.maquina_id) : '', processKey: claveProceso };
         const ctx = contextoBase;
         const finCompromiso = new Date(finSiguiente.getTime() - Math.max(0, Number(p.transicion_min || 0)) * 60000);
         const inicioCompromiso = restarHorasDisponibles(recurso, finCompromiso, Number(p.duracion_horas || 0), ctx) || finCompromiso;
@@ -24264,6 +24319,7 @@ async function runFiniteCapacityEngine(options = {}) {
     const procesosProgramables = await cargarProcesosProgramables();
     const ordenProceso = new Map(procesosProgramables.map((p) => [p.clave, Number(p.orden || 0)]));
     const mantenimientos = await cargarMantenimientos(fromDate, schedulingLimitDate);
+    const horasExtra = await cargarHorasExtra(fromDate, schedulingLimitDate);
     const bufferDefecto = await pgQuery(`SELECT buffer_programacion_dias FROM costo_general LIMIT 1`)
         .then((r) => Math.max(0, Number(r.rows[0]?.buffer_programacion_dias ?? 2)))
         .catch(() => 2);
@@ -24485,7 +24541,8 @@ async function runFiniteCapacityEngine(options = {}) {
             turnosPorCalendario: shiftsByCalendar,
             excepcionesPorCalendario: exceptionsByCalendar,
             feriados,
-            mantenimientos
+            mantenimientos,
+            horasExtra
         });
     }
 
@@ -25177,6 +25234,63 @@ app.post('/api/planificacion/reprogramar/deshacer', async (req, res) => {
         res.json({ ok: true, logId: log.id, rutasRestauradas: (log.rutas || []).length });
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible deshacer la reprogramación.' });
+    }
+});
+
+// ── Horas extra con vigencia ──
+app.get('/api/planificacion/horas-extra', async (req, res) => {
+    try {
+        const { rows } = await pgQuery(`
+            SELECT h.id, h.proceso_key, h.maquina_id::text, m.nombre AS maquina_nombre,
+                   COALESCE(c.etiqueta, (SELECT c2.etiqueta FROM proceso_maquina pm JOIN costo_proceso_defaults c2 ON c2.proceso_key = pm.proceso_key
+                                          WHERE pm.maquina_id = h.maquina_id ORDER BY c2.orden LIMIT 1)) AS proceso_nombre,
+                   h.fecha_desde::text, h.fecha_hasta::text, h.dias_semana, h.horas::float AS horas, h.motivo,
+                   h.aprobado_por, h.creado_por, h.creado_en, (h.fecha_hasta < CURRENT_DATE) AS vencida
+              FROM horas_extra h
+              LEFT JOIN maquina m ON m.id = h.maquina_id
+              LEFT JOIN costo_proceso_defaults c ON c.proceso_key = h.proceso_key
+             WHERE h.activo = TRUE
+             ORDER BY (h.fecha_hasta < CURRENT_DATE), h.fecha_desde
+        `);
+        res.json({ ok: true, data: rows });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar las horas extra.' });
+    }
+});
+
+app.post('/api/planificacion/horas-extra', async (req, res) => {
+    try {
+        const b = req.body || {};
+        const desde = String(b.fecha_desde || '').slice(0, 10);
+        const hasta = String(b.fecha_hasta || '').slice(0, 10);
+        const horas = Number(b.horas);
+        const dias = (Array.isArray(b.dias_semana) ? b.dias_semana : []).map(Number).filter((d) => d >= 0 && d <= 6);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(desde) || !/^\d{4}-\d{2}-\d{2}$/.test(hasta) || hasta < desde) {
+            return res.status(400).json({ ok: false, error: 'Indica desde y hasta cuándo aplican (la fecha final no puede ser antes de la inicial).' });
+        }
+        if (!(horas > 0 && horas <= 12)) return res.status(400).json({ ok: false, error: 'Las horas extra por día deben ser entre 0.5 y 12.' });
+        if (!dias.length) return res.status(400).json({ ok: false, error: 'Elige al menos un día de la semana.' });
+        if (!b.proceso_key && !b.maquina_id) return res.status(400).json({ ok: false, error: 'Elige el proceso o la máquina.' });
+        const usuario = getRequestUserName(req, 'Planeación');
+        const { rows } = await pgQuery(`
+            INSERT INTO horas_extra (proceso_key, maquina_id, fecha_desde, fecha_hasta, dias_semana, horas, motivo, aprobado_por, creado_por)
+            VALUES ($1, $2::uuid, $3::date, $4::date, $5::int[], $6, $7, $8, $9) RETURNING id
+        `, [b.maquina_id ? null : String(b.proceso_key), b.maquina_id || null, desde, hasta, dias, horas,
+            sanitizeAdminUserText(b.motivo || ''), sanitizeAdminUserText(b.aprobado_por || '') || usuario, usuario]);
+        invalidateFiniteCapacityCache();
+        res.json({ ok: true, id: rows[0].id });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible guardar las horas extra.' });
+    }
+});
+
+app.delete('/api/planificacion/horas-extra/:id', async (req, res) => {
+    try {
+        await pgQuery(`UPDATE horas_extra SET activo = FALSE WHERE id = $1`, [Number(req.params.id)]);
+        invalidateFiniteCapacityCache();
+        res.json({ ok: true });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible quitar las horas extra.' });
     }
 });
 
