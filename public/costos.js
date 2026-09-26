@@ -88,6 +88,8 @@ const DEFAULT_COSTS_CONFIG = {
         materiaPrimaMaximaPct: 55,
         defaultTaxPct: 13,
         defaultCostoPulgadaLinealTroquel: 0,
+        bufferProgramacionDias: 2,
+        holguraTurnoMinutos: 15,
         processDefaults: PROCESS_DEFAULTS.map((item) => ({ ...item, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 }))
     },
     convencional: {
@@ -243,7 +245,9 @@ const generalDefaultFields = {
     margenMinimoPct: document.getElementById("costosMargenMinimoPct"),
     materiaPrimaMaximaPct: document.getElementById("costosMateriaPrimaMaximaPct"),
     defaultTaxPct: document.getElementById("costosDefaultTaxPct"),
-    defaultCostoPulgadaLinealTroquel: document.getElementById("costosDefaultCostoPulgadaLinealTroquel")
+    defaultCostoPulgadaLinealTroquel: document.getElementById("costosDefaultCostoPulgadaLinealTroquel"),
+    bufferProgramacionDias: document.getElementById("costosBufferProgramacionDias"),
+    holguraTurnoMinutos: document.getElementById("costosHolguraTurnoMinutos")
 };
 const coreDiameterOptionsTableBody = document.getElementById("costosCoreDiameterOptionsTableBody");
 const addCoreDiameterOptionButton = document.getElementById("costosAddCoreDiameterOption");
@@ -561,7 +565,7 @@ function normalizeProcessDefaults(value) {
         const visibleBotonFlotante = booleanValue(row?.visibleBotonFlotante, fallback.visibleBotonFlotante);
         return {
             key,
-            label: fallback.label,
+            label: String(row?.label || "").trim() || fallback.label,
             active,
             createEnabled: active ? createEnabled : false,
             locked,
@@ -571,7 +575,12 @@ function normalizeProcessDefaults(value) {
             order: numberValue(row?.order, fallback.order ?? ((index + 1) * 10)),
             minimumCost: Math.max(0, numberValue(row?.minimumCost, 0)),
             timeBufferMinutes: Math.max(0, numberValue(row?.timeBufferMinutes ?? row?.bufferMinutes, 0)),
-            capacityMinutes: Math.max(0, numberValue(row?.capacityMinutes ?? row?.capacity, 480))
+            capacityMinutes: Math.max(0, numberValue(row?.capacityMinutes ?? row?.capacity, 480)),
+            // Programación: se conservan al guardar (antes se perdían el horario y el color).
+            colorGantt: row?.colorGantt || "#378ADD",
+            procesoParalelo: booleanValue(row?.procesoParalelo, false),
+            terminarEnTurno: booleanValue(row?.terminarEnTurno, false),
+            calendarioId: row?.calendarioId || null
         };
     }).filter(Boolean);
     PROCESS_DEFAULTS.forEach((item, index) => {
@@ -810,6 +819,8 @@ function normalizeCostsConfig(config) {
             margenMinimoPct: Math.max(0, numberValue(source?.general?.margenMinimoPct, DEFAULT_COSTS_CONFIG.general.margenMinimoPct)),
             materiaPrimaMaximaPct: Math.max(0, numberValue(source?.general?.materiaPrimaMaximaPct, DEFAULT_COSTS_CONFIG.general.materiaPrimaMaximaPct)),
             defaultTaxPct: Math.max(0, numberValue(source?.general?.defaultTaxPct, DEFAULT_COSTS_CONFIG.general.defaultTaxPct)),
+            bufferProgramacionDias: Math.max(0, Math.round(numberValue(source?.general?.bufferProgramacionDias, DEFAULT_COSTS_CONFIG.general.bufferProgramacionDias))),
+            holguraTurnoMinutos: Math.max(0, Math.round(numberValue(source?.general?.holguraTurnoMinutos, DEFAULT_COSTS_CONFIG.general.holguraTurnoMinutos))),
             defaultCostoPulgadaLinealTroquel: Math.max(0, numberValue(source?.general?.defaultCostoPulgadaLinealTroquel, DEFAULT_COSTS_CONFIG.general.defaultCostoPulgadaLinealTroquel)),
             processDefaults: normalizeProcessDefaults(source?.general?.processDefaults || DEFAULT_COSTS_CONFIG.general.processDefaults)
         },
@@ -1336,7 +1347,7 @@ function renderProcessDefaultRows() {
                 </label>
             </td>
             <td class="costs-process-default-cell-check">
-                <label class="costs-process-default-check" aria-label="Mostrar en Gantt">
+                <label class="costs-process-default-check" aria-label="Activo en Gantt" title="Activo en Gantt: el proceso se programa">
                     <input type="checkbox" data-process-field="ganttEnabled" data-index="${index}"${row.ganttEnabled ? " checked" : ""}>
                 </label>
             </td>
@@ -1369,12 +1380,6 @@ function renderProcessDefaultRows() {
             <td style="display:none">
                 <label class="costs-process-default-cost has-suffix" aria-label="Buffer de tiempo">
                     <input type="number" min="0" step="1" inputmode="numeric" data-process-field="timeBufferMinutes" data-index="${index}" value="${escapeHtml(Math.round(Number(row.timeBufferMinutes || 0)))}" placeholder="0">
-                    <span class="costs-process-default-currency costs-process-default-suffix">min</span>
-                </label>
-            </td>
-            <td>
-                <label class="costs-process-default-cost has-suffix" aria-label="Capacidad">
-                    <input type="number" min="0" step="1" inputmode="numeric" data-process-field="capacityMinutes" data-index="${index}" value="${escapeHtml(Math.round(Number(row.capacityMinutes || 480)))}" placeholder="480">
                     <span class="costs-process-default-currency costs-process-default-suffix">min</span>
                 </label>
             </td>
@@ -2981,7 +2986,7 @@ window.openEditarProcesoModal = function(index) {
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                     <div class="costs-modal-field">
                         <label style="font-size:12px;font-weight:600;color:var(--app-text-muted,#60707f);display:block;margin-bottom:4px;">Orden en Secuencia (Gantt)</label>
-                        <input type="number" id="modal-proc-order" value="${escapeHtml(row.order || (index + 1))}" min="1" max="99" style="width:100%;height:40px;border-radius:12px;padding:0 12px;border:1px solid #cfd8df;background:var(--app-surface,#ffffff);color:var(--app-text,#0f172a);font-size:13px;">
+                        <input type="number" id="modal-proc-order" value="${escapeHtml(row.order || (index + 1))}" min="1" max="999" step="10" style="width:100%;height:40px;border-radius:12px;padding:0 12px;border:1px solid #cfd8df;background:var(--app-surface,#ffffff);color:var(--app-text,#0f172a);font-size:13px;">
                     </div>
                     <div class="costs-modal-field">
                         <label style="font-size:12px;font-weight:600;color:var(--app-text-muted,#60707f);display:block;margin-bottom:4px;">Color en el Gantt</label>
@@ -2997,6 +3002,10 @@ window.openEditarProcesoModal = function(index) {
                         <input type="checkbox" id="modal-proc-paralelo"${row.procesoParalelo ? " checked" : ""}>
                         <span>Proceso paralelo (puede ejecutarse al mismo tiempo que el anterior)</span>
                     </label>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;color:var(--app-text,#0f172a);" title="Al programar, el trabajo debe caber entero en un turno (con la holgura de Costos). Si no cabe, no se inicia y se pasa al siguiente turno; ese rato lo puede usar otra orden que sí quepa.">
+                        <input type="checkbox" id="modal-proc-turno"${row.terminarEnTurno ? " checked" : ""}>
+                        <span>Terminar dentro del turno (no se parte entre turnos)</span>
+                    </label>
                     <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;color:var(--app-text,#0f172a);">
                         <input type="checkbox" id="modal-proc-gantt"${row.ganttEnabled ? " checked" : ""}>
                         <span>Activo en Gantt (visible en la línea de tiempo)</span>
@@ -3006,8 +3015,8 @@ window.openEditarProcesoModal = function(index) {
                 <div class="costs-modal-field">
                     <label style="font-size:12px;font-weight:600;color:var(--app-text-muted,#60707f);display:block;margin-bottom:4px;">Horario por Defecto del Proceso</label>
                     <select id="modal-proc-calendario" style="width:100%;height:40px;border-radius:12px;padding:0 12px;border:1px solid #cfd8df;background:var(--app-surface,#ffffff);color:var(--app-text,#0f172a);font-size:13px;">
-                        <option value="">(Sin horario individual - usa 8 hrs Lunes a Viernes)</option>
-                        ${(costsCalendariosList || []).map(c => `<option value="${escapeHtml(c.id)}"${row.calendarioId === c.id ? " selected" : ""}>${escapeHtml(c.nombre)}</option>`).join("")}
+                        <option value="">(Sin horario — el proceso no se programa)</option>
+                        ${(costsCalendariosList || []).map(c => `<option value="${escapeHtml(c.id)}"${row.calendarioId === c.id ? " selected" : ""}>${escapeHtml(c.calendar_name || c.nombre)}</option>`).join("")}
                     </select>
                 </div>
 
@@ -3034,7 +3043,7 @@ window.openEditarProcesoModal = function(index) {
                             </select>
                             <select id="modal-nueva-maquina-calendario" style="flex:1;height:38px;border-radius:10px;padding:0 8px;border:1px solid #cfd8df;background:var(--app-surface,#ffffff);color:var(--app-text,#0f172a);font-size:12px;">
                                 <option value="">(Sin horario individual)</option>
-                                ${(costsCalendariosList || []).map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.nombre)}</option>`).join('')}
+                                ${(costsCalendariosList || []).map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.calendar_name || c.nombre)}</option>`).join('')}
                             </select>
                             <button type="button" class="costs-btn-primary" style="height:38px;padding:0 14px;font-size:12px;border-radius:10px;" onclick="agregarMaquinaModalProceso('${escapeHtml(row.key)}', ${index})">+ Asignar</button>
                         </div>
@@ -3062,6 +3071,7 @@ window.guardarEditarProcesoModal = function(index) {
     const orderVal = Number(document.getElementById("modal-proc-order")?.value || 0);
     const colorVal = document.getElementById("modal-proc-color")?.value;
     const paraleloVal = Boolean(document.getElementById("modal-proc-paralelo")?.checked);
+    const turnoVal = Boolean(document.getElementById("modal-proc-turno")?.checked);
     const ganttVal = Boolean(document.getElementById("modal-proc-gantt")?.checked);
     const calendarioVal = document.getElementById("modal-proc-calendario")?.value || null;
 
@@ -3069,6 +3079,7 @@ window.guardarEditarProcesoModal = function(index) {
     if (orderVal > 0) row.order = orderVal;
     if (colorVal) row.colorGantt = colorVal;
     row.procesoParalelo = paraleloVal;
+    row.terminarEnTurno = turnoVal;
     row.ganttEnabled = ganttVal;
     row.calendarioId = calendarioVal;
 

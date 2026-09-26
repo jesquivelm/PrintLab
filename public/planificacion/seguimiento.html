@@ -54,14 +54,43 @@ body{font-family:'DM Sans',system-ui,sans-serif;font-size:16px;color:var(--text)
 .cal-alert-strip::-webkit-scrollbar{width:8px;height:8px}
 .cal-alert-strip::-webkit-scrollbar-thumb{border-radius:999px;background:rgba(11,129,184,.38)}
 .cal-alert-strip::-webkit-scrollbar-track{background:transparent}
-.cal-alert-day{flex:0 0 auto;min-width:96px;padding:8px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);text-align:center}
-.cal-alert-day.is-today{border-color:var(--accent-border);background:var(--accent-bg)}
-.cal-alert-day.has-event{border-color:var(--red-border);background:var(--red-bg)}
-.cal-alert-day.is-weekend:not(.has-event){border-color:var(--amber-border);background:var(--amber-bg)}
+.cal-alert-day{position:relative;flex:0 0 auto;min-width:96px;padding:8px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);text-align:center;font-family:inherit;color:inherit;cursor:pointer;transition:border-color .12s,box-shadow .12s,transform .12s}
+.cal-alert-day:hover{border-color:var(--border2);transform:translateY(-1px)}
+.cal-alert-day:focus-visible{outline:2px solid var(--pl-primary);outline-offset:2px}
+.cal-alert-day.is-weekend,.cal-alert-day.has-event{border-color:var(--amber-border);background:var(--amber-bg)}
+.cal-alert-day.is-overdue{border-color:var(--red-border);background:var(--red-bg)}
+/* Hoy siempre se distingue (aunque caiga en fin de semana): verde con sombra. */
+.cal-alert-day.is-today{border-color:var(--pl-ok);background:var(--accent-bg);box-shadow:0 0 0 1px var(--pl-ok),0 4px 12px rgba(20,26,46,.22)}
+html[data-theme="dark"] .cal-alert-day.is-today{box-shadow:0 0 0 1px var(--pl-ok),0 0 16px rgba(52,211,153,.55)}
+.cal-alert-day.is-selected{border-color:var(--pl-primary);box-shadow:0 0 0 2px var(--pl-primary-ring)}
+.cal-alert-day.is-today.is-selected{box-shadow:0 0 0 1px var(--pl-ok),0 0 0 4px var(--pl-primary-ring)}
 .cal-alert-day-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em}
+.cal-alert-day.is-today .cal-alert-day-label{color:var(--pl-ok);font-weight:700}
 .cal-alert-day-date{font-size:14px;font-weight:600;color:var(--text);margin-top:2px}
-.cal-alert-day-tag{font-size:11px;font-weight:600;margin-top:4px;color:var(--red)}
-.cal-alert-day.is-weekend:not(.has-event) .cal-alert-day-tag{color:var(--amber)}
+/* Tercera fila: sin mouse muestra el aviso del día (fin de semana / feriado) o la
+   pastilla neón con los problemas; con el mouse encima, en el mismo sitio, la
+   cantidad de entregas. La altura es fija para que el cuadro no cambie de tamaño. */
+.cal-foot{display:flex;align-items:center;justify-content:center;height:20px;margin-top:4px;white-space:nowrap}
+.cal-foot-hover{display:none;font-size:12px;font-weight:700;color:var(--text2)}
+.cal-alert-day:hover .cal-foot-default{display:none}
+.cal-alert-day:hover .cal-foot-hover{display:inline}
+.cal-alert-day-tag{font-size:11px;font-weight:600;color:var(--amber)}
+.cal-neon{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:18px;padding:0 6px;border-radius:999px;font-size:11px;font-weight:800;border:1px solid}
+.cal-neon.is-ok{color:#6d28d9;background:rgba(139,92,246,.12);border-color:#8b5cf6;
+  box-shadow:0 0 6px rgba(139,92,246,.55),inset 0 0 4px rgba(139,92,246,.25);text-shadow:0 0 4px rgba(139,92,246,.35)}
+.cal-neon.is-late{color:#be123c;background:rgba(244,63,94,.12);border-color:#f43f5e;
+  box-shadow:0 0 6px rgba(244,63,94,.55),inset 0 0 4px rgba(244,63,94,.25);text-shadow:0 0 4px rgba(244,63,94,.35)}
+html[data-theme="dark"] .cal-neon.is-ok{color:#e9dcff;background:rgba(167,139,250,.14);border-color:#a78bfa;
+  box-shadow:0 0 8px rgba(167,139,250,.8),0 0 18px rgba(139,92,246,.45),inset 0 0 6px rgba(167,139,250,.35);text-shadow:0 0 6px rgba(196,181,253,.9)}
+html[data-theme="dark"] .cal-neon.is-late{color:#ffe1e7;background:rgba(251,113,133,.14);border-color:#fb7185;
+  box-shadow:0 0 8px rgba(251,113,133,.8),0 0 18px rgba(244,63,94,.45),inset 0 0 6px rgba(251,113,133,.35);text-shadow:0 0 6px rgba(253,164,175,.9)}
+/* Si el día ya tiene aviso en la tercera fila, la pastilla va en la esquina. */
+.cal-neon.is-corner{position:absolute;top:-7px;right:-6px}
+.cal-alert-day:hover .cal-neon.is-corner{display:none}
+.cal-selection-bar{display:none;align-items:center;gap:12px;padding:8px 24px;background:var(--pl-primary-soft);border-bottom:1px solid var(--border);font-size:14px;color:var(--text)}
+.cal-selection-bar.visible{display:flex}
+.cal-selection-clear{margin-left:auto;padding:4px 12px;border-radius:999px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.cal-selection-clear:hover{color:var(--text);border-color:var(--pl-primary)}
 .alert-banner{display:none;align-items:center;gap:12px;padding:10px 24px;background:var(--red-bg);border-bottom:1px solid var(--red-border);font-size:14px;color:var(--red)}
 .alert-banner.visible{display:flex}
 .alert-banner strong{font-weight:600}
@@ -664,6 +693,7 @@ body{
 .filter-pill-void:not(.active){border-color:var(--pl-red-border);color:var(--pl-red)}
 .process-tab.filter-pill-stopped:not(.active){border-color:var(--pl-orange-border);color:var(--pl-orange)}
 .process-tab.filter-pill-void:not(.active){border-color:var(--pl-red-border);color:var(--pl-red)}
+.process-tab.filter-pill-late:not(.active){border-color:var(--pl-red-border);color:var(--pl-red)}
 .sort-select{background:var(--pl-surface);border:1px solid var(--pl-border-strong);color:var(--pl-text)}
 .view-switcher{background:var(--pl-surface-soft);border:1px solid var(--pl-border)}
 .view-btn.active{background:var(--pl-surface);color:var(--pl-primary);box-shadow:var(--pl-shadow-sm)}
@@ -808,7 +838,8 @@ body{
   <button type="button" class="alert-banner-close" id="alertBannerClose">×</button>
 </div>
 
-<div class="cal-alert-strip" id="calAlertStrip" title="Próximos días — feriados y fines de semana según los calendarios configurados"></div>
+<div class="cal-alert-strip" id="calAlertStrip" aria-label="Calendario de entregas"></div>
+<div class="cal-selection-bar" id="calSelectionBar"></div>
 
 <div class="process-tabs">
   <button type="button" class="process-tab is-active" data-process-filter="all">Todos</button>
@@ -821,6 +852,7 @@ body{
   <button type="button" class="process-tab" data-process-filter="impresion">Impresión</button>
   <button type="button" class="process-tab" data-process-filter="rebobinado">Rebobinado</button>
   <button type="button" class="process-tab" data-process-filter="empaque">Empaque</button>
+  <button type="button" class="process-tab filter-pill filter-pill-late" data-filter="late">Atrasadas <span class="pt-count" id="countLateTop">0</span></button>
   <button type="button" class="process-tab filter-pill filter-pill-stopped" data-filter="detenida">Detenidas <span class="pt-count" id="countDetenida">0</span></button>
   <button type="button" class="process-tab filter-pill filter-pill-void" data-filter="anulada">Anuladas <span class="pt-count" id="countAnulada">0</span></button>
 </div>
@@ -1070,7 +1102,8 @@ body{
   </div>
 </div>
 
-<script src="/planificacion/seguimiento.js?v=20260925-planificacion-unificada"></script>
+<script src="/planificacion/reprogramar-overlay.js?v=20260926"></script>
+<script src="/planificacion/seguimiento.js?v=20260926-reprogramador"></script>
 <script>
 document.getElementById('ordersAheadModal')?.addEventListener('click',function(e){if(e.target===this)closeOrdersAheadModal()});
 document.getElementById('orderViewModal')?.addEventListener('click',function(e){if(e.target===this)closeOrderModal()});

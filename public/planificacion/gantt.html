@@ -51,7 +51,7 @@ body{font-family:system-ui,sans-serif;font-size:14px;color:#1a1a1a;background:#f
 .res-col{width:190px;min-width:190px;padding:8px 12px;font-size:11px;font-weight:500;color:#888;border-right:1px solid #d8e4ef;flex-shrink:0}
 .time-col{display:flex;flex-direction:column;flex:1;min-width:0}
 .day-hdr{display:flex;border-bottom:1px solid #d8e4ef;background:#edf5fb}
-.day-hdr-item{padding:6px 8px 4px;font-size:11px;font-weight:600;color:#445;border-right:1px solid #d8e0e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
+.day-hdr-item{padding:6px 4px 4px;font-size:11px;font-weight:600;color:#445;border-right:1px solid #d8e0e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
 .time-hdr{display:flex;flex:1}
 .t-slot{flex:1;min-width:52px;padding:6px 4px;text-align:center;font-size:10px;color:#aaa;border-right:1px solid #e2e8f0}
 .g-row{display:flex;border-bottom:1px solid #d8e4ef;min-height:72px;align-items:stretch;position:relative;background:#fff}
@@ -93,12 +93,32 @@ html[data-theme="dark"] .aviso-sin-horario{color:#fcd34d;background:rgba(146,64,
   min-width:48px;
 }
 .task-bar:hover{filter:brightness(1.07);z-index:20;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.task-bar.is-done{cursor:default;opacity:.8;background-image:linear-gradient(90deg,rgba(255,255,255,.18),rgba(255,255,255,0))}
+/* Pausa dentro de una barra: fuera de turno, domingo, feriado o mantenimiento. */
+/* Barra partida por turnos: solo se pinta el horario de trabajo de la máquina o proceso;
+   fuera de turno queda vacío, unido por una línea fina para ver que es la misma orden. */
+.task-bar.partida{background:transparent!important;border-color:transparent!important;padding:0;overflow:visible}
+.task-bar.partida:hover{box-shadow:none;filter:none}
+.task-enlace{position:absolute;left:0;right:0;top:50%;border-top:2px dotted;opacity:.55;pointer-events:none}
+.task-tramo{position:absolute;top:0;bottom:0;border-radius:6px;border:2px solid;overflow:hidden;display:flex;flex-direction:column;justify-content:center;padding:0 6px;min-width:3px;box-sizing:border-box}
+.task-bar.partida:hover .task-tramo{filter:brightness(1.07);box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.task-bar.partida.conflict-machine{outline:none;animation:none}
+.task-bar.partida.conflict-machine .task-tramo{border-color:#E24B4A!important}
+.task-bar.partida .task-lbl,.task-bar.partida .task-cliente,.task-bar.partida .task-sub{transform:none}
+.gantt-aviso{margin:0 0 8px;padding:10px 14px;border-radius:10px;background:#fdecec;border:1px solid #f5b5b5;color:#7f1d1d;font-size:13px}
+html[data-theme="dark"] .gantt-aviso{background:rgba(226,75,74,.12);border-color:rgba(226,75,74,.4);color:#fecaca}
+.task-pausa{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 4px,rgba(255,255,255,.15) 4px 8px);pointer-events:none;border-left:1px dashed rgba(255,255,255,.8);border-right:1px dashed rgba(255,255,255,.8)}
+.tt-pausas{margin-top:6px;padding-top:6px;border-top:1px solid rgba(0,0,0,.08);font-size:11px}
+.tt-pausas div{margin:2px 0}
+.btn.terminados-on{background:#eef2f7;border-color:#94a3b8}
 .task-bar.dragging{opacity:0.4;cursor:grabbing}
 .task-bar.drag-target{outline:2.5px dashed rgba(255,255,255,.7);outline-offset:-3px}
 .task-bar.chain-active{box-shadow:0 0 0 3px rgba(6,182,212,.6),0 0 20px rgba(6,182,212,.3);z-index:30;filter:brightness(1.08);border-color:#06b6d4!important}
-.task-bar.chain-dim{opacity:0.15}
+.task-bar.chain-dim{opacity:0.4}
 .task-cliente{font-size:9.5px;opacity:0.85;overflow:hidden;text-overflow:ellipsis;line-height:1.2;font-weight:500}
 .task-lbl{font-size:11.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+/* El texto de una barra larga acompaña al desplazarse: siempre se sabe qué orden es. */
+.task-bar .task-lbl,.task-bar .task-cliente,.task-bar .task-sub{transform:translateX(var(--lbl-dx,0px));max-width:280px}
 .task-sub{font-size:9.5px;opacity:0.80;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px}
 .task-mode-pill{display:inline-flex;align-items:center;padding:1px 5px;border-radius:999px;font-size:8.5px;font-weight:700;background:rgba(255,255,255,.22)}
 .task-config-btn{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:20px;height:20px;border:0;border-radius:5px;background:rgba(255,255,255,.18);color:#fff;font-size:13px;line-height:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;flex-shrink:0}
@@ -446,6 +466,12 @@ html[data-theme="dark"] .res-col,
 html[data-theme="dark"] .t-slot,
 html[data-theme="dark"] .res-lbl,
 html[data-theme="dark"] .proceso-hdr-lbl{border-color:var(--app-border,#334155)}
+/* La columna de procesos/máquinas queda fija al desplazarse de lado: nunca se pierde la fila. */
+.res-col,.res-lbl,.proceso-hdr-lbl{position:sticky;left:0;z-index:70;background:#fff}
+.proceso-hdr-lbl{background:#f4f8fc}
+html[data-theme="dark"] .res-col,
+html[data-theme="dark"] .res-lbl,
+html[data-theme="dark"] .proceso-hdr-lbl{background:var(--app-surface,#111827)}
 html[data-theme="dark"] .stat-lbl,
 html[data-theme="dark"] .res-sub,
 html[data-theme="dark"] .t-slot,
@@ -634,6 +660,7 @@ html[data-theme="dark"] .gcal-btn:hover{background:rgba(56,189,248,.08)}
 .sg-drawer .drawer-body{flex:1;overflow-y:auto;padding:20px}
 .sg-drawer .drawer-footer{padding:14px 20px;border-top:1px solid #e8eef5;background:#f7fbff;flex-shrink:0}
 .sg-drawer{width:min(560px,100vw)}
+#calDrawer{width:min(780px,100vw)} /* 220px más que los otros cajones: la tabla de feriados necesita holgura */
 .sg-drawer-wide{width:min(680px,100vw)}
 .sg-drawer-body{padding:20px;scrollbar-width:thin;scrollbar-color:rgba(11,129,184,.42) transparent}
 .sg-drawer-embed{padding:0;overflow:hidden}
@@ -663,7 +690,7 @@ html[data-theme="dark"] .sg-drawer-overlay{background:rgba(0,0,0,.55)}
 .cal-pop-pill{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;background:rgba(24,95,165,.09);color:#185FA5;white-space:nowrap}
 .cal-pop-pill-off{background:#eef1f5;color:#8b9bab}
 .cal-pop-pill-warn{background:rgba(186,117,23,.12);color:#a3691a}
-.cf-kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.cf-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
 .cf-kpi{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:12px;border:1px solid #e4ebf3;background:#fbfdff;cursor:pointer;text-align:left;transition:border-color .15s,box-shadow .15s,transform .15s;font-family:inherit}
 .cf-kpi:hover:not(:disabled){border-color:#9fc2e2;box-shadow:0 4px 14px rgba(24,95,165,.12);transform:translateY(-1px)}
 .cf-kpi:disabled{cursor:default;opacity:.85}
@@ -701,6 +728,37 @@ html[data-theme="dark"] .cf-kpi-ok .cf-kpi-num,html[data-theme="dark"] .cf-kpi-o
 html[data-theme="dark"] .cf-explicacion{background:var(--app-surface-raised,#16223a);border-color:var(--app-border,#334155)}
 html[data-theme="dark"] .cf-fila{background:var(--app-surface-raised,#16223a);border-color:var(--app-border,#334155)}
 html[data-theme="dark"] .cf-secc-title{color:var(--app-text-muted,#94a3b8)}
+
+/* Impacto de mover una barra */
+.imp-overlay{position:fixed;inset:0;z-index:9500;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;padding:18px}
+.imp-overlay.open{display:flex}
+.imp-modal{background:#fff;color:#0f172a;border-radius:16px;width:min(920px,100%);max-height:92vh;display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(0,0,0,.3)}
+.imp-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #e2e8f0;font-size:16px}
+.imp-x{border:0;background:transparent;font-size:18px;cursor:pointer;color:#64748b}
+.imp-body{padding:16px 18px;overflow:auto}
+.imp-loading{padding:30px;text-align:center;color:#64748b}
+.imp-resumen{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.imp-resumen>div{border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px}
+.imp-k{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;margin-bottom:4px}
+.imp-v{font-size:13px}
+.imp-big{font-size:26px;font-weight:800}
+.imp-rojo{color:#d03b3b}.imp-verde{color:#0ca30c}
+.imp-sub{font-weight:700;margin:6px 0 8px}
+.imp-tabla{max-height:320px;overflow:auto;border:1px solid #e2e8f0;border-radius:10px}
+.imp-tabla table{width:100%;border-collapse:collapse;font-size:12px}
+.imp-tabla th{position:sticky;top:0;background:#f8fafc;text-align:left;padding:6px 8px;font-size:11px;color:#64748b}
+.imp-tabla td{padding:6px 8px;border-top:1px solid #f1f5f9}
+.imp-nueva-tarde td{background:rgba(208,59,59,.06)}
+.imp-b{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:#f1f5f9;color:#475569}
+.imp-tarde{background:rgba(208,59,59,.1);color:#d03b3b}.imp-warn{background:rgba(250,178,25,.15);color:#a16207}.imp-ok{background:rgba(12,163,12,.1);color:#0a7d0a}
+.imp-nota{margin-top:12px;font-size:12px;color:#475569;background:#f8fafc;border-radius:10px;padding:10px 12px}
+.imp-acciones{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.task-lock-icon{position:absolute;top:2px;left:4px;font-size:10px;z-index:2}
+html[data-theme="dark"] .imp-modal{background:#111a2e;color:#e2e8f0}
+html[data-theme="dark"] .imp-resumen>div,html[data-theme="dark"] .imp-tabla{border-color:#1f2c44}
+html[data-theme="dark"] .imp-tabla th,html[data-theme="dark"] .imp-nota{background:#0f172a;color:#a3b1c6}
+html[data-theme="dark"] .imp-tabla td{border-color:#1a2539}
+@media (max-width:720px){.imp-resumen{grid-template-columns:1fr 1fr}}
 </style>
 
 <link rel="stylesheet" href="/theme-extensions.css">
@@ -756,12 +814,13 @@ const API = '/api/planificacion';
 let HOURS = [];
 let SLOTS = 15;
 let DAYS = [];
-let zoomLevel = 'week';
+// Por defecto 5 días: lo que Planeación necesita ver de un vistazo.
+let zoomLevel = '5day';
 const ZOOM_CONFIG = {
   day:    { label: '1 día',   hours: 24,  slotW: 160, granularity: 'halfhour' },
   '3day': { label: '3 días',  hours: 72,  slotW: 80,  granularity: 'hour'     },
-  week:   { label: '1 sem',   hours: 168, slotW: 52,  granularity: 'day'      },
-  '2week':{ label: '15 días', hours: 360, slotW: 36,  granularity: 'day'      }
+  '5day': { label: '5 días',  hours: 120, slotW: 11,  granularity: 'day'      },
+  week:   { label: '1 sem',   hours: 168, slotW: 8,   granularity: 'day'      }
 };
 
 // Los únicos procesos que aparecen en el Gantt — en este orden exacto
@@ -844,6 +903,21 @@ function getPipelineProc(processKey) {
   return found || getPIPELINE_PROCESSES()[0];
 }
 
+// Inicio del eje del Gantt: la hora actual (sin mostrar horas que ya pasaron).
+// Con "Terminados" activo el tablero arranca 7 días atrás para ver lo ya hecho (en gris).
+let mostrarTerminados = (() => { try { return localStorage.getItem('gantt-terminados') === '1'; } catch (e) { return false; } })();
+function ganttBaseDate() {
+  const base = new Date();
+  base.setMinutes(0, 0, 0);
+  if (mostrarTerminados) base.setTime(base.getTime() - 7 * 24 * 3600000);
+  return base;
+}
+function toggleTerminados() {
+  mostrarTerminados = !mostrarTerminados;
+  try { localStorage.setItem('gantt-terminados', mostrarTerminados ? '1' : '0'); } catch (e) {}
+  loadFromAPI();
+}
+
 function configureTimelineHorizon() {
   const cfg = ZOOM_CONFIG[zoomLevel];
   // SLOTS = number of half-hour blocks in day mode, hours otherwise
@@ -853,9 +927,9 @@ function configureTimelineHorizon() {
   const minSlots = Math.ceil(cfg.hours / slotUnit);
   SLOTS = useHalfHours
     ? minSlots
-    : Math.max(cfg.hours, Math.min(cfg.hours * 2, Math.ceil(maxEnd) + 2));
-  const base = new Date();
-  base.setHours(6, 0, 0, 0);
+    // Hasta 60 días: que se vea la cadena completa (p. ej. el Empaque de una orden lejana).
+    : Math.max(cfg.hours, Math.min(60 * 24, Math.ceil(maxEnd) + 2));
+  const base = ganttBaseDate();
 
   if (useHalfHours) {
     HOURS = Array.from({ length: SLOTS }, (_, i) => {
@@ -897,7 +971,10 @@ function configureTimelineHorizon() {
     if (!dayMap[dayKey]) {
       dayMap[dayKey] = {
         key: dayKey,
-        label: stamp.toLocaleDateString('es-CR', { weekday: 'long', day: 'numeric', month: 'short' }),
+        // En las vistas por días la columna es angosta: "sáb 2 nov" siempre cabe completo.
+        label: ZOOM_CONFIG[zoomLevel].granularity === 'day'
+          ? stamp.toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '')
+          : stamp.toLocaleDateString('es-CR', { weekday: 'long', day: 'numeric', month: 'short' }),
         slot: i
       };
       DAYS.push(dayMap[dayKey]);
@@ -919,7 +996,7 @@ function setZoom(level) {
 }
 
 // Zoom con Ctrl+rueda del mouse sobre el Gantt (del más detallado al más amplio)
-const ZOOM_ORDER = ['day', '3day', 'week', '2week'];
+const ZOOM_ORDER = ['day', '3day', '5day', 'week'];
 document.addEventListener('wheel', (e) => {
   if (!e.target.closest || !e.target.closest('.gantt-wrap')) return;
   if (!e.ctrlKey) return;
@@ -947,10 +1024,30 @@ function displayProcessName(value) {
 // ── API ──────────────────────────────────────────────────────
 async function loadFromAPI() {
   try {
-    const res = await fetch(`${API}/gantt-agrupado`);
+    const baseHorarios = ganttBaseDate();
+    const diaISO = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    const [res, horarios] = await Promise.all([
+      fetch(`${API}/gantt-agrupado`),
+      fetch(`${API}/gantt/horarios?desde=${diaISO(new Date(baseHorarios.getTime() - 86400000))}&hasta=${diaISO(new Date(baseHorarios.getTime() + 40 * 86400000))}`)
+        .then(r => r.json()).catch(() => null)
+    ]);
     if (!res.ok) throw new Error('Error HTTP ' + res.status);
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Error en respuesta');
+    window._horarios = horarios && horarios.ok ? horarios.recursos : {};
+    window._horariosError = horarios && horarios.ok ? null : ((horarios && horarios.error) || 'sin respuesta del servidor');
+    // Órdenes con un proceso posterior (orden de Costos) terminado y el anterior no.
+    {
+      const pos = new Map((data.procesos || []).map((p, i) => [String(p.process_key), Number(p.orden_secuencia ?? i)]));
+      const porOrden = new Map();
+      (data.rutas || []).forEach(r => { if (!porOrden.has(r.codigo_op)) porOrden.set(r.codigo_op, []); porOrden.get(r.codigo_op).push(r); });
+      window._terminadoAntes = [...porOrden].filter(([, rs]) => rs.some(b => b.estado === 'COMPLETADO'
+        && rs.some(a => (pos.get(a.clave_proceso) ?? 999) < (pos.get(b.clave_proceso) ?? 999) && a.estado !== 'COMPLETADO'))).map(([c]) => c);
+    }
+    // Un proceso terminado se dibuja con sus horas reales y en gris; solo con "Terminados".
+    data.rutas = (data.rutas || []).map(r => r.estado === 'COMPLETADO'
+      ? { ...r, terminado: true, fecha_plan_inicio: r.fecha_real_inicio || r.fecha_plan_inicio, fecha_plan_fin: r.fecha_real_fin || r.fecha_plan_fin }
+      : r).filter(r => !r.terminado || mostrarTerminados);
 
     let turnosData = [];
     try {
@@ -963,7 +1060,13 @@ async function loadFromAPI() {
     window._costsTurnos = turnosData;
 
     machines = data.maquinas;
-    orders = data.rutas.map(r => ({
+    // Las barras se dibujan con las fechas reales planificadas de cada proceso
+    // (antes: un desfase en horas guardado contra otra fecha base → barras mezcladas).
+    const base = ganttBaseDate();
+    const horasDesdeBase = (v) => (new Date(v).getTime() - base.getTime()) / 3600000;
+    orders = data.rutas
+      .filter(r => r.fecha_plan_inicio && r.fecha_plan_fin && new Date(r.fecha_plan_fin) > base)
+      .map(r => ({
       id:          r.codigo_op,
       id_ruta:     r.id_ruta,
       cliente:     r.cliente,
@@ -975,21 +1078,50 @@ async function loadFromAPI() {
       proceso_key: normalizeProcessKey(r.proceso),
       clave_proceso: r.clave_proceso || '',
       maquina:     r.maquina,
-      inicio:      parseFloat(r.inicio),
-      dur:         parseFloat(r.dur),
+      inicio:      Math.max(0, horasDesdeBase(r.fecha_plan_inicio)),
+      // Duración real (el ancho mínimo de la barra es solo visual, en el CSS).
+      dur:         Math.max(0.01, horasDesdeBase(r.fecha_plan_fin) - Math.max(0, horasDesdeBase(r.fecha_plan_inicio))),
+      horas_trabajo: parseFloat(r.dur),
+      plan_inicio: r.fecha_plan_inicio,
+      plan_fin:    r.fecha_plan_fin,
       trans_costo: r.trans_costo || 0,
       dep:         r.dep || null,
       dep_ruta_id: r.dep_ruta_id || null,
       estado:      r.estado,
-      alerta:      !!r.alerta,
-      alerta_tipo: r.alerta || null,
+      terminado:   Boolean(r.terminado),
+      fecha_plan_inicio_iso: r.fecha_plan_inicio,
+      fecha_plan_fin_iso:    r.fecha_plan_fin,
+      // Resultado del Reprogramador (ficha de la orden): cumple / adelanta / atrasa / negociar…
+      estado_programacion: r.estado_programacion || null,
+      fecha_entrega_estimada: r.fecha_entrega_estimada || null,
+      alerta:      r.estado_programacion === 'atrasa',
+      alerta_tipo: r.estado_programacion || null,
       fecha_fin_produccion:     r.fecha_fin_produccion || null,
       fecha_entrega_prometida:  r.fecha_entrega_prometida || null,
       route_payload:    r.route_payload || {},
       planning_snapshot: r.planning_snapshot || null,
-      manual_lock:  Boolean(r.route_payload?.manualLock),
+      manual_lock:  Boolean(r.bloqueo_manual || r.route_payload?.manualLock),
+      bloqueo_por:  r.bloqueo_por || '',
+      bloqueo_en:   r.bloqueo_en || '',
       schedule_mode: r.route_payload?.scheduleMode || r.route_payload?.schedule_mode || '',
     }));
+    // La cadena de cada orden sale del orden de Costos (procesos "Activo en Gantt"), no del
+    // campo "depende de" de la ruta: ese puede apuntar a un proceso que no está en el Gantt
+    // (p. ej. Troquelado) y cortaba la línea Impresión → Rebobinado → Empaque.
+    const ordenCostos = new Map((data.procesos || []).map((p, i) => [String(p.process_key), Number(p.orden_secuencia ?? i)]));
+    const porOrden = new Map();
+    orders.forEach(o => { if (!porOrden.has(o.id)) porOrden.set(o.id, []); porOrden.get(o.id).push(o); });
+    porOrden.forEach(lista => {
+      lista.sort((a, b) => (ordenCostos.get(a.clave_proceso) ?? 999) - (ordenCostos.get(b.clave_proceso) ?? 999));
+      lista.forEach((o, i) => {
+        const previa = lista[i - 1] || null;
+        o.dep_ruta_id = previa ? previa.id_ruta : null;
+        o.dep = previa ? previa.id : null;
+        o.dep_proceso = previa ? previa.proceso : '';
+        // Dato inconsistente: un proceso posterior terminado con el anterior aún pendiente.
+        o.fuera_de_secuencia = Boolean(previa && o.terminado === true && !previa.terminado && previa.estado !== 'COMPLETADO');
+      });
+    });
     configureTimelineHorizon();
 
     machines.forEach(m => {
@@ -1029,6 +1161,7 @@ const COLORS = {
   PENDIENTE: {bg:'#378ADD', bd:'#185FA5', tx:'#fff'},
   PARO:      {bg:'#E24B4A', bd:'#A32D2D', tx:'#fff'},
   COMPLETADO:{bg:'#639922', bd:'#3B6D11', tx:'#fff'},
+  TERMINADO: {bg:'#b8c2cf', bd:'#9aa6b5', tx:'#334155'},
 };
 
 function pct(v) { return (v / SLOTS * 100).toFixed(4) + '%'; }
@@ -1101,40 +1234,34 @@ function detectAllConflicts() {
       for (let j = i + 1; j < group.length; j++) {
         const b = group[j], bEnd = b.inicio + b.dur;
         if (a.id_ruta === b.id_ruta) continue;
-        if (a.inicio < bEnd && aEnd > b.inicio) {
+        if (a.inicio < bEnd - 0.01 && aEnd - 0.01 > b.inicio) {
           conflicts.push({ type:'machine', ruta_a:a.id_ruta, ruta_b:b.id_ruta,
-            message:`Máquina ${a.maquina}: "${a.id}" y "${b.id}" se superponen`});
+            message:`Máquina ${(machines.find(m => String(m._matchId) === String(a.maquina)) || {}).nombre_recurso || a.maquina}: "${a.id}" y "${b.id}" se superponen`});
         }
       }
     }
   });
 
-  // Conflictos de secuencia: solo entre rutas de la misma orden
+  // Conflictos de secuencia: cada proceso contra el ANTERIOR de su orden, en el
+  // orden de Costos (Impresión → Rebobinado → Empaque). Antes se comparaban todos
+  // los pares de la orden y salían "conflictos" que no existían.
+  const ordenDe = (op) => { const p = procesos.findIndex(x => x.process_key === op.clave_proceso || normalizeProcessKey(x.nombre) === op.proceso_key); return p < 0 ? 999 : p; };
   const byOrder = new Map();
   relevant.forEach(o => {
     if (!byOrder.has(o.id)) byOrder.set(o.id, []);
     byOrder.get(o.id).push(o);
   });
   byOrder.forEach(group => {
-    for (let i = 0; i < group.length; i++) {
-      const a = group[i], aEnd = a.inicio + a.dur;
-      for (let j = i + 1; j < group.length; j++) {
-        const b = group[j], bEnd = b.inicio + b.dur;
-        if (b.dep_ruta_id === a.id_ruta || (b.dep === a.id && b.id_ruta !== a.id_ruta)) {
-          if (b.inicio < aEnd) {
-            conflicts.push({ type:'sequence', ruta_a:a.id_ruta, ruta_b:b.id_ruta,
-              message:`Orden ${a.id}: "${b.proceso}" empieza antes de que "${a.proceso}" termine`});
-          }
-        }
-        if (a.dep_ruta_id === b.id_ruta || (a.dep === b.id && a.id_ruta !== b.id_ruta)) {
-          if (a.inicio < bEnd) {
-            conflicts.push({ type:'sequence', ruta_a:b.id_ruta, ruta_b:a.id_ruta,
-              message:`Orden ${b.id}: "${a.proceso}" empieza antes de que "${b.proceso}" termine`});
-          }
-        }
+    const lista = group.slice().sort((x, y) => ordenDe(x) - ordenDe(y) || x.inicio - y.inicio);
+    for (let i = 1; i < lista.length; i++) {
+      const previo = lista[i - 1], actual = lista[i];
+      if (actual.inicio < previo.inicio + previo.dur - 0.01) {
+        conflicts.push({ type:'sequence', ruta_a:previo.id_ruta, ruta_b:actual.id_ruta,
+          message:`Orden ${actual.id}: "${actual.proceso}" empieza antes de que termine "${previo.proceso}"`});
       }
     }
   });
+
   return conflicts;
 }
 
@@ -1155,29 +1282,22 @@ function promisedHourSlot(value) {
   return isFinite(slot) ? Math.max(0, Math.min(SLOTS, slot)) : null;
 }
 
+// Fuera de fecha / sin colchón: lo decide el Reprogramador y queda en la ficha de la
+// orden, así el Gantt, Capacidad Finita y Seguimiento dicen lo mismo.
 function detectScheduleAlerts() {
   const alerts = [];
   const seen = new Set();
   orders.forEach(op => {
     if (seen.has(op.id)) return;
     seen.add(op.id);
-    const productionEnd = firstOrderValue(op.id, 'fecha_fin_produccion');
-    const promisedDate  = firstOrderValue(op.id, 'fecha_entrega_prometida');
-    if (productionEnd && promisedDate) {
-      if (dateKey(productionEnd) > dateKey(promisedDate)) {
-        alerts.push({ type:'late', orderCode:op.id, slack:-24, message:`${op.id} termina producción después de fecha estimada` });
-        return;
-      }
-    }
-    const dueSlot = promisedHourSlot(op.fecha_entrega_prometida);
-    if (dueSlot === null) return;
-    const bounds = getOrderChainBounds(op.id);
-    if (!bounds) return;
-    const slack = Number((dueSlot - bounds.maxEnd).toFixed(2));
-    if (slack < 0) {
-      alerts.push({ type:'late', orderCode:op.id, slack, message:`${op.id} termina ${Math.abs(slack).toFixed(2)}h después de entrega prometida` });
-    } else if (slack <= 1) {
-      alerts.push({ type:'tight', orderCode:op.id, slack, message:`${op.id} queda con solo ${slack.toFixed(2)}h de margen` });
+    const entrega = op.fecha_entrega_prometida ? String(op.fecha_entrega_prometida).slice(0, 10) : 'sin fecha';
+    const estimada = op.fecha_entrega_estimada ? String(op.fecha_entrega_estimada).slice(0, 10) : '';
+    // Atrasa: la última reprogramación la corrió después de la fecha comprometida.
+    // Negociar: la fecha comprometida quedó después de la fecha del cliente.
+    if (op.estado_programacion === 'atrasa') {
+      alerts.push({ type:'late', orderCode:op.id, slack:-24, message:`${op.id} se atrasó respecto a la fecha comprometida${estimada ? ` · ahora ${estimada}` : ''}` });
+    } else if (estimada && entrega !== 'sin fecha' && estimada > entrega) {
+      alerts.push({ type:'tight', orderCode:op.id, slack:0, message:`${op.id} se entrega el ${estimada}, después de la fecha del cliente (${entrega}): hay que negociar` });
     }
   });
   return alerts;
@@ -1320,9 +1440,7 @@ function checkMove(id_ruta, newStart, newDur, newMaq) {
         message:`Máquina ${newMaq}: conflicto con "${o.id}" · ${o.proceso} (${formatHora(o.inicio)}–${formatHora(oEnd)})` });
     }
   });
-  const pred = orders.find(o =>
-    op.dep_ruta_id === o.id_ruta || (op.dep && op.dep === o.id && o.id_ruta !== id_ruta)
-  );
+  const pred = op.dep_ruta_id ? orders.find(o => o.id_ruta === op.dep_ruta_id) : null;
   if (pred) {
     const predEnd = pred.inicio + pred.dur;
     if (newStart < predEnd) {
@@ -1330,7 +1448,7 @@ function checkMove(id_ruta, newStart, newDur, newMaq) {
         message:`"${pred.proceso}" de ${pred.id} termina a las ${formatHora(predEnd)} — no puede empezar antes` });
     }
   }
-  orders.filter(o => o.dep_ruta_id === id_ruta || (o.dep === op.id && o.id !== op.id)).forEach(succ => {
+  orders.filter(o => o.dep_ruta_id === id_ruta).forEach(succ => {
     if (succ.inicio < newEnd) {
       issues.push({ type:'sequence', id_ruta:succ.id_ruta,
         message:`"${succ.proceso}" empieza a las ${formatHora(succ.inicio)}, antes de que este proceso termine` });
@@ -1341,9 +1459,7 @@ function checkMove(id_ruta, newStart, newDur, newMaq) {
 
 function autoFix(id_ruta, newEnd) {
   function push(rid, mustStartAfter) {
-    orders.filter(o =>
-      o.dep_ruta_id === rid || (o.dep && orders.find(x => x.id_ruta === rid)?.id === o.dep)
-    ).forEach(succ => {
+    orders.filter(o => o.dep_ruta_id === rid).forEach(succ => {
       if (succ.inicio < mustStartAfter) {
         succ.inicio = parseFloat(mustStartAfter.toFixed(2));
         push(succ.id_ruta, succ.inicio + succ.dur);
@@ -1358,9 +1474,8 @@ function getMachineKey(machine) {
 }
 
 function getDirectSuccessors(id_ruta) {
-  const current = orders.find(o => o.id_ruta === id_ruta);
   return orders
-    .filter(o => o.dep_ruta_id === id_ruta || (o.dep && current && o.dep === current.id && o.id !== current.id))
+    .filter(o => o.dep_ruta_id === id_ruta)
     .sort((a, b) => {
       const dueDiff = parsePromisedTime(a.fecha_entrega_prometida) - parsePromisedTime(b.fecha_entrega_prometida);
       return dueDiff !== 0 ? dueDiff : a.inicio - b.inicio;
@@ -1413,11 +1528,95 @@ function getChain(id_ruta) {
   return chain;
 }
 
+// ── PAUSAS Y ESPERAS: por qué una barra se corta o empieza tarde ──
+// Usa el horario real de cada recurso (/gantt/horarios: turnos, feriados, domingos,
+// mantenimientos y horas extra), el mismo que usa el Reprogramador.
+function horarioDeRecurso(op) {
+  const h = window._horarios || {};
+  const clave = String(op.clave_proceso || op.proceso_key || '').toLowerCase();
+  return (op.maquina && (h[`m:${op.maquina}|${clave}`] || h[`m:${op.maquina}`])) || h[`p:${clave}`] || null;
+}
+const _ms = v => new Date(v).getTime();
+const _hhmm = t => new Date(t).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+const _diaHora = t => new Date(t).toLocaleDateString('es', { weekday: 'short', day: '2-digit' }) + ' ' + _hhmm(t);
+const _diaLocal = t => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+function pausasDeBarra(op) {
+  const rec = horarioDeRecurso(op);
+  if (!rec || !op.fecha_plan_inicio_iso || !op.fecha_plan_fin_iso) return [];
+  const s = _ms(op.fecha_plan_inicio_iso), e = _ms(op.fecha_plan_fin_iso);
+  if (!(e > s)) return [];
+  const franjas = rec.dias.flatMap(d => d.franjas.map(([a, b]) => [_ms(a), _ms(b)])).sort((x, y) => x[0] - y[0]);
+  const huecos = [];
+  let cursor = s;
+  for (const [a, b] of franjas) {
+    if (b <= cursor) continue;
+    if (a >= e) break;
+    if (a > cursor) huecos.push([cursor, a]);
+    cursor = Math.max(cursor, b);
+  }
+  return huecos.filter(([a, b]) => b - a > 5 * 60000).map(([a, b]) => {
+    const motivos = [];
+    if (franjas.some(f => Math.abs(f[1] - a) < 60000)) motivos.push(`fin de turno ${_hhmm(a)}`);
+    for (let t = a; t < b; t += 86400000) {
+      const dia = rec.dias.find(d => d.fecha === _diaLocal(t));
+      if (dia && dia.motivo && !dia.franjas.length && !motivos.includes(dia.motivo)) motivos.push(dia.motivo);
+    }
+    const diaFin = rec.dias.find(d => d.fecha === _diaLocal(b));
+    if (diaFin && diaFin.mantenimiento) motivos.push(`mantenimiento hasta ${_hhmm(b)}`);
+    return { izq: (a - s) / (e - s) * 100, ancho: (b - a) / (e - s) * 100, texto: `${_diaHora(a)} → ${_diaHora(b)}: ${motivos.join(', ') || 'fuera de horario'}` };
+  });
+}
+function esperaDeBarra(op) {
+  if (op.terminado || !op.fecha_plan_inicio_iso) return null;
+  const inicio = _ms(op.fecha_plan_inicio_iso);
+  const previa = op.dep_ruta_id ? orders.find(o => o.id_ruta === op.dep_ruta_id) : null;
+  const listo = previa && previa.fecha_plan_fin_iso ? _ms(previa.fecha_plan_fin_iso) : Date.now();
+  if (inicio - listo < 30 * 60000) return null;
+  const mismaMaquina = o => o.id_ruta !== op.id_ruta && o.id !== op.id && !o.terminado
+    && (op.maquina ? String(o.maquina) === String(op.maquina) : o.clave_proceso === op.clave_proceso);
+  const ocupan = orders.filter(o => mismaMaquina(o) && o.fecha_plan_inicio_iso && _ms(o.fecha_plan_fin_iso) > listo && _ms(o.fecha_plan_inicio_iso) < inicio);
+  const desde = previa ? `Terminó ${previa.proceso} el ${_diaHora(listo)}; esperó` : 'Esperó';
+  if (ocupan.length) {
+    const codigos = [...new Set(ocupan.map(o => o.id))];
+    return `${desde} porque la ${op.maquina ? 'máquina' : 'estación'} estaba ocupada con ${codigos.slice(0, 4).join(', ')}${codigos.length > 4 ? ` y ${codigos.length - 4} más` : ''}.`;
+  }
+  return `${desde} al siguiente turno disponible.`;
+}
+
+// Color de Costos para el proceso de la barra, con borde más oscuro y texto legible.
+function colorDeProceso(op) {
+  const proc = (procesos || []).find(p => String(p.process_key) === String(op.clave_proceso));
+  const hex = proc && /^#[0-9a-f]{6}$/i.test(proc.color || '') ? proc.color : null;
+  if (!hex) return null;
+  const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+  const osc = v => Math.max(0, Math.round(v * 0.72)).toString(16).padStart(2, '0');
+  const luz = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return { bg: hex, bd: '#' + osc(r) + osc(g) + osc(b), tx: luz > 0.62 ? '#1f2937' : '#fff' };
+}
+
 // ── TASK BAR HTML ────────────────────────────────────────────
 function taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlertsMap) {
-  const baseColor = op.alerta ? COLORS.PARO : (COLORS[op.estado] || COLORS.PENDIENTE);
-  const customColor = String(op.route_payload?.colorHex || '').trim();
+  // Color del proceso definido en Costos (Impresión, Rebobinado, Empaque…). Gris si ya
+  // terminó y rojo si está en paro; el atraso se marca con el borde rojo, no con el relleno.
+  const colorProceso = colorDeProceso(op);
+  const baseColor = op.terminado ? COLORS.TERMINADO
+    : op.estado === 'PARO' ? COLORS.PARO
+    : colorProceso || COLORS[op.estado] || COLORS.PENDIENTE;
+  const customColor = op.terminado ? '' : String(op.route_payload?.colorHex || '').trim();
   const c = customColor ? { bg: customColor, bd: customColor, tx: '#fff' } : baseColor;
+  const pausas = op.terminado ? [] : pausasDeBarra(op);
+  // Tramos de trabajo = la barra menos sus pausas (fuera de turno, domingo, feriado…).
+  const tramos = [];
+  if (pausas.length) {
+    let cursor = 0;
+    pausas.slice().sort((x, y) => x.izq - y.izq).forEach(pz => {
+      if (pz.izq > cursor) tramos.push({ izq: cursor, ancho: pz.izq - cursor });
+      cursor = Math.max(cursor, pz.izq + pz.ancho);
+    });
+    if (cursor < 100) tramos.push({ izq: cursor, ancho: 100 - cursor });
+  }
+  const partida = tramos.length > 1;
+  const tramoTexto = partida ? tramos.reduce((m, t) => t.ancho > m.ancho ? t : m, tramos[0]) : null;
   const routeArg = String(op.id_ruta).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   let chainClass = '';
   if (activeChainIds) {
@@ -1429,8 +1628,9 @@ function taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlerts
     else if (sequenceConflictRutas.has(op.id_ruta)) conflictClass = ' conflict-sequence';
   }
   const scheduleAlert = scheduleAlertsMap ? scheduleAlertsMap.get(op.id) : detectScheduleAlerts().find(e => e.orderCode === op.id);
-  const scheduleClass = scheduleAlert
-    ? (scheduleAlert.type === 'late' ? ' conflict-machine' : ' conflict-sequence') : '';
+  // Solo se marca en rojo la que atrasa su fecha comprometida; "negociar" se ve en
+  // Seguimiento y en la reprogramación, no en el tablero.
+  const scheduleClass = scheduleAlert && scheduleAlert.type === 'late' ? ' conflict-machine' : '';
   const modeLabel = op.manual_lock ? 'Fijo' : op.schedule_mode === 'backward' ? 'Atrás' : op.schedule_mode === 'forward' ? 'Adelante' : '';
   const isRunning = op.estado === 'RUN' || op.estado === 'SETUP';
   const isLate = scheduleAlert?.type === 'late';
@@ -1445,25 +1645,57 @@ function taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlerts
   const estPx = (op.dur / SLOTS) * (SLOTS * slotW);
   const isNarrow = estPx < 70;
   const isVeryNarrow = estPx < 36;
+  // En "1 sem" y "15 días" cada barra ocupa su ancho real: un ancho mínimo forzado hacía
+  // que trabajos cortos seguidos parecieran encimados.
+  const vistaDias = ZOOM_CONFIG[zoomLevel].granularity === 'day';
 
-  return `<div class="task-bar${chainClass}${conflictClass}${scheduleClass}${runningClass}"
+  const pxTexto = partida ? estPx * tramoTexto.ancho / 100 : estPx;
+  const contenido = pxTexto < 36
+      ? ''
+      : pxTexto < 70
+        ? `<div class="task-lbl" style="color:${c.tx};font-size:10px">${op.id}</div>`
+        : `<div class="task-cliente" style="color:${c.tx}">${op.cliente}</div>
+           <div class="task-lbl" style="color:${c.tx}">${op.id} · ${op.articulo}${op.manual_lock?' [Fijo]':''}</div>
+           <div class="task-sub" style="color:${c.tx}">${op.proceso}${op.colores > 0 ? ' · '+op.colores+'C' : ''}${modeLabel?`<span class="task-mode-pill">${modeLabel}</span>`:''}</div>`;
+  if (partida) {
+    return `<div class="task-bar partida${chainClass}${conflictClass}${scheduleClass}${runningClass}"
+    id="bar-${op.id_ruta}" data-id="${op.id}" data-ruta="${op.id_ruta}"
+    style="left:${pct(op.inicio)};width:${pct(op.dur)};min-width:0"
+    draggable="true"
+    onmouseenter="showTT(event,'${routeArg}')" onmouseleave="hideTT()"
+    oncontextmenu="openColorMenu(event,'${routeArg}')"
+    ondragstart="dragStart(event,'${routeArg}')" ondragend="dragEnd(event)"
+    onclick="openDP('${routeArg}')"
+    title="${op.id} · ${op.cliente} · ${op.proceso} · ${(Number(op.horas_trabajo) || op.dur).toFixed(1)} h de trabajo">
+    <div class="task-enlace" style="border-color:${c.bd}"></div>
+    ${tramos.map(t => `<div class="task-tramo" style="left:${t.izq}%;width:${t.ancho}%;background:${c.bg};border-color:${c.bd}">${t === tramoTexto ? contenido : ''}</div>`).join('')}
+    ${op.manual_lock ? '<div class="task-lock-icon" title="Fija: el Reprogramador no la mueve">🔒</div>' : ''}
+  </div>`;
+  }
+
+  return `<div class="task-bar${chainClass}${conflictClass}${scheduleClass}${runningClass}${op.terminado ? ' is-done' : ''}"
     id="bar-${op.id_ruta}"
     data-id="${op.id}"
     data-ruta="${op.id_ruta}"
-    style="left:${pct(op.inicio)};width:${pct(op.dur)};background:${c.bg};border-color:${c.bd};${isVeryNarrow?'padding:0 4px;min-width:24px':''}"
-    draggable="true"
+    style="left:${pct(op.inicio)};width:${pct(op.dur)};background:${c.bg};border-color:${c.bd};${vistaDias && isNarrow ? 'padding:0;min-width:4px;border-width:1px' : isVeryNarrow ? 'padding:0 4px;min-width:24px' : ''}"
+    draggable="${op.terminado ? 'false' : 'true'}"
     onmouseenter="showTT(event,'${routeArg}')"
     onmouseleave="hideTT()"
     oncontextmenu="openColorMenu(event,'${routeArg}')"
     ondragstart="dragStart(event,'${routeArg}')"
     ondragend="dragEnd(event)"
     onclick="openDP('${routeArg}')"
-    title="${op.id} · ${op.cliente} · ${op.proceso} · ${op.dur}h"
+    title="${op.id} · ${op.cliente} · ${op.proceso} · ${op.horas_trabajo ?? op.dur}h${op.manual_lock ? ` · 🔒 Fija${op.bloqueo_por ? ` — la movió ${op.bloqueo_por}` : ''}${op.bloqueo_en ? ` el ${new Date(op.bloqueo_en).toLocaleString('es')}` : ''}` : ''}"
   >
+    ${pausas.map(pz => `<div class="task-pausa" style="left:${pz.izq}%;width:${pz.ancho}%"></div>`).join('')}
+    ${op.terminado ? '<div class="task-lock-icon" title="Terminado">✓</div>' : ''}
+    ${op.manual_lock ? '<div class="task-lock-icon" title="Fija: el Reprogramador no la mueve">🔒</div>' : ''}
     ${isLate ? '<div class="task-late-icon" title="Fuera de fecha prometida">⚠</div>' : ''}
     ${hasProgress ? `<div class="task-progress-track"><div class="task-progress-fill" style="width:${progressPct}%;background:rgba(255,255,255,.55)"></div></div>` : ''}
-    ${!isVeryNarrow ? `<button type="button" class="task-config-btn" onclick="event.stopPropagation();openDP('${routeArg}')" title="Configurar">⋯</button>` : ''}
-    ${isVeryNarrow
+    ${!isVeryNarrow && !(vistaDias && isNarrow) ? `<button type="button" class="task-config-btn" onclick="event.stopPropagation();openDP('${routeArg}')" title="Configurar">⋯</button>` : ''}
+    ${vistaDias && isNarrow
+      ? ''
+      : isVeryNarrow
       ? `<div style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.5);margin:auto"></div>`
       : isNarrow
         ? `<div class="task-lbl" style="color:${c.tx};font-size:10px">${op.id}</div>`
@@ -1518,14 +1750,13 @@ function renderHeader() {
     <div class="toolbar">
       <span class="badge info" style="font-weight:500">👤 <span id="ganttUserName"></span></span>
       <span class="badge ok">● ${enRun} en ejecución</span>
-      ${lateAlerts.length > 0 ? `<span class="badge crit">⏰ ${lateAlerts.length} fuera de fecha</span>` : ''}
-      ${tightAlerts.length > 0 ? `<span class="badge warn">⌛ ${tightAlerts.length} justas</span>` : ''}
       <div class="cf-wrap" id="cfCalendariosWrap">
         <button class="btn cf-trigger" id="cfCalendariosBtn" onclick="toggleCalendariosPopover(this)" title="Calendarios, turnos y feriados">⚙ Calendarios <span class="cf-caret">▾</span></button>
       </div>
       <div class="cf-wrap" id="cfCapacidadWrap">
         <button class="btn primary cf-trigger" id="cfCapacidadBtn" onclick="toggleCapacidadPopover()" title="Capacidad finita: vista previa, críticas y conflictos">⚡ Capacidad Finita <span class="cf-caret">▾</span></button>
       </div>
+      <button class="btn${mostrarTerminados ? ' terminados-on' : ''}" onclick="toggleTerminados()" title="Mostrar en gris los procesos ya terminados (últimos 7 días)">✓ Terminados</button>
       <a class="btn" href="/planificacion/capacidad" onclick="return navShellAware(event,'/planificacion/capacidad')" title="Análisis de capacidad, cola y cuellos de botella por recurso">📊 Capacidad</a>
       <button class="btn" onclick="loadFromAPI()" title="Actualizar"><span id="sgRefrescarIcon">↻</span></button>
       <button class="theme-toggle" onclick="toggleTheme()" title="Cambiar tema" style="width:32px;height:30px;border:1px solid #c4d4e4;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">
@@ -1535,12 +1766,12 @@ function renderHeader() {
     </div>
   </div>
 
-  <div class="stats">
+  ${currentView==='seguimiento' ? '' /* Seguimiento ya trae sus propios contadores abajo del calendario */ : `<div class="stats">
     <div class="stat"><div class="stat-lbl">Órdenes activas</div><div class="stat-val">${uniqueOrderCount}</div></div>
     <div class="stat"><div class="stat-lbl">Pasos pendientes</div><div class="stat-val" style="color:#185FA5">${pendientes}</div></div>
     <div class="stat"><div class="stat-lbl">Conflictos</div><div class="stat-val" style="color:${allConflicts.length?'#E24B4A':'#1D9E75'}">${allConflicts.length}</div></div>
     <div class="stat"><div class="stat-lbl">Riesgo fecha</div><div class="stat-val" style="color:${lateAlerts.length?'#E24B4A':tightAlerts.length?'#BA7517':'#1D9E75'}">${lateAlerts.length + tightAlerts.length}</div></div>
-  </div>`;
+  </div>`}`;
 
   syncGanttUserName();
   applySeguimientoIcons();
@@ -1754,8 +1985,7 @@ function renderPipeline() {
   });
 
   // Today range: start_turn_hour 0-24 = today 6am to tomorrow 6am
-  const todayBase = new Date();
-  todayBase.setHours(6, 0, 0, 0);
+  const todayBase = ganttBaseDate();
 
   // Filter: only routes that are the "current process" for their order
   // A route is "current" if: prev process is COMPLETED (or no prev) AND this process is NOT COMPLETED
@@ -1963,14 +2193,28 @@ function renderGantt() {
 
   const slotW = ZOOM_CONFIG[zoomLevel].slotW;
 
+  // Avisos: el tablero muestra lo guardado; si lo guardado rompe la secuencia o no se
+  // pudo leer el horario, se dice en grande en vez de dibujarlo como si estuviera bien.
+  const fueraDeOrden = [...new Set(orders.filter(o => {
+    if (o.terminado || !o.dep_ruta_id) return false;
+    const previa = orders.find(x => x.id_ruta === o.dep_ruta_id);
+    return previa && !previa.terminado && _ms(o.fecha_plan_inicio_iso) < _ms(previa.fecha_plan_fin_iso) - 60000;
+  }).map(o => o.id))];
+  const terminadoAntes = window._terminadoAntes || [];
+  const avisos = [];
+  if (fueraDeOrden.length) avisos.push(`⛔ <b>${fueraDeOrden.length} órdenes guardadas con un proceso antes que el anterior</b> (${fueraDeOrden.slice(0, 8).join(', ')}${fueraDeOrden.length > 8 ? '…' : ''}). Son fechas viejas: pulsa <b>⚡ Capacidad Finita</b> y aplica para reprogramarlas en orden.`);
+  if (terminadoAntes.length) avisos.push(`⚠ <b>${terminadoAntes.length} órdenes con un proceso terminado antes que el anterior</b> (${terminadoAntes.join(', ')}): revisa el estado en la orden.`);
+  if (window._horariosError) avisos.push(`⚠ No se pudo leer el horario de las máquinas (${escHtml(window._horariosError)}): las barras se muestran sin los cortes de turno.`);
+
   let html = `
+  ${avisos.map(a => `<div class="gantt-aviso">${a}</div>`).join('')}
   <div class="gantt-zoom-bar">
     <span class="gantt-zoom-label" style="font-size:11px">Zoom:</span>
     <div class="zoom-group">
       <button class="btn zoom-btn${zoomLevel==='day'?' zoom-active':''}"    data-zoom="day"   onclick="setZoom('day')">1 día</button>
       <button class="btn zoom-btn${zoomLevel==='3day'?' zoom-active':''}"   data-zoom="3day"  onclick="setZoom('3day')">3 días</button>
+      <button class="btn zoom-btn${zoomLevel==='5day'?' zoom-active':''}"   data-zoom="5day"  onclick="setZoom('5day')">5 días</button>
       <button class="btn zoom-btn${zoomLevel==='week'?' zoom-active':''}"   data-zoom="week"  onclick="setZoom('week')">1 sem</button>
-      <button class="btn zoom-btn${zoomLevel==='2week'?' zoom-active':''}"  data-zoom="2week" onclick="setZoom('2week')">15 días</button>
     </div>
     <div style="display:flex;align-items:center;gap:5px;margin-left:8px;border-left:1px solid #555;padding-left:10px">
       <input
@@ -1995,10 +2239,13 @@ function renderGantt() {
           const dayWidth = (nextSlot - d.slot) * slotW;
           return `<div class="day-hdr-item" style="width:${dayWidth}px">${d.label}</div>`;
         }).join('')}</div>
-        <div class="time-hdr">${HOURS.map((h, i) => {
+        ${ZOOM_CONFIG[zoomLevel].granularity === 'day'
+          // Vista por días: la fila de días ya rotula; cada hora es una franja fina sin texto.
+          ? `<div class="time-hdr" style="height:6px">${HOURS.map(() => `<div class="t-slot" style="min-width:${slotW}px;max-width:${slotW}px;padding:0;border-right:0"></div>`).join('')}</div>`
+          : `<div class="time-hdr">${HOURS.map((h, i) => {
           if (!h) return `<div class="t-slot" style="min-width:${slotW}px"></div>`;
           return `<div class="t-slot" style="min-width:${slotW}px">${h}</div>`;
-        }).join('')}</div>
+        }).join('')}</div>`}
       </div>
     </div>`;
 
@@ -2035,12 +2282,9 @@ function renderGantt() {
     html += `
     <div class="proceso-hdr" style="border-top-color:${proc.color}">
       <div class="proceso-hdr-lbl" style="color:${proc.color}">
-        <span style="font-size:14px">${proc.icono}</span>
         ${displayProcessName(proc.nombre)}
-        <span style="font-weight:400;font-size:10px;color:#bbb;margin-left:4px">(${assignedMachines.length}/${proc.maquinas.length})</span>
       </div>
       <div class="proceso-hdr-timeline">
-        <span class="proceso-empty-note">${assignedMachines.length ? 'Recursos con órdenes' : 'Sin recursos asignados'}</span>
         ${hiddenCount > 0 || expanded
           ? `<button type="button" class="proceso-toggle" onclick='toggleProcessMachines(${JSON.stringify(procKey)})'>${expanded?'Ocultar vacías':`Ver todas (${proc.maquinas.length})`}</button>`
           : ''}
@@ -2096,11 +2340,11 @@ function renderGantt() {
 
   html += `</div></div>
   <div class="legend">
-    <span class="leg-item"><span class="leg-dot" style="background:#1D9E75"></span>En ejecución</span>
-    <span class="leg-item"><span class="leg-dot" style="background:#BA7517"></span>Setup</span>
-    <span class="leg-item"><span class="leg-dot" style="background:#378ADD"></span>Pendiente</span>
-    <span class="leg-item"><span class="leg-dot" style="background:#E24B4A"></span>Alerta</span>
-    <span class="leg-item"><span class="leg-dot" style="background:#639922"></span>Completado</span>
+    ${(procesos || []).map(p => `<span class="leg-item"><span class="leg-dot" style="background:${escHtml(p.color)}"></span>${escHtml(displayProcessName(p.nombre))}</span>`).join('')}
+    <span class="leg-item"><span class="leg-dot" style="background:#E24B4A"></span>En paro</span>
+    <span class="leg-item"><span class="leg-dot" style="background:#b8c2cf"></span>Terminado</span>
+    <span class="leg-item"><span class="leg-dot" style="background:transparent;border:2px solid #E24B4A"></span>Borde rojo: atrasa su fecha comprometida</span>
+    <span class="leg-item"><span style="display:inline-block;width:18px;border-top:2px dotted #378ADD;vertical-align:middle"></span>Misma orden en pausa (fuera de turno, domingo, feriado, mantenimiento)</span>
     <span class="leg-item" style="font-size:10px;color:#aaa;margin-left:auto">
       <span style="background:#06b6d4;padding:1px 5px;border-radius:3px;color:#fff">⬤</span> Cadena activa
     </span>
@@ -2155,6 +2399,12 @@ function drawArrows() {
     }
   });
 
+  // Solo se dibuja la cadena de la orden que se tocó: con todas a la vez las líneas se
+  // cruzan y no se lee nada.
+  if (!activeChainIds) return;
+  const depsCadena = visibleDeps.filter(d => activeChainIds.has(d.srcId) && activeChainIds.has(d.dstId));
+  visibleDeps.length = 0;
+  visibleDeps.push(...depsCadena);
   if (!visibleDeps.length) return;
 
   const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
@@ -2217,8 +2467,7 @@ function drawNowLine() {
   if (!ganttEl) return;
 
   const slotUnit = window._ganttSlotUnit || 1;
-  const base = new Date();
-  base.setHours(6, 0, 0, 0);
+  const base = ganttBaseDate();
   const nowMs = Date.now();
   const baseMs = base.getTime();
   const hoursSinceBase = (nowMs - baseMs) / 3600000;
@@ -2270,6 +2519,7 @@ function dragStart(e, id_ruta) {
   const el = document.getElementById('bar-' + id_ruta);
   if (!el) return;
   dragOp = orders.find(o => o.id_ruta === id_ruta);
+  if (dragOp && dragOp.terminado) { e.preventDefault(); dragOp = null; return; }
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', String(id_ruta));
   if (el) { el.classList.add('dragging'); }
@@ -2313,6 +2563,10 @@ async function handleDrop(e, tl) {
 
   if (newStart === movedOp.inicio && newMaq === movedOp.maquina) return;
 
+  // Antes de mover: mostrar a quién atrasa. Nada se guarda sin confirmar.
+  abrirImpactoMovimiento(movedOp, newStart, newMaq);
+  return;
+
   const issues  = checkMove(movedOp.id_ruta, newStart, movedOp.dur, newMaq);
 
   if (issues.length > 0) {
@@ -2344,6 +2598,84 @@ async function handleDrop(e, tl) {
   }
 }
 
+// ── Mover una barra: primero el impacto, después (si confirma) se fija ──
+// Compara la programación CON el movimiento contra la programación SIN él, para
+// mostrar solo lo que causa este movimiento: qué órdenes se atrasan y a qué fecha.
+async function abrirImpactoMovimiento(op, newStart, newMaq) {
+  const inicio = new Date(ganttBaseDate().getTime() + newStart * 3600000);
+  const mover = { routeId: op.id_ruta, start: inicio.toISOString(), maquinaId: newMaq || null };
+  const maquina = (machines.find(m => String(m._matchId) === String(newMaq)) || {}).nombre_recurso || 'la misma máquina';
+  let capa = document.getElementById('impactoMover');
+  if (!capa) {
+    capa = document.createElement('div');
+    capa.id = 'impactoMover';
+    capa.className = 'imp-overlay';
+    document.body.appendChild(capa);
+  }
+  const fHora = v => v ? new Date(v).toLocaleString('es', { weekday:'short', day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '—';
+  const fDia = v => v ? new Date(String(v).length === 10 ? v + 'T12:00:00' : v).toLocaleDateString('es', { weekday:'short', day:'2-digit', month:'short' }) : '—';
+  const cerrar = () => { capa.classList.remove('open'); render(); };
+  capa.innerHTML = `<div class="imp-modal"><div class="imp-head"><b>Mover ${esc(op.id)} · ${esc(op.proceso)}</b><button type="button" class="imp-x">✕</button></div>
+    <div class="imp-body"><div class="imp-loading"><span class="spinner"></span> Calculando a quién afecta…</div></div></div>`;
+  capa.classList.add('open');
+  capa.querySelector('.imp-x').onclick = cerrar;
+  try {
+    const [con, sin] = await Promise.all([
+      fetch(`${API}/reprogramar/vista-previa?mover=${encodeURIComponent(JSON.stringify(mover))}`, { headers: sessionHeader() }).then(r => r.json()),
+      fetch(`${API}/reprogramar/vista-previa`, { headers: sessionHeader() }).then(r => r.json())
+    ]);
+    if (!con.ok) throw new Error(con.error || 'No se pudo calcular');
+    const base = new Map((sin.ordenes || []).map(o => [o.orderCode, o]));
+    const movida = con.ordenes.find(o => o.rutas.some(r => r.motivoFija === 'movida-ahora'));
+    const rutaMovida = movida && movida.rutas.find(r => r.motivoFija === 'movida-ahora');
+    if (!rutaMovida) {
+      const liberada = (con.resumen?.liberadasPorSecuencia || []).find(x => x.orden === op.id);
+      throw new Error(liberada
+        ? `Ese proceso no se puede colocar ahí: ${op.id} todavía tiene pendiente un proceso anterior (${op.dep_proceso || 'el anterior'}). Primero va el anterior.`
+        : 'Ese proceso no se puede colocar ahí: la máquina no tiene horario disponible en ese momento.');
+    }
+    const afectadas = con.ordenes.map(o => {
+      const b = base.get(o.orderCode) || {};
+      const dh = o.finDespues && b.finDespues ? (new Date(o.finDespues) - new Date(b.finDespues)) / 3600000 : 0;
+      return { ...o, finSin: b.finDespues, estadoSin: b.estado, dh };
+    }).filter(o => o.orderCode !== movida.orderCode && o.dh > 1).sort((a, b) => b.dh - a.dh);
+    const nuevasTarde = afectadas.filter(o => ['atrasa', 'negociar'].includes(o.estado) && !['atrasa', 'negociar'].includes(o.estadoSin));
+    const dias = h => h >= 24 ? `${Math.round(h / 24 * 10) / 10} días` : `${Math.round(h)} h`;
+    const badge = e => e === 'atrasa' ? '<span class="imp-b imp-tarde">⏰ Atrasa</span>' : e === 'negociar' ? '<span class="imp-b imp-warn">🤝 Negociar</span>' : e === 'sin-colchon' ? '<span class="imp-b imp-warn">⚠ Sin colchón</span>' : ['a-tiempo', 'cumple', 'adelanta'].includes(e) ? '<span class="imp-b imp-ok">✓ Cumple</span>' : '<span class="imp-b">—</span>';
+    capa.querySelector('.imp-body').innerHTML = `
+      <div class="imp-resumen">
+        <div><div class="imp-k">Quedaría en</div><div class="imp-v">${esc(maquina)}<br>${fHora(rutaMovida.inicio)} → ${fHora(rutaMovida.fin)}</div></div>
+        <div><div class="imp-k">Su orden</div><div class="imp-v">${badge(movida.estado)}<br>entrega estimada ${fDia(movida.fechaEstimada)}</div></div>
+        <div><div class="imp-k">Órdenes que se atrasan</div><div class="imp-v imp-big ${afectadas.length ? 'imp-rojo' : 'imp-verde'}">${afectadas.length}</div></div>
+        <div><div class="imp-k">Incumplirían su fecha</div><div class="imp-v imp-big ${nuevasTarde.length ? 'imp-rojo' : 'imp-verde'}">${nuevasTarde.length}</div></div>
+      </div>
+      ${afectadas.length ? `<div class="imp-sub">Si la mueves, estas órdenes se atrasan:</div>
+      <div class="imp-tabla"><table><thead><tr><th>Orden</th><th>Cliente</th><th>Ahora está en</th><th>Fecha del cliente</th><th>Terminaría</th><th>Se atrasa</th><th>Resultado</th></tr></thead><tbody>
+      ${afectadas.map(o => `<tr${o.estado === 'atrasa' && o.estadoSin !== 'atrasa' ? ' class="imp-nueva-tarde"' : ''}><td><b>${esc(o.orderCode)}</b></td><td>${esc(o.cliente)}</td><td>${esc(o.procesoActual || '—')}</td><td>${fDia(o.fechaCliente)}</td><td>${fHora(o.finDespues)}</td><td class="imp-rojo">▲ ${dias(o.dh)}</td><td>${badge(o.estado)}</td></tr>`).join('')}
+      </tbody></table></div>` : '<div class="imp-sub imp-verde">✓ No atrasa a ninguna otra orden.</div>'}
+      <div class="imp-nota">Al confirmar, este proceso queda <b>fijo</b> (🔒) a tu nombre: el Reprogramador no lo moverá y el resto se acomoda. Se puede deshacer desde el Reprogramador.</div>
+      <div class="imp-acciones"><button type="button" class="btn" id="impCancelar">Cancelar</button><button type="button" class="btn primary" id="impConfirmar">Mover y fijar</button></div>`;
+    capa.querySelector('#impCancelar').onclick = cerrar;
+    capa.querySelector('#impConfirmar').onclick = async (ev) => {
+      ev.target.disabled = true; ev.target.textContent = 'Guardando…';
+      try {
+        const res = await fetch(`${API}/reprogramar/aplicar`, { method:'POST', headers: Object.assign({ 'Content-Type':'application/json' }, sessionHeader()), body: JSON.stringify({ mover }) });
+        const j = await res.json();
+        if (!j.ok) throw new Error(j.error || 'No se pudo mover');
+        capa.classList.remove('open');
+        showToast(`✓ ${op.id} movida y fijada. ${afectadas.length ? afectadas.length + ' órdenes se reacomodaron.' : ''}`, 'ok');
+        await loadFromAPI();
+      } catch (err) {
+        ev.target.disabled = false; ev.target.textContent = 'Mover y fijar';
+        showError('No se pudo mover: ' + err.message);
+      }
+    };
+  } catch (err) {
+    capa.querySelector('.imp-body').innerHTML = `<div class="imp-sub imp-rojo">${esc(err.message)}</div><div class="imp-acciones"><button type="button" class="btn" id="impCancelar">Cerrar</button></div>`;
+    capa.querySelector('#impCancelar').onclick = cerrar;
+  }
+}
+
 function openMoveModal(movedOp, dropStart, dropMaq, issues) {
   const slotUnit = window._ganttSlotUnit || 1;
   const conflictOps = issues.filter(i => i.type === 'machine').map(i => orders.find(o => o.id_ruta === i.id_ruta)).filter(Boolean);
@@ -2352,8 +2684,7 @@ function openMoveModal(movedOp, dropStart, dropMaq, issues) {
   modal.className = 'modal-overlay';
   modal.style.zIndex = '900';
 
-  const baseDate = new Date();
-  baseDate.setHours(6, 0, 0, 0);
+  const baseDate = ganttBaseDate();
   const dropDate = new Date(baseDate.getTime() + dropStart * slotUnit * 3600000);
   const dateStr = dropDate.toISOString().slice(0, 10);
   const hourVal = Math.floor(dropStart);
@@ -2396,8 +2727,7 @@ function openMoveModal(movedOp, dropStart, dropMaq, issues) {
     const minVal = parseInt(modal.querySelector('#move-min')?.value || '0');
     if (!dateVal) return dropStart;
     const chosen = new Date(dateVal + 'T06:00:00');
-    const baseD = new Date();
-    baseD.setHours(6, 0, 0, 0);
+    const baseD = ganttBaseDate();
     const dayOffset = Math.round((chosen - baseD) / 86400000);
     return dayOffset * (24 / slotUnit) + hourVal + minVal / 60;
   }
@@ -2634,15 +2964,19 @@ function showTT(e, id_ruta) {
   document.getElementById('tt-b').innerHTML = `
     <div class="tt-row"><span>Proceso</span>  <span class="tt-val">${op.proceso}</span></div>
     <div class="tt-row"><span>Inicio</span>   <span class="tt-val">${formatHora(op.inicio)}</span></div>
-    <div class="tt-row"><span>Duración</span> <span class="tt-val">${op.dur}h</span></div>
+    <div class="tt-row"><span>Duración</span> <span class="tt-val">${(Number(op.horas_trabajo) || op.dur).toFixed(1)} h de trabajo${op.dur - (Number(op.horas_trabajo) || op.dur) > 0.5 ? ` · ${op.dur.toFixed(1)} h en reloj` : ''}</span></div>
     <div class="tt-row"><span>Fin prod.</span><span class="tt-val">${formatPromisedDate(op.fecha_fin_produccion)}</span></div>
     <div class="tt-row"><span>Entrega</span>  <span class="tt-val">${formatPromisedDate(op.fecha_entrega_prometida)}</span></div>
     <div class="tt-row"><span>Pies</span>     <span class="tt-val">${Number(op.pies).toLocaleString()}</span></div>
     <div class="tt-row"><span>Estado</span>   <span class="tt-val" style="${isRunning?'color:#1D9E75;font-weight:600':scheduleAlert?.type==='late'?'color:#E24B4A;font-weight:600':''}">${op.estado}${isRunning?' ▶':''}${scheduleAlert?.type==='late'?' ⚠':''}</span></div>
     ${isRunning && progPct > 0 ? `<div class="tt-row"><span>Progreso</span><span class="tt-val" style="color:#1D9E75">${progPct}%</span></div>` : ''}
-    ${scheduleAlert?.type==='late'  ? `<div class="tt-row" style="color:#E24B4A"><span>⚠ Atraso</span><span class="tt-val" style="color:#E24B4A">${Math.abs(scheduleAlert.slack).toFixed(1)}h</span></div>` : ''}
-    ${scheduleAlert?.type==='tight' ? `<div class="tt-row" style="color:#BA7517"><span>⌛ Margen</span><span class="tt-val" style="color:#BA7517">${scheduleAlert.slack.toFixed(1)}h</span></div>` : ''}
-    ${op.dep ? `<div class="tt-row"><span>Depende de</span><span class="tt-val">${op.dep}</span></div>` : ''}
+    ${op.fecha_entrega_estimada ? `<div class="tt-row"><span>Comprometida</span><span class="tt-val">${formatPromisedDate(op.fecha_entrega_estimada)}</span></div>` : ''}
+    ${scheduleAlert?.type==='late'  ? `<div class="tt-row" style="color:#E24B4A"><span>⏰ Atrasa</span><span class="tt-val" style="color:#E24B4A">vs. fecha comprometida</span></div>` : ''}
+    ${scheduleAlert?.type==='tight' ? `<div class="tt-row" style="color:#BA7517"><span>🤝 Negociar</span><span class="tt-val" style="color:#BA7517">después de la fecha del cliente</span></div>` : ''}
+    ${op.dep_proceso ? `<div class="tt-row"><span>Viene de</span><span class="tt-val">${op.dep_proceso}</span></div>` : ''}
+    ${op.terminado ? `<div class="tt-pausas">✓ Terminado: ${_diaHora(_ms(op.fecha_plan_inicio_iso))} → ${_diaHora(_ms(op.fecha_plan_fin_iso))}</div>` : ''}
+    ${(() => { const pz = op.terminado ? [] : pausasDeBarra(op); const esp = esperaDeBarra(op);
+      return (pz.length || esp) ? `<div class="tt-pausas">${esp ? `<div>⏳ ${esc(esp)}</div>` : ''}${pz.length ? `<div><b>⏸ Pausas</b></div>${pz.slice(0, 6).map(p => `<div>· ${esc(p.texto)}</div>`).join('')}${pz.length > 6 ? `<div>· y ${pz.length - 6} más</div>` : ''}` : ''}</div>` : ''; })()}
     ${op.trans_costo ? `<div class="tt-row"><span>Lavado</span><span class="tt-val" style="color:#854F0B">${op.trans_costo}min</span></div>` : ''}
     <div style="font-size:10px;color:#bbb;margin-top:6px">Click → ver cadena completa</div>
   `;
@@ -2652,6 +2986,24 @@ function showTT(e, id_ruta) {
   tt.style.top  = (e.clientY - 16) + 'px';
 }
 function hideTT() { document.getElementById('tt').style.display = 'none'; }
+
+// El texto de una barra larga acompaña al desplazarse de lado: siempre se ve qué orden es.
+function acomodarTextosBarras() {
+  const wrap = document.querySelector('.gantt-wrap');
+  if (!wrap) return;
+  const bordeIzq = wrap.getBoundingClientRect().left + 196;
+  wrap.querySelectorAll('.task-bar').forEach(bar => {
+    const r = bar.getBoundingClientRect();
+    const dx = r.left < bordeIzq && r.right > bordeIzq ? Math.min(bordeIzq - r.left, Math.max(0, r.width - 200)) : 0;
+    bar.style.setProperty('--lbl-dx', dx + 'px');
+  });
+}
+let _acomodoPendiente = false;
+document.addEventListener('scroll', (e) => {
+  if (!e.target.classList || !e.target.classList.contains('gantt-wrap') || _acomodoPendiente) return;
+  _acomodoPendiente = true;
+  requestAnimationFrame(() => { _acomodoPendiente = false; acomodarTextosBarras(); });
+}, true);
 
 // ── DRAG TO PAN ──────────────────────────────────────────────
 let panning = false, panStartX = 0, panStartScroll = 0;
@@ -2683,13 +3035,10 @@ document.addEventListener('mouseup', () => {
   document.body.style.userSelect = '';
 });
 
+// Horas desde el inicio del tablero → fecha y hora reales.
 function formatHora(h) {
-  const base = 6;
-  const total = base + h;
-  const hh = Math.floor(total);
-  const mm = Math.round((total - hh) * 60);
-  const ampm = hh >= 12 ? 'pm' : 'am';
-  return `${hh > 12 ? hh - 12 : hh}:${mm.toString().padStart(2,'0')}${ampm}`;
+  const d = new Date(ganttBaseDate().getTime() + Number(h || 0) * 3600000);
+  return d.toLocaleDateString('es', { weekday: 'short', day: '2-digit', month: 'short' }) + ' ' + d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
 }
 
 function parsePromisedTime(value) {
@@ -2818,7 +3167,7 @@ function renderDPInfo() {
         return `<div class="chain-item${o.id_ruta===id_ruta?' active':''}">
           <span class="chain-dot" style="background:${c.bg}"></span>
           <span><strong>${o.id}</strong> · ${o.proceso}</span>
-          <span style="margin-left:auto;font-size:10px;color:#888">${formatHora(o.inicio)} · ${o.dur}h</span>
+          <span style="margin-left:auto;font-size:10px;color:#888">${formatHora(o.inicio)} · ${(Number(o.horas_trabajo) || o.dur).toFixed(1)} h</span>
         </div>`;
       }).join('')}
     </div>
@@ -2862,7 +3211,7 @@ function renderDPInfo() {
     </div>
     <div class="dp-section">Planificación</div>
     <div class="dp-field">
-      <div class="dp-lbl">Inicio (horas desde 6am)</div>
+      <div class="dp-lbl">Inicio (horas desde el inicio del tablero · ${formatHora(op.inicio)})</div>
       <input class="dp-input" type="number" id="dp-inicio" value="${op.inicio}" min="0" max="${SLOTS}" step="0.25">
     </div>
     <div class="dp-field">
@@ -2882,7 +3231,7 @@ function renderDPInfo() {
           `<option value="${s}"${s===op.estado?' selected':''}>${s}</option>`).join('')}
       </select>
     </div>
-    ${op.dep ? `<div class="dp-field"><div class="dp-lbl">Depende de</div><div class="dp-val">${op.dep}</div></div>` : ''}
+    ${op.dep_proceso ? `<div class="dp-field"><div class="dp-lbl">Viene de</div><div class="dp-val">${escHtml(op.dep_proceso)}</div></div>` : ''}
     ${op.trans_costo ? `<div class="dp-field"><div class="dp-lbl">Costo lavado</div><div class="dp-val" style="color:#854F0B">${op.trans_costo} min</div></div>` : ''}
 
     ${downstream.length ? `
@@ -3137,21 +3486,19 @@ async function saveDP() {
   const newOrderLock = Boolean(document.getElementById('dp-lock-order')?.checked);
   const newColor  = document.querySelector('input[name="dp-color"]:checked')?.value || '';
 
-  if (newInicio !== currentDP.inicio) {
-    const downstream = getDownstreamOps(currentDP.id_ruta);
-    if (downstream.length > 0) {
-      const delta = newInicio - currentDP.inicio;
-      if (!confirm(`Mover "${currentDP.id}" ${delta>0?'+':''}${delta.toFixed(2)}h desplazará ${downstream.length} proceso(s) aguas abajo.\n\n¿Confirmar?`)) {
-        btn.textContent = 'Guardar cambios';
-        btn.classList.remove('saving');
-        return;
-      }
-    }
+  // Cambiar inicio o máquina = mover: primero se ve el impacto y se confirma allá.
+  if (newInicio !== currentDP.inicio || newMaq !== currentDP.maquina) {
+    btn.textContent = 'Guardar cambios';
+    btn.classList.remove('saving');
+    const op = currentDP;
+    closeDP();
+    abrirImpactoMovimiento(op, newInicio, newMaq);
+    return;
   }
 
   try {
-    if (newInicio !== currentDP.inicio || newDur !== currentDP.dur || newMaq !== currentDP.maquina) {
-      await apiPatch(`${API}/gantt/mover`, { id_ruta:currentDP.id_ruta, inicio:newInicio, duracion:newDur, id_maquina:newMaq });
+    if (newDur !== currentDP.dur) {
+      await apiPatch(`${API}/gantt/mover`, { id_ruta:currentDP.id_ruta, duracion:newDur });
     }
     if (newLock !== Boolean(currentDP.manual_lock)) {
       await apiPatch(`${API}/gantt/mover`, { id_ruta:currentDP.id_ruta, route_payload_updates:{ manualLock:newLock } });
@@ -3175,60 +3522,6 @@ async function saveDP() {
     showError('Error guardando cambios: ' + err.message);
     btn.textContent = 'Guardar cambios';
     btn.classList.remove('saving');
-  }
-}
-
-async function autoSeqCapacidad() {
-  try {
-    const res = await fetch(`${API}/gantt-capacidad`);
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'Error al calcular capacidad finita.');
-    const sinHorario = data.data.sinHorario || [];
-    if (sinHorario.length) {
-      const lista = sinHorario.map(x => '• ' + displayProcessName(x.proceso) + (x.maquina ? ': ' + x.maquina : '')).join('\n');
-      if (!confirm('Estos procesos o máquinas no tienen horario en la Cadena de Procesos. Se van a programar con 8 horas, de lunes a viernes de 7:00 a 15:00:\n\n' + lista + '\n\n¿Desea programar así?')) return;
-    }
-    const positions = data.data.positions || {};
-    let updatedCount = 0;
-    const repositioned = [];
-    orders.forEach(op => {
-      const pos = positions[op.id_ruta];
-      if (pos) {
-        op.inicio = pos.inicio; op.dur = pos.dur;
-        op.projectedStart = pos.projectedStart; op.projectedEnd = pos.projectedEnd;
-        op.maquina = pos.maquinaId || '';
-        op.capacityResourceId = null;
-        op.capacityResourceName = pos.resourceName || '';
-        op.schedule_mode = 'capacity';
-        updatedCount++;
-        repositioned.push(op);
-      }
-    });
-    configureTimelineHorizon();
-    render();
-    if (data.data.bottlenecks?.length) {
-      const bnNames = data.data.bottlenecks.map(b => `${b.machineName} (${b.utilizationPct}%)`).join(', ');
-      showCenterMessage(`⚠ Cuellos de botella: ${bnNames}`);
-    } else {
-      showCenterMessage(`✓ ${updatedCount} rutas re-secuenciadas por capacidad finita.`);
-    }
-    (async () => {
-      const BATCH = 20;
-      let failures = 0;
-      for (let i = 0; i < repositioned.length; i += BATCH) {
-        const slice = repositioned.slice(i, i + BATCH);
-        const results = await Promise.allSettled(slice.map(o => apiPatch(`${API}/gantt/mover`, {
-          id_ruta: o.id_ruta, inicio: o.inicio, id_maquina: o.maquina,
-          planned_start_at: o.projectedStart||null, planned_end_at: o.projectedEnd||null,
-          route_payload_updates: { scheduleMode:'capacity', capacityResourceId:o.capacityResourceId||null, capacityResourceName:o.capacityResourceName||'' }
-        })));
-        failures += results.filter(r => r.status === 'rejected').length;
-      }
-      await loadFromAPI();
-      if (failures > 0) showError(`${failures} rutas no se pudieron guardar. Volvé a intentar Cap. Finita.`);
-    })().catch(e => showError('Error al guardar: ' + e.message));
-  } catch (e) {
-    showError('Error en capacidad finita: ' + e.message);
   }
 }
 
@@ -3303,13 +3596,11 @@ function closeDrawerCalendarios() { cerrarDrawer('calDrawerOverlay', 'calDrawer'
 // embebido de Configuración — mismas funciones que la pantalla original, sin duplicarlas.)
 
 // ── CAJÓN: CAPACIDAD FINITA (vista previa + críticas + conflictos) ──
+// El botón abre directamente la vista previa del Reprogramador: ahí se ve el antes y el
+// después, los atrasos, lo que hay que negociar y los conflictos de hoy.
 function toggleCapacidadPopover() {
-  const drawer = document.getElementById('cfDrawer');
-  if (!drawer) return;
-  if (drawer.classList.contains('open')) { closeDrawerCapacidad(); return; }
   cerrarDrawer('calDrawerOverlay', 'calDrawer');
-  abrirDrawer('cfDrawerOverlay', 'cfDrawer');
-  renderCapacidadPreview();
+  abrirReprogramador(() => loadFromAPI());
 }
 function closeDrawerCapacidad() { cerrarDrawer('cfDrawerOverlay', 'cfDrawer'); }
 // Qué haría la reprogramación, ANTES de aceptar: cuántas rutas cambiarían, en qué orden
@@ -3333,35 +3624,42 @@ function capacidadPreviewData() {
 }
 function renderCapacidadPreview() {
   const body = document.getElementById('cfDrawerBody');
-  const d = capacidadPreviewData();
-  const criticas = orders.filter(o => o.alerta);
+  // Todo por ORDEN (no por proceso) y desde el resultado del Reprogramador.
   const conflictos = detectAllConflicts();
+  const ordenesConConflicto = new Set(conflictos.flatMap(c => [c.ruta_a, c.ruta_b]).map(r => (orders.find(o => o.id_ruta === r) || {}).id).filter(Boolean));
+  const alertasFecha = detectScheduleAlerts();
+  const tarde = alertasFecha.filter(a => a.type === 'late');
+  const justas = alertasFecha.filter(a => a.type === 'tight');
   const kpis = `
     <div class="cf-kpis">
-      <button type="button" class="cf-kpi ${criticas.length ? 'cf-kpi-crit' : 'cf-kpi-ok'}" ${criticas.length ? `onclick="verCriticasDetalle()"` : 'disabled'} title="Órdenes marcadas como críticas por su fecha de entrega frente a la carga de la máquina">
-        <span class="cf-kpi-num">${criticas.length}</span>
-        <span class="cf-kpi-lbl">▲ Críticas</span>
-        <span class="cf-kpi-hint">órdenes que no alcanzan su fecha de entrega con la carga actual</span>
+      <button type="button" class="cf-kpi ${tarde.length ? 'cf-kpi-crit' : 'cf-kpi-ok'}" ${tarde.length ? `onclick="verFueraDeFechaDetalle('late')"` : 'disabled'} title="Órdenes que la última reprogramación corrió después de su fecha comprometida">
+        <span class="cf-kpi-num">${tarde.length}</span>
+        <span class="cf-kpi-lbl">⏰ Atrasan</span>
+        <span class="cf-kpi-hint">se corrieron después de la fecha comprometida</span>
       </button>
-      <button type="button" class="cf-kpi ${conflictos.length ? 'cf-kpi-warn' : 'cf-kpi-ok'}" ${conflictos.length ? `onclick="verConflictosDetalle()"` : 'disabled'} title="Choques de programa: dos procesos quieren la misma máquina al mismo tiempo, o una secuencia quedó antes de su anterior">
-        <span class="cf-kpi-num">${conflictos.length}</span>
+      <button type="button" class="cf-kpi ${justas.length ? 'cf-kpi-warn' : 'cf-kpi-ok'}" ${justas.length ? `onclick="verFueraDeFechaDetalle('tight')"` : 'disabled'} title="Su fecha comprometida quedó después de la fecha del cliente: el vendedor debe negociarla">
+        <span class="cf-kpi-num">${justas.length}</span>
+        <span class="cf-kpi-lbl">🤝 Negociar</span>
+        <span class="cf-kpi-hint">se entregan después de la fecha del cliente</span>
+      </button>
+      <button type="button" class="cf-kpi ${conflictos.length ? 'cf-kpi-warn' : 'cf-kpi-ok'}" ${conflictos.length ? `onclick="verConflictosDetalle()"` : 'disabled'} title="Dos órdenes en la misma máquina al mismo tiempo, o un proceso que empieza antes de que termine el anterior">
+        <span class="cf-kpi-num">${ordenesConConflicto.size}</span>
         <span class="cf-kpi-lbl">⊗ Conflictos</span>
-        <span class="cf-kpi-hint">choques de máquina o de secuencia; el listado muestra las órdenes con problema</span>
+        <span class="cf-kpi-hint">órdenes encimadas en una máquina o fuera de secuencia</span>
       </button>
     </div>`;
-  const filas = d.lista.length ? d.lista.map((op, i) => `
-    <div class="cf-fila">
-      <span class="cf-fila-num">${i + 1}</span>
-      <div class="cf-fila-main">
-        <div class="cf-fila-title">${esc(op.id)} · ${esc(op.cliente || 'Sin cliente')}</div>
-        <div class="cf-fila-sub">${esc(op.proceso)} · ${esc(op.maquina || 'Sin máquina')} · ${op.dur}h${op.fecha_compromiso ? ` · entrega ${esc(String(op.fecha_compromiso).slice(0, 10))}` : ''}</div>
-      </div>
-    </div>`).join('') : `<div class="cal-pop-empty">No hay rutas pendientes para reprogramar.</div>`;
-  const nota = d.total > d.lista.length ? `<div class="cf-nota">Y ${d.total - d.lista.length} ruta(s) más después de estas.</div>` : '';
   body.innerHTML = `${kpis}
-    <div class="cf-secc-title">Qué va a hacer la reprogramación</div>
-    <div class="cf-explicacion">Reordena ${d.total} ruta(s) pendiente(s) por fecha de entrega (la más urgente primero), respetando los horarios de cada calendario y la secuencia de la orden. Los procesos sin horario configurado se programarían de lunes a viernes de 7:00 a 15:00.</div>
-    <div class="cf-lista">${filas}</div>${nota}`;
+    <div class="cf-secc-title">Cómo decide la reprogramación</div>
+    <div class="cf-explicacion">
+      <ol style="margin:0;padding-left:18px;display:grid;gap:6px">
+        <li><b>Solo programa los procesos con “Activo en Gantt”</b> en Costos → Procesos del Cálculo, en ese orden (hoy: Impresión → Rebobinado → Empaque).</li>
+        <li><b>Órdenes que aún no pasan Aprobaciones</b> quedan en espera: la fecha se da después de aprobar.</li>
+        <li><b>Primero respeta lo fijo</b>: lo que está en marcha, lo movido a mano en el Gantt y las órdenes con bloqueo suave.</li>
+        <li><b>Luego acomoda el resto</b>: urgentes, Clase A y regulares, cada grupo por su fecha objetivo (fecha del cliente menos el buffer).</li>
+        <li><b>Usa el horario de cada máquina o proceso</b>, descuenta feriados y mantenimientos, y rellena huecos para que las máquinas no queden paradas.</li>
+        <li><b>Nada cambia hasta que lo apruebes</b>: primero ves el antes y el después, y cada reprogramación aplicada se puede deshacer.</li>
+      </ol>
+    </div>`;
 }
 function verCriticasDetalle() {
   const criticas = orders.filter(o => o.alerta);
@@ -3375,6 +3673,24 @@ function verCriticasDetalle() {
   const overlay = document.getElementById('confOverlay');
   overlay.querySelector('.gcal-modal-title').textContent = `Órdenes Críticas (${criticas.length})`;
   document.getElementById('confOverlayBody').innerHTML = criticas.length > 30 ? `${filas}<div class="cf-nota">Y ${criticas.length - 30} más.</div>` : filas;
+  overlay.classList.add('open');
+}
+function verFueraDeFechaDetalle(tipo) {
+  const alertas = detectScheduleAlerts().filter(a => !tipo || a.type === tipo);
+  if (!alertas.length) return;
+  const fDia = v => v ? new Date(String(v).slice(0, 10) + 'T12:00:00').toLocaleDateString('es', { weekday:'short', day:'2-digit', month:'short' }) : '—';
+  const filas = alertas.map(a => {
+    const op = orders.find(o => o.id === a.orderCode) || {};
+    return { codigo: a.orderCode, cliente: op.cliente || '', cliente_fecha: op.fecha_entrega_prometida, estimada: op.fecha_entrega_estimada };
+  }).sort((x, y) => String(x.estimada || '').localeCompare(String(y.estimada || '')));
+  const overlay = document.getElementById('confOverlay');
+  overlay.querySelector('.gcal-modal-title').textContent = `${tipo === 'tight' ? 'Negociar' : 'Atrasan'} (${alertas.length} órdenes)`;
+  document.getElementById('confOverlayBody').innerHTML = `
+    <div style="font-size:12px;color:#60707f;margin-bottom:8px">${tipo === 'tight' ? 'La fecha comprometida quedó después de la fecha del cliente: el vendedor debe negociarla.' : 'La última reprogramación las corrió después de su fecha comprometida.'}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;color:#1f2b3d">
+      <thead><tr style="text-align:left;font-size:11px;color:#7a8a9c;text-transform:uppercase"><th style="padding:6px">Orden</th><th style="padding:6px">Cliente</th><th style="padding:6px">Fecha del cliente</th><th style="padding:6px">Fecha comprometida</th></tr></thead>
+      <tbody>${filas.map(f => `<tr style="border-top:1px solid #eef2f7"><td style="padding:6px;font-weight:700">${esc(f.codigo)}</td><td style="padding:6px">${esc(f.cliente)}</td><td style="padding:6px">${fDia(f.cliente_fecha)}</td><td style="padding:6px;font-weight:700;color:${tipo === 'tight' ? '#a16207' : '#c43a39'}">${fDia(f.estimada)}</td></tr>`).join('')}</tbody>
+    </table>`;
   overlay.classList.add('open');
 }
 function verConflictosDetalle() {
@@ -3405,9 +3721,10 @@ function verConflictosDetalle() {
   }, 30);
 }
 function closeConfOverlay() { document.getElementById('confOverlay').classList.remove('open'); }
-async function confirmarCapacidadFinita() {
+// Nunca reprograma sin mostrar antes qué cambia: abre la vista previa del Reprogramador.
+function confirmarCapacidadFinita() {
   closeDrawerCapacidad();
-  await autoSeqCapacidad();
+  abrirReprogramador(() => loadFromAPI());
 }
 
 // ── POLLING ──────────────────────────────────────────────────
@@ -3451,7 +3768,7 @@ loadFromAPI();
   </div>
   <div class="drawer-footer sg-drawer-footer">
     <a class="cal-pop-config-link" href="/planificacion/capacidad" onclick="return navShellAware(event,'/planificacion/capacidad')">Abrir análisis completo de Capacidad →</a>
-    <button type="button" class="cal-pop-add-btn cf-run-btn" id="cfRunBtn" onclick="confirmarCapacidadFinita()">⚡ Reprogramar ahora</button>
+    <button type="button" class="cal-pop-add-btn cf-run-btn" id="cfRunBtn" onclick="confirmarCapacidadFinita()">👁 Ver cómo quedaría</button>
   </div>
 </aside>
 
@@ -3471,5 +3788,6 @@ loadFromAPI();
   </div>
 </div>
 
+<script src="/planificacion/reprogramar-overlay.js?v=20260926"></script>
 </body>
 </html>

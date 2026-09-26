@@ -880,6 +880,7 @@ async function loadSocio(code, pushState = true) {
   currentSocioCode = socio.partner_code || code;
   fields.partnerCode.textContent = socio.partner_code || '-';
   fields.partnerNameHero.textContent = socio.partner_name || '-';
+  pintarClaseCliente(socio.clase_cliente || '');
   const spName = socio.salesperson_name || raw['Vendedor Asignado'] || '';
   if (spName && ![...fields.salesperson.options].some((option) => option.value === spName)) {
     const legacyOption = document.createElement('option');
@@ -1306,4 +1307,39 @@ async function init() {
 
 init().catch((error) => {
   console.error(error);
+});
+
+// ── Clase del cliente (A/B/C) ──
+// Se guarda al tocarla; tocar la clase activa la quita. La A entra como "Clase A"
+// al programar producción (Reprogramar Producción).
+function pintarClaseCliente(clase) {
+  const selector = document.getElementById('claseClienteSelector');
+  if (!selector) return;
+  selector.dataset.clase = clase || '';
+  selector.querySelectorAll('[data-clase]').forEach((boton) => {
+    const activa = boton.dataset.clase === clase;
+    boton.classList.toggle('is-active', activa);
+    boton.setAttribute('aria-pressed', activa ? 'true' : 'false');
+    boton.title = activa ? `Clase ${boton.dataset.clase} (toca para quitarla)` : `Marcar como clase ${boton.dataset.clase}`;
+  });
+}
+document.getElementById('claseClienteSelector')?.addEventListener('click', async (evento) => {
+  const boton = evento.target.closest('[data-clase]');
+  if (!boton || !currentSocioCode) return;
+  const selector = evento.currentTarget;
+  const anterior = selector.dataset.clase || '';
+  const nueva = anterior === boton.dataset.clase ? '' : boton.dataset.clase;
+  pintarClaseCliente(nueva);
+  try {
+    const respuesta = await fetch(`${SOCIOS_ENDPOINT}/${encodeURIComponent(currentSocioCode)}/clase`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clase: nueva })
+    });
+    const resultado = await respuesta.json();
+    if (!respuesta.ok || !resultado.ok) throw new Error(resultado.error || 'No se pudo guardar la clase.');
+  } catch (error) {
+    pintarClaseCliente(anterior);
+    alert(error.message);
+  }
 });

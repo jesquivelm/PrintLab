@@ -60,6 +60,7 @@ function trackingEmptyStateIcon(){
 const PROCESS_FILTER_LABELS={all:'Todos',pending_planning:'Seguimiento',diseno:'Diseño',preprensa:'Preprensa',visto_bueno:'Aprobaciones',programacion:'Planificación',tintas:'Tintas',impresion:'Impresión',rebobinado:'Rebobinado',empaque:'Empaque'};
 const STATUS_FILTER_LABELS={all:'Todas',late:'Atrasadas',risk:'Riesgo',running:'En Producción',done:'Listas',impact:'Impactadas',detenida:'Detenidas',anulada:'Anuladas'};
 function trackingEmptyStateMessage(){
+  if(calSelectedKey)return calSelectedKey===CAL_OVERDUE_KEY?'No hay órdenes vencidas.':'No hay entregas programadas para ese día.';
   const parts=[];
   if(currentProcessFilter&&currentProcessFilter!=='all')parts.push(`el proceso "${PROCESS_FILTER_LABELS[currentProcessFilter]||currentProcessFilter}"`);
   if(currentFilter&&currentFilter!=='all')parts.push(`el estado "${STATUS_FILTER_LABELS[currentFilter]||currentFilter}"`);
@@ -85,16 +86,29 @@ let searchTerm='';
 let drawerOrder=null;
 let drawerPriority='normal';
 let drawerBuffer=2;
+let drawerBufferInicial=2; // para guardar el buffer en la orden solo si lo cambian en Estimar
 let drawerResult=null;
 const flowCache={};
 
 function esc(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function norm(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()}
-function fmtDate(v){if(!v)return null;const d=new Date(v);return isNaN(d)?String(v):d.toLocaleDateString('es-CR',{day:'2-digit',month:'2-digit',year:'numeric'})}
-function fmtShort(v){if(!v)return null;const d=new Date(v);return isNaN(d)?String(v):d.toLocaleDateString('es-CR',{day:'2-digit',month:'short'})}
+function fmtDate(v){if(!v)return null;const d=parseDisplayDate(v);return isNaN(d)?String(v):d.toLocaleDateString('es-CR',{day:'2-digit',month:'2-digit',year:'numeric'})}
+function fmtShort(v){if(!v)return null;const d=parseDisplayDate(v);return isNaN(d)?String(v):d.toLocaleDateString('es-CR',{day:'2-digit',month:'short'})}
 function fmtLong(d){return d.toLocaleDateString('es-CR',{weekday:'short',day:'2-digit',month:'long'})}
 function capitalise(s){return s.charAt(0).toUpperCase()+s.slice(1)}
-function daysUntil(v){if(!v)return null;const d=new Date(v);if(isNaN(d))return null;const n=new Date();n.setHours(0,0,0,0);d.setHours(0,0,0,0);return Math.round((d-n)/86400000)}
+// Una fecha de entrega "2026-10-02" es un día del calendario, no una hora UTC:
+// si se lee con new Date() directo, en Costa Rica se corre al día anterior.
+function deliveryDateKey(v){
+  if(!v)return null;
+  const m=String(v).match(/^(\d{4}-\d{2}-\d{2})(?:T00:00:00(?:\.0+)?Z)?$/);
+  if(m)return m[1];
+  const d=new Date(v);
+  if(isNaN(d))return null;
+  return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+// Fechas sin hora ("2026-10-02") se muestran tal cual, sin correrse un día por la zona horaria.
+function parseDisplayDate(v){if(/^\d{4}-\d{2}-\d{2}$/.test(String(v)))return new Date(v+'T12:00:00');return new Date(v)}
+function daysUntil(v){const k=deliveryDateKey(v);if(!k)return null;const d=new Date(k+'T00:00:00');const n=new Date();n.setHours(0,0,0,0);return Math.round((d-n)/86400000)}
 function formatNumber(v,d){return Number(v||0).toLocaleString('es-CR',d!=null?{minimumFractionDigits:d,maximumFractionDigits:d}:{})}
 function dateInputValue(v){const d=new Date(v);if(isNaN(d))return'';return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function stepKey(p){return p?.key||p?.processKey||''}
@@ -127,6 +141,11 @@ function orderStatus(o){
   if(procs.length&&procs.every(p=>p.status==='done'||p.status==='complete'))return'done';
   if(load.some(r=>r.isLate)||days!==null&&days<0)return'late';
   if(days!==null&&days<=2)return'risk';
+  // Riesgo de fecha: todavía no vence, pero la producción planificada termina
+  // después de la fecha de entrega (lo mismo que "Riesgo fecha" en la consola).
+  const due=deliveryDateKey(o.promisedDeliveryDate||o.scheduledDeliveryDate);
+  const prodEnd=deliveryDateKey(o.productionEndDate);
+  if(due&&prodEnd&&prodEnd>due)return'risk';
   // "En Producción" = la orden ya la liberó Planeación al Gantt y no ha
   // terminado — no depende de que una máquina esté trabajándola justo ahora.
   if(o.planningStatus==='EN_GANTT')return'running';
@@ -463,6 +482,7 @@ function updateSummary(){
   document.getElementById('statDone').textContent=done;
   document.getElementById('countAll').textContent=t;
   document.getElementById('countLate').textContent=late;
+  const clt=document.getElementById('countLateTop');if(clt)clt.textContent=late;
   document.getElementById('countRisk').textContent=risk;
   document.getElementById('countRunning').textContent=run;
   document.getElementById('countDone').textContent=done;
@@ -527,9 +547,15 @@ function openDrawer(code){
   document.getElementById('btnGantt').href=`/planificacion/gantt?orderCode=${code}`;
   document.getElementById('calcBtnText').textContent='Calcular fecha estimada';
 
+  // Prioridad y buffer guardados en la ficha de la orden (los usa el Reprogramador).
   const tier=String(order.customerTier||order.clientTier||'').toUpperCase();
-  setPriority(tier==='A'?'premium':'normal');
+  const guardada={urgente:'urgent',clase_a:'premium',normal:'normal'}[order.prioridad];
+  setPriority(guardada&&order.prioridad!=='normal'?guardada:(tier==='A'?'premium':'normal'));
+  // Buffer: el propio de la orden si se fijó en Estimar; si no, el de Costos.
+  document.getElementById('bufferSlider').value=order.bufferDias!=null?order.bufferDias:(order.bufferCostos??2);
+  drawerBufferInicial=Number(document.getElementById('bufferSlider').value);
   updateBuffer();
+  document.getElementById('btnSetDate').textContent=order.fechaForzada?`Fecha forzada: ${order.fechaForzada} · cambiar`:'Establecer fecha en orden';
   document.getElementById('lockToggle').checked=!!order.fechaComprometidaBloqueada;
 
   const steps=buildSteps(order);
@@ -797,8 +823,10 @@ function setPriority(p,persist){
   // Solo cuando la persona lo elige a mano (no cuando el cajón se abre y pone
   // un valor por defecto) se actualiza la prioridad real de la orden. Normal
   // y Cliente A son solo para ver "qué pasaría"; Urgente sí mueve la fila real.
-  if(persist&&drawerOrder&&(p==='urgent'||previous==='urgent')){
-    const real=p==='urgent'?'urgente':'normal';
+  // Regular, Clase A y Urgente se guardan en la orden: el Reprogramador las usa
+  // para decidir quién va primero.
+  if(persist&&drawerOrder&&p!==previous){
+    const real={urgent:'urgente',premium:'clase_a',normal:'normal'}[p]||'normal';
     if(p==='urgent'&&!confirm(`Esto va a marcar la orden ${drawerOrder.orderCode} como urgente DE VERDAD en el sistema — va a saltar delante de las demás en la cola real. ¿Confirma?`)){
       drawerPriority=previous;
       setPriority(previous,false);
@@ -934,9 +962,8 @@ async function setDateInOrder(){
     const response=await fetch(`${API}/ordenes-produccion/${encodeURIComponent(drawerOrder.orderCode)}/details`,{
       method:'PATCH',
       headers:Object.assign({'Content-Type':'application/json'},sessionHeader()),
+      // Nunca se toca la fecha que pidió el cliente (promisedDeliveryDate).
       body:JSON.stringify({planningControl:{
-        promisedDeliveryDate:dateInputValue(committedEnd),
-        scheduledDeliveryDate:dateInputValue(earlyEnd),
         estimatePriority:drawerPriority,
         deliveryBufferBusinessDays:bufferDays,
         estimatedProductionEndDate:earlyEnd.toISOString(),
@@ -949,13 +976,20 @@ async function setDateInOrder(){
     });
     const data=await response.json().catch(()=>({}));
     if(!response.ok||data.ok===false)throw new Error(data.error||'No fue posible guardar la fecha.');
-    if(!data.fechaEntregaIgnorada)drawerOrder.promisedDeliveryDate=dateInputValue(committedEnd);
-    drawerOrder.scheduledDeliveryDate=dateInputValue(earlyEnd);
+    // Fecha forzada + prioridad + buffer en la ficha de la orden.
+    const est=await fetch(`${API}/planificacion/${encodeURIComponent(drawerOrder.orderCode)}/estimacion`,{
+      method:'PATCH',
+      headers:Object.assign({'Content-Type':'application/json'},sessionHeader()),
+      body:JSON.stringify({prioridad:{urgent:'urgente',premium:'clase_a',normal:'normal'}[drawerPriority]||'normal',bufferDias:(drawerOrder.bufferDias!=null||bufferDays!==drawerBufferInicial)?bufferDays:null,fechaForzada:dateInputValue(committedEnd)})
+    });
+    const estData=await est.json().catch(()=>({}));
+    if(!est.ok||estData.ok===false)throw new Error(estData.error||'No fue posible guardar la fecha forzada.');
+    drawerOrder.fechaForzada=dateInputValue(committedEnd);
     drawerOrder.productionEndDate=earlyEnd.toISOString();
     drawerOrder.estimatedDeliveryDateEarly=earlyEnd.toISOString();
     drawerOrder.estimatedDeliveryDateLate=lateEnd.toISOString();
     softLocks[drawerOrder.orderCode]={earlyEnd,lateEnd,priority:drawerPriority};
-    btn.textContent='Fecha establecida en la orden';
+    btn.textContent=`Fecha forzada: ${drawerOrder.fechaForzada} · se aplica al reprogramar`;
     updateSummary();
     renderAll();
   }catch(error){
@@ -965,7 +999,13 @@ async function setDateInOrder(){
   }
 }
 
-async function recalcularPlanificacion(){
+// Recalcular = vista previa del Reprogramador (el mismo del Gantt). Si Seguimiento
+// vive dentro de la consola, se abre en la ventana de la consola.
+function recalcularPlanificacion(){
+  const destino=(()=>{try{return window.parent!==window&&typeof window.parent.abrirReprogramador==='function'?window.parent:window;}catch(e){return window;}})();
+  destino.abrirReprogramador(()=>loadData());
+}
+async function recalcularPlanificacionAnterior(){
   const btn=document.getElementById('recalcBtn');
   const original=btn.textContent;
   btn.textContent='Revisando...';btn.disabled=true;
@@ -1062,7 +1102,7 @@ async function loadData(){
     seguimientoCargadoUnaVez=true;
     const scrollY=window.scrollY;
     const activeCode=document.activeElement&&document.activeElement.id==='searchInput'?'searchInput':null;
-    updateSummary();renderAll();
+    updateSummary();renderCalendarStrip();renderAll();
     window.scrollTo(0,scrollY);
     if(activeCode)document.getElementById(activeCode)?.focus();
     document.getElementById('liveIndicator').style.background='#1D9E75';
@@ -1109,6 +1149,7 @@ function renderAll(){
   let filtered=allOrders.filter(o=>{
     const match=!term||norm([o.orderCode,o.customerName,o.jobName,o.productName].join(' ')).includes(term);
     if(!match)return false;
+    if(calSelectedKey)return matchesCalendarSelection(o);
     const det=o.detencion&&o.detencion.estado;
     if(currentFilter==='detenida')return det==='DETENIDA';
     if(currentFilter==='anulada')return det==='ANULADA';
@@ -1139,6 +1180,7 @@ function renderList(orders){
     orders=allOrders.filter(o=>{
       const match=!term||norm([o.orderCode,o.customerName,o.jobName,o.productName].join(' ')).includes(term);
       if(!match)return false;
+      if(calSelectedKey)return matchesCalendarSelection(o);
       const det=o.detencion&&o.detencion.estado;
       if(currentFilter==='detenida')return det==='DETENIDA';
       if(currentFilter==='anulada')return det==='ANULADA';
@@ -1223,6 +1265,7 @@ function renderKanban(orders){
 }
 
 function setFilter(f,btn){
+  clearCalendarSelection();
   currentFilter=f;
   document.querySelectorAll('.filter-pill').forEach(p=>p.classList.remove('active'));
   if(btn)btn.classList.add('active');
@@ -1231,6 +1274,7 @@ function setFilter(f,btn){
 }
 
 function setProcessFilter(f,btn){
+  clearCalendarSelection();
   currentProcessFilter=f;
   document.querySelectorAll('.process-tab').forEach(t=>t.classList.remove('is-active'));
   if(btn)btn.classList.add('is-active');
@@ -1314,7 +1358,6 @@ applyTrackingRoleBasedProcessView();
   strip.addEventListener('click',e=>{if(moved){e.preventDefault();e.stopPropagation();moved=false;}},true);
 })();
 fetch('/api/config/shell').then(r=>r.ok?r.json():{}).catch(()=>({})).then(cfg=>{trackingConfig=cfg||trackingConfig;loadData()});
-loadCalendarAlert();
 
 function computeAlertDayCount(){
   const strip=document.getElementById('calAlertStrip');
@@ -1325,51 +1368,182 @@ function computeAlertDayCount(){
   return Math.min(30,Math.max(4,count));
 }
 
-async function loadCalendarAlert(){
+// ── Calendario de entregas ──
+// Cada orden cae en un solo día: el de su fecha de entrega. Las que ya pasaron su
+// fecha sin terminarse se juntan en el cuadro "Vencidas" al inicio de la tira.
+const CAL_MAX_DAYS=92; // ~3 meses hacia adelante como máximo
+const CAL_OVERDUE_KEY='vencidas';
+let calEventsByDate=new Map();
+let calFetchedDays=0;
+let calFetchPending=null;
+let calSelectedKey=null;
+
+function localDateKey(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function calTodayKey(){return localDateKey(new Date())}
+function calAddDays(key,n){const d=new Date(key+'T12:00:00');d.setDate(d.getDate()+n);return localDateKey(d)}
+function calDaysBetween(a,b){return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/86400000)}
+function orderDeliveryKey(o){return deliveryDateKey(o.promisedDeliveryDate||o.scheduledDeliveryDate)}
+function isCalendarOrder(o){
+  if(o.detencion&&o.detencion.estado==='ANULADA')return false;
+  if(operatorAllowedProcessKeys&&!matchesTrackingActiveProcess(o))return false;
+  return true;
+}
+function matchesCalendarSelection(o){
+  if(!isCalendarOrder(o))return false;
+  const key=orderDeliveryKey(o);
+  if(!key)return false;
+  if(calSelectedKey===CAL_OVERDUE_KEY)return key<calTodayKey()&&orderStatus(o)!=='done';
+  return key===calSelectedKey;
+}
+
+function buildCalendarBuckets(){
+  const today=calTodayKey();
+  const byDay=new Map();
+  const overdue={total:0,late:0,risk:0};
+  let lastKey=null;
+  allOrders.filter(isCalendarOrder).forEach(o=>{
+    const key=orderDeliveryKey(o);
+    if(!key)return;
+    const st=orderStatus(o);
+    if(key<today){if(st!=='done'){overdue.total++;overdue.late++;}return;}
+    if(calDaysBetween(today,key)>=CAL_MAX_DAYS)return;
+    if(!byDay.has(key))byDay.set(key,{total:0,late:0,risk:0});
+    const b=byDay.get(key);
+    b.total++;
+    if(st==='late')b.late++;
+    else if(st==='risk')b.risk++;
+    if(!lastKey||key>lastKey)lastKey=key;
+  });
+  const needed=lastKey?calDaysBetween(today,lastKey)+1:0;
+  const dayCount=Math.min(CAL_MAX_DAYS,Math.max(computeAlertDayCount(),needed));
+  return{today,byDay,overdue,dayCount};
+}
+
+function calPlural(n,one,many){return`${n} ${n===1?one:many}`}
+// Pastilla neón: roja si hay órdenes atrasadas; morada con las entregas del día
+// cuando todas van al día.
+function calNeon(n,tone,corner){return`<span class="cal-neon is-${tone}${corner?' is-corner':''}">${n>9?'9+':n}</span>`}
+function calPill(b,corner){
+  if(b.late)return calNeon(b.late,'late',corner);
+  if(b.total)return calNeon(b.total,'ok',corner);
+  return'';
+}
+// Tercera fila del cuadro: `tag` es el aviso del día (fin de semana / feriado).
+function calFootMarkup(b,tag,hoverText){
+  const hover=`<span class="cal-foot-hover">${hoverText}</span>`;
+  if(tag)return`${calPill(b,true)}<div class="cal-foot"><span class="cal-foot-default">${tag}</span>${hover}</div>`;
+  const pill=calPill(b,false);
+  return`<div class="cal-foot">${pill?`<span class="cal-foot-default">${pill}</span>`:''}${hover}</div>`;
+}
+function calTitle(b){
+  const parts=[b.total?calPlural(b.total,'entrega','entregas'):'Sin entregas'];
+  if(b.late)parts.push(calPlural(b.late,'atrasada','atrasadas'));
+  if(b.risk)parts.push(calPlural(b.risk,'en riesgo','en riesgo'));
+  return parts.join(' · ');
+}
+
+function renderCalendarStrip(){
+  const strip=document.getElementById('calAlertStrip');
+  if(!strip||!calFetchedDays)return;
+  const{today,byDay,overdue,dayCount}=buildCalendarBuckets();
+  if(dayCount>calFetchedDays){loadCalendarAlert(dayCount);}
+  if(calSelectedKey&&calSelectedKey!==CAL_OVERDUE_KEY&&calSelectedKey<today)calSelectedKey=null;
+  const tiles=[];
+  if(overdue.total){
+    const sel=calSelectedKey===CAL_OVERDUE_KEY?' is-selected':'';
+    tiles.push(`<button type="button" class="cal-alert-day is-overdue${sel}" data-cal-key="${CAL_OVERDUE_KEY}" title="${esc(calPlural(overdue.total,'orden pasó','órdenes pasaron')+' su fecha de entrega sin terminarse')}">
+        <div class="cal-alert-day-label">Antes de hoy</div>
+        <div class="cal-alert-day-date">Vencidas</div>
+        ${calFootMarkup({total:overdue.total,late:overdue.total,risk:0},'',calPlural(overdue.total,'orden','órdenes'))}
+      </button>`);
+  }
+  for(let i=0;i<Math.min(dayCount,calFetchedDays);i++){
+    const key=calAddDays(today,i);
+    const dt=new Date(key+'T12:00:00');
+    const dowLabel=dt.toLocaleDateString('es-CR',{weekday:'short'});
+    const dateLabel=dt.toLocaleDateString('es-CR',{day:'2-digit',month:'short'});
+    const events=calEventsByDate.get(key)||[];
+    const isWeekend=dt.getDay()===0||dt.getDay()===6;
+    const b=byDay.get(key)||{total:0,late:0,risk:0};
+    const cls=['cal-alert-day'];
+    if(i===0)cls.push('is-today');
+    if(isWeekend)cls.push('is-weekend');
+    if(events.length)cls.push('has-event');
+    if(calSelectedKey===key)cls.push('is-selected');
+    let tag='';
+    let title=calTitle(b);
+    if(events.length){
+      const names=[...new Set(events.map(e=>e.description||e.exceptionType))].join(', ');
+      tag=`<span class="cal-alert-day-tag">⚠ ${esc(names.length>16?names.slice(0,16)+'…':names)}</span>`;
+      title+=` — ${names}`;
+    }else if(isWeekend){
+      tag=`<span class="cal-alert-day-tag">Fin de semana</span>`;
+    }
+    tiles.push(`<button type="button" class="${cls.join(' ')}" data-cal-key="${key}" title="${esc(title)}">
+        <div class="cal-alert-day-label">${i===0?'Hoy':capitalise(dowLabel)}</div>
+        <div class="cal-alert-day-date">${dateLabel}</div>
+        ${calFootMarkup(b,tag,b.total?calPlural(b.total,'entrega','entregas'):'Sin entregas')}
+      </button>`);
+  }
+  const scroll=strip.scrollLeft;
+  strip.innerHTML=tiles.join('');
+  strip.scrollLeft=scroll;
+  strip.classList.add('visible');
+  renderCalendarSelectionBar();
+}
+
+function renderCalendarSelectionBar(){
+  const bar=document.getElementById('calSelectionBar');
+  if(!bar)return;
+  if(!calSelectedKey){bar.classList.remove('visible');bar.innerHTML='';return;}
+  const n=allOrders.filter(matchesCalendarSelection).length;
+  const label=calSelectedKey===CAL_OVERDUE_KEY
+    ?'Órdenes vencidas (su fecha de entrega ya pasó y no están terminadas)'
+    :`Entregas del ${new Date(calSelectedKey+'T12:00:00').toLocaleDateString('es-CR',{weekday:'long',day:'2-digit',month:'long'})}`;
+  bar.innerHTML=`<span><strong>${esc(label)}</strong> · ${calPlural(n,'orden','órdenes')}</span><button type="button" class="cal-selection-clear" id="calSelectionClear">✕ Ver todas</button>`;
+  bar.classList.add('visible');
+  document.getElementById('calSelectionClear').addEventListener('click',()=>selectCalendarDay(null));
+}
+
+function selectCalendarDay(key){
+  calSelectedKey=calSelectedKey===key?null:key;
+  renderCalendarStrip();
+  renderAll();
+}
+// Al elegir otro filtro (proceso o estado) se suelta el día seleccionado.
+function clearCalendarSelection(){
+  if(!calSelectedKey)return;
+  calSelectedKey=null;
+  renderCalendarStrip();
+}
+
+document.getElementById('calAlertStrip')?.addEventListener('click',e=>{
+  const tile=e.target.closest('[data-cal-key]');
+  if(tile)selectCalendarDay(tile.dataset.calKey);
+});
+
+async function loadCalendarAlert(minDays){
   const strip=document.getElementById('calAlertStrip');
   if(!strip)return;
+  const dias=Math.min(CAL_MAX_DAYS,Math.max(minDays||0,calFetchedDays,computeAlertDayCount()));
+  if(calFetchPending===dias)return;
+  calFetchPending=dias;
   try{
-    const dias=computeAlertDayCount();
     const res=await fetch(`${API}/planificacion/calendarios/proximos-eventos?dias=${dias}`,{headers:sessionHeader()});
     const data=await res.json();
-    if(!data.ok||!Array.isArray(data.data?.days)){strip.classList.remove('visible');return;}
-    const days=data.data.days;
-    const todayKey=days[0]?.date;
-    strip.innerHTML=days.map(d=>{
-      const dt=new Date(d.date+'T12:00:00');
-      const dowLabel=dt.toLocaleDateString('es-CR',{weekday:'short'});
-      const dateLabel=dt.toLocaleDateString('es-CR',{day:'2-digit',month:'short'});
-      const isToday=d.date===todayKey;
-      const hasEvent=d.events.length>0;
-      const cls=['cal-alert-day'];
-      if(isToday)cls.push('is-today');
-      if(d.isWeekend)cls.push('is-weekend');
-      if(hasEvent)cls.push('has-event');
-      let tag='';
-      if(hasEvent){
-        const names=[...new Set(d.events.map(e=>e.description||e.exceptionType))].join(', ');
-        tag=`<div class="cal-alert-day-tag" title="${esc(names)}">⚠ ${esc(names.length>18?names.slice(0,18)+'…':names)}</div>`;
-      }else if(d.isWeekend){
-        tag=`<div class="cal-alert-day-tag">Fin de semana</div>`;
-      }
-      return`<div class="${cls.join(' ')}">
-        <div class="cal-alert-day-label">${isToday?'Hoy':capitalise(dowLabel)}</div>
-        <div class="cal-alert-day-date">${dateLabel}</div>
-        ${tag}
-      </div>`;
-    }).join('');
-    strip.classList.add('visible');
-  }catch(e){strip.classList.remove('visible');}
+    if(!data.ok||!Array.isArray(data.data?.days)){if(!calFetchedDays)strip.classList.remove('visible');return;}
+    calEventsByDate=new Map(data.data.days.map(d=>[d.date,d.events||[]]));
+    calFetchedDays=data.data.days.length;
+    renderCalendarStrip();
+  }catch(e){if(!calFetchedDays)strip.classList.remove('visible');}
+  finally{calFetchPending=null;}
 }
-setInterval(loadCalendarAlert,15*60000);
+loadCalendarAlert();
+setInterval(()=>loadCalendarAlert(),15*60000);
 let calAlertResizeTimer=null;
-let calAlertLastDayCount=computeAlertDayCount();
 window.addEventListener('resize',()=>{
   clearTimeout(calAlertResizeTimer);
-  calAlertResizeTimer=setTimeout(()=>{
-    const count=computeAlertDayCount();
-    if(count!==calAlertLastDayCount){calAlertLastDayCount=count;loadCalendarAlert();}
-  },250);
+  calAlertResizeTimer=setTimeout(renderCalendarStrip,250);
 });
 new MutationObserver(()=>renderAll()).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 

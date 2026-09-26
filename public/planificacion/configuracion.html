@@ -175,6 +175,86 @@ html[data-theme="dark"] .maq-spec-tabs{border-color:#26364d}
 html[data-theme="dark"] .maq-spec-tab{color:#94a3b8}
 html[data-theme="dark"] .maq-spec-tab:hover{background:#1b263b;color:#f8fafc}
 html[data-theme="dark"] .maq-spec-tab.active{background:#1e293b;color:#38bdf8;border-color:#26364d}
+
+/* ── Calendarios y feriados ── */
+.calx-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:14px}
+.calx-head-feriados{margin-top:30px;margin-bottom:12px}
+.calx-title{font-size:16px;font-weight:700;color:#1a2840}
+.calx-sub{font-size:12px;color:#7a8a9c;margin-top:2px;line-height:1.4}
+#page-calendarios .calx-add{flex:0 0 auto !important;width:34px !important;height:34px !important;border-radius:50% !important;border:1px solid rgba(29,158,117,.45) !important;background:rgba(29,158,117,.08) !important;color:#1D9E75 !important;cursor:pointer !important;display:inline-flex !important;align-items:center !important;justify-content:center !important;font-size:20px !important;font-weight:600 !important;line-height:1 !important;transition:background .15s,box-shadow .15s,transform .15s !important}
+#page-calendarios .calx-add:hover{background:rgba(29,158,117,.16) !important;box-shadow:0 0 0 4px rgba(29,158,117,.12) !important;transform:translateY(-1px) !important}
+#page-calendarios .calx-add[aria-expanded="true"]{background:#1D9E75 !important;color:#fff !important;transform:rotate(45deg) !important}
+#page-calendarios .calx-add-icon{display:inline-flex !important;align-items:center !important;justify-content:center !important;width:18px !important;height:18px !important}
+#page-calendarios .card{border-color:rgba(148,163,184,.25);box-shadow:0 1px 2px rgba(15,23,42,.04)}
+#page-calendarios .card-hdr{border-bottom:0;padding:12px 16px}
+#page-calendarios .card .btn.sm{border-color:rgba(148,163,184,.3) !important;background:transparent !important}
+#page-calendarios .card .btn.sm:hover{background:rgba(148,163,184,.12) !important}
+#page-calendarios .fer-years{display:flex !important;gap:6px !important;flex-wrap:wrap !important;margin-bottom:12px !important}
+#page-calendarios .fer-year{padding:5px 14px !important;border-radius:999px !important;border:1px solid rgba(148,163,184,.35) !important;background:transparent !important;color:#4a5b6e !important;font:inherit !important;font-size:12px !important;font-weight:600 !important;cursor:pointer !important;display:inline-flex !important;align-items:center !important;gap:6px !important;transition:all .15s !important}
+#page-calendarios .fer-year:hover{border-color:#1D9E75 !important;color:#1D9E75 !important}
+#page-calendarios .fer-year.active{background:#1D9E75 !important;border-color:#1D9E75 !important;color:#fff !important}
+#page-calendarios .fer-year-dot{width:6px !important;height:6px !important;border-radius:50% !important;background:#8b5cf6 !important;box-shadow:0 0 5px rgba(139,92,246,.7) !important}
+#page-calendarios .fer-year.active .fer-year-dot{background:#fff !important;box-shadow:none !important}
+.fer-form{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding:14px;margin-bottom:12px;border-radius:12px;border:1px dashed rgba(29,158,117,.45);background:rgba(29,158,117,.05)}
+.fer-form[hidden]{display:none}
+.fer-check{display:flex;align-items:center;gap:6px;font-size:12px;padding-bottom:8px;color:#4a5b6e}
+.fer-form-actions{display:flex;gap:6px;margin-left:auto}
+.fer-list{border-radius:12px;border:1px solid rgba(148,163,184,.22);overflow:hidden;background:#fff}
+.fer-row{display:grid;grid-template-columns:92px 1fr 112px 44px 32px;align-items:center;gap:12px;padding:9px 14px;border-top:1px solid rgba(148,163,184,.12);font-size:13px;position:relative}
+.fer-row:first-child{border-top:0}
+.fer-row:hover{background:rgba(148,163,184,.06)}
+.fer-row.is-inactive{opacity:.5}
+.fer-date{display:flex;flex-direction:column;line-height:1.15}
+.fer-date-d{font-weight:700;color:#1a2840;font-size:14px}
+.fer-date-w{font-size:11px;color:#8494a7;text-transform:capitalize}
+#page-calendarios .fer-name{border:1px solid transparent !important;background:transparent !important;font:inherit !important;font-size:13px !important;color:#1f2b3d !important;padding:4px 6px !important;border-radius:6px !important;width:100% !important;min-width:0 !important}
+#page-calendarios .fer-name:hover{border-color:rgba(148,163,184,.35) !important}
+#page-calendarios .fer-name:focus{outline:none !important;border-color:#1D9E75 !important;background:#fff !important;box-shadow:0 0 0 3px rgba(29,158,117,.12) !important}
+.fer-tags{display:flex;gap:6px;justify-content:flex-end}
+.fer-tag{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;letter-spacing:.02em}
+.fer-tag-rec{color:#64748b;background:rgba(148,163,184,.15)}
+.fer-tag-custom{color:#6d28d9;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.45);box-shadow:0 0 6px rgba(139,92,246,.25)}
+.fer-row.is-custom{background:linear-gradient(90deg,rgba(139,92,246,.08),transparent 60%)}
+.fer-row.is-custom::before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:0 3px 3px 0;background:#8b5cf6;box-shadow:0 0 6px rgba(139,92,246,.7)}
+.fer-switch{position:relative;width:34px;height:20px;display:inline-block}
+.fer-switch input{opacity:0;width:0;height:0}
+.fer-switch span{position:absolute;inset:0;border-radius:999px;background:rgba(148,163,184,.45);cursor:pointer;transition:background .15s}
+.fer-switch span::after{content:"";position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+.fer-switch input:checked+span{background:#1D9E75}
+.fer-switch input:checked+span::after{transform:translateX(14px)}
+#page-calendarios .fer-del{width:28px !important;height:28px !important;border-radius:8px !important;border:0 !important;background:transparent !important;color:#a3b1c2 !important;cursor:pointer !important;font-size:14px !important;opacity:0 !important;transition:opacity .15s,background .15s,color .15s !important}
+#page-calendarios .fer-row:hover .fer-del,#page-calendarios .fer-del:focus-visible{opacity:1 !important}
+#page-calendarios .fer-del:hover{background:rgba(226,75,74,.1) !important;color:#c43a39 !important}
+.fer-empty{padding:22px;text-align:center;color:#7a8a9c;font-size:13px}
+.fer-empty .btn{margin-top:10px}
+.fer-legend{display:flex;gap:14px;align-items:center;font-size:11px;color:#8494a7;margin:8px 2px 0}
+html[data-theme="dark"] .calx-title{color:#f1f5f9}
+html[data-theme="dark"] .calx-sub,html[data-theme="dark"] .fer-check{color:#94a3b8}
+html[data-theme="dark"] #page-calendarios .calx-add{color:#34d399 !important;border-color:rgba(52,211,153,.45) !important;background:rgba(52,211,153,.1) !important}
+html[data-theme="dark"] #page-calendarios .calx-add[aria-expanded="true"]{background:#1D9E75 !important;color:#fff !important}
+html[data-theme="dark"] .fer-list{background:#111a2e;border-color:rgba(148,163,184,.16)}
+html[data-theme="dark"] .fer-row{border-color:rgba(148,163,184,.08)}
+html[data-theme="dark"] #page-calendarios .fer-date-d,html[data-theme="dark"] #page-calendarios .fer-name{color:#e2e8f0 !important}
+html[data-theme="dark"] #page-calendarios .fer-name:focus{background:#0f172a !important}
+html[data-theme="dark"] #page-calendarios .fer-year{color:#cbd5e1 !important;border-color:rgba(148,163,184,.25) !important}
+html[data-theme="dark"] #page-calendarios .fer-year.active{color:#fff !important}
+html[data-theme="dark"] .fer-tag-custom{color:#e9dcff;border-color:#a78bfa;box-shadow:0 0 8px rgba(167,139,250,.55)}
+html[data-theme="dark"] .fer-form{background:rgba(52,211,153,.05)}
+html[data-theme="dark"] #page-calendarios .card{background:#111a2e;border-color:rgba(148,163,184,.16)}
+
+#page-calendarios .calx-add,#page-calendarios .fer-year,#page-calendarios .fer-del{min-height:0 !important}
+#page-calendarios .fer-year:not(.active),#page-calendarios .fer-del{box-shadow:none !important}
+#page-calendarios .fer-list .fer-name{box-shadow:none !important}
+#page-calendarios .fer-list .fer-name:focus{box-shadow:0 0 0 3px rgba(29,158,117,.12) !important}
+
+/* Horas extra */
+#page-calendarios .hx-dias #hx-dias{display:flex;gap:6px;flex-wrap:wrap}
+#page-calendarios .hx-dia{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:999px;border:1px solid rgba(148,163,184,.35);font-size:12px;cursor:pointer;user-select:none}
+#page-calendarios .hx-dia input{margin:0}
+#page-calendarios .hx-row{grid-template-columns:minmax(150px,1.2fr) 1.4fr 1fr 70px 32px}
+#page-calendarios .hx-row.is-vencida{opacity:.5}
+#page-calendarios .hx-horas{font-weight:800;font-size:15px;color:#6d28d9}
+html[data-theme="dark"] #page-calendarios .hx-horas{color:#c4b5fd}
 </style>
 <link rel="stylesheet" href="/theme-extensions.css">
 </head>
@@ -260,30 +340,57 @@ html[data-theme="dark"] .maq-spec-tab.active{background:#1e293b;color:#38bdf8;bo
 <!-- TAB: CALENDARIOS                                       -->
 <!-- ═══════════════════════════════════════════════════════ -->
 <div id="page-calendarios" class="page">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+  <div class="calx-head">
     <div>
-      <div style="font-size:16px;font-weight:600">Calendarios de Recursos</div>
-      <div style="font-size:12px;color:#888;margin-top:2px">Define la disponibilidad horaria de cada recurso productivo</div>
+      <div class="calx-title">Calendarios de Recursos</div>
+      <div class="calx-sub">Define la disponibilidad horaria de cada recurso productivo</div>
     </div>
-    <button class="btn primary" onclick="openModalCalendario()">+ Nuevo calendario</button>
+    <button type="button" class="calx-add" onclick="openModalCalendario()" title="Nuevo calendario" aria-label="Nuevo calendario"><span class="calx-add-icon"></span></button>
   </div>
   <div id="calendarios-list">
     <div class="loading"><span class="spinner"></span>Cargando...</div>
   </div>
 
-  <div style="display:flex;justify-content:space-between;align-items:center;margin:28px 0 12px">
+  <div class="calx-head calx-head-feriados">
     <div>
-      <div style="font-size:16px;font-weight:600">Feriados Nacionales (Guatemala)</div>
-      <div style="font-size:12px;color:#888;margin-top:2px">Días de cierre total. El scheduler y el cálculo de fechas compromiso los restan a todos los recursos.</div>
+      <div class="calx-title">Feriados Nacionales (Guatemala)</div>
+      <div class="calx-sub">Días de cierre total. El scheduler y el cálculo de fechas compromiso los restan a todos los recursos.</div>
+    </div>
+    <button type="button" class="calx-add" id="fer-toggle" onclick="toggleFormFeriado()" title="Agregar feriado" aria-label="Agregar feriado" aria-expanded="false"><span class="calx-add-icon"></span></button>
+  </div>
+  <div class="fer-years" id="fer-years" role="tablist" aria-label="Año"></div>
+  <div class="fer-form" id="fer-form" hidden>
+    <div class="field" style="margin:0"><label>Fecha</label><input type="date" id="fer-fecha"></div>
+    <div class="field" style="margin:0;flex:1;min-width:200px"><label>Nombre</label><input type="text" id="fer-nombre" placeholder="Ej: Aniversario de la empresa"></div>
+    <label class="fer-check"><input type="checkbox" id="fer-recurrente" checked> Se repite cada año</label>
+    <div class="fer-form-actions">
+      <button type="button" class="btn sm" onclick="toggleFormFeriado(false)">Cancelar</button>
+      <button type="button" class="btn sm primary" onclick="agregarFeriado()">Guardar feriado</button>
     </div>
   </div>
-  <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:12px">
-    <div class="field" style="margin:0"><label>Fecha</label><input type="date" id="fer-fecha"></div>
-    <div class="field" style="margin:0;flex:1;min-width:180px"><label>Nombre</label><input type="text" id="fer-nombre" placeholder="Ej: Día de la Independencia"></div>
-    <label style="display:flex;align-items:center;gap:6px;font-size:12px;padding-bottom:8px"><input type="checkbox" id="fer-recurrente" checked> Se repite cada año</label>
-    <button class="btn primary" onclick="agregarFeriado()">+ Agregar</button>
-  </div>
   <div id="feriados-list"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+
+  <div class="calx-head calx-head-feriados">
+    <div>
+      <div class="calx-title">Horas extra</div>
+      <div class="calx-sub">Horas aprobadas por encima del turno. Solo cuentan dentro de su vigencia y en los días elegidos; el Reprogramador las usa al programar.</div>
+    </div>
+    <button type="button" class="calx-add" id="hx-toggle" onclick="toggleFormHorasExtra()" title="Agregar horas extra" aria-label="Agregar horas extra" aria-expanded="false"><span class="calx-add-icon"></span></button>
+  </div>
+  <div class="fer-form hx-form" id="hx-form" hidden>
+    <div class="field" style="margin:0;min-width:200px"><label>Proceso o máquina</label><select id="hx-recurso"></select></div>
+    <div class="field" style="margin:0"><label>Desde</label><input type="date" id="hx-desde"></div>
+    <div class="field" style="margin:0"><label>Hasta</label><input type="date" id="hx-hasta"></div>
+    <div class="field" style="margin:0;width:110px"><label>Horas por día</label><input type="number" id="hx-horas" min="0.5" max="12" step="0.5" value="2"></div>
+    <div class="field hx-dias" style="margin:0;flex-basis:100%"><label>Días</label><div id="hx-dias"></div></div>
+    <div class="field" style="margin:0;flex:1;min-width:200px"><label>Motivo</label><input type="text" id="hx-motivo" placeholder="Ej: pedido grande de Cliente A"></div>
+    <div class="field" style="margin:0;min-width:180px"><label>Aprobó</label><input type="text" id="hx-aprobo" placeholder="Nombre de quien aprobó"></div>
+    <div class="fer-form-actions">
+      <button type="button" class="btn sm" onclick="toggleFormHorasExtra(false)">Cancelar</button>
+      <button type="button" class="btn sm primary" onclick="guardarHorasExtra()">Guardar horas extra</button>
+    </div>
+  </div>
+  <div id="horas-extra-list"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════ -->
@@ -724,7 +831,13 @@ function showTab(tab) {
 
 // ── ALERTAS ───────────────────────────────────────────────────
 function showAlert(msg, type = 'success') {
-  const c = document.getElementById('alert-container');
+  let c = document.getElementById('alert-container');
+  // En modo embebido (cajón del Gantt) el contenedor se quita: aviso flotante.
+  if (!c) {
+    c = document.getElementById('alert-float') || Object.assign(document.createElement('div'), { id: 'alert-float' });
+    c.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:9999;min-width:240px;box-shadow:0 8px 24px rgba(15,23,42,.18);border-radius:8px';
+    document.body.appendChild(c);
+  }
   c.innerHTML = `<div class="alert ${type}">${type==='success'?'✓':'⚠'} ${msg}</div>`;
   setTimeout(() => c.innerHTML = '', 4000);
 }
@@ -743,25 +856,81 @@ function fmtFecha(iso, recurrente) {
   return recurrente ? `${Number(d)} ${MESES[Number(m) - 1]}` : `${Number(d)} ${MESES[Number(m) - 1]} ${y}`;
 }
 
+// Feriados por año: los recurrentes se muestran en todos los años; los de fecha fija,
+// solo en el suyo. Si un año tiene el mismo día como fecha fija, esa gana.
+const FER_ANIOS = 5;
+let ferAnio = new Date().getFullYear();
+const ferEsc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function feriadosDelAnio(anio) {
+  const fijos = feriados.filter(f => !f.recurrente && Number(String(f.fecha).slice(0, 4)) === anio);
+  const diasFijos = new Set(fijos.map(f => String(f.fecha).slice(5, 10)));
+  const recurrentes = feriados
+    .filter(f => f.recurrente && !diasFijos.has(String(f.fecha).slice(5, 10)))
+    .map(f => ({ ...f, fechaVista: `${anio}-${String(f.fecha).slice(5, 10)}` }));
+  return [...fijos.map(f => ({ ...f, fechaVista: String(f.fecha).slice(0, 10) })), ...recurrentes]
+    .sort((a, b) => a.fechaVista.localeCompare(b.fechaVista));
+}
+
+function renderFerAnios() {
+  const cont = document.getElementById('fer-years');
+  if (!cont) return;
+  const base = new Date().getFullYear();
+  cont.innerHTML = Array.from({ length: FER_ANIOS }, (_, i) => base + i).map(anio => {
+    const tieneCustom = feriadosDelAnio(anio).some(f => f.personalizado);
+    return `<button type="button" role="tab" class="fer-year${anio === ferAnio ? ' active' : ''}" aria-selected="${anio === ferAnio}" onclick="elegirAnioFeriados(${anio})">${anio}${tieneCustom ? '<span class="fer-year-dot" title="Tiene feriados personalizados"></span>' : ''}</button>`;
+  }).join('');
+}
+
+function elegirAnioFeriados(anio) {
+  ferAnio = anio;
+  const fecha = document.getElementById('fer-fecha');
+  if (fecha && (!fecha.value || Number(fecha.value.slice(0, 4)) !== anio)) fecha.value = '';
+  renderFeriados();
+}
+
 function renderFeriados() {
   const list = document.getElementById('feriados-list');
   if (!list) return;
-  if (!feriados.length) {
-    list.innerHTML = `<div class="empty" style="padding:20px"><div class="empty-icon">📅</div>No hay feriados configurados.</div>`;
+  renderFerAnios();
+  const items = feriadosDelAnio(ferAnio);
+  const fijosDelAnio = items.filter(f => !f.recurrente).length;
+  const sync = !fijosDelAnio
+    ? `<div class="fer-empty" style="padding:14px 0 0">No hay feriados de fecha variable (p. ej. Semana Santa) cargados para ${ferAnio}.<br><button type="button" class="btn sm" onclick="sincronizarFeriados(${ferAnio})">Traer feriados oficiales de ${ferAnio}</button></div>`
+    : '';
+  if (!items.length) {
+    list.innerHTML = `<div class="fer-list"><div class="fer-empty">No hay feriados para ${ferAnio}.</div></div>${sync}`;
     return;
   }
-  list.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">
-    <thead><tr style="text-align:left;color:#888;font-size:11px;border-bottom:1px solid #e2e8f0">
-      <th style="padding:6px 8px">Fecha</th><th style="padding:6px 8px">Nombre</th>
-      <th style="padding:6px 8px">Cada año</th><th style="padding:6px 8px">Activo</th><th></th></tr></thead>
-    <tbody>${feriados.map(f => `
-      <tr style="border-bottom:1px solid #f0f4f8">
-        <td style="padding:6px 8px;font-family:monospace">${fmtFecha(f.fecha, f.recurrente)}</td>
-        <td style="padding:6px 8px">${(f.nombre || '').replace(/</g, '&lt;')}</td>
-        <td style="padding:6px 8px">${f.recurrente ? 'Sí' : '—'}</td>
-        <td style="padding:6px 8px"><input type="checkbox" ${f.activo ? 'checked' : ''} onchange="toggleFeriado(${f.id}, this.checked)"></td>
-        <td style="padding:6px 8px;text-align:right"><button class="btn sm danger" onclick="eliminarFeriado(${f.id})">Eliminar</button></td>
-      </tr>`).join('')}</tbody></table>`;
+  list.innerHTML = `<div class="fer-list">${items.map(f => {
+    const d = new Date(f.fechaVista + 'T12:00:00');
+    const dia = `${d.getDate()} ${MESES[d.getMonth()]}`;
+    const semana = d.toLocaleDateString('es', { weekday: 'long' });
+    const cls = ['fer-row', f.personalizado ? 'is-custom' : '', f.activo ? '' : 'is-inactive'].filter(Boolean).join(' ');
+    return `<div class="${cls}">
+      <div class="fer-date"><span class="fer-date-d">${dia}</span><span class="fer-date-w">${semana}</span></div>
+      <input class="fer-name" value="${ferEsc(f.nombre)}" aria-label="Nombre del feriado" onkeydown="if(event.key==='Enter')this.blur()" onchange="renombrarFeriado(${f.id}, this)">
+      <div class="fer-tags">${f.personalizado ? '<span class="fer-tag fer-tag-custom">Personalizado</span>' : ''}${f.recurrente ? '<span class="fer-tag fer-tag-rec">Cada año</span>' : ''}</div>
+      <label class="fer-switch" title="${f.activo ? 'Activo' : 'Inactivo'}"><input type="checkbox" ${f.activo ? 'checked' : ''} onchange="toggleFeriado(${f.id}, this.checked)"><span></span></label>
+      <button type="button" class="fer-del" title="Eliminar" aria-label="Eliminar ${ferEsc(f.nombre)}" onclick="eliminarFeriado(${f.id})">✕</button>
+    </div>`;
+  }).join('')}</div>
+  <div class="fer-legend"><span>Clic en el nombre para editarlo.</span><span>“Cada año” se repite en todos los años.</span></div>${sync}`;
+}
+
+function toggleFormFeriado(abrir) {
+  const form = document.getElementById('fer-form');
+  const btn = document.getElementById('fer-toggle');
+  if (!form) return;
+  const mostrar = typeof abrir === 'boolean' ? abrir : form.hidden;
+  form.hidden = !mostrar;
+  btn?.setAttribute('aria-expanded', String(mostrar));
+  if (mostrar) {
+    const fecha = document.getElementById('fer-fecha');
+    fecha.min = `${ferAnio}-01-01`;
+    fecha.max = `${ferAnio}-12-31`;
+    document.getElementById('fer-nombre').focus();
+  }
 }
 
 async function agregarFeriado() {
@@ -773,18 +942,40 @@ async function agregarFeriado() {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fecha, nombre, recurrente })
   });
-  const j = await res.json();
+  const j = await res.json().catch(() => ({}));
   if (!j.ok) { showAlert(j.error || 'No se pudo guardar', 'error'); return; }
   document.getElementById('fer-nombre').value = '';
+  document.getElementById('fer-fecha').value = '';
+  toggleFormFeriado(false);
+  if (!recurrente) ferAnio = Number(fecha.slice(0, 4));
+  showAlert('Feriado guardado', 'success');
   await loadAll();
 }
 
+async function renombrarFeriado(id, input) {
+  const nombre = input.value.trim();
+  const f = feriados.find(x => x.id === id);
+  if (!f) return;
+  if (!nombre) { input.value = f.nombre; return; }
+  const res = await fetch(`${API}/feriados/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nombre })
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!j.ok) { input.value = f.nombre; showAlert(j.error || 'No se pudo renombrar', 'error'); return; }
+  f.nombre = j.data.nombre;
+  showAlert('Nombre actualizado', 'success');
+}
+
 async function toggleFeriado(id, activo) {
-  await fetch(`${API}/feriados/${id}`, {
+  const res = await fetch(`${API}/feriados/${id}`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ activo })
   });
+  const j = await res.json().catch(() => ({}));
+  if (!j.ok) { showAlert(j.error || 'No se pudo actualizar', 'error'); renderFeriados(); return; }
   const f = feriados.find(x => x.id === id); if (f) f.activo = activo;
+  renderFeriados();
 }
 
 async function eliminarFeriado(id) {
@@ -792,6 +983,117 @@ async function eliminarFeriado(id) {
   await fetch(`${API}/feriados/${id}`, { method: 'DELETE' });
   await loadAll();
 }
+
+async function sincronizarFeriados(anio) {
+  const res = await fetch(`${API}/feriados/sincronizar`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ anio })
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!j.ok) { showAlert(j.error || 'No se pudieron traer los feriados', 'error'); return; }
+  showAlert(`${j.data.insertados} feriado(s) de ${anio} agregados`, 'success');
+  await loadAll();
+}
+
+
+// ── Horas extra con vigencia ─────────────────────────────────
+const HX_DIAS = [['1','Lun'],['2','Mar'],['3','Mié'],['4','Jue'],['5','Vie'],['6','Sáb'],['0','Dom']];
+let horasExtra = [];
+let hxRecursos = [];
+
+async function cargarHorasExtraUI() {
+  try {
+    const [hRes, pRes] = await Promise.all([fetch(`${API}/horas-extra`), fetch(`${API}/procesos`)]);
+    const h = await hRes.json().catch(() => ({}));
+    const pr = await pRes.json().catch(() => ({}));
+    horasExtra = h.ok ? h.data : [];
+    hxRecursos = [];
+    (pr.ok ? pr.data : []).forEach(p => {
+      hxRecursos.push({ value: `p:${p.process_key}`, label: `${p.process_name} (todo el proceso)` });
+      (p.maquinas_asignadas || []).forEach(m => hxRecursos.push({ value: `m:${m.maquina_id}`, label: `${p.process_name} · ${m.nombre}` }));
+    });
+  } catch (e) { horasExtra = []; }
+  renderHorasExtra();
+}
+
+function renderHorasExtra() {
+  const list = document.getElementById('horas-extra-list');
+  if (!list) return;
+  const sel = document.getElementById('hx-recurso');
+  if (sel) sel.innerHTML = hxRecursos.map(r => `<option value="${ferEsc(r.value)}">${ferEsc(r.label)}</option>`).join('');
+  const dias = document.getElementById('hx-dias');
+  if (dias && !dias.children.length) dias.innerHTML = HX_DIAS.map(([v, l]) => `<label class="hx-dia"><input type="checkbox" value="${v}" ${v !== '0' ? 'checked' : ''}> ${l}</label>`).join('');
+  if (!horasExtra.length) {
+    list.innerHTML = '<div class="fer-list"><div class="fer-empty">No hay horas extra registradas.</div></div>';
+    return;
+  }
+  const nombreDia = d => (HX_DIAS.find(([v]) => v === String(d)) || [, d])[1];
+  const fecha = v => { const d = new Date(v + 'T12:00:00'); return `${d.getDate()} ${MESES[d.getMonth()]} ${d.getFullYear()}`; };
+  list.innerHTML = `<div class="fer-list">${horasExtra.map(h => `
+    <div class="fer-row hx-row${h.vencida ? ' is-vencida' : ''}">
+      <div><b>${ferEsc(h.maquina_nombre || h.proceso_nombre || h.proceso_key)}</b><div class="fer-date-w">${h.maquina_nombre ? ferEsc(h.proceso_nombre || 'máquina') : 'todo el proceso'}</div></div>
+      <div>${fecha(h.fecha_desde)} → ${fecha(h.fecha_hasta)}<div class="fer-date-w">${(h.dias_semana || []).map(nombreDia).join(', ')}${h.vencida ? ' · vencida' : ''}</div></div>
+      <div class="fer-date-w" style="text-transform:none">${ferEsc(h.motivo || '—')}<br>Aprobó: ${ferEsc(h.aprobado_por || '—')}</div>
+      <div class="hx-horas">+${Number(h.horas)}h</div>
+      <button type="button" class="fer-del" title="Quitar" aria-label="Quitar horas extra" onclick="quitarHorasExtra(${h.id})">✕</button>
+    </div>`).join('')}</div>`;
+}
+
+function toggleFormHorasExtra(abrir) {
+  const form = document.getElementById('hx-form');
+  const btn = document.getElementById('hx-toggle');
+  const mostrar = typeof abrir === 'boolean' ? abrir : form.hidden;
+  form.hidden = !mostrar;
+  btn?.setAttribute('aria-expanded', String(mostrar));
+  if (mostrar) {
+    const hoy = new Date(); const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (!document.getElementById('hx-desde').value) document.getElementById('hx-desde').value = iso(hoy);
+    if (!document.getElementById('hx-hasta').value) { const f = new Date(hoy); f.setDate(f.getDate() + 6); document.getElementById('hx-hasta').value = iso(f); }
+  }
+}
+
+async function guardarHorasExtra() {
+  const recurso = document.getElementById('hx-recurso').value || '';
+  const body = {
+    proceso_key: recurso.startsWith('p:') ? recurso.slice(2) : null,
+    maquina_id: recurso.startsWith('m:') ? recurso.slice(2) : null,
+    fecha_desde: document.getElementById('hx-desde').value,
+    fecha_hasta: document.getElementById('hx-hasta').value,
+    horas: Number(document.getElementById('hx-horas').value),
+    dias_semana: [...document.querySelectorAll('#hx-dias input:checked')].map(i => Number(i.value)),
+    motivo: document.getElementById('hx-motivo').value.trim(),
+    aprobado_por: document.getElementById('hx-aprobo').value.trim()
+  };
+  const res = await fetch(`${API}/horas-extra`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await res.json().catch(() => ({}));
+  if (!j.ok) { showAlert(j.error || 'No se pudo guardar', 'error'); return; }
+  document.getElementById('hx-motivo').value = '';
+  toggleFormHorasExtra(false);
+  showAlert('Horas extra guardadas. Se verán en la próxima reprogramación.', 'success');
+  await cargarHorasExtraUI();
+}
+
+async function quitarHorasExtra(id) {
+  if (!confirm('¿Quitar estas horas extra? Dejarán de contar en la programación.')) return;
+  await fetch(`${API}/horas-extra/${id}`, { method: 'DELETE' });
+  await cargarHorasExtraUI();
+}
+cargarHorasExtraUI();
+
+// Ícono "+" configurable (Catálogo de íconos → Seguimiento y Producción → Consola APS).
+(async function pintarIconoAgregar() {
+  let valor = '+';
+  try {
+    const cfg = await fetch('/api/config/shell').then(r => r.ok ? r.json() : {});
+    valor = String(cfg?.icons?.seguimientoAgregar || '+').trim() || '+';
+  } catch (e) { /* se queda el + */ }
+  const markup = /\.svg(\?|#|$)/i.test(valor) || valor.indexOf('data:image/svg+xml') === 0
+    ? `<span style="display:inline-flex;width:16px;height:16px;-webkit-mask:url('${valor}') center/contain no-repeat;mask:url('${valor}') center/contain no-repeat;background-color:currentColor"></span>`
+    : /^(\/|data:image\/)/i.test(valor)
+      ? `<img style="width:16px;height:16px;object-fit:contain" src="${ferEsc(valor)}" alt="">`
+      : ferEsc(valor);
+  document.querySelectorAll('.calx-add-icon').forEach(el => { el.innerHTML = markup; });
+})();
 
 async function loadAll() {
   try {

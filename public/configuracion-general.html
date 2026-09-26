@@ -11950,9 +11950,10 @@
             { key: 'favoriteDocumentOn', label: 'Favorito Activo', group: 'Calculo y Procesos', placeholder: '\u2605', color: '#c79b18', size: 20 },
             { key: 'refreshCosts', label: 'Actualizar Costos', group: 'Calculo y Procesos', placeholder: '\u21BB', color: '#5b7896', size: 20 },
             { key: 'timelineLauncher', label: 'Timeline Flotante', group: 'Calculo y Procesos', placeholder: '\u25F4', color: '#5f7392', size: 20 },
-            { key: 'seguimientoModoClaro', label: 'Seguimiento Modo Claro', group: 'Seguimiento', placeholder: '\u2600', color: '#1e516d', size: 18 },
-            { key: 'seguimientoModoOscuro', label: 'Seguimiento Modo Oscuro', group: 'Seguimiento', placeholder: '\u263E', color: '#1e516d', size: 18 },
-            { key: 'seguimientoRefrescar', label: 'Seguimiento Refrescar', group: 'Seguimiento', placeholder: '\u21BB', color: '#1e516d', size: 18 },
+            { key: 'seguimientoModoClaro', label: 'Consola: Modo Claro', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Consola APS', placeholder: '\u2600', color: '#1a2840', size: 18 },
+            { key: 'seguimientoModoOscuro', label: 'Consola: Modo Oscuro', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Consola APS', placeholder: '\u263E', color: '#1a2840', size: 18 },
+            { key: 'seguimientoRefrescar', label: 'Consola: Refrescar', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Consola APS', placeholder: '\u21BB', color: '#1a2840', size: 18 },
+            { key: 'seguimientoAgregar', label: 'Consola: Agregar (+)', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Consola APS', placeholder: '+', color: '#1a2840', size: 18 },
             { key: 'calcMaquinaDetalle', label: 'Detalle de M\u00E1quina', group: 'Cotizaciones', tab: 'Cotizaciones', section: 'Artes', placeholder: '\u25A4', color: '#5b7896', size: 20 },
             { key: 'calcVentanaPanel', label: 'Abrir Panel en Ventana', group: 'Cotizaciones', tab: 'Cotizaciones', section: 'Detalles', placeholder: '\u2922', color: '#5b7896', size: 18 },
             { key: 'calcDeshacerPorcentaje', label: 'Deshacer Porcentaje', group: 'Cotizaciones', tab: 'Cotizaciones', section: 'Detalles', placeholder: '\u21b6', color: '#ffffff', size: 16 },
@@ -12142,6 +12143,7 @@
             if (key.startsWith('tintas')) return { tab: 'Tintas', section: 'Módulos' };
             if (key.startsWith('factfel')) return { tab: 'Contabilidad', section: 'Módulos' };
             if (key.startsWith('produccion')) return { tab: 'Seguimiento y Producción', section: icon.section || 'Producción' };
+            if (key.startsWith('seguimiento')) return { tab: 'Seguimiento y Producción', section: 'Consola APS' };
             if (key.startsWith('motivo')) return { tab: 'Cotizaciones', section: 'Artes' };
             if (key === 'calcMaquinaDetalle') return { tab: 'Cotizaciones', section: 'Artes' };
             return { tab: icon.tab || icon.group || 'General', section: icon.section || '' };
@@ -22680,7 +22682,7 @@ proformaPriceDisplayField,
             });
         }
 
-        const ORDER_ICON_UPLOAD_KEYS = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit', 'orderCreationSummary', 'produccionCreacionOrden', 'produccionSolicitudVendedor', 'produccionPlanificacion', 'produccionDiseno', 'produccionPreprensa', 'produccionTintas', 'produccionVistoBueno', 'produccionSellos', 'produccionImpresion', 'produccionBarniz', 'produccionLaminado', 'produccionEstampado', 'produccionEmbozado', 'produccionTroquelado', 'produccionNumerado', 'produccionRebobinado', 'produccionEmpaque', 'produccionModoClaro', 'produccionModoOscuro', 'produccionHistorial', 'produccionControlAprobaciones', 'produccionVolverCola', 'dashboardCapacitacion']);
+        const ORDER_ICON_UPLOAD_KEYS = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit', 'orderCreationSummary', 'produccionCreacionOrden', 'produccionSolicitudVendedor', 'produccionPlanificacion', 'produccionDiseno', 'produccionPreprensa', 'produccionTintas', 'produccionVistoBueno', 'produccionSellos', 'produccionImpresion', 'produccionBarniz', 'produccionLaminado', 'produccionEstampado', 'produccionEmbozado', 'produccionTroquelado', 'produccionNumerado', 'produccionRebobinado', 'produccionEmpaque', 'produccionModoClaro', 'produccionModoOscuro', 'produccionHistorial', 'produccionControlAprobaciones', 'produccionVolverCola', 'seguimientoModoClaro', 'seguimientoModoOscuro', 'seguimientoRefrescar', 'seguimientoAgregar', 'dashboardCapacitacion']);
 
         function buildSingleIconGeneralPayload(iconKey, item) {
             const suffix = toIconSuffix(iconKey);

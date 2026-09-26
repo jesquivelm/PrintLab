@@ -1014,6 +1014,7 @@ const DEFAULT_GENERAL_CONFIG = {
         seguimientoModoClaro: '\u2600',
         seguimientoModoOscuro: '\u263E',
         seguimientoRefrescar: '\u21BB',
+        seguimientoAgregar: '+',
         floatingSave: '/assets/bootstrap/icons-floatingSave.svg',
         tableActions: '\u22EF',
         lineMenu: '\u22EF',
@@ -1752,6 +1753,7 @@ const DEFAULT_COSTS_CONFIG = {
         defaultTaxPct: 13,
         defaultBoxCost: 0,
         defaultCostoPulgadaLinealTroquel: 0,
+        bufferProgramacionDias: 2,
         processDefaults: [
             { key: 'macula', label: 'Merma', active: true, createEnabled: true, locked: true, repeatable: false, order: 5, minimumCost: 0, capacityMinutes: 480 },
             { key: 'troquel', label: 'Troquel', active: true, createEnabled: false, locked: true, repeatable: false, order: 10, minimumCost: 0, capacityMinutes: 480 },
@@ -2147,6 +2149,8 @@ async function initializeStartupSchemas() {
     await runStartupSchemaStep('No fue posible preparar el esquema de notificaciones', () => ensureNotificationsSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de auditoría', () => ensureAuditSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de planificación', () => ensurePlanningSchema());
+    await runStartupSchemaStep('No fue posible preparar el esquema de feriados', () => ensureFeriadosSchema());
+    await runStartupSchemaStep('No fue posible preparar el esquema de programación', () => ensureProgramacionSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de detención/anulación de órdenes', () => ensureOrdenDetencionSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de mediciones de espectrofotometría', () => ensureMedicionesEspectroSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de valores de producción por motivo', () => ensureValoresProduccionSchema());
@@ -3174,7 +3178,13 @@ function normalizeCostsConfigRecord(config) {
                 order: Number(row?.order || fallback.order || ((index + 1) * 10)),
                 minimumCost: Math.max(0, Number(row?.minimumCost || 0)),
                 timeBufferMinutes: Math.max(0, Number(row?.timeBufferMinutes ?? row?.bufferMinutes ?? fallback.timeBufferMinutes ?? 0)),
-                capacityMinutes: Math.max(0, Number(row?.capacityMinutes ?? row?.capacity ?? fallback.capacityMinutes ?? 480))
+                capacityMinutes: Math.max(0, Number(row?.capacityMinutes ?? row?.capacity ?? fallback.capacityMinutes ?? 480)),
+                // Programación: sin estos campos, guardar Costos borraba el horario del proceso.
+                colorGantt: String(row?.colorGantt || fallback.colorGantt || '#378ADD'),
+                procesoParalelo: row?.procesoParalelo === true || String(row?.procesoParalelo || '').trim().toLowerCase() === 'true',
+                // Programación: el trabajo debe caber entero dentro de un turno (no se parte).
+                terminarEnTurno: row?.terminarEnTurno === true || String(row?.terminarEnTurno || '').trim().toLowerCase() === 'true',
+                calendarioId: row?.calendarioId ? String(row.calendarioId) : null
             };
         }).filter(Boolean);
         fallbackRows.forEach((item, index) => {
@@ -3192,7 +3202,11 @@ function normalizeCostsConfigRecord(config) {
                 order: Number(item.order || ((index + 1) * 10)),
                 minimumCost: Math.max(0, Number(item.minimumCost || 0)),
                 timeBufferMinutes: Math.max(0, Number(item.timeBufferMinutes || 0)),
-                capacityMinutes: Math.max(0, Number(item.capacityMinutes || 480))
+                capacityMinutes: Math.max(0, Number(item.capacityMinutes || 480)),
+                colorGantt: String(item.colorGantt || '#378ADD'),
+                procesoParalelo: Boolean(item.procesoParalelo),
+                terminarEnTurno: Boolean(item.terminarEnTurno),
+                calendarioId: item.calendarioId || null
             });
         });
         return normalized
@@ -3236,6 +3250,7 @@ function normalizeCostsConfigRecord(config) {
             defaultTaxPct: Math.max(0, Number(source?.general?.defaultTaxPct ?? DEFAULT_COSTS_CONFIG.general.defaultTaxPct ?? 0)),
             defaultBoxCost: Math.max(0, Number(source?.general?.defaultBoxCost ?? DEFAULT_COSTS_CONFIG.general.defaultBoxCost ?? 0)),
             defaultCostoPulgadaLinealTroquel: Math.max(0, Number(source?.general?.defaultCostoPulgadaLinealTroquel ?? DEFAULT_COSTS_CONFIG.general.defaultCostoPulgadaLinealTroquel ?? 0)),
+            bufferProgramacionDias: Math.max(0, Math.min(30, Math.round(Number(source?.general?.bufferProgramacionDias ?? DEFAULT_COSTS_CONFIG.general.bufferProgramacionDias ?? 2)))),
             processDefaults: normalizeProcessDefaults(source?.general?.processDefaults || DEFAULT_COSTS_CONFIG.general.processDefaults)
         },
         convencional: {
@@ -3428,6 +3443,8 @@ async function loadCostsConfig() {
                 defaultTaxPct: r.iva_defecto_pct,
                 defaultBoxCost: r.costo_caja,
                 defaultCostoPulgadaLinealTroquel: r.costo_pulgada_lineal_troquel_default,
+                bufferProgramacionDias: r.buffer_programacion_dias == null ? 2 : Number(r.buffer_programacion_dias),
+                holguraTurnoMinutos: r.holgura_turno_minutos == null ? 15 : Number(r.holgura_turno_minutos),
                 processDefaults: procesos.rows.map((p) => ({
                     key: p.proceso_key,
                     label: p.etiqueta,
@@ -3443,6 +3460,7 @@ async function loadCostsConfig() {
                     capacityMinutes: p.capacidad_minutos,
                     colorGantt: p.color_gantt || '#378ADD',
                     procesoParalelo: Boolean(p.proceso_paralelo),
+                    terminarEnTurno: Boolean(p.terminar_en_turno),
                     calendarioId: p.calendario_id || null
                 }))
             },
@@ -3727,9 +3745,12 @@ async function saveCostsConfig(config) {
             );
         };
 
+        await client.query(`UPDATE costo_general SET buffer_programacion_dias = $2, holgura_turno_minutos = $3 WHERE tenant_id = $1`,
+            [tenantId, gen.bufferProgramacionDias ?? 2, Math.max(0, Math.round(Number(gen.holguraTurnoMinutos ?? 15)))]);
+
         await replaceRows('costo_proceso_defaults',
-            ['proceso_key', 'etiqueta', 'activo', 'crear_habilitado', 'bloqueado', 'repetible', 'gantt_habilitado', 'visible_boton_flotante', 'orden', 'costo_minimo', 'tiempo_buffer_minutos', 'capacidad_minutos', 'color_gantt', 'proceso_paralelo', 'calendario_id'],
-            gen.processDefaults.map((p) => [p.key, p.label, p.active, p.createEnabled, p.locked, p.repeatable, p.ganttEnabled, p.visibleBotonFlotante, p.order, p.minimumCost, p.timeBufferMinutes, p.capacityMinutes, p.colorGantt || '#378ADD', Boolean(p.procesoParalelo), p.calendarioId || null])
+            ['proceso_key', 'etiqueta', 'activo', 'crear_habilitado', 'bloqueado', 'repetible', 'gantt_habilitado', 'visible_boton_flotante', 'orden', 'costo_minimo', 'tiempo_buffer_minutos', 'capacidad_minutos', 'color_gantt', 'proceso_paralelo', 'terminar_en_turno', 'calendario_id'],
+            gen.processDefaults.map((p) => [p.key, p.label, p.active, p.createEnabled, p.locked, p.repeatable, p.ganttEnabled, p.visibleBotonFlotante, p.order, p.minimumCost, p.timeBufferMinutes, p.capacityMinutes, p.colorGantt || '#378ADD', Boolean(p.procesoParalelo), Boolean(p.terminarEnTurno), p.calendarioId || null])
         );
 
         await replaceRows('costo_deposito_tinta',
@@ -9690,7 +9711,7 @@ async function listLiveOrders() {
 async function loadPlanningReferenceMaps(client = null) {
     const executor = client || { query: pgQuery };
     const [processResult, profileResult] = await Promise.all([
-        executor.query(`SELECT * FROM production_process_definitions WHERE is_active = TRUE ORDER BY sequence_order`),
+        executor.query(`SELECT proceso_key AS process_key, etiqueta AS process_name, orden AS sequence_order, color_gantt AS color_hex FROM costo_proceso_defaults WHERE activo = TRUE ORDER BY orden`),
         executor.query(`SELECT * FROM production_machine_profiles WHERE is_active = TRUE ORDER BY process_name, machine_name`)
     ]);
 
@@ -16095,7 +16116,7 @@ app.get('/api/config/general/icons/:version/:file', async (req, res) => {
 
 app.post('/api/config/general/icon', async (req, res) => {
     try {
-        const orderIconKeys = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit', 'orderCreationSummary', 'planningRefresh', 'planningProcessFlip', 'planningOpenGantt', 'planningEstimate', 'planningExpand', 'dashboardBusinessPartners', 'dashboardProducts', 'dashboardQuotes', 'dashboardNotifications', 'dashboardInventory', 'dashboardOrders', 'dashboardProduction', 'dashboardCosts', 'dashboardReports', 'dashboardSettings', 'dashboardPlanning', 'produccionCreacionOrden', 'produccionSolicitudVendedor', 'produccionPlanificacion', 'produccionDiseno', 'produccionPreprensa', 'produccionTintas', 'produccionVistoBueno', 'produccionSellos', 'produccionImpresion', 'produccionBarniz', 'produccionLaminado', 'produccionEstampado', 'produccionEmbozado', 'produccionTroquelado', 'produccionNumerado', 'produccionRebobinado', 'produccionEmpaque', 'produccionModoClaro', 'produccionModoOscuro', 'produccionHistorial', 'produccionVerOrden', 'produccionCambiarOperario', 'produccionEventosOrden', 'produccionEditarValor', 'produccionSuspenderProduccion', 'produccionControlAprobaciones', 'orderVendedor', 'orderVendedorHombre', 'orderVendedorMujer', 'orderMotivoVersiones', 'orderMotivoTintas', 'dashboardCapacitacion']);
+        const orderIconKeys = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit', 'orderCreationSummary', 'planningRefresh', 'planningProcessFlip', 'planningOpenGantt', 'planningEstimate', 'planningExpand', 'dashboardBusinessPartners', 'dashboardProducts', 'dashboardQuotes', 'dashboardNotifications', 'dashboardInventory', 'dashboardOrders', 'dashboardProduction', 'dashboardCosts', 'dashboardReports', 'dashboardSettings', 'dashboardPlanning', 'produccionCreacionOrden', 'produccionSolicitudVendedor', 'produccionPlanificacion', 'produccionDiseno', 'produccionPreprensa', 'produccionTintas', 'produccionVistoBueno', 'produccionSellos', 'produccionImpresion', 'produccionBarniz', 'produccionLaminado', 'produccionEstampado', 'produccionEmbozado', 'produccionTroquelado', 'produccionNumerado', 'produccionRebobinado', 'produccionEmpaque', 'produccionModoClaro', 'produccionModoOscuro', 'produccionHistorial', 'produccionVerOrden', 'produccionCambiarOperario', 'produccionEventosOrden', 'produccionEditarValor', 'produccionSuspenderProduccion', 'produccionControlAprobaciones', 'seguimientoModoClaro', 'seguimientoModoOscuro', 'seguimientoRefrescar', 'seguimientoAgregar', 'orderVendedor', 'orderVendedorHombre', 'orderVendedorMujer', 'orderMotivoVersiones', 'orderMotivoTintas', 'dashboardCapacitacion']);
         const iconKey = String(req.body?.key || '').trim();
         const iconValue = String(req.body?.value || '').trim();
         const general = req.body?.general && typeof req.body.general === 'object' && !Array.isArray(req.body.general)
@@ -20613,9 +20634,9 @@ app.post('/api/ordenes-produccion/:codigo/detencion', async (req, res) => {
             [codigo]
         ).catch(() => null);
 
-        // Recalcular la programación para que las órdenes que venían detrás se adelanten.
+        // La programación NO se rehace sola: el hueco que deja esta orden se ve en la
+        // vista previa del Reprogramador y Planeación decide si aplicarlo.
         invalidateFiniteCapacityCache();
-        aplicarProyeccionAOrdenProceso().catch(() => null);
 
         // Aviso al vendedor de la orden, en su hilo de conversación de siempre.
         if (accion === 'DETENER' || accion === 'ANULAR') {
@@ -21380,6 +21401,8 @@ app.get('/api/planificacion/seguimiento', async (req, res) => {
             ? (await pgQuery(`SELECT * FROM orden_planificacion WHERE codigo_orden = ANY($1::text[])`, [allOrderCodes])).rows
             : [];
         const planByOrder = new Map(planRows.map((p) => [p.codigo_orden, p]));
+        const bufferCostos = await pgQuery(`SELECT buffer_programacion_dias FROM costo_general LIMIT 1`)
+            .then((r) => Number(r.rows[0]?.buffer_programacion_dias ?? 2)).catch(() => 2);
 
         // ── Fuente de verdad de los datos del trabajo: el CÁLCULO del que salió la orden ──
         // La orden a veces no copió todas las columnas; el cálculo (flexo_calculations)
@@ -21800,6 +21823,14 @@ app.get('/api/planificacion/seguimiento', async (req, res) => {
                 productoTerminadoEn: op.producto_terminado_en || null,
                 fechaComprometidaBloqueada: !!op.fecha_comprometida_bloqueada,
                 alertaAtraso: !!op.alerta_atraso,
+                // Estimación guardada en la ficha de la orden (la usa el Reprogramador).
+                prioridad: op.prioridad || 'normal',
+                // Vacío = el buffer de Costos; con valor = lo que se fijó en Estimar.
+                bufferDias: op.dias_buffer_entrega == null ? null : Number(op.dias_buffer_entrega),
+                bufferCostos,
+                fechaForzada: op.fecha_forzada ? String(op.fecha_forzada instanceof Date ? op.fecha_forzada.toISOString() : op.fecha_forzada).slice(0, 10) : null,
+                fechaEntregaEstimada: op.fecha_entrega_estimada ? String(op.fecha_entrega_estimada instanceof Date ? op.fecha_entrega_estimada.toISOString() : op.fecha_entrega_estimada).slice(0, 10) : null,
+                estadoProgramacion: op.estado_programacion || null,
                 detencion: row.estado_detencion ? {
                     estado: row.estado_detencion,
                     motivoEtiqueta: row.detencion_motivo_etiqueta || '',
@@ -21916,7 +21947,7 @@ app.get('/api/planificacion/procesos', async (req, res) => {
                    p.etiqueta AS process_name,
                    p.orden AS orden_secuencia,
                    p.color_gantt AS color_hex,
-                   '[P]' AS icono,
+                   ''::text AS icono,
                    p.proceso_paralelo AS es_paralelo,
                    p.gantt_habilitado AS activo,
                    p.calendario_id,
@@ -22028,7 +22059,7 @@ app.post('/api/planificacion/procesos', async (req, res) => {
                 icon_key AS icono,
                 is_parallel AS es_paralelo,
                 is_active AS activo
-        `, [processKey, nombre, Number(orden_secuencia), color_hex || '#378ADD', icono || '[P]', Boolean(es_paralelo), activo !== false, calendario_id || null]);
+        `, [processKey, nombre, Number(orden_secuencia), color_hex || '#378ADD', icono || '', Boolean(es_paralelo), activo !== false, calendario_id || null]);
         res.json({ ok: true, data: result.rows[0] });
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible crear el proceso de planificación.' });
@@ -22146,7 +22177,7 @@ app.delete('/api/planificacion/procesos/:id/maquinas/:asignacionId', async (req,
 app.get('/api/costos/procesos/maquinas', async (req, res) => {
     try {
         const result = await pgQuery(`
-            SELECT pm.id, pm.proceso_key, pm.proceso_id, pm.maquina_id, pm.calendario_id, m.nombre AS maquina_nombre, c.nombre AS calendario_nombre
+            SELECT pm.id, pm.proceso_key, pm.proceso_id, pm.maquina_id, pm.calendario_id, m.nombre AS maquina_nombre, c.calendar_name AS calendario_nombre
             FROM proceso_maquina pm
             JOIN maquina m ON m.id = pm.maquina_id
             LEFT JOIN resource_calendars c ON c.id = pm.calendario_id
@@ -22164,8 +22195,10 @@ app.post('/api/costos/procesos/:key/maquinas', async (req, res) => {
         if (!maquina_id) return res.status(400).json({ ok: false, error: 'Debes elegir una máquina.' });
         await pgQuery(`
             INSERT INTO proceso_maquina (proceso_key, maquina_id, calendario_id)
-            VALUES ($1, $2::uuid, $3::uuid)
+            SELECT $1, $2::uuid, $3::uuid
+             WHERE NOT EXISTS (SELECT 1 FROM proceso_maquina WHERE proceso_key = $1 AND maquina_id = $2::uuid)
         `, [req.params.key, maquina_id, calendario_id || null]);
+        invalidateFiniteCapacityCache();
         res.json({ ok: true });
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible asignar la máquina.' });
@@ -22348,6 +22381,75 @@ app.put('/api/planificacion/maquinas/:id/especificaciones', async (req, res) => 
     }
 });
 
+// Horario real de cada recurso del Gantt (máquina+proceso o proceso sin máquina), día
+// por día: franjas de trabajo y, cuando no se trabaja, por qué (feriado, domingo, sin
+// turno, excepción) y si hay mantenimiento. Con esto el Gantt explica cada pausa de una
+// barra. Misma fuente que el motor: disponibilidadRecursoEnDia.
+app.get('/api/planificacion/gantt/horarios', async (req, res) => {
+    try {
+        const desde = capacityDateKey(req.query.desde || new Date());
+        let hasta = capacityDateKey(req.query.hasta || '') || capacityAddDays(desde, 30);
+        if (hasta > capacityAddDays(desde, 120)) hasta = capacityAddDays(desde, 120);
+        const [feriados, nombresFeriados, shiftsRes, excRes, recursosRes, mantenimientos, horasExtra] = await Promise.all([
+            cargarFeriados(),
+            pgQuery(`SELECT fecha::text AS fecha, recurrente, nombre FROM dias_feriados WHERE activo = TRUE`),
+            pgQuery(`SELECT * FROM resource_shifts WHERE is_active = TRUE`),
+            pgQuery(`SELECT * FROM resource_calendar_exceptions WHERE is_active = TRUE`),
+            pgQuery(SQL_RECURSOS_CADENA),
+            cargarMantenimientos(desde, hasta),
+            cargarHorasExtra(desde, hasta)
+        ]);
+        const turnosPorCalendario = new Map();
+        shiftsRes.rows.forEach((row) => {
+            const k = String(row.calendar_id);
+            if (!turnosPorCalendario.has(k)) turnosPorCalendario.set(k, []);
+            turnosPorCalendario.get(k).push({ ...row, valid_from: capacityDateKey(row.valid_from) || '0000-01-01', valid_to: row.valid_to ? capacityDateKey(row.valid_to) : null });
+        });
+        const excepcionesPorCalendario = new Map();
+        excRes.rows.forEach((row) => {
+            const k = String(row.calendar_id);
+            if (!excepcionesPorCalendario.has(k)) excepcionesPorCalendario.set(k, new Map());
+            excepcionesPorCalendario.get(k).set(capacityDateKey(row.exception_date), row);
+        });
+        const feriadoNombre = (dk) => {
+            const f = nombresFeriados.rows.find((x) => (x.recurrente ? x.fecha.slice(5) === dk.slice(5) : x.fecha.slice(0, 10) === dk));
+            return f ? f.nombre : null;
+        };
+        const contexto = { turnosPorCalendario, excepcionesPorCalendario, feriados, mantenimientos, horasExtra };
+        const recursos = {};
+        recursosRes.rows.forEach((row) => {
+            const proceso = canonicalProductionFlowKey(row.process_key);
+            const recurso = {
+                calendarId: row.calendar_id ? String(row.calendar_id) : '',
+                maquinaId: row.maquina_id ? String(row.maquina_id) : '',
+                processKey: proceso,
+                scenarioAdjustment: {}
+            };
+            const dias = [];
+            for (let dk = desde; dk <= hasta; dk = capacityAddDays(dk, 1)) {
+                const franjas = disponibilidadRecursoEnDia(recurso, dk, contexto);
+                const dia = { fecha: dk, franjas: franjas.map((f) => [capacityDateAtHour(dk, f.startHour).toISOString(), capacityDateAtHour(dk, f.endHour).toISOString()]) };
+                if (!franjas.length) {
+                    const excepcion = recurso.calendarId ? excepcionesPorCalendario.get(recurso.calendarId)?.get(dk) : null;
+                    if (esFeriado(feriados, dk)) dia.motivo = `feriado${feriadoNombre(dk) ? ` (${feriadoNombre(dk)})` : ''}`;
+                    else if (excepcion) dia.motivo = excepcion.description || 'día cerrado en el calendario';
+                    else if (!recurso.calendarId) dia.motivo = 'sin horario';
+                    else dia.motivo = new Date(`${dk}T00:00:00.000Z`).getUTCDay() === 0 ? 'domingo' : 'sin turno ese día';
+                }
+                const mant = recurso.maquinaId ? mantenimientos.get(recurso.maquinaId) : null;
+                if (mant && mant.horas > 0 && mant.fechas.has(dk)) dia.mantenimiento = mant.horas;
+                dias.push(dia);
+            }
+            const clave = recurso.maquinaId ? `m:${recurso.maquinaId}|${proceso}` : `p:${proceso}`;
+            recursos[clave] = { nombre: row.resource_name, dias };
+            if (recurso.maquinaId && !recursos[`m:${recurso.maquinaId}`]) recursos[`m:${recurso.maquinaId}`] = recursos[clave];
+        });
+        res.json({ ok: true, desde, hasta, recursos });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible leer los horarios.' });
+    }
+});
+
 app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
     try {
         const [machinesResult, routesResult, procesosResult] = await Promise.all([
@@ -22356,19 +22458,19 @@ app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
                        m.id::text AS id_maquina,
                        m.nombre AS nombre_recurso,
                        m.nombre AS name,
-                       p.process_key,
-                       p.process_name AS proceso_nombre,
-                       p.id AS id_proceso,
-                       p.sequence_order AS orden_secuencia,
-                       p.color_hex,
-                       p.icon_key AS proceso_icono,
-                       pm.calendario_id,
+                       c.proceso_key AS process_key,
+                       c.etiqueta AS proceso_nombre,
+                       c.proceso_key AS id_proceso,
+                       c.orden AS orden_secuencia,
+                       c.color_gantt AS color_hex,
+                       ''::text AS proceso_icono,
+                       COALESCE(pm.calendario_id, c.calendario_id) AS calendario_id,
                        rc.calendar_name AS calendario_nombre
                 FROM proceso_maquina pm
                 JOIN maquina m ON m.id = pm.maquina_id
-                JOIN production_process_definitions p ON p.id = pm.proceso_id
-                LEFT JOIN resource_calendars rc ON rc.id = pm.calendario_id
-                WHERE p.is_active = TRUE
+                JOIN costo_proceso_defaults c ON c.proceso_key = pm.proceso_key
+                LEFT JOIN resource_calendars rc ON rc.id = COALESCE(pm.calendario_id, c.calendario_id)
+                WHERE c.activo = TRUE AND c.gantt_habilitado = TRUE
                 ORDER BY orden_secuencia, nombre_recurso
             `),
             pgQuery(`
@@ -22387,6 +22489,15 @@ app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
                     opm.maquina_id AS maquina,
                     COALESCE(r.datos_extra->>'capacityResourceName', r.nombre_maquina, o.machine_name) AS maquina_nombre,
                     COALESCE((r.datos_extra->>'start_turn_hour')::numeric, 0) AS inicio,
+                    r.fecha_plan_inicio,
+                    r.fecha_plan_fin,
+                    opm.fecha_real_inicio,
+                    opm.fecha_real_fin,
+                    COALESCE(r.bloqueo_manual, FALSE) AS bloqueo_manual,
+                    r.datos_extra->>'manualLockBy' AS bloqueo_por,
+                    r.datos_extra->>'manualLockAt' AS bloqueo_en,
+                    opl.fecha_entrega_estimada,
+                    opl.estado_programacion,
                     COALESCE(r.duracion_horas, 0) AS dur,
                     r.transicion_min AS trans_costo,
                     COALESCE(NULLIF(dep.datos_extra->>'migrado_de_route_id',''), dep.id::text) AS dep_ruta_id,
@@ -22405,21 +22516,16 @@ app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
                         ELSE NULL::text
                     END AS alerta,
                     o.raw_data->'planning_control'->>'productionEndDate' AS fecha_fin_produccion,
-                    COALESCE(
-                        opl.fecha_entrega_programada::timestamptz,
-                        opl.fecha_entrega_prometida::timestamptz,
-                        NULLIF(o.raw_data->'quote_snapshot'->>'due_on', '')::timestamptz,
-                        NULLIF(o.raw_data->'line_snapshot'->>'dueOn', '')::timestamptz
-                    ) AS fecha_entrega_prometida
+                    opl.fecha_entrega_prometida::text AS fecha_entrega_prometida
                 FROM vista_orden_proceso r
                 JOIN flexo_orders o ON o.order_code = r.codigo_orden
                 LEFT JOIN orden_planificacion opl ON opl.codigo_orden = r.codigo_orden
                 LEFT JOIN production_resources cap_res ON cap_res.id::text = r.datos_extra->>'capacityResourceId'
                 LEFT JOIN orden_proceso opm ON opm.id = r.id
                 LEFT JOIN orden_proceso dep ON dep.id = r.depende_de_id
-                WHERE COALESCE(r.clave_proceso, '') <> 'acabados'
-                  AND lower(COALESCE(r.nombre_proceso, '')) <> 'acabados'
-                  AND NOT EXISTS (
+                JOIN costo_proceso_defaults cpd
+                  ON cpd.proceso_key = r.clave_proceso AND cpd.activo = TRUE AND cpd.gantt_habilitado = TRUE
+                WHERE NOT EXISTS (
                     SELECT 1
                     FROM flexo_orders ox
                     WHERE ox.order_code = o.order_code
@@ -22428,21 +22534,21 @@ app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
                         OR lower(COALESCE(ox.order_status, ox.raw_data->>'status','')) IN ('entregada','completada','cerrada','cancelada')
                       )
                 )
-                ORDER BY r.secuencia, r.nombre_maquina NULLS LAST, r.codigo_orden
+                ORDER BY cpd.orden, r.nombre_maquina NULLS LAST, r.codigo_orden
             `),
             pgQuery(`
-                SELECT p.id AS id_proceso,
-                       p.process_key,
-                       p.process_name AS nombre,
-                       p.sequence_order AS orden_secuencia,
-                       p.color_hex,
-                       p.icon_key AS icono,
-                       p.calendario_id,
+                SELECT c.proceso_key AS id_proceso,
+                       c.proceso_key AS process_key,
+                       c.etiqueta AS nombre,
+                       c.orden AS orden_secuencia,
+                       c.color_gantt AS color_hex,
+                       ''::text AS icono,
+                       c.calendario_id,
                        rc.calendar_name AS calendario_nombre
-                FROM production_process_definitions p
-                LEFT JOIN resource_calendars rc ON rc.id = p.calendario_id
-                WHERE p.is_active = TRUE
-                ORDER BY p.sequence_order, p.process_name
+                FROM costo_proceso_defaults c
+                LEFT JOIN resource_calendars rc ON rc.id = c.calendario_id
+                WHERE c.activo = TRUE AND c.gantt_habilitado = TRUE
+                ORDER BY c.orden, c.etiqueta
             `)
         ]);
 
@@ -22506,6 +22612,16 @@ app.patch('/api/planificacion/gantt/mover', async (req, res) => {
             ...(route_payload_updates || {}),
             ...capacityResourceUpdate
         };
+        // Fijar a mano: queda registrado quién y cuándo (lo muestran el Gantt y el Reprogramador).
+        if (route_payload_updates && Object.prototype.hasOwnProperty.call(route_payload_updates, 'manualLock')) {
+            if (route_payload_updates.manualLock) {
+                mergedRoutePayloadUpdates.manualLockBy = getRequestUserName(req, 'Planeación');
+                mergedRoutePayloadUpdates.manualLockAt = new Date().toISOString();
+            } else {
+                mergedRoutePayloadUpdates.manualLockBy = null;
+                mergedRoutePayloadUpdates.manualLockAt = null;
+            }
+        }
         if (inicio !== undefined) mergedRoutePayloadUpdates.start_turn_hour = Number(inicio);
         // id_ruta puede ser el id de orden_proceso o el route_id viejo migrado.
         const proc = await resolverOrdenProceso(id_ruta);
@@ -22569,8 +22685,8 @@ app.post('/api/planificacion/compromisos/recalcular', async (req, res) => {
             const r = await recalcularCompromisos(row.codigo_orden).catch(() => ({ ok: false }));
             if (r.ok) ok += 1; else sin += 1;
         }
-        const proy = await aplicarProyeccionAOrdenProceso().catch(() => ({ ok: false }));
-        res.json({ ok: true, total: rows.length, recalculadas: ok, sinDatos: sin, proyeccion: proy });
+        // Solo fechas compromiso; la programación se aplica desde el Reprogramador.
+        res.json({ ok: true, total: rows.length, recalculadas: ok, sinDatos: sin });
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible recalcular compromisos.' });
     }
@@ -22984,10 +23100,123 @@ app.put('/api/planificacion/recursos/:id/competencias', async (req, res) => {
 });
 
 // ── Feriados nacionales (dias_feriados) — usados por el scheduler y el retroceso ──
+// personalizado = true → lo agregó alguien desde la pantalla (no viene de la semilla
+// ni de la sincronización con date.nager.at); la pantalla lo destaca.
+// Programación: la tabla de Costos es la fuente única de procesos. Las máquinas se
+// ligan al proceso por proceso_key (antes solo por el id de la tabla vieja).
+async function ensureProgramacionSchema() {
+    // Las personas vienen de la orden (del cálculo), no de un valor fijo en Costos.
+    await pgQuery(`ALTER TABLE costo_proceso_defaults DROP COLUMN IF EXISTS personas_disponibles`);
+    await pgQuery(`ALTER TABLE costo_general ADD COLUMN IF NOT EXISTS buffer_programacion_dias INTEGER NOT NULL DEFAULT 2`);
+    // Procesos que deben terminar dentro del mismo turno (Impresión: no se parte entre
+    // turnos) y la holgura mínima que debe sobrar para iniciarlos.
+    await pgQuery(`ALTER TABLE costo_general ADD COLUMN IF NOT EXISTS holgura_turno_minutos INTEGER NOT NULL DEFAULT 15`);
+    const colTurno = await pgQuery(`SELECT 1 FROM information_schema.columns WHERE table_name = 'costo_proceso_defaults' AND column_name = 'terminar_en_turno'`);
+    if (!colTurno.rows.length) {
+        await pgQuery(`ALTER TABLE costo_proceso_defaults ADD COLUMN terminar_en_turno BOOLEAN NOT NULL DEFAULT FALSE`);
+        await pgQuery(`UPDATE costo_proceso_defaults SET terminar_en_turno = TRUE WHERE proceso_key = 'impresion'`);
+    }
+    // Personas de Empaque: viven en la orden (empaque_operarios; la vigente la corrige
+    // producción). Si falta, se trae del cálculo; y al producto, de su orden o cálculo.
+    await pgQuery(`
+        UPDATE flexo_orders o
+           SET empaque_operarios = c.empaque_operarios
+          FROM (SELECT DISTINCT ON (quote_code, line_code) quote_code, line_code, empaque_operarios
+                  FROM flexo_calculations WHERE empaque_operarios > 0
+                 ORDER BY quote_code, line_code, created_at DESC) c
+         WHERE o.empaque_operarios IS NULL AND c.quote_code = o.quote_code AND c.line_code = o.line_code
+    `);
+    await pgQuery(`
+        UPDATE flexo_products p
+           SET empaque_operarios = COALESCE(
+                (SELECT o.empaque_operarios FROM flexo_orders o WHERE o.product_code = p.product_code AND o.empaque_operarios > 0 ORDER BY o.created_at DESC LIMIT 1),
+                (SELECT c.empaque_operarios FROM flexo_calculations c WHERE c.product_code = p.product_code AND c.empaque_operarios > 0 ORDER BY c.created_at DESC LIMIT 1))
+         WHERE p.empaque_operarios IS NULL
+    `);
+    // Buffer por orden: vacío = usa el de Costos; solo Estimar le pone un valor propio
+    // (incluido 0). Al migrar, los 0 que nadie estimó pasan a vacío (una sola vez).
+    const bufferCol = await pgQuery(`SELECT is_nullable FROM information_schema.columns WHERE table_name = 'orden_planificacion' AND column_name = 'dias_buffer_entrega'`);
+    if (bufferCol.rows[0]?.is_nullable === 'NO') {
+        await pgQuery(`ALTER TABLE orden_planificacion ALTER COLUMN dias_buffer_entrega DROP NOT NULL, ALTER COLUMN dias_buffer_entrega DROP DEFAULT`);
+        await pgQuery(`UPDATE orden_planificacion SET dias_buffer_entrega = NULL WHERE dias_buffer_entrega = 0 AND estimado_en IS NULL`);
+    }
+    // Resultado del reprogramador, en la ficha de la orden (fuente única).
+    await pgQuery(`ALTER TABLE orden_planificacion
+        ADD COLUMN IF NOT EXISTS fecha_entrega_estimada DATE,
+        ADD COLUMN IF NOT EXISTS estado_programacion TEXT,
+        ADD COLUMN IF NOT EXISTS programado_en TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS fecha_forzada DATE,
+        ADD COLUMN IF NOT EXISTS fecha_forzada_por TEXT,
+        ADD COLUMN IF NOT EXISTS fecha_forzada_en TIMESTAMPTZ`);
+    // Horas extra aprobadas, con vigencia: solo cuentan en ese rango y esos días.
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS horas_extra (
+            id SERIAL PRIMARY KEY,
+            proceso_key TEXT,
+            maquina_id UUID REFERENCES maquina(id) ON DELETE CASCADE,
+            fecha_desde DATE NOT NULL,
+            fecha_hasta DATE NOT NULL,
+            dias_semana INTEGER[] NOT NULL DEFAULT '{1,2,3,4,5,6}',
+            horas NUMERIC(5,2) NOT NULL CHECK (horas > 0),
+            motivo TEXT,
+            aprobado_por TEXT,
+            activo BOOLEAN NOT NULL DEFAULT TRUE,
+            creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            creado_por TEXT,
+            CHECK (fecha_hasta >= fecha_desde),
+            CHECK (proceso_key IS NOT NULL OR maquina_id IS NOT NULL)
+        )`);
+    // Clase del cliente (A/B/C): los clientes que más producen van primero.
+    await pgQuery(`ALTER TABLE business_partners ADD COLUMN IF NOT EXISTS clase_cliente TEXT`);
+    // Detalle por orden de cada reprogramación (historial y métricas de atraso).
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS reprogramacion_orden (
+            id SERIAL PRIMARY KEY,
+            log_id INTEGER NOT NULL,
+            codigo_orden TEXT NOT NULL,
+            fecha_cliente DATE,
+            fecha_comprometida_antes DATE,
+            fecha_comprometida_despues DATE,
+            dias INTEGER,
+            estado TEXT,
+            prioridad TEXT,
+            buffer_dias INTEGER,
+            vendedor TEXT,
+            correo TEXT,
+            notificado BOOLEAN NOT NULL DEFAULT FALSE,
+            creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_reprogramacion_orden_codigo ON reprogramacion_orden (codigo_orden)`);
+    // Registro de cada reprogramación aplicada, con lo que había antes (para deshacer).
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS reprogramacion_log (
+            id SERIAL PRIMARY KEY,
+            creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            usuario TEXT,
+            resumen JSONB NOT NULL DEFAULT '{}'::jsonb,
+            rutas JSONB NOT NULL DEFAULT '[]'::jsonb,
+            ordenes JSONB NOT NULL DEFAULT '[]'::jsonb,
+            deshecho_en TIMESTAMPTZ,
+            deshecho_por TEXT
+        )`);
+    await pgQuery(`ALTER TABLE reprogramacion_log ADD COLUMN IF NOT EXISTS motivo TEXT, ADD COLUMN IF NOT EXISTS comentario TEXT`);
+    await pgQuery(`ALTER TABLE proceso_maquina ALTER COLUMN proceso_id DROP NOT NULL`);
+    await pgQuery(`
+        UPDATE proceso_maquina pm
+           SET proceso_key = p.process_key
+          FROM production_process_definitions p
+         WHERE p.id = pm.proceso_id AND (pm.proceso_key IS NULL OR pm.proceso_key = '')
+    `);
+}
+
+async function ensureFeriadosSchema() {
+    await pgQuery(`ALTER TABLE dias_feriados ADD COLUMN IF NOT EXISTS personalizado BOOLEAN NOT NULL DEFAULT false`);
+}
+
 app.get('/api/planificacion/feriados', async (req, res) => {
     try {
         const { rows } = await pgQuery(
-            `SELECT id, fecha::text AS fecha, nombre, recurrente, activo
+            `SELECT id, fecha::text AS fecha, nombre, recurrente, activo, personalizado
                FROM dias_feriados ORDER BY recurrente DESC, fecha`
         );
         res.json({ ok: true, data: rows });
@@ -23004,10 +23233,10 @@ app.post('/api/planificacion/feriados', async (req, res) => {
             return res.status(400).json({ ok: false, error: 'fecha (YYYY-MM-DD) y nombre son requeridos.' });
         }
         const { rows } = await pgQuery(
-            `INSERT INTO dias_feriados (fecha, nombre, recurrente, activo)
-             VALUES ($1::date, $2, $3, $4)
-             ON CONFLICT (fecha) DO UPDATE SET nombre = EXCLUDED.nombre, recurrente = EXCLUDED.recurrente, activo = EXCLUDED.activo
-             RETURNING id, fecha::text AS fecha, nombre, recurrente, activo`,
+            `INSERT INTO dias_feriados (fecha, nombre, recurrente, activo, personalizado)
+             VALUES ($1::date, $2, $3, $4, true)
+             ON CONFLICT (fecha) DO UPDATE SET nombre = EXCLUDED.nombre, recurrente = EXCLUDED.recurrente, activo = EXCLUDED.activo, personalizado = true
+             RETURNING id, fecha::text AS fecha, nombre, recurrente, activo, personalizado`,
             [fecha, nombre, req.body?.recurrente !== false, req.body?.activo !== false]
         );
         res.json({ ok: true, data: rows[0] });
@@ -23025,7 +23254,7 @@ app.put('/api/planificacion/feriados/:id', async (req, res) => {
                 recurrente = COALESCE($4, recurrente),
                 activo = COALESCE($5, activo)
               WHERE id = $1
-              RETURNING id, fecha::text AS fecha, nombre, recurrente, activo`,
+              RETURNING id, fecha::text AS fecha, nombre, recurrente, activo, personalizado`,
             [
                 req.params.id,
                 /^\d{4}-\d{2}-\d{2}$/.test(String(req.body?.fecha || '').slice(0, 10)) ? String(req.body.fecha).slice(0, 10) : null,
@@ -23161,7 +23390,7 @@ app.get('/api/planificacion/calendarios', async (req, res) => {
 // qué se le viene encima aunque no haya hecho ninguna preparación manual.
 app.get('/api/planificacion/calendarios/proximos-eventos', async (req, res) => {
     try {
-        const dias = Math.min(30, Math.max(1, Number(req.query.dias) || 4));
+        const dias = Math.min(92, Math.max(1, Number(req.query.dias) || 4));
         const today = capacityDateKey(new Date());
         const endDate = capacityDateKey(capacityAddDays(today, dias - 1));
         const [exceptionsRes, calendarsRes] = await Promise.all([
@@ -23557,13 +23786,20 @@ function esFeriado(feriados, dateKey) {
 //   6. Turnos del calendario para ese día de semana
 //   7. Fallback: L–V, 07:00 + capacityMinutes del proceso
 //   (+ extraHoursPerDay del escenario se suma a la última franja)
+// Recursos programables — ÚNICA fuente: la tabla "Procesos del Cálculo" de Costos
+// (costo_proceso_defaults). Solo entran los procesos activos con el check "Activo
+// en Gantt". Las máquinas se ligan al proceso por proceso_key; el horario es el de
+// la máquina si tiene, si no el del proceso. Un proceso sin máquinas es un recurso
+// estación de la línea (p. ej. Empaque): trabaja una orden a la vez, con las
+// personas que indica la orden (empaque_operarios, que viene del cálculo).
 const SQL_RECURSOS_CADENA = `
     SELECT pm.id::text AS id,
            m.nombre AS resource_code,
            m.nombre AS resource_name,
            'machine' AS resource_type,
-           p.process_key,
-           p.process_name,
+           c.proceso_key AS process_key,
+           c.etiqueta AS process_name,
+           c.orden AS process_order,
            m.id AS maquina_id,
            (SELECT mp.id FROM production_machine_profiles mp
              WHERE mp.machine_id = m.id AND mp.is_active = TRUE
@@ -23571,37 +23807,149 @@ const SQL_RECURSOS_CADENA = `
            (SELECT mp.oee_target FROM production_machine_profiles mp
              WHERE mp.machine_id = m.id AND mp.is_active = TRUE
              ORDER BY mp.updated_at DESC LIMIT 1) AS oee_target,
-           pm.calendario_id AS calendar_id
+           COALESCE(pm.calendario_id, c.calendario_id) AS calendar_id,
+           1 AS capacity_units
     FROM proceso_maquina pm
     JOIN maquina m ON m.id = pm.maquina_id
-    JOIN production_process_definitions p ON p.id = pm.proceso_id
-    WHERE p.is_active = TRUE
+    JOIN costo_proceso_defaults c ON c.proceso_key = pm.proceso_key
+    WHERE c.activo = TRUE AND c.gantt_habilitado = TRUE AND COALESCE(m.activa, TRUE) = TRUE
     UNION ALL
-    SELECT 'proceso:' || p.id::text AS id,
-           p.process_name AS resource_code,
-           p.process_name AS resource_name,
+    SELECT 'proceso:' || c.proceso_key AS id,
+           c.etiqueta AS resource_code,
+           c.etiqueta AS resource_name,
            'process' AS resource_type,
-           p.process_key,
-           p.process_name,
+           c.proceso_key AS process_key,
+           c.etiqueta AS process_name,
+           c.orden AS process_order,
            NULL::uuid AS maquina_id,
            NULL::uuid AS machine_profile_id,
            NULL::numeric AS oee_target,
-           p.calendario_id AS calendar_id
-    FROM production_process_definitions p
-    WHERE p.is_active = TRUE
-      AND NOT EXISTS (SELECT 1 FROM proceso_maquina pm WHERE pm.proceso_id = p.id)
+           c.calendario_id AS calendar_id,
+           -- Estación de la línea (p. ej. Empaque): una orden a la vez.
+           1 AS capacity_units
+    FROM costo_proceso_defaults c
+    WHERE c.activo = TRUE AND c.gantt_habilitado = TRUE
+      AND NOT EXISTS (SELECT 1 FROM proceso_maquina pm WHERE pm.proceso_key = c.proceso_key)
 `;
+
+// Procesos que se programan (check "Activo en Gantt"), en el orden de Costos.
+async function cargarProcesosProgramables() {
+    const { rows } = await pgQuery(`
+        SELECT proceso_key, etiqueta, orden, calendario_id, proceso_paralelo, color_gantt, terminar_en_turno
+          FROM costo_proceso_defaults
+         WHERE activo = TRUE AND gantt_habilitado = TRUE
+         ORDER BY orden, etiqueta
+    `);
+    return rows.map((row) => ({ ...row, clave: canonicalProductionFlowKey(row.proceso_key) }));
+}
+
+// ── Mantenimiento de máquinas (inventario → Calendario de mantenimientos) ──
+// Misma regla que la pantalla (catalogo.js → mantCalcularOcurrencias): semanal o
+// bisemanal desde fecha_inicio en su día; mensual = n-ésimo día de la semana del mes
+// (5 = el último). Las excepciones desactivan o mueven una fecha puntual.
+// El mantenimiento arranca al inicio del turno de ese día y dura duracion_horas.
+function mantenimientoFechasPlan(plan, excepciones, desde, hasta) {
+    const inicio = capacityDateKey(plan.fecha_inicio);
+    if (!inicio) return new Set();
+    const fin = plan.fecha_fin ? capacityDateKey(plan.fecha_fin) : null;
+    const limite = fin && fin < hasta ? fin : hasta;
+    const jsDay = Number(plan.dia_semana) === 7 ? 0 : (Number(plan.dia_semana) || 1);
+    const fechas = new Set();
+    const utc = (k) => new Date(`${k}T00:00:00.000Z`);
+    const clave = (d) => d.toISOString().slice(0, 10);
+    if (plan.frecuencia === 'mensual') {
+        const semana = Number(plan.semana_mes) || 1;
+        const d0 = utc(inicio);
+        for (let y = d0.getUTCFullYear(), m = d0.getUTCMonth(), g = 0; g < 600; g += 1) {
+            let d;
+            if (semana === 5) {
+                d = new Date(Date.UTC(y, m + 1, 0));
+                d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() - jsDay + 7) % 7));
+            } else {
+                d = new Date(Date.UTC(y, m, 1));
+                d.setUTCDate(d.getUTCDate() + ((jsDay - d.getUTCDay() + 7) % 7) + (semana - 1) * 7);
+                if (d.getUTCMonth() !== m) d = null;
+            }
+            if (d) {
+                const k = clave(d);
+                if (k > limite) break;
+                if (k >= inicio) fechas.add(k);
+            }
+            m += 1; if (m > 11) { m = 0; y += 1; }
+            if (clave(new Date(Date.UTC(y, m, 1))) > limite) break;
+        }
+    } else {
+        const paso = plan.frecuencia === 'bisemanal' ? 14 : 7;
+        const d = utc(inicio);
+        d.setUTCDate(d.getUTCDate() + ((jsDay - d.getUTCDay() + 7) % 7));
+        for (let g = 0; g < 2000 && clave(d) <= limite; g += 1) {
+            fechas.add(clave(d));
+            d.setUTCDate(d.getUTCDate() + paso);
+        }
+    }
+    (excepciones || []).forEach((e) => {
+        const original = capacityDateKey(e.fecha_original);
+        if (!fechas.has(original)) return;
+        fechas.delete(original);
+        if (e.tipo === 'mover' && e.fecha_nueva) fechas.add(capacityDateKey(e.fecha_nueva));
+    });
+    return new Set([...fechas].filter((k) => k >= desde && k <= hasta));
+}
+
+// Horas extra vigentes que tocan el rango pedido (dias_semana: 0=domingo … 6=sábado).
+async function cargarHorasExtra(desde, hasta) {
+    const { rows } = await pgQuery(`
+        SELECT id, proceso_key, maquina_id::text, fecha_desde::text, fecha_hasta::text, dias_semana, horas::float AS horas
+          FROM horas_extra
+         WHERE activo = TRUE AND fecha_hasta >= $1::date AND fecha_desde <= $2::date
+    `, [desde, hasta]);
+    return rows;
+}
+
+function horasExtraDelDia(recurso, dateKey, horasExtra) {
+    if (!Array.isArray(horasExtra) || !horasExtra.length) return 0;
+    const dow = new Date(`${dateKey}T00:00:00.000Z`).getUTCDay();
+    const proceso = recurso.processKey ? canonicalProductionFlowKey(recurso.processKey) : '';
+    return horasExtra
+        .filter((h) => dateKey >= h.fecha_desde && dateKey <= h.fecha_hasta
+            && (h.dias_semana || []).map(Number).includes(dow)
+            && ((h.maquina_id && recurso.maquinaId && String(h.maquina_id) === String(recurso.maquinaId))
+                || (!h.maquina_id && h.proceso_key && proceso && canonicalProductionFlowKey(h.proceso_key) === proceso)))
+        .reduce((sum, h) => sum + Math.max(0, Number(h.horas || 0)), 0);
+}
+
+// Map maquina_id → { fechas:Set<YYYY-MM-DD>, horas } para el rango pedido.
+async function cargarMantenimientos(desde, hasta) {
+    const [planes, excepciones] = await Promise.all([
+        pgQuery(`SELECT maquina_id::text, frecuencia, dia_semana, semana_mes, fecha_inicio, fecha_fin, duracion_horas
+                   FROM maquina_mantenimiento WHERE activo = TRUE`),
+        pgQuery(`SELECT maquina_id::text, fecha_original, tipo, fecha_nueva FROM maquina_mantenimiento_excepcion`)
+    ]);
+    const mapa = new Map();
+    for (const plan of planes.rows) {
+        const excs = excepciones.rows.filter((e) => e.maquina_id === plan.maquina_id);
+        mapa.set(plan.maquina_id, {
+            fechas: mantenimientoFechasPlan(plan, excs, desde, hasta),
+            horas: Math.max(0, Number(plan.duracion_horas || 0))
+        });
+    }
+    return mapa;
+}
+
 
 function disponibilidadRecursoEnDia(recurso, dateKey, contexto = {}) {
     const {
         turnosPorCalendario = new Map(),
         excepcionesPorCalendario = new Map(),
         feriados = null,
-        costsConfig = {},
-        procesoClave = ''
+        mantenimientos = null,
+        horasExtra = null
     } = contexto;
 
-    if (esFeriado(feriados, dateKey)) return [];
+    // Niveles: 1) horas extra (siempre cuentan, incluso en feriado o día sin turno);
+    // 2) el turno de ese día de la semana (si el turno incluye domingo, el domingo se
+    // trabaja); 3) feriados y días sin turno, que cierran el turno regular.
+    const feriado = esFeriado(feriados, dateKey);
 
     const adjustment = recurso.scenarioAdjustment || {};
     const closedDates = new Set(
@@ -23625,10 +23973,12 @@ function disponibilidadRecursoEnDia(recurso, dateKey, contexto = {}) {
     const hasOverrideHours = exception
         && exception.override_start_hour !== null
         && exception.override_end_hour !== null;
-    if (exception && !hasOverrideHours) return [];
+    const cerradoPorCalendario = Boolean(exception && !hasOverrideHours);
 
     let intervals = [];
-    if (hasOverrideHours) {
+    if (feriado || cerradoPorCalendario) {
+        intervals = []; // el turno regular no aplica; solo cuentan horas extra (abajo)
+    } else if (hasOverrideHours) {
         intervals = [{
             startHour: Number(exception.override_start_hour),
             endHour: Number(exception.override_end_hour)
@@ -23641,11 +23991,33 @@ function disponibilidadRecursoEnDia(recurso, dateKey, contexto = {}) {
             .map((shift) => ({ startHour: Number(shift.start_hour), endHour: Number(shift.end_hour) }));
     }
 
-    if (!intervals.length && day >= 1 && day <= 5) {
-        const processDefault = procesoClave ? findCostProcessDefault(costsConfig, procesoClave) : null;
-        const capacityMin = Number(processDefault?.capacityMinutes || 480);
-        const hoursFromDefault = Math.max(1, capacityMin / 60);
-        intervals = [{ startHour: 7, endHour: Math.min(24, 7 + hoursFromDefault) }];
+    // Sin horario no hay disponibilidad: el recurso no se programa y se avisa
+    // (ya no se inventa un turno de lunes a viernes de 7:00 a 15:00).
+
+    // Horas extra aprobadas (con vigencia): alargan el turno de ese día; en un día sin
+    // turno (p. ej. domingo) abren uno desde las 6:00.
+    const extra = horasExtraDelDia(recurso, dateKey, horasExtra);
+    if (extra > 0) {
+        if (intervals.length) {
+            intervals = intervals.slice().sort((a, b) => a.startHour - b.startHour);
+            const last = intervals[intervals.length - 1];
+            intervals[intervals.length - 1] = { startHour: last.startHour, endHour: Math.min(24, last.endHour + extra) };
+        } else {
+            // Día sin turno (domingo, feriado…): las horas extra empiezan a la hora en que
+            // arranca normalmente el turno de ese recurso (6:00 si no tiene turno).
+            const turnos = recurso.calendarId ? (turnosPorCalendario.get(recurso.calendarId) || []) : [];
+            const inicio = turnos.length ? Math.min(...turnos.map((t) => Number(t.start_hour))) : 6;
+            intervals = [{ startHour: inicio, endHour: Math.min(24, inicio + extra) }];
+        }
+    }
+
+    // Mantenimiento de la máquina: ocupa el inicio del turno de ese día.
+    const mant = recurso.maquinaId && mantenimientos ? mantenimientos.get(String(recurso.maquinaId)) : null;
+    if (mant && mant.horas > 0 && mant.fechas.has(dateKey) && intervals.length) {
+        intervals = intervals.slice().sort((a, b) => a.startHour - b.startHour);
+        const mantFin = intervals[0].startHour + mant.horas;
+        intervals = intervals
+            .map((it) => ({ startHour: Math.max(it.startHour, Math.min(it.endHour, mantFin)), endHour: it.endHour }));
     }
 
     const extraHours = Math.max(0, Number(adjustment.extraHoursPerDay || 0));
@@ -23768,7 +24140,6 @@ async function recalcularCompromisos(codigoOrden) {
         pgQuery(`SELECT * FROM resource_calendar_exceptions WHERE is_active = TRUE`),
         pgQuery(SQL_RECURSOS_CADENA)
     ]);
-    const costsConfig = await loadCostsConfig();
     const turnosPorCalendario = new Map();
     (shiftsRes.rows || []).forEach((row) => {
         const k = String(row.calendar_id);
@@ -23800,7 +24171,9 @@ async function recalcularCompromisos(codigoOrden) {
         : String(anclaFecha).slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(anclaISO)) return { ok: false, motivo: 'fecha-entrega-invalida' };
     const anclaBase = restarDiasHabiles(new Date(`${anclaISO}T22:00:00.000Z`), plan.dias_buffer_entrega, feriados);
-    const contextoBase = { turnosPorCalendario, excepcionesPorCalendario, feriados, costsConfig };
+    const mantenimientos = await cargarMantenimientos(capacityAddDays(anclaISO, -400), anclaISO);
+    const horasExtra = await cargarHorasExtra(capacityAddDays(anclaISO, -400), anclaISO);
+    const contextoBase = { turnosPorCalendario, excepcionesPorCalendario, feriados, mantenimientos, horasExtra };
 
     let finSiguiente = anclaBase;
     const updates = [];
@@ -23810,8 +24183,8 @@ async function recalcularCompromisos(codigoOrden) {
         const calId = p.maquina_id
             ? (calPorProcesoMaquina.get(`${claveProceso}|${p.maquina_id}`) || null)
             : (calPorProceso.get(claveProceso) || null);
-        const recurso = { scenarioAdjustment: {}, calendarId: calId };
-        const ctx = { ...contextoBase, procesoClave: p.clave_proceso };
+        const recurso = { scenarioAdjustment: {}, calendarId: calId, maquinaId: p.maquina_id ? String(p.maquina_id) : '', processKey: claveProceso };
+        const ctx = contextoBase;
         const finCompromiso = new Date(finSiguiente.getTime() - Math.max(0, Number(p.transicion_min || 0)) * 60000);
         const inicioCompromiso = restarHorasDisponibles(recurso, finCompromiso, Number(p.duracion_horas || 0), ctx) || finCompromiso;
         updates.push({ id: p.id, ini: inicioCompromiso, fin: finCompromiso });
@@ -23961,6 +24334,40 @@ app.post('/api/planificacion/proyeccion/aplicar', async (req, res) => {
 // Bloqueo suave de fecha comprometida: Planeación marca una orden como "ya
 // prometida al cliente" para que el recálculo manual avise en vez de moverla
 // en silencio (ver conflictosCompromiso en aplicarProyeccionAOrdenProceso).
+// Estimar: guarda en la ficha de la orden lo que usa el Reprogramador. Nunca toca la
+// fecha que pidió el cliente. fechaForzada = "esta orden sale en esta fecha, lo que
+// cueste": se programa antes que las demás y el resto se acomoda.
+app.patch('/api/planificacion/:codigo/estimacion', async (req, res) => {
+    try {
+        const codigo = String(req.params.codigo || '').trim();
+        const body = req.body || {};
+        const prioridad = String(body.prioridad || '').trim().toLowerCase();
+        if (prioridad && !['normal', 'clase_a', 'urgente'].includes(prioridad)) {
+            return res.status(400).json({ ok: false, error: 'Prioridad inválida.' });
+        }
+        const buffer = body.bufferDias == null || body.bufferDias === '' ? null : Math.max(0, Math.min(30, Math.round(Number(body.bufferDias))));
+        const cambiaForzada = Object.prototype.hasOwnProperty.call(body, 'fechaForzada');
+        const forzada = cambiaForzada && /^\d{4}-\d{2}-\d{2}$/.test(String(body.fechaForzada || '')) ? String(body.fechaForzada) : null;
+        const usuario = getRequestUserName(req, 'Planeación');
+        const { rows } = await pgQuery(`
+            UPDATE orden_planificacion
+               SET prioridad = COALESCE($2, prioridad),
+                   dias_buffer_entrega = COALESCE($3, dias_buffer_entrega),
+                   fecha_forzada = CASE WHEN $4::boolean THEN $5::date ELSE fecha_forzada END,
+                   fecha_forzada_por = CASE WHEN $4::boolean THEN (CASE WHEN $5::date IS NULL THEN NULL ELSE $6 END) ELSE fecha_forzada_por END,
+                   fecha_forzada_en = CASE WHEN $4::boolean THEN (CASE WHEN $5::date IS NULL THEN NULL ELSE NOW() END) ELSE fecha_forzada_en END,
+                   estimado_en = NOW(), estimado_por = $6, actualizado_en = NOW()
+             WHERE codigo_orden = $1
+         RETURNING prioridad, dias_buffer_entrega, fecha_forzada::text, fecha_forzada_por
+        `, [codigo, prioridad || null, buffer, cambiaForzada, forzada, usuario]);
+        if (!rows.length) return res.status(404).json({ ok: false, error: 'La orden no tiene ficha de planificación.' });
+        invalidateFiniteCapacityCache();
+        res.json({ ok: true, data: rows[0] });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible guardar la estimación.' });
+    }
+});
+
 app.patch('/api/planificacion/:codigo/bloqueo-comprometido', async (req, res) => {
     try {
         const codigo = String(req.params.codigo || '').trim();
@@ -23988,7 +24395,7 @@ app.patch('/api/planificacion/:codigo/prioridad', async (req, res) => {
         const codigo = String(req.params.codigo || '').trim();
         const prioridad = String(req.body?.prioridad || '').trim().toLowerCase();
         if (!codigo) return res.status(400).json({ ok: false, error: 'Falta el código de orden.' });
-        if (!['normal', 'urgente'].includes(prioridad)) {
+        if (!['normal', 'clase_a', 'urgente'].includes(prioridad)) {
             return res.status(400).json({ ok: false, error: 'Prioridad inválida.' });
         }
         await pgQuery(
@@ -24023,7 +24430,9 @@ async function getFiniteCapacityResult(options = {}) {
     const scenario = normalizeCapacityScenario(options.scenario || {});
     const fromDate = capacityDateKey(options.fromDate || new Date());
     const horizonDays = Math.max(1, Math.min(365, Number(options.horizonDays || 30)));
-    const hasScenario = scenario.resourceAdjustments.length > 0 || scenario.addedResources.length > 0;
+    const hasScenario = scenario.resourceAdjustments.length > 0 || scenario.addedResources.length > 0
+        || (options.mantener || []).length > 0 || (options.liberar || []).length > 0
+        || Object.keys(options.ajustes || {}).length > 0;
     const cacheKey = `${fromDate}|${horizonDays}`;
     if (!hasScenario && finiteCapacityEngineCache.key === cacheKey && finiteCapacityEngineCache.expiresAt > Date.now() && finiteCapacityEngineCache.result) {
         return finiteCapacityEngineCache.result;
@@ -24046,8 +24455,26 @@ async function runFiniteCapacityEngine(options = {}) {
     const horizonDate = capacityAddDays(fromDate, horizonDays - 1);
     const schedulingLimitDate = capacityAddDays(fromDate, Math.max(horizonDays, 365));
     const fromInstant = capacityDateAtHour(fromDate, 0);
-    const costsConfig = await loadCostsConfig();
     const feriados = await cargarFeriados();
+    const procesosProgramables = await cargarProcesosProgramables();
+    const ordenProceso = new Map(procesosProgramables.map((p) => [p.clave, Number(p.orden || 0)]));
+    const mantenimientos = await cargarMantenimientos(fromDate, schedulingLimitDate);
+    const horasExtra = await cargarHorasExtra(fromDate, schedulingLimitDate);
+    const procesosEnTurno = new Set(procesosProgramables.filter((p) => p.terminar_en_turno).map((p) => p.clave));
+    const holguraTurnoHoras = await pgQuery(`SELECT holgura_turno_minutos FROM costo_general LIMIT 1`)
+        .then((r) => Math.max(0, Number(r.rows[0]?.holgura_turno_minutos ?? 15)) / 60)
+        .catch(() => 0.25);
+    const bufferDefecto = await pgQuery(`SELECT buffer_programacion_dias FROM costo_general LIMIT 1`)
+        .then((r) => Math.max(0, Number(r.rows[0]?.buffer_programacion_dias ?? 2)))
+        .catch(() => 2);
+    // Órdenes que Planeación decidió dejar como están en esta corrida (vista previa)
+    // y órdenes con bloqueo suave que sí se permite mover.
+    const mantenerOrdenes = new Set((options.mantener || []).map(String));
+    const liberarOrdenes = new Set((options.liberar || []).map(String));
+    // Ajustes hechos en la vista previa: { OP-1: { prioridad, buffer } }.
+    const ajustes = options.ajustes && typeof options.ajustes === 'object' ? options.ajustes : {};
+    // Movimiento desde el Gantt: { routeId, start, maquinaId } — esa ruta queda fija ahí.
+    const mover = options.mover && options.mover.routeId ? options.mover : null;
 
     const [routesRes, resourcesRes, calendarsRes, shiftsRes, exceptionsRes] = await Promise.all([
         pgQuery(`
@@ -24081,15 +24508,34 @@ async function runFiniteCapacityEngine(options = {}) {
                        o.product_code,
                        ''
                    ) AS job_name,
-                   COALESCE(
-                       opl.fecha_entrega_programada::timestamptz,
-                       opl.fecha_entrega_prometida::timestamptz,
-                       NULLIF(o.raw_data->'quote_snapshot'->>'due_on', '')::timestamptz,
-                       o.delivered_on
-                   ) AS promised_date
+                   -- Fecha que pidió el cliente: vive SOLO en la ficha de la orden.
+                   opl.fecha_entrega_prometida::text AS promised_date,
+                   COALESCE(opl.prioridad, 'normal') AS prioridad,
+                   opl.fecha_entrega_estimada::text AS fecha_comprometida,
+                   UPPER(NULLIF(bp.clase_cliente, '')) AS clase_cliente,
+                   o.salesperson_name AS vendedor,
+                   opl.fecha_forzada::text AS fecha_forzada,
+                   CASE WHEN r.clave_proceso = 'empaque'
+                        THEN COALESCE(NULLIF(o.empaque_operarios_vigente, 0), NULLIF(o.empaque_operarios, 0)) END AS personas_orden,
+                   -- Duración del proceso: la calculó la orden (vigente si producción la corrigió).
+                   CASE r.clave_proceso
+                        WHEN 'impresion'  THEN COALESCE(NULLIF(o.tiempo_total_impresion_min_vigente, 0), NULLIF(o.tiempo_total_impresion_min, 0)) / 60.0
+                        WHEN 'rebobinado' THEN COALESCE(NULLIF(o.rebobinado_tiempo_total_min_vigente, 0), NULLIF(o.rebobinado_tiempo_total_min, 0)) / 60.0
+                        WHEN 'empaque'    THEN NULLIF(o.empaque_horas, 0)
+                   END AS horas_orden,
+                   opl.fecha_forzada_por,
+                   COALESCE(opl.fecha_comprometida_bloqueada, FALSE) AS bloqueo_suave,
+                   opl.bloqueo_comprometido_por,
+                   opl.dias_buffer_entrega,
+                   opl.estado_planificacion,
+                   COALESCE(o.order_status, o.raw_data->>'status', '') AS order_status,
+                   COALESCE((SELECT opx.bloqueo_manual FROM orden_proceso opx WHERE opx.id = r.id), FALSE) AS bloqueo_manual,
+                   r.datos_extra->>'manualLockBy' AS bloqueo_manual_por,
+                   r.datos_extra->>'manualLockAt' AS bloqueo_manual_en
             FROM vista_orden_proceso r
             JOIN flexo_orders o ON o.order_code = r.codigo_orden
             LEFT JOIN orden_planificacion opl ON opl.codigo_orden = r.codigo_orden
+            LEFT JOIN business_partners bp ON bp.partner_code = o.customer_code
             WHERE r.estado <> 'COMPLETADO'
               AND o.delivered_on IS NULL
               AND LOWER(COALESCE(o.order_status, o.raw_data->>'status', '')) NOT IN ('entregada', 'completada', 'cerrada', 'cancelada')
@@ -24108,7 +24554,26 @@ async function runFiniteCapacityEngine(options = {}) {
         pgQuery(`SELECT * FROM resource_calendar_exceptions WHERE is_active = TRUE AND exception_date BETWEEN $1 AND $2`, [fromDate, schedulingLimitDate])
     ]);
 
-    const routes = routesRes.rows || [];
+    // Compuerta de aprobación: la fecha se le da al cliente después de aprobar, así
+    // que una orden con Diseño / Preprensa / Aprobaciones pendientes (y que no se
+    // programan) queda "en espera de aprobación": no ocupa máquina todavía.
+    const hastaAprobacion = PRODUCTION_FLOW_SEQUENCE.slice(0, PRODUCTION_FLOW_SEQUENCE.indexOf('visto_bueno') + 1)
+        .filter((clave) => !ordenProceso.has(clave));
+    const enAprobacion = new Map();
+    if (hastaAprobacion.length) {
+        const pendientes = await pgQuery(`
+            SELECT codigo_orden, string_agg(DISTINCT nombre_proceso, ', ') AS procesos
+              FROM orden_proceso
+             WHERE estado <> 'COMPLETADO' AND clave_proceso = ANY($1::text[])
+             GROUP BY codigo_orden
+        `, [hastaAprobacion]);
+        pendientes.rows.forEach((r) => enAprobacion.set(r.codigo_orden, r.procesos));
+    }
+    // Solo se programan los procesos con el check "Activo en Gantt" (Costos); el
+    // resto de la ruta (diseño, preprensa, aprobaciones…) no ocupa recursos aquí.
+    const routes = (routesRes.rows || [])
+        .filter((route) => ordenProceso.has(canonicalProductionFlowKey(route.process_key)))
+        .map((route) => ({ ...route, duration_hours: route.horas_orden == null ? null : Number(route.horas_orden) }));
     // El Gantt (gantt-agrupado) identifica cada ruta por el id VIEJO cuando la orden
     // viene migrada (datos_extra.migrado_de_route_id), para que /gantt/mover siguiera
     // funcionando con enlaces guardados de antes de la consolidación. Este motor arma
@@ -24153,7 +24618,7 @@ async function runFiniteCapacityEngine(options = {}) {
             || adjustmentByResource.get(normalizePlanningKey(row.resource_code))
             || adjustmentByResource.get(normalizePlanningKey(row.resource_name))
             || {};
-        const baseUnits = 1;
+        const baseUnits = Math.max(1, Number(row.capacity_units || 1));
         const capacityUnits = Math.max(0.1, Number(adjustment.capacityUnits ?? adjustment.units ?? baseUnits));
         const efficiencyFactor = Math.max(0.1, Math.min(1.5, Number(adjustment.efficiencyFactor ?? row.oee_target ?? 1)));
         const calendar = calendarById.get(String(row.calendar_id || '')) || null;
@@ -24216,10 +24681,15 @@ async function runFiniteCapacityEngine(options = {}) {
         });
     });
 
+    // Nada se programa en el pasado: si el horizonte empieza hoy, se arranca desde ahora.
+    const arranque = new Date(Math.max(fromInstant.getTime(), Date.now()));
     resources.forEach((resource) => {
         resource.lanes = Array.from({ length: resource.laneCount }, (_, index) => ({
             index,
-            availableAt: new Date(fromInstant)
+            availableAt: new Date(arranque),
+            // Espacios ya ocupados (rutas fijas y las que se van programando): un
+            // trabajo nuevo puede usar los huecos entre ellos, nunca encimarse.
+            busy: []
         }));
     });
 
@@ -24231,8 +24701,8 @@ async function runFiniteCapacityEngine(options = {}) {
             turnosPorCalendario: shiftsByCalendar,
             excepcionesPorCalendario: exceptionsByCalendar,
             feriados,
-            costsConfig,
-            procesoClave: processKey
+            mantenimientos,
+            horasExtra
         });
     }
 
@@ -24250,11 +24720,47 @@ async function runFiniteCapacityEngine(options = {}) {
         return resource.lanes.slice(0, Math.min(resource.lanes.length, maxParallelJobs));
     }
 
-    function scheduleLane(resource, lane, earliestAt, durationHours, processKey, commit = false) {
+    // Procesos que deben terminar dentro del mismo turno (Costos → "Terminar en el turno",
+    // p. ej. Impresión): el trabajo entra entero en una franja con la holgura de Costos;
+    // si no cabe, no se inicia y se busca la siguiente franja donde sí quepa. El hueco que
+    // queda lo puede usar otra orden que sí quepa (scheduleLane prueba cada orden desde el
+    // primer espacio libre). Si el trabajo es más largo que un turno completo, solo puede
+    // arrancar al inicio de un turno y continúa en los siguientes.
+    function simulateLaneEnTurno(resource, cursorInicial, durationHours, processKey, productiveRate) {
+        const need = Math.max(0, Number(durationHours || 0)) / productiveRate;
+        let cursor = new Date(cursorInicial);
+        for (let guard = 0; guard < 730; guard += 1) {
+            const dateKey = capacityDateKey(cursor);
+            if (!dateKey || dateKey > schedulingLimitDate) return null;
+            for (const interval of resourceIntervalsForDay(resource, dateKey, processKey)) {
+                const intervalStart = capacityDateAtHour(dateKey, interval.startHour);
+                const intervalEnd = capacityDateAtHour(dateKey, interval.endHour);
+                const segmentStart = new Date(Math.max(cursor.getTime(), intervalStart.getTime()));
+                if (segmentStart >= intervalEnd) continue;
+                const disponible = (intervalEnd - segmentStart) / 3600000;
+                const turnoCompleto = (intervalEnd - intervalStart) / 3600000;
+                if (need + holguraTurnoHoras <= disponible + 1e-9) {
+                    const end = new Date(segmentStart.getTime() + need * 3600000);
+                    return { start: segmentStart, end, segments: [{ date: dateKey, hours: Number(durationHours || 0) }], productiveRate };
+                }
+                if (need + holguraTurnoHoras > turnoCompleto && segmentStart.getTime() === intervalStart.getTime()) {
+                    const plan = simulateLane(resource, segmentStart, durationHours, processKey, true);
+                    return plan ? { ...plan, excedeTurno: true } : null;
+                }
+            }
+            cursor = capacityDateAtHour(capacityAddDays(dateKey, 1), 0);
+        }
+        return null;
+    }
+
+    function simulateLane(resource, cursorInicial, durationHours, processKey, sinReglaTurno = false) {
         const proficiency = proficiencyFor(resource, processKey);
         if (proficiency <= 0) return null;
         const productiveRate = Math.max(0.05, resource.efficiencyFactor * proficiency);
-        let cursor = new Date(Math.max(lane.availableAt.getTime(), earliestAt.getTime()));
+        if (!sinReglaTurno && procesosEnTurno.has(canonicalProductionFlowKey(processKey))) {
+            return simulateLaneEnTurno(resource, cursorInicial, durationHours, processKey, productiveRate);
+        }
+        let cursor = new Date(cursorInicial);
         let remaining = Math.max(0, Number(durationHours || 0));
         let start = null;
         const segments = [];
@@ -24269,10 +24775,8 @@ async function runFiniteCapacityEngine(options = {}) {
                 const segmentStart = new Date(Math.max(cursor.getTime(), intervalStart.getTime()));
                 if (segmentStart >= intervalEnd) continue;
                 const clockHoursAvailable = (intervalEnd - segmentStart) / 3600000;
-                const productiveHoursAvailable = clockHoursAvailable * productiveRate;
-                const productiveHours = Math.min(remaining, productiveHoursAvailable);
-                const elapsedHours = productiveHours / productiveRate;
-                const segmentEnd = new Date(segmentStart.getTime() + (elapsedHours * 3600000));
+                const productiveHours = Math.min(remaining, clockHoursAvailable * productiveRate);
+                const segmentEnd = new Date(segmentStart.getTime() + ((productiveHours / productiveRate) * 3600000));
                 if (!start) start = segmentStart;
                 segments.push({ date: dateKey, hours: productiveHours });
                 remaining -= productiveHours;
@@ -24287,16 +24791,36 @@ async function runFiniteCapacityEngine(options = {}) {
             }
         }
         if (!start || remaining > 0.00001) return null;
-        const result = { start, end: cursor, segments, laneIndex: lane.index, productiveRate };
-        if (commit) {
-            lane.availableAt = new Date(cursor);
-            resource.totalLoadHours += Number(durationHours || 0);
-            resource.routeCount += 1;
-            segments.forEach((segment) => {
-                resource.dailyLoad[segment.date] = Number(resource.dailyLoad[segment.date] || 0) + Number(segment.hours || 0);
-            });
+        return { start, end: cursor, segments, productiveRate };
+    }
+
+    function commitLane(resource, lane, plan, durationHours) {
+        lane.busy.push({ start: new Date(plan.start), end: new Date(plan.end) });
+        resource.totalLoadHours += Number(durationHours || 0);
+        resource.routeCount += 1;
+        plan.segments.forEach((segment) => {
+            resource.dailyLoad[segment.date] = Number(resource.dailyLoad[segment.date] || 0) + Number(segment.hours || 0);
+        });
+    }
+
+    // Primer espacio libre del carril desde earliestAt donde el trabajo cabe entero
+    // sin encimarse con lo ya ocupado (rellena huecos: la máquina no queda libre).
+    function scheduleLane(resource, lane, earliestAt, durationHours, processKey, commit = false) {
+        let cursor = new Date(Math.max(lane.availableAt.getTime(), earliestAt.getTime()));
+        for (let intento = 0; intento < 1000; intento += 1) {
+            const plan = simulateLane(resource, cursor, durationHours, processKey);
+            if (!plan) return null;
+            const choque = lane.busy
+                .filter((b) => b.start < plan.end && b.end > plan.start)
+                .sort((x, y) => y.end - x.end)[0];
+            if (!choque) {
+                const result = { ...plan, laneIndex: lane.index };
+                if (commit) commitLane(resource, lane, plan, durationHours);
+                return result;
+            }
+            cursor = new Date(choque.end);
         }
-        return result;
+        return null;
     }
 
     function candidateResources(route) {
@@ -24321,87 +24845,226 @@ async function runFiniteCapacityEngine(options = {}) {
         if (!routesByOrder.has(route.order_code)) routesByOrder.set(route.order_code, []);
         routesByOrder.get(route.order_code).push(route);
     });
-    const orderGroups = Array.from(routesByOrder.values()).sort((left, right) => {
-        const leftDate = left[0]?.promised_date ? new Date(left[0].promised_date).getTime() : Number.MAX_SAFE_INTEGER;
-        const rightDate = right[0]?.promised_date ? new Date(right[0].promised_date).getTime() : Number.MAX_SAFE_INTEGER;
-        return leftDate - rightDate || String(left[0]?.order_code || '').localeCompare(String(right[0]?.order_code || ''));
-    });
+    const ordenDeProceso = (route) => ordenProceso.get(canonicalProductionFlowKey(route.process_key)) ?? 9999;
+    routesByOrder.forEach((lista) => lista.sort((a, b) => ordenDeProceso(a) - ordenDeProceso(b)
+        || Number(a.sequence_order || 0) - Number(b.sequence_order || 0)));
+
+    // Fecha forzada (Estimar) va primero; luego urgente, Clase A y regular.
+    const RANGO_PRIORIDAD = { forzada: -1, urgente: 0, clase_a: 1, normal: 2 };
+    const ahora = new Date(arranque);
+    const esEnMarcha = (route) => ['RUN', 'SETUP', 'PARO'].includes(String(route.route_status || '').toUpperCase());
+    const fechaClave = (valor) => (valor ? capacityDateKey(valor) : null);
+    const calDiffDias = (desde, hasta) => Math.round((new Date(`${hasta}T00:00:00Z`) - new Date(`${desde}T00:00:00Z`)) / 86400000);
+    // Buffer: días laborables antes de la fecha del cliente (se saltan domingos y feriados).
+    function fechaObjetivo(fechaCliente, dias) {
+        let k = fechaClave(fechaCliente);
+        if (!k) return null;
+        let n = Math.max(0, Math.round(Number(dias || 0)));
+        while (n > 0) {
+            k = capacityAddDays(k, -1);
+            const dow = new Date(`${k}T00:00:00.000Z`).getUTCDay();
+            if (dow !== 0 && !esFeriado(feriados, k)) n -= 1;
+        }
+        return k;
+    }
+
+    // Por qué una ruta no se mueve en esta corrida (null = se programa).
+    function motivoFija(route) {
+        const code = String(route.order_code);
+        if (mover && (String(route.id) === String(mover.routeId) || idRutaGantt.get(String(route.id)) === String(mover.routeId))) return 'movida-ahora';
+        if (mantenerOrdenes.has(code)) return 'mantenida';
+        if (route.bloqueo_suave && !liberarOrdenes.has(code)) return 'bloqueo-suave';
+        if (route.bloqueo_manual) return 'movida-a-mano';
+        if (esEnMarcha(route)) return 'en-marcha';
+        return null;
+    }
+
+    function recursoParaFija(route) {
+        const candidatos = candidateResources(route);
+        return candidatos[0] || null;
+    }
 
     const routeSchedules = new Map();
     const orderSummaries = [];
-    for (const orderRoutes of orderGroups) {
-        orderRoutes.sort((a, b) => Number(a.sequence_order || 0) - Number(b.sequence_order || 0));
-        let previousEnd = new Date(fromInstant);
+    const resumenPorOrden = new Map();
+
+    function baseSchedule(route, extra) {
+        return {
+            routeId: String(route.id),
+            idRuta: idRutaGantt.get(String(route.id)) || String(route.id),
+            orderCode: route.order_code,
+            processKey: canonicalProductionFlowKey(route.process_key),
+            processName: route.process_name,
+            durationHours: Math.max(0, Number(route.duration_hours || 0)),
+            previousStart: route.planned_start_at ? new Date(route.planned_start_at).toISOString() : null,
+            previousEnd: route.planned_end_at ? new Date(route.planned_end_at).toISOString() : null,
+            waitHours: 0,
+            waitDays: 0,
+            queueAheadHours: 0,
+            ...extra
+        };
+    }
+
+    // ── Fase 1: reservar lo fijo (en marcha, movido a mano, bloqueo suave, mantenido)
+    // Secuencia: un proceso posterior solo queda fijo si todos los anteriores de su orden
+    // también lo están (o van en marcha) y terminan antes; si no, esta corrida lo vuelve a
+    // programar detrás del anterior (Rebobinado nunca antes que Impresión).
+    const liberadasPorSecuencia = new Set();
+    for (const [codigoOrden, orderRoutes] of routesByOrder) {
+        if (enAprobacion.has(codigoOrden)) continue;
+        let anteriorPendiente = false;
+        let finAnteriorFija = null;
+        for (const route of orderRoutes) {
+            const motivo = motivoFija(route);
+            if (!motivo) { anteriorPendiente = true; continue; }
+            const iniGuardado = motivo === 'movida-ahora' ? new Date(mover.start) : (route.planned_start_at ? new Date(route.planned_start_at) : null);
+            if (motivo !== 'en-marcha' && (anteriorPendiente || (finAnteriorFija && iniGuardado && iniGuardado < finAnteriorFija))) {
+                liberadasPorSecuencia.add(String(route.id));
+                anteriorPendiente = true;
+                continue;
+            }
+            let recurso = recursoParaFija(route);
+            if (motivo === 'movida-ahora' && mover.maquinaId) {
+                recurso = resources.find((r) => r.maquinaId && r.maquinaId === String(mover.maquinaId)) || recurso;
+            }
+            if (!recurso) continue;
+            const ini = route.planned_start_at ? new Date(route.planned_start_at) : null;
+            const fin = route.planned_end_at ? new Date(route.planned_end_at) : null;
+            let plan = null;
+            if (motivo === 'movida-ahora') {
+                // Donde la soltaron, respetando el horario del recurso.
+                plan = simulateLane(recurso, new Date(mover.start), Math.max(0.01, Number(route.duration_hours || 0.01)), canonicalProductionFlowKey(route.process_key));
+            } else if (ini && fin && fin > ahora) {
+                plan = { start: ini, end: fin, segments: [{ date: capacityDateKey(ini), hours: Math.max(0, Number(route.duration_hours || 0)) }] };
+            } else if (esEnMarcha(route)) {
+                // En marcha sin fechas vigentes: ocupa la máquina desde ahora.
+                plan = simulateLane(recurso, ahora, Math.max(0.01, Number(route.duration_hours || 0.01)), canonicalProductionFlowKey(route.process_key));
+            }
+            if (!plan) { anteriorPendiente = true; continue; } // fecha ya vencida y sin estar en marcha: se reprograma normal
+            finAnteriorFija = new Date(plan.end);
+            const carril = recurso.lanes.find((l) => !l.busy.some((b) => b.start < plan.end && b.end > plan.start)) || recurso.lanes[0];
+            commitLane(recurso, carril, plan, route.duration_hours);
+            recurso.assignedRouteIds.push(String(route.id));
+            routeSchedules.set(String(route.id), baseSchedule(route, {
+                resourceId: recurso.id,
+                resourceCode: recurso.resourceCode,
+                resourceName: recurso.resourceName,
+                machineName: recurso.resourceName,
+                machineProfileId: recurso.machineProfileId || null,
+                maquinaId: recurso.maquinaId || null,
+                resourceType: recurso.resourceType,
+                sinHorario: recurso.sinHorario,
+                projectedStart: new Date(plan.start).toISOString(),
+                projectedEnd: new Date(plan.end).toISOString(),
+                status: 'fixed',
+                fixedReason: motivo,
+                fixedBy: motivo === 'movida-a-mano' ? (route.bloqueo_manual_por || null) : motivo === 'bloqueo-suave' ? (route.bloqueo_comprometido_por || null) : null,
+                fixedAt: motivo === 'movida-a-mano' ? (route.bloqueo_manual_en || null) : null
+            }));
+        }
+    }
+
+    // ── Fase 2: el resto, por prioridad y fecha objetivo (cliente − buffer)
+    const RANGO_CLASE = { A: 0, B: 1, C: 2 };
+    const orderGroups = Array.from(routesByOrder.values()).map((orderRoutes) => {
+        const primera = orderRoutes[0] || {};
+        const ajuste = ajustes[primera.order_code] || {};
+        const bufferOrden = ajuste.buffer != null && ajuste.buffer !== '' ? Number(ajuste.buffer) : primera.dias_buffer_entrega;
+        const buffer = bufferOrden == null ? bufferDefecto : Math.max(0, Number(bufferOrden));
+        const forzada = primera.fecha_forzada || null;
+        // Prioridad: la de la orden (o la elegida en la vista previa); si es regular y
+        // el cliente es clase A, entra como Clase A.
+        let prioridadTexto = String(ajuste.prioridad || primera.prioridad || 'normal');
+        if (prioridadTexto === 'normal' && primera.clase_cliente === 'A' && !ajuste.prioridad) prioridadTexto = 'clase_a';
+        return {
+            orderRoutes,
+            prioridadTexto,
+            prioridad: forzada ? RANGO_PRIORIDAD.forzada : (RANGO_PRIORIDAD[prioridadTexto] ?? 2),
+            clase: RANGO_CLASE[primera.clase_cliente] ?? 3,
+            buffer: forzada ? 0 : buffer,
+            forzada,
+            objetivo: forzada || fechaObjetivo(primera.promised_date, buffer)
+        };
+    }).sort((x, y) => x.prioridad - y.prioridad
+        || String(x.objetivo || '9999').localeCompare(String(y.objetivo || '9999'))
+        || x.clase - y.clase
+        || String(x.orderRoutes[0]?.order_code || '').localeCompare(String(y.orderRoutes[0]?.order_code || '')));
+
+    for (const grupo of orderGroups) {
+        const orderRoutes = grupo.orderRoutes;
+        const primera = orderRoutes[0] || {};
+        let previousEnd = new Date(ahora);
         const orderSummary = {
-            orderCode: orderRoutes[0]?.order_code || '',
-            customerName: orderRoutes[0]?.customer_name || '',
-            jobName: orderRoutes[0]?.job_name || '',
-            promisedDate: orderRoutes[0]?.promised_date || null,
+            orderCode: primera.order_code || '',
+            customerName: primera.customer_name || '',
+            jobName: primera.job_name || '',
+            promisedDate: primera.promised_date || null,
+            priority: grupo.forzada ? 'forzada' : grupo.prioridadTexto,
+            customerClass: primera.clase_cliente || null,
+            salesperson: primera.vendedor || '',
+            committedDate: primera.fecha_comprometida || null,
+            forcedDate: grupo.forzada,
+            forcedBy: primera.fecha_forzada_por || null,
+            bufferDays: grupo.buffer,
+            targetDate: grupo.objetivo,
+            softLocked: Boolean(primera.bloqueo_suave),
+            softLockedBy: primera.bloqueo_comprometido_por || null,
+            planningStatus: primera.estado_planificacion || null,
+            orderStatus: primera.order_status || '',
             routes: [],
             earliestStart: null,
             latestEnd: null,
+            previousEnd: null,
             totalWaitHours: 0,
             totalWaitDays: 0,
             projectedLate: false
         };
         let chainBlocked = false;
+        if (enAprobacion.has(orderSummary.orderCode)) {
+            orderSummary.waitingApproval = enAprobacion.get(orderSummary.orderCode);
+            orderRoutes.forEach((route) => {
+                const espera = baseSchedule(route, { resourceId: null, resourceCode: '', resourceName: 'En espera de aprobación', machineName: 'En espera de aprobación', projectedStart: null, projectedEnd: null, status: 'waiting-approval' });
+                routeSchedules.set(String(route.id), espera);
+                orderSummary.routes.push(espera);
+            });
+            orderSummary.previousEnd = orderSummary.routes.reduce((max, r) => (r.previousEnd && (!max || r.previousEnd > max) ? r.previousEnd : max), null);
+            orderSummary.scheduleState = 'en-aprobacion';
+            orderSummary.estimatedDelivery = null;
+            orderSummaries.push(orderSummary);
+            resumenPorOrden.set(orderSummary.orderCode, orderSummary);
+            continue;
+        }
         for (const route of orderRoutes) {
-            if (!procesosEnCadena.has(canonicalProductionFlowKey(route.process_key))) {
-                const fueraDeCadena = {
-                    routeId: String(route.id),
-                    idRuta: idRutaGantt.get(String(route.id)) || String(route.id),
-                    orderCode: route.order_code,
-                    processKey: canonicalProductionFlowKey(route.process_key),
-                    processName: route.process_name,
-                    resourceId: null,
-                    resourceCode: '',
-                    resourceName: 'No está en la Cadena de Procesos',
-                    machineName: 'No está en la Cadena de Procesos',
-                    durationHours: Math.max(0, Number(route.duration_hours || 0)),
-                    projectedStart: null,
-                    projectedEnd: null,
-                    waitHours: 0,
-                    waitDays: 0,
-                    queueAheadHours: 0,
-                    status: 'fuera-de-cadena'
-                };
-                routeSchedules.set(String(route.id), fueraDeCadena);
-                orderSummary.routes.push(fueraDeCadena);
+            const fija = routeSchedules.get(String(route.id));
+            if (fija && fija.status === 'fixed') {
+                orderSummary.routes.push(fija);
+                previousEnd = new Date(Math.max(previousEnd.getTime(), new Date(fija.projectedEnd).getTime()));
+                if (!orderSummary.earliestStart || fija.projectedStart < orderSummary.earliestStart) orderSummary.earliestStart = fija.projectedStart;
+                if (!orderSummary.latestEnd || fija.projectedEnd > orderSummary.latestEnd) orderSummary.latestEnd = fija.projectedEnd;
                 continue;
             }
-            const explicitDependency = route.dependency_route_id ? routeSchedules.get(String(route.dependency_route_id)) : null;
-            if (chainBlocked || explicitDependency?.status === 'no-resource' || explicitDependency?.status === 'blocked-dependency') {
-                const blockedSchedule = {
-                    routeId: String(route.id),
-                    idRuta: idRutaGantt.get(String(route.id)) || String(route.id),
-                    orderCode: route.order_code,
-                    processKey: canonicalProductionFlowKey(route.process_key),
-                    processName: route.process_name,
-                    resourceId: null,
-                    resourceCode: '',
-                    resourceName: 'Bloqueado por dependencia',
-                    machineName: 'Bloqueado por dependencia',
-                    durationHours: Math.max(0, Number(route.duration_hours || 0)),
-                    projectedStart: null,
-                    projectedEnd: null,
-                    waitHours: 0,
-                    waitDays: 0,
-                    queueAheadHours: 0,
-                    status: 'blocked-dependency'
-                };
-                routeSchedules.set(String(route.id), blockedSchedule);
-                orderSummary.routes.push(blockedSchedule);
+            const processKey = canonicalProductionFlowKey(route.process_key);
+            const durationHours = Math.max(0, Number(route.duration_hours || 0));
+            const faltaDato = !(Number(route.duration_hours) > 0)
+                ? 'tiempo del proceso'
+                : (processKey === 'empaque' && !(Number(route.personas_orden) > 0) ? 'personas de empaque' : null);
+            if (!chainBlocked && faltaDato) {
+                const sinDato = baseSchedule(route, { resourceId: null, resourceCode: '', resourceName: `Falta en la orden: ${faltaDato}`, machineName: `Falta en la orden: ${faltaDato}`, projectedStart: null, projectedEnd: null, status: 'missing-data', missingData: faltaDato });
+                routeSchedules.set(String(route.id), sinDato);
+                orderSummary.routes.push(sinDato);
+                orderSummary.missingData = faltaDato;
                 chainBlocked = true;
                 continue;
             }
-            const earliestAt = explicitDependency?.projectedEnd
-                ? new Date(Math.max(previousEnd.getTime(), new Date(explicitDependency.projectedEnd).getTime()))
-                : new Date(previousEnd);
-            const durationHours = Math.max(0, Number(route.duration_hours || 0));
-            const processKey = canonicalProductionFlowKey(route.process_key);
-            const candidates = candidateResources(route);
+            if (chainBlocked) {
+                const bloqueada = baseSchedule(route, { resourceId: null, resourceCode: '', resourceName: 'Bloqueado por el proceso anterior', machineName: 'Bloqueado por el proceso anterior', projectedStart: null, projectedEnd: null, status: 'blocked-dependency' });
+                routeSchedules.set(String(route.id), bloqueada);
+                orderSummary.routes.push(bloqueada);
+                continue;
+            }
+            const earliestAt = new Date(previousEnd);
             let best = null;
-            for (const resource of candidates) {
+            for (const resource of candidateResources(route)) {
                 for (const lane of lanesForProcess(resource, processKey)) {
                     const preview = scheduleLane(resource, lane, earliestAt, durationHours || 0.01, processKey, false);
                     if (!preview) continue;
@@ -24409,26 +25072,9 @@ async function runFiniteCapacityEngine(options = {}) {
                 }
             }
             if (!best) {
-                const missingSchedule = {
-                    routeId: String(route.id),
-                    idRuta: idRutaGantt.get(String(route.id)) || String(route.id),
-                    orderCode: route.order_code,
-                    processKey,
-                    processName: route.process_name,
-                    resourceId: null,
-                    resourceCode: '',
-                    resourceName: 'Sin recurso disponible',
-                    machineName: 'Sin recurso disponible',
-                    durationHours,
-                    projectedStart: null,
-                    projectedEnd: null,
-                    waitHours: 0,
-                    waitDays: 0,
-                    queueAheadHours: 0,
-                    status: 'no-resource'
-                };
-                routeSchedules.set(String(route.id), missingSchedule);
-                orderSummary.routes.push(missingSchedule);
+                const sinRecurso = baseSchedule(route, { resourceId: null, resourceCode: '', resourceName: 'Sin horario o sin recurso', machineName: 'Sin horario o sin recurso', projectedStart: null, projectedEnd: null, status: 'no-resource' });
+                routeSchedules.set(String(route.id), sinRecurso);
+                orderSummary.routes.push(sinRecurso);
                 chainBlocked = true;
                 continue;
             }
@@ -24437,12 +25083,7 @@ async function runFiniteCapacityEngine(options = {}) {
             best.resource.assignedRouteIds.push(String(route.id));
             const waitHours = Math.max(0, (committed.start - earliestAt) / 3600000);
             best.resource.totalWaitHours += waitHours;
-            const schedule = {
-                routeId: String(route.id),
-                    idRuta: idRutaGantt.get(String(route.id)) || String(route.id),
-                orderCode: route.order_code,
-                processKey,
-                processName: route.process_name,
+            const schedule = baseSchedule(route, {
                 resourceId: best.resource.id,
                 resourceCode: best.resource.resourceCode,
                 resourceName: best.resource.resourceName,
@@ -24451,14 +25092,14 @@ async function runFiniteCapacityEngine(options = {}) {
                 sinHorario: best.resource.sinHorario,
                 machineName: best.resource.resourceName,
                 resourceType: best.resource.resourceType,
-                durationHours,
+                personas: route.personas_orden == null ? null : Number(route.personas_orden),
                 projectedStart: committed.start.toISOString(),
                 projectedEnd: committed.end.toISOString(),
                 waitHours: capacityRound(waitHours, 2),
                 waitDays: capacityRound(waitHours / 24, 2),
                 queueAheadHours: capacityRound(queueAheadHours, 2),
                 status: 'scheduled'
-            };
+            });
             routeSchedules.set(String(route.id), schedule);
             orderSummary.routes.push(schedule);
             previousEnd = new Date(committed.end);
@@ -24466,10 +25107,48 @@ async function runFiniteCapacityEngine(options = {}) {
             if (!orderSummary.latestEnd || committed.end > new Date(orderSummary.latestEnd)) orderSummary.latestEnd = committed.end.toISOString();
             orderSummary.totalWaitHours += waitHours;
         }
+        orderSummary.previousEnd = orderSummary.routes.reduce((max, r) => (r.previousEnd && (!max || r.previousEnd > max) ? r.previousEnd : max), null);
         orderSummary.totalWaitHours = capacityRound(orderSummary.totalWaitHours, 2);
         orderSummary.totalWaitDays = capacityRound(orderSummary.totalWaitHours / 24, 2);
-        orderSummary.projectedLate = Boolean(orderSummary.promisedDate && orderSummary.latestEnd && new Date(orderSummary.latestEnd) > new Date(orderSummary.promisedDate));
+        // Estado frente a la fecha del cliente y fecha estimada de entrega:
+        //  - a-tiempo: termina antes de la fecha objetivo (se entrega en la fecha del cliente)
+        //  - sin-colchon: termina dentro del buffer (se entrega en la fecha del cliente, sin margen)
+        //  - tarde: termina después de la fecha del cliente (hay que negociar la nueva fecha)
+        // Tres fechas: la del cliente (guía), la comprometida (la que dimos; nace en la
+        // primera programación) y la de esta reprogramación, que al aplicarse pasa a ser
+        // la comprometida. "Atrasa" solo existe contra la comprometida.
+        const finKey = orderSummary.latestEnd ? capacityDateKey(orderSummary.latestEnd) : null;
+        const clienteKey = fechaClave(orderSummary.promisedDate);
+        const comprometida = fechaClave(orderSummary.committedDate);
+        let estado = 'sin-fecha';
+        let fechaEstimada = null;
+        let diasVsCompromiso = null;
+        if (orderSummary.missingData) estado = 'falta-dato';
+        else if (chainBlocked) estado = 'sin-programar';
+        else if (finKey) {
+            // Entrega estimada: la fecha del cliente si se llega; si no, el siguiente
+            // día laborable después de terminar.
+            if (clienteKey && finKey <= clienteKey) fechaEstimada = clienteKey;
+            else {
+                fechaEstimada = capacityAddDays(finKey, 1);
+                while (new Date(`${fechaEstimada}T00:00:00.000Z`).getUTCDay() === 0 || esFeriado(feriados, fechaEstimada)) {
+                    fechaEstimada = capacityAddDays(fechaEstimada, 1);
+                }
+            }
+            if (comprometida) {
+                diasVsCompromiso = calDiffDias(comprometida, fechaEstimada);
+                estado = diasVsCompromiso > 0 ? 'atrasa' : (diasVsCompromiso < 0 ? 'adelanta' : 'cumple');
+            } else if (clienteKey && finKey > clienteKey) estado = 'negociar';
+            else if (grupo.objetivo && finKey > grupo.objetivo) estado = 'sin-colchon';
+            else estado = 'a-tiempo';
+        }
+        orderSummary.firstProgramming = !comprometida;
+        orderSummary.daysVsCommitted = diasVsCompromiso;
+        orderSummary.scheduleState = estado;
+        orderSummary.estimatedDelivery = fechaEstimada;
+        orderSummary.projectedLate = estado === 'atrasa';
         orderSummaries.push(orderSummary);
+        resumenPorOrden.set(orderSummary.orderCode, orderSummary);
     }
 
     const resourceResults = resources.map((resource) => {
@@ -24531,6 +25210,22 @@ async function runFiniteCapacityEngine(options = {}) {
             route.resourceUtilizationPct = Number(resource?.utilizationPct || 0);
         });
     });
+    // Verificación final de secuencia (orden de Costos): ningún proceso puede empezar antes
+    // de que termine el anterior de su misma orden. Si pasa, se marca la orden y no se
+    // permite aplicar (ver /reprogramar/aplicar).
+    orderSummaries.forEach((order) => {
+        const conFecha = order.routes
+            .filter((r) => r.projectedStart && r.projectedEnd)
+            .sort((a, b) => (ordenProceso.get(a.processKey) ?? 9999) - (ordenProceso.get(b.processKey) ?? 9999));
+        for (let i = 1; i < conFecha.length; i += 1) {
+            if (new Date(conFecha[i].projectedStart) < new Date(conFecha[i - 1].projectedEnd) - 60000) {
+                order.sequenceConflict = `${conFecha[i].processName} empieza antes de que termine ${conFecha[i - 1].processName}`;
+                break;
+            }
+        }
+        const liberadas = order.routes.filter((r) => liberadasPorSecuencia.has(String(r.routeId)));
+        if (liberadas.length) order.releasedForSequence = liberadas.map((r) => r.processName);
+    });
     const lateOrders = orderSummaries.filter((order) => order.projectedLate);
 
     return {
@@ -24559,6 +25254,551 @@ async function runFiniteCapacityEngine(options = {}) {
         }
     };
 }
+
+// ══ Reprogramador (antes "Capacidad Finita") ═══════════════════════════════
+// Nunca aplica sin que Planeación vea antes qué cambia. La vista previa corre el
+// motor en memoria y lo compara contra lo guardado; aplicar vuelve a correrlo con
+// las mismas decisiones (órdenes mantenidas / bloqueos liberados), guarda lo que
+// había antes en reprogramacion_log y se puede deshacer.
+// Motivos de una reprogramación (obligatorio al aplicar, con comentario).
+const MOTIVOS_REPROGRAMACION = Object.freeze({
+    primera: 'Primera programación',
+    falla_maquina: 'Falla o mantenimiento de máquina',
+    urgente_cliente: 'Urgencia de un cliente',
+    falta_material: 'Falta de material',
+    cambio_prioridad: 'Cambio de prioridades',
+    carga_trabajo: 'Carga de trabajo / órdenes nuevas',
+    otro: 'Otro'
+});
+
+function fechaTexto(v) {
+    if (!v) return null;
+    if (v instanceof Date) return v.toISOString().slice(0, 10);
+    return String(v).slice(0, 10);
+}
+
+async function correosDeVendedores(nombres) {
+    const lista = [...new Set(nombres.filter(Boolean))];
+    if (!lista.length) return new Map();
+    const { rows } = await pgQuery(`
+        SELECT full_name, sap_salesperson_name, email FROM admin_users
+         WHERE LOWER(full_name) = ANY($1::text[]) OR LOWER(sap_salesperson_name) = ANY($1::text[])
+    `, [lista.map((n) => n.toLowerCase())]);
+    const mapa = new Map();
+    rows.forEach((u) => {
+        const correo = String(u.email || '').trim();
+        if (!correo) return;
+        [u.full_name, u.sap_salesperson_name].filter(Boolean).forEach((n) => mapa.set(n.toLowerCase(), correo));
+    });
+    return mapa;
+}
+
+// Datos inconsistentes: un proceso posterior (orden de Costos) marcado COMPLETADO mientras
+// el anterior de la misma orden sigue sin terminar. El Reprogramador no puede corregirlo
+// (no se deshace lo hecho), pero lo avisa para que se revise en la orden.
+async function procesosFueraDeSecuencia() {
+    const { rows } = await pgQuery(`
+        WITH r AS (
+            SELECT op.codigo_orden, op.nombre_proceso, op.estado, c.orden
+              FROM orden_proceso op
+              JOIN costo_proceso_defaults c ON c.proceso_key = op.clave_proceso AND c.activo AND c.gantt_habilitado
+              JOIN flexo_orders o ON o.order_code = op.codigo_orden
+             WHERE o.delivered_on IS NULL
+               AND lower(COALESCE(o.order_status, o.raw_data->>'status', '')) NOT IN ('entregada','completada','cerrada','cancelada')
+        )
+        SELECT b.codigo_orden AS orden,
+               string_agg(DISTINCT b.nombre_proceso, ' y ') AS proceso,
+               string_agg(DISTINCT a.nombre_proceso, ' y ') AS anterior
+          FROM r a JOIN r b ON a.codigo_orden = b.codigo_orden AND b.orden > a.orden
+         WHERE b.estado = 'COMPLETADO' AND a.estado <> 'COMPLETADO'
+         GROUP BY b.codigo_orden
+         ORDER BY b.codigo_orden
+    `).catch(() => ({ rows: [] }));
+    return rows;
+}
+
+async function construirVistaPreviaReprogramacion(opciones = {}) {
+    const engine = await runFiniteCapacityEngine({
+        horizonDays: 60,
+        mantener: opciones.mantener || [],
+        liberar: opciones.liberar || [],
+        mover: opciones.mover || null,
+        ajustes: opciones.ajustes || {}
+    });
+    const codigos = engine.orders.map((o) => o.orderCode);
+    // Proceso en el que va cada orden ahora mismo (toda su ruta, no solo lo programable).
+    const actuales = codigos.length ? (await pgQuery(`
+        SELECT DISTINCT ON (r.codigo_orden) r.codigo_orden, r.nombre_proceso, r.estado
+          FROM vista_orden_proceso r
+          LEFT JOIN costo_proceso_defaults c ON c.proceso_key = r.clave_proceso
+         WHERE r.codigo_orden = ANY($1::text[]) AND r.estado <> 'COMPLETADO'
+         ORDER BY r.codigo_orden, COALESCE(c.orden, 9999), r.secuencia
+    `, [codigos])).rows : [];
+    const procesoActual = new Map(actuales.map((r) => [r.codigo_orden, { proceso: r.nombre_proceso, estado: r.estado }]));
+    const planes = codigos.length ? (await pgQuery(`
+        SELECT codigo_orden, dias_buffer_entrega, fecha_comprometida_bloqueada FROM orden_planificacion WHERE codigo_orden = ANY($1::text[])
+    `, [codigos])).rows : [];
+    const planPorOrden = new Map(planes.map((r) => [r.codigo_orden, r]));
+    const correos = await correosDeVendedores(engine.orders.map((o) => o.salesperson));
+
+    const UNA_HORA = 3600000;
+    const ordenes = engine.orders.map((o) => {
+        // La orden como BLOQUE: desde que entra a planta hasta que termina su último proceso.
+        const inicioAntes = o.routes.reduce((min, r) => (r.previousStart && (!min || r.previousStart < min) ? r.previousStart : min), null);
+        const antes = o.previousEnd ? new Date(o.previousEnd).getTime() : null;
+        const despues = o.latestEnd ? new Date(o.latestEnd).getTime() : null;
+        let movimiento = 'igual';
+        if (o.scheduleState === 'en-aprobacion') movimiento = 'en-aprobacion';
+        else if (despues === null) movimiento = 'sin-programar';
+        else if (antes === null) movimiento = 'nueva';
+        else if (despues - antes > UNA_HORA) movimiento = 'atrasa';
+        else if (antes - despues > UNA_HORA) movimiento = 'adelanta';
+        const fija = o.routes.filter((r) => r.status === 'fixed');
+        const actual = procesoActual.get(o.orderCode) || {};
+        const plan = planPorOrden.get(o.orderCode) || {};
+        const correo = correos.get(String(o.salesperson || '').toLowerCase()) || null;
+        return {
+            orderCode: o.orderCode,
+            cliente: o.customerName,
+            claseCliente: o.customerClass,
+            trabajo: o.jobName,
+            vendedor: o.salesperson || '',
+            correoVendedor: correo,
+            prioridad: o.priority,
+            bufferDias: o.bufferDays,
+            bufferPropio: plan.dias_buffer_entrega != null,
+            fechaCliente: o.promisedDate ? capacityDateKey(o.promisedDate) : null,
+            fechaObjetivo: o.targetDate,
+            fechaComprometida: fechaTexto(o.committedDate),
+            primeraProgramacion: o.firstProgramming,
+            diasVsCompromiso: o.daysVsCommitted,
+            inicioAntes,
+            finAntes: o.previousEnd,
+            inicioDespues: o.earliestStart,
+            finDespues: o.latestEnd,
+            diferenciaHoras: antes !== null && despues !== null ? capacityRound((despues - antes) / UNA_HORA, 1) : null,
+            movimiento,
+            estado: o.scheduleState,
+            fechaEstimada: o.estimatedDelivery,
+            bloqueoSuave: o.softLocked,
+            bloqueoSuavePor: o.softLockedBy,
+            fija: fija.length > 0,
+            motivosFija: [...new Set(fija.map((r) => r.fixedReason))],
+            fijaPor: fija.map((r) => r.fixedBy).find(Boolean) || null,
+            estadoOrden: o.planningStatus || o.orderStatus || '',
+            procesoActual: actual.proceso || null,
+            enAprobacion: o.waitingApproval || null,
+            faltaDato: o.missingData || null,
+            secuenciaRota: o.sequenceConflict || null,
+            liberadasPorSecuencia: o.releasedForSequence || [],
+            rutas: o.routes.map((r) => ({
+                routeId: r.routeId,
+                idRuta: r.idRuta,
+                maquinaId: r.maquinaId || null,
+                proceso: r.processName,
+                processKey: r.processKey,
+                recurso: r.resourceName,
+                inicioAntes: r.previousStart,
+                finAntes: r.previousEnd,
+                inicio: r.projectedStart,
+                fin: r.projectedEnd,
+                horas: r.durationHours,
+                personas: r.personas || null,
+                estado: r.status,
+                motivoFija: r.fixedReason || null
+            }))
+        };
+    });
+    const cuenta = (fn) => ordenes.filter(fn).length;
+    // A quién se le avisa: órdenes que se atrasan contra lo comprometido o que en su
+    // primera programación no llegan a la fecha del cliente (hay que negociar).
+    const avisar = ordenes.filter((o) => o.estado === 'atrasa' || o.estado === 'negociar');
+    const vendedores = new Map();
+    avisar.forEach((o) => {
+        const clave = o.vendedor || 'Sin vendedor';
+        if (!vendedores.has(clave)) vendedores.set(clave, { vendedor: clave, correo: o.correoVendedor, ordenes: [] });
+        vendedores.get(clave).ordenes.push(o.orderCode);
+    });
+    const resumen = {
+        calculadoEn: engine.computedAt,
+        ordenes: ordenes.length,
+        adelantan: cuenta((o) => o.movimiento === 'adelanta'),
+        atrasan: cuenta((o) => o.movimiento === 'atrasa'),
+        igual: cuenta((o) => o.movimiento === 'igual'),
+        nuevas: cuenta((o) => o.movimiento === 'nueva'),
+        primeraProgramacion: cuenta((o) => o.primeraProgramacion && !['en-aprobacion', 'falta-dato', 'sin-programar'].includes(o.estado)),
+        cumplen: cuenta((o) => ['cumple', 'adelanta', 'a-tiempo', 'sin-colchon'].includes(o.estado)),
+        atrasanCompromiso: cuenta((o) => o.estado === 'atrasa'),
+        negociar: cuenta((o) => o.estado === 'negociar'),
+        fijas: cuenta((o) => o.fija),
+        faltaDato: cuenta((o) => o.estado === 'falta-dato'),
+        enAprobacion: cuenta((o) => o.movimiento === 'en-aprobacion'),
+        sinHorario: engine.sinHorario,
+        fueraDeSecuencia: await procesosFueraDeSecuencia(),
+        secuenciaRota: ordenes.filter((o) => o.secuenciaRota).map((o) => ({ orden: o.orderCode, detalle: o.secuenciaRota })),
+        liberadasPorSecuencia: ordenes.filter((o) => o.liberadasPorSecuencia.length).map((o) => ({ orden: o.orderCode, procesos: o.liberadasPorSecuencia }))
+    };
+    const recursos = engine.resources.map((r) => ({
+        nombre: r.resourceName,
+        proceso: r.processName || r.processKey,
+        utilizacion: r.utilizationPct,
+        colaDias: r.queueDays
+    }));
+    return {
+        ok: true, resumen, ordenes, recursos,
+        avisos: [...vendedores.values()],
+        motivos: MOTIVOS_REPROGRAMACION,
+        mantener: opciones.mantener || [], liberar: opciones.liberar || [], ajustes: opciones.ajustes || {}, mover: opciones.mover || null
+    };
+}
+
+function moverParam(fuente) {
+    const m = fuente && typeof fuente === 'object' ? fuente : null;
+    if (!m || !m.routeId || !m.start || Number.isNaN(new Date(m.start).getTime())) return null;
+    return { routeId: String(m.routeId), start: new Date(m.start).toISOString(), maquinaId: m.maquinaId ? String(m.maquinaId) : null };
+}
+
+function listaParam(valor) {
+    if (Array.isArray(valor)) return valor.map(String).filter(Boolean);
+    return String(valor || '').split(',').map((v) => v.trim()).filter(Boolean);
+}
+
+function ajustesParam(valor) {
+    let fuente = valor;
+    if (typeof fuente === 'string') { try { fuente = JSON.parse(fuente); } catch (e) { fuente = {}; } }
+    const salida = {};
+    Object.entries(fuente && typeof fuente === 'object' ? fuente : {}).forEach(([codigo, a]) => {
+        if (!a || typeof a !== 'object') return;
+        const item = {};
+        if (['normal', 'clase_a', 'urgente'].includes(a.prioridad)) item.prioridad = a.prioridad;
+        if (a.buffer !== undefined && a.buffer !== null && a.buffer !== '' && Number(a.buffer) >= 0) item.buffer = Math.min(30, Math.round(Number(a.buffer)));
+        if (Object.keys(item).length) salida[String(codigo)] = item;
+    });
+    return salida;
+}
+
+app.get('/api/planificacion/reprogramar/vista-previa', async (req, res) => {
+    try {
+        let mover = null;
+        try { mover = req.query.mover ? moverParam(JSON.parse(String(req.query.mover))) : null; } catch (e) { mover = null; }
+        res.json(await construirVistaPreviaReprogramacion({
+            mantener: listaParam(req.query.mantener),
+            liberar: listaParam(req.query.liberar),
+            ajustes: ajustesParam(req.query.ajustes),
+            mover
+        }));
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible calcular la vista previa.' });
+    }
+});
+
+function htmlCorreoReprogramacion(vendedor, ordenes, motivoTexto, comentario, usuario) {
+    const fila = (o) => `<tr>
+        <td style="padding:6px 10px;border-top:1px solid #eee"><b>${escapeHtmlServer(o.orderCode)}</b><br><span style="color:#667">${escapeHtmlServer(o.trabajo || '')}</span></td>
+        <td style="padding:6px 10px;border-top:1px solid #eee">${escapeHtmlServer(o.cliente || '')}</td>
+        <td style="padding:6px 10px;border-top:1px solid #eee">${escapeHtmlServer(o.fechaCliente || '—')}</td>
+        <td style="padding:6px 10px;border-top:1px solid #eee">${escapeHtmlServer(o.fechaComprometida || '—')}</td>
+        <td style="padding:6px 10px;border-top:1px solid #eee;color:#c43a39"><b>${escapeHtmlServer(o.fechaEstimada || '—')}</b>${o.diasVsCompromiso > 0 ? ` (+${o.diasVsCompromiso} d)` : ''}</td>
+    </tr>`;
+    return `<p>Hola ${escapeHtmlServer(vendedor)},</p>
+<p>Planeación reprogramó la producción y estas órdenes tuyas <b>cambian su fecha de entrega</b>. Por favor comunícate con el cliente.</p>
+<table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px">
+<tr style="background:#f5f7fb;text-align:left"><th style="padding:6px 10px">Orden</th><th style="padding:6px 10px">Cliente</th><th style="padding:6px 10px">Fecha que pidió el cliente</th><th style="padding:6px 10px">Fecha que teníamos</th><th style="padding:6px 10px">Nueva fecha</th></tr>
+${ordenes.map(fila).join('')}
+</table>
+<p><b>Motivo:</b> ${escapeHtmlServer(motivoTexto)}${comentario ? ` — ${escapeHtmlServer(comentario)}` : ''}<br><span style="color:#667">Reprogramó: ${escapeHtmlServer(usuario)}</span></p>`;
+}
+
+function escapeHtmlServer(v) {
+    return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+app.post('/api/planificacion/reprogramar/aplicar', async (req, res) => {
+    try {
+        const usuario = getRequestUserName(req, 'Planeación');
+        const mover = moverParam(req.body?.mover);
+        const motivo = String(req.body?.motivo || (mover ? 'cambio_prioridad' : '')).trim();
+        const comentario = sanitizeAdminUserText(req.body?.comentario || '');
+        if (!MOTIVOS_REPROGRAMACION[motivo]) {
+            return res.status(400).json({ ok: false, error: 'Indica el motivo de la reprogramación.' });
+        }
+        if (motivo === 'otro' && !comentario) {
+            return res.status(400).json({ ok: false, error: 'Explica el motivo en el comentario.' });
+        }
+        const ajustes = ajustesParam(req.body?.ajustes);
+        const vista = await construirVistaPreviaReprogramacion({
+            mantener: listaParam(req.body?.mantener),
+            liberar: listaParam(req.body?.liberar),
+            ajustes,
+            mover
+        });
+        if (vista.resumen.secuenciaRota.length) {
+            return res.status(409).json({ ok: false, error: `No se aplica: en ${vista.resumen.secuenciaRota.map((x) => `${x.orden} (${x.detalle})`).join(', ')}. Un proceso no puede empezar antes de que termine el anterior.` });
+        }
+        const rutasCambian = [];
+        let rutaMovida = null;
+        vista.ordenes.forEach((o) => o.rutas.forEach((r) => {
+            // En espera de aprobación: se quitan sus fechas viejas (todavía no se programan).
+            if (r.estado === 'waiting-approval') {
+                if (r.inicioAntes || r.finAntes) rutasCambian.push({ ...r, inicio: null, fin: null });
+                return;
+            }
+            if (r.motivoFija === 'movida-ahora' && r.inicio && r.fin) { rutaMovida = r; rutasCambian.push(r); return; }
+            if (r.estado !== 'scheduled' || !r.inicio || !r.fin) return;
+            if (r.inicioAntes === r.inicio && r.finAntes === r.fin) return;
+            rutasCambian.push(r);
+        }));
+        if (mover && !rutaMovida) return res.status(400).json({ ok: false, error: 'No se pudo colocar la ruta en ese lugar (sin horario disponible).' });
+        const ids = rutasCambian.map((r) => r.routeId);
+        const antesRutas = ids.length ? (await pgQuery(`
+            SELECT id::text, fecha_plan_inicio, fecha_plan_fin, maquina_id::text, bloqueo_manual, duracion_horas,
+                   datos_extra->>'manualLockBy' AS manual_lock_by, datos_extra->>'manualLockAt' AS manual_lock_at
+              FROM orden_proceso WHERE id = ANY($1::uuid[])
+        `, [ids])).rows : [];
+        const codigos = vista.ordenes.map((o) => o.orderCode);
+        const antesOrdenes = codigos.length ? (await pgQuery(`
+            SELECT codigo_orden, fecha_entrega_estimada, estado_programacion, fecha_fin_produccion_proyectada, alerta_atraso,
+                   prioridad, dias_buffer_entrega
+              FROM orden_planificacion WHERE codigo_orden = ANY($1::text[])
+        `, [codigos])).rows : [];
+
+        const maquinaPorRecurso = new Map();
+        (await pgQuery(`SELECT m.nombre, m.id::text FROM maquina m`)).rows.forEach((m) => maquinaPorRecurso.set(m.nombre, m.id));
+        if (rutaMovida) {
+            // Movida a mano en el Gantt: queda fija, con quién y cuándo.
+            await pgQuery(`
+                UPDATE orden_proceso
+                   SET fecha_plan_inicio = $2::timestamptz, fecha_plan_fin = $3::timestamptz,
+                       maquina_id = COALESCE($4::uuid, maquina_id), bloqueo_manual = TRUE,
+                       datos_extra = COALESCE(datos_extra, '{}'::jsonb) || jsonb_build_object('manualLock', true, 'manualLockBy', $5::text, 'manualLockAt', NOW()::text, 'scheduleMode', 'manual'),
+                       actualizado_en = NOW()
+                 WHERE id = $1::uuid
+            `, [rutaMovida.routeId, rutaMovida.inicio, rutaMovida.fin, mover.maquinaId || null, usuario]);
+        }
+        for (const r of rutasCambian) {
+            if (r === rutaMovida) continue;
+            await pgQuery(`
+                UPDATE orden_proceso
+                   SET fecha_plan_inicio = $2::timestamptz, fecha_plan_fin = $3::timestamptz,
+                       maquina_id = COALESCE($4::uuid, maquina_id),
+                       duracion_horas = COALESCE($5::numeric, duracion_horas),
+                       datos_extra = COALESCE(datos_extra, '{}'::jsonb) || jsonb_build_object('scheduleMode', 'reprogramador'),
+                       actualizado_en = NOW()
+                 WHERE id = $1::uuid
+            `, [r.routeId, r.inicio, r.fin, maquinaPorRecurso.get(r.recurso) || null, r.horas > 0 ? r.horas : null]);
+        }
+        // La fecha de esta reprogramación pasa a ser la comprometida; los ajustes de
+        // prioridad y buffer hechos en la vista previa quedan en la orden.
+        for (const o of vista.ordenes) {
+            const ajuste = ajustes[o.orderCode] || {};
+            await pgQuery(`
+                UPDATE orden_planificacion
+                   SET fecha_entrega_estimada = COALESCE($2::date, fecha_entrega_estimada),
+                       estado_programacion = $3,
+                       fecha_fin_produccion_proyectada = $4::timestamptz,
+                       alerta_atraso = ($3 = 'atrasa'),
+                       prioridad = COALESCE($5, prioridad),
+                       dias_buffer_entrega = CASE WHEN $6::int IS NULL THEN dias_buffer_entrega ELSE $6::int END,
+                       programado_en = NOW(),
+                       actualizado_en = NOW()
+                 WHERE codigo_orden = $1
+            `, [o.orderCode, o.fechaEstimada, o.estado, o.finDespues, ajuste.prioridad || null, ajuste.buffer ?? null]);
+        }
+        const motivoTexto = MOTIVOS_REPROGRAMACION[motivo];
+        const log = await pgQuery(`
+            INSERT INTO reprogramacion_log (usuario, resumen, rutas, ordenes, motivo, comentario)
+            VALUES ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5, $6) RETURNING id, creado_en
+        `, [usuario, JSON.stringify({ ...vista.resumen, rutasMovidas: rutasCambian.length, mantener: vista.mantener, liberar: vista.liberar, ajustes, movidaAMano: rutaMovida ? { routeId: rutaMovida.routeId, inicio: rutaMovida.inicio } : null }),
+            JSON.stringify(antesRutas), JSON.stringify(antesOrdenes), motivo, comentario]);
+        const logId = log.rows[0].id;
+
+        // Historial por orden (solo las que cambian su fecha comprometida o la estrenan).
+        const cambian = vista.ordenes.filter((o) => o.fechaEstimada && o.fechaEstimada !== o.fechaComprometida);
+        for (const o of cambian) {
+            await pgQuery(`
+                INSERT INTO reprogramacion_orden (log_id, codigo_orden, fecha_cliente, fecha_comprometida_antes, fecha_comprometida_despues,
+                                                  dias, estado, prioridad, buffer_dias, vendedor, correo)
+                VALUES ($1, $2, $3::date, $4::date, $5::date, $6, $7, $8, $9, $10, $11)
+            `, [logId, o.orderCode, o.fechaCliente, o.fechaComprometida, o.fechaEstimada,
+                o.diasVsCompromiso, o.estado, o.prioridad, o.bufferDias, o.vendedor, o.correoVendedor]);
+        }
+
+        // Correo al vendedor: órdenes que se atrasan contra lo comprometido o que hay que negociar.
+        const notificar = req.body?.notificar !== false;
+        const correosEnviados = [];
+        const correosFallidos = [];
+        if (notificar) {
+            const porVendedor = new Map();
+            vista.ordenes.filter((o) => (o.estado === 'atrasa' || o.estado === 'negociar') && o.correoVendedor).forEach((o) => {
+                if (!porVendedor.has(o.correoVendedor)) porVendedor.set(o.correoVendedor, { vendedor: o.vendedor, ordenes: [] });
+                porVendedor.get(o.correoVendedor).ordenes.push(o);
+            });
+            for (const [correo, grupo] of porVendedor) {
+                try {
+                    await sendEmail({
+                        to: correo,
+                        subject: `Cambio de fecha de entrega: ${grupo.ordenes.map((o) => o.orderCode).join(', ')}`,
+                        html: htmlCorreoReprogramacion(grupo.vendedor, grupo.ordenes, motivoTexto, comentario, usuario)
+                    });
+                    correosEnviados.push(correo);
+                    await pgQuery(`UPDATE reprogramacion_orden SET notificado = TRUE WHERE log_id = $1 AND correo = $2`, [logId, correo]);
+                } catch (e) {
+                    correosFallidos.push({ correo, error: e.message });
+                }
+            }
+        }
+        invalidateFiniteCapacityCache();
+        res.json({
+            ok: true, logId, rutasMovidas: rutasCambian.length, resumen: vista.resumen,
+            ordenesCambiadas: cambian.map((o) => o.orderCode),
+            correosEnviados, correosFallidos
+        });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible aplicar la reprogramación.' });
+    }
+});
+
+// Después de aplicar: dejar con bloqueo suave las órdenes que el programador elija.
+app.post('/api/planificacion/reprogramar/bloquear', async (req, res) => {
+    try {
+        const usuario = getRequestUserName(req, 'Planeación');
+        const ordenes = listaParam(req.body?.ordenes);
+        if (!ordenes.length) return res.status(400).json({ ok: false, error: 'Elige al menos una orden.' });
+        const { rowCount } = await pgQuery(`
+            UPDATE orden_planificacion
+               SET fecha_comprometida_bloqueada = TRUE, bloqueo_comprometido_por = $2, bloqueo_comprometido_en = NOW(), actualizado_en = NOW()
+             WHERE codigo_orden = ANY($1::text[])
+        `, [ordenes, usuario]);
+        invalidateFiniteCapacityCache();
+        res.json({ ok: true, bloqueadas: rowCount });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible bloquear las órdenes.' });
+    }
+});
+
+app.post('/api/planificacion/reprogramar/deshacer', async (req, res) => {
+    try {
+        const usuario = getRequestUserName(req, 'Planeación');
+        const { rows } = await pgQuery(`SELECT * FROM reprogramacion_log WHERE deshecho_en IS NULL ORDER BY id DESC LIMIT 1`);
+        const log = rows[0];
+        if (!log) return res.status(404).json({ ok: false, error: 'No hay ninguna reprogramación para deshacer.' });
+        for (const r of (log.rutas || [])) {
+            await pgQuery(`
+                UPDATE orden_proceso SET fecha_plan_inicio = $2::timestamptz, fecha_plan_fin = $3::timestamptz,
+                       maquina_id = $4::uuid, bloqueo_manual = COALESCE($5, bloqueo_manual),
+                       duracion_horas = COALESCE($6::numeric, duracion_horas),
+                       datos_extra = CASE WHEN $5 IS FALSE THEN COALESCE(datos_extra, '{}'::jsonb) - 'manualLock' - 'manualLockBy' - 'manualLockAt' ELSE datos_extra END,
+                       actualizado_en = NOW()
+                 WHERE id = $1::uuid
+            `, [r.id, r.fecha_plan_inicio, r.fecha_plan_fin, r.maquina_id || null, r.bloqueo_manual == null ? null : Boolean(r.bloqueo_manual), r.duracion_horas == null ? null : Number(r.duracion_horas)]);
+        }
+        for (const o of (log.ordenes || [])) {
+            await pgQuery(`
+                UPDATE orden_planificacion SET fecha_entrega_estimada = $2::date, estado_programacion = $3,
+                       fecha_fin_produccion_proyectada = $4::timestamptz, alerta_atraso = COALESCE($5, alerta_atraso),
+                       prioridad = COALESCE($6, prioridad),
+                       dias_buffer_entrega = CASE WHEN $8 THEN $7::int ELSE dias_buffer_entrega END, actualizado_en = NOW()
+                 WHERE codigo_orden = $1
+            `, [o.codigo_orden, o.fecha_entrega_estimada, o.estado_programacion, o.fecha_fin_produccion_proyectada, o.alerta_atraso,
+                o.prioridad || null, o.dias_buffer_entrega == null ? null : Number(o.dias_buffer_entrega),
+                Object.prototype.hasOwnProperty.call(o, 'dias_buffer_entrega')]);
+        }
+        await pgQuery(`UPDATE reprogramacion_log SET deshecho_en = NOW(), deshecho_por = $2 WHERE id = $1`, [log.id, usuario]);
+        invalidateFiniteCapacityCache();
+        res.json({ ok: true, logId: log.id, rutasRestauradas: (log.rutas || []).length });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible deshacer la reprogramación.' });
+    }
+});
+
+// Historial de una orden: cada vez que se programó o reprogramó, quién y por qué.
+app.get('/api/planificacion/:codigo/historial-programacion', async (req, res) => {
+    try {
+        const { rows } = await pgQuery(`
+            SELECT ro.creado_en, ro.fecha_cliente::text, ro.fecha_comprometida_antes::text, ro.fecha_comprometida_despues::text,
+                   ro.dias, ro.estado, ro.prioridad, ro.buffer_dias, ro.notificado,
+                   l.usuario, l.motivo, l.comentario, l.deshecho_en
+              FROM reprogramacion_orden ro JOIN reprogramacion_log l ON l.id = ro.log_id
+             WHERE ro.codigo_orden = $1 ORDER BY ro.creado_en DESC
+        `, [String(req.params.codigo || '')]);
+        res.json({ ok: true, data: rows.map((r) => ({ ...r, motivoTexto: MOTIVOS_REPROGRAMACION[r.motivo] || r.motivo })) });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar el historial.' });
+    }
+});
+
+// ── Horas extra con vigencia ──
+app.get('/api/planificacion/horas-extra', async (req, res) => {
+    try {
+        const { rows } = await pgQuery(`
+            SELECT h.id, h.proceso_key, h.maquina_id::text, m.nombre AS maquina_nombre,
+                   COALESCE(c.etiqueta, (SELECT c2.etiqueta FROM proceso_maquina pm JOIN costo_proceso_defaults c2 ON c2.proceso_key = pm.proceso_key
+                                          WHERE pm.maquina_id = h.maquina_id ORDER BY c2.orden LIMIT 1)) AS proceso_nombre,
+                   h.fecha_desde::text, h.fecha_hasta::text, h.dias_semana, h.horas::float AS horas, h.motivo,
+                   h.aprobado_por, h.creado_por, h.creado_en, (h.fecha_hasta < CURRENT_DATE) AS vencida
+              FROM horas_extra h
+              LEFT JOIN maquina m ON m.id = h.maquina_id
+              LEFT JOIN costo_proceso_defaults c ON c.proceso_key = h.proceso_key
+             WHERE h.activo = TRUE
+             ORDER BY (h.fecha_hasta < CURRENT_DATE), h.fecha_desde
+        `);
+        res.json({ ok: true, data: rows });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar las horas extra.' });
+    }
+});
+
+app.post('/api/planificacion/horas-extra', async (req, res) => {
+    try {
+        const b = req.body || {};
+        const desde = String(b.fecha_desde || '').slice(0, 10);
+        const hasta = String(b.fecha_hasta || '').slice(0, 10);
+        const horas = Number(b.horas);
+        const dias = (Array.isArray(b.dias_semana) ? b.dias_semana : []).map(Number).filter((d) => d >= 0 && d <= 6);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(desde) || !/^\d{4}-\d{2}-\d{2}$/.test(hasta) || hasta < desde) {
+            return res.status(400).json({ ok: false, error: 'Indica desde y hasta cuándo aplican (la fecha final no puede ser antes de la inicial).' });
+        }
+        if (!(horas > 0 && horas <= 12)) return res.status(400).json({ ok: false, error: 'Las horas extra por día deben ser entre 0.5 y 12.' });
+        if (!dias.length) return res.status(400).json({ ok: false, error: 'Elige al menos un día de la semana.' });
+        if (!b.proceso_key && !b.maquina_id) return res.status(400).json({ ok: false, error: 'Elige el proceso o la máquina.' });
+        const usuario = getRequestUserName(req, 'Planeación');
+        const { rows } = await pgQuery(`
+            INSERT INTO horas_extra (proceso_key, maquina_id, fecha_desde, fecha_hasta, dias_semana, horas, motivo, aprobado_por, creado_por)
+            VALUES ($1, $2::uuid, $3::date, $4::date, $5::int[], $6, $7, $8, $9) RETURNING id
+        `, [b.maquina_id ? null : String(b.proceso_key), b.maquina_id || null, desde, hasta, dias, horas,
+            sanitizeAdminUserText(b.motivo || ''), sanitizeAdminUserText(b.aprobado_por || '') || usuario, usuario]);
+        invalidateFiniteCapacityCache();
+        res.json({ ok: true, id: rows[0].id });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible guardar las horas extra.' });
+    }
+});
+
+app.delete('/api/planificacion/horas-extra/:id', async (req, res) => {
+    try {
+        await pgQuery(`UPDATE horas_extra SET activo = FALSE WHERE id = $1`, [Number(req.params.id)]);
+        invalidateFiniteCapacityCache();
+        res.json({ ok: true });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible quitar las horas extra.' });
+    }
+});
+
+app.get('/api/planificacion/reprogramar/historial', async (req, res) => {
+    try {
+        const { rows } = await pgQuery(`
+            SELECT l.id, l.creado_en, l.usuario, l.resumen, l.deshecho_en, l.deshecho_por, jsonb_array_length(l.rutas) AS rutas,
+                   l.motivo, l.comentario,
+                   (SELECT COUNT(*) FROM reprogramacion_orden ro WHERE ro.log_id = l.id)::int AS ordenes_cambiadas,
+                   (SELECT COUNT(*) FROM reprogramacion_orden ro WHERE ro.log_id = l.id AND ro.dias > 0)::int AS ordenes_atrasadas,
+                   (SELECT COALESCE(SUM(ro.dias) FILTER (WHERE ro.dias > 0), 0) FROM reprogramacion_orden ro WHERE ro.log_id = l.id)::int AS dias_atraso
+              FROM reprogramacion_log l ORDER BY l.id DESC LIMIT 30
+        `);
+        res.json({ ok: true, data: rows });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar el historial.' });
+    }
+});
 
 app.get('/api/planificacion/capacidad-finita', async (req, res) => {
     try {
@@ -28076,6 +29316,23 @@ async function enviarSapConRespaldoEnCola({ tipo, referencia, payload = {}, crea
 
 // Encola la creación del socio en SAP (lo usa el wizard pre-orden). No bloquea:
 // el worker de sap_envios_pendientes reintenta y, si se agota, avisa a Finanzas.
+// Clase del cliente (A/B/C): los de clase A entran como "Clase A" al programar producción.
+app.patch('/api/socios/:codigo/clase', async (req, res) => {
+    try {
+        const clase = String(req.body?.clase || '').trim().toUpperCase();
+        if (clase && !['A', 'B', 'C'].includes(clase)) return res.status(400).json({ ok: false, error: 'La clase debe ser A, B o C.' });
+        const { rowCount } = await pgQuery(
+            `UPDATE business_partners SET clase_cliente = $2, updated_at = NOW() WHERE partner_code = $1`,
+            [req.params.codigo, clase || null]
+        );
+        if (!rowCount) return res.status(404).json({ ok: false, error: 'Socio no encontrado.' });
+        invalidateFiniteCapacityCache();
+        res.json({ ok: true, clase: clase || null });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible guardar la clase.' });
+    }
+});
+
 app.post('/api/socios/:codigo/encolar-sap', async (req, res) => {
     try {
         const codigo = normalizePartnerCode(req.params.codigo);
@@ -36135,9 +37392,38 @@ app.get('/api/inventario/troqueles/:codigo', async (req, res) => {
     }
 });
 
+// Procesos de Costos para elegir el "Proceso Principal" de una máquina.
+app.get('/api/costos/procesos-lista', async (req, res) => {
+    try {
+        const { rows } = await pgQuery(`SELECT proceso_key, etiqueta, gantt_habilitado FROM costo_proceso_defaults WHERE activo = TRUE ORDER BY orden`);
+        res.json({ ok: true, data: rows });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar los procesos.' });
+    }
+});
+
+// El "Proceso Principal" de la máquina la liga a ese proceso de Costos para la
+// programación (misma tabla proceso_maquina que usa Costos → Editar proceso).
+async function ligarMaquinaAProcesoPrincipal(maquinaId, procesoTexto) {
+    const clave = normalizePlanningKey(procesoTexto).replace(/-/g, '_');
+    if (!maquinaId || !clave) return;
+    const { rows } = await pgQuery(`SELECT proceso_key FROM costo_proceso_defaults WHERE proceso_key = $1 LIMIT 1`, [clave]);
+    if (!rows.length) return;
+    await pgQuery(`
+        INSERT INTO proceso_maquina (proceso_key, maquina_id)
+        SELECT $1, $2::uuid
+         WHERE NOT EXISTS (SELECT 1 FROM proceso_maquina WHERE proceso_key = $1 AND maquina_id = $2::uuid)
+    `, [clave, maquinaId]);
+    invalidateFiniteCapacityCache();
+}
+
 app.post('/api/inventario/:kind', async (req, res) => {
     try {
         const id = await saveInventory(req.params.kind, req.body || {});
+        if (req.params.kind === 'maquinas') {
+            const principal = (Array.isArray(req.body?.capacidades) ? req.body.capacidades : []).find((c) => c && c.activa !== false) || {};
+            await ligarMaquinaAProcesoPrincipal(id, principal.proceso).catch((e) => console.warn('[programacion] No se pudo ligar la máquina a su proceso:', e.message));
+        }
         const items = await listInventory(req.params.kind, { limit: 5000 });
         const record = items.find((item) => item.id === id) || null;
         res.json({ ok: true, id, item: record });
