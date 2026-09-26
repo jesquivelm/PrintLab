@@ -29192,6 +29192,23 @@ async function enviarSapConRespaldoEnCola({ tipo, referencia, payload = {}, crea
 
 // Encola la creación del socio en SAP (lo usa el wizard pre-orden). No bloquea:
 // el worker de sap_envios_pendientes reintenta y, si se agota, avisa a Finanzas.
+// Clase del cliente (A/B/C): los de clase A entran como "Clase A" al programar producción.
+app.patch('/api/socios/:codigo/clase', async (req, res) => {
+    try {
+        const clase = String(req.body?.clase || '').trim().toUpperCase();
+        if (clase && !['A', 'B', 'C'].includes(clase)) return res.status(400).json({ ok: false, error: 'La clase debe ser A, B o C.' });
+        const { rowCount } = await pgQuery(
+            `UPDATE business_partners SET clase_cliente = $2, updated_at = NOW() WHERE partner_code = $1`,
+            [req.params.codigo, clase || null]
+        );
+        if (!rowCount) return res.status(404).json({ ok: false, error: 'Socio no encontrado.' });
+        invalidateFiniteCapacityCache();
+        res.json({ ok: true, clase: clase || null });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible guardar la clase.' });
+    }
+});
+
 app.post('/api/socios/:codigo/encolar-sap', async (req, res) => {
     try {
         const codigo = normalizePartnerCode(req.params.codigo);

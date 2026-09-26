@@ -21757,3 +21757,16 @@ html[data-theme="dark"] .mant-btn-primary {
 .machine-mant-inline{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;margin-top:6px;border-radius:12px;border:1px dashed rgba(148,163,184,.5);background:rgba(148,163,184,.06)}
 .machine-mant-inline strong{display:block;font-size:13px}
 .machine-mant-inline span{font-size:12px;opacity:.75}
+
+/* Clase del cliente (A/B/C): insignia junto al nombre. La A tiene prioridad al programar. */
+.clase-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:7px;font-size:11px;font-weight:800;color:#fff;line-height:1;border:0;vertical-align:middle;letter-spacing:.02em}
+.clase-badge.clase-A{background:linear-gradient(135deg,#7c3aed,#c026d3);box-shadow:0 2px 8px rgba(192,38,211,.35)}
+.clase-badge.clase-B{background:linear-gradient(135deg,#0284c7,#06b6d4);box-shadow:0 2px 8px rgba(6,182,212,.3)}
+.clase-badge.clase-C{background:linear-gradient(135deg,#64748b,#94a3b8)}
+.socio-nombre-fila{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.clase-cliente-selector{display:inline-flex;gap:4px;padding:3px;border-radius:10px;background:rgba(100,116,139,.08)}
+.clase-cliente-selector .clase-badge{cursor:pointer;min-width:26px;height:26px;font-size:12.5px;opacity:.28;filter:grayscale(.6);box-shadow:none;transition:opacity .15s,transform .15s,filter .15s}
+.clase-cliente-selector .clase-badge:hover{opacity:.75;filter:none;transform:translateY(-1px)}
+.clase-cliente-selector .clase-badge.is-active{opacity:1;filter:none;transform:scale(1.06)}
+.clase-cliente-selector .clase-badge.clase-A.is-active{box-shadow:0 3px 12px rgba(192,38,211,.45)}
+.clase-cliente-selector .clase-badge.clase-B.is-active{box-shadow:0 3px 12px rgba(6,182,212,.4)}

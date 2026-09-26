@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
     <title>Socio</title>
-    <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
+    <link rel="stylesheet" href="/styles.css?v=20260926-clase-cliente">
     <link rel="stylesheet" href="/socios-documento.css?v=20260823-sap-standardize">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
@@ -24,7 +24,14 @@
             </div>
             <div class="socios-code-card socios-code-card-name">
                 <span>Nombre del socio</span>
-                <strong id="partnerNameHero">-</strong>
+                <div class="socio-nombre-fila">
+                    <strong id="partnerNameHero">-</strong>
+                    <div class="clase-cliente-selector" id="claseClienteSelector" role="group" aria-label="Clase del cliente" title="Clase del cliente: la A tiene prioridad al programar producción">
+                        <button type="button" data-clase="A" class="clase-badge clase-A">A</button>
+                        <button type="button" data-clase="B" class="clase-badge clase-B">B</button>
+                        <button type="button" data-clase="C" class="clase-badge clase-C">C</button>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -354,6 +361,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/access-control.js?v=20260923-mensajes-carga"></script>
     <script src="/direccion-pais.js?v=20260924-geo-v3"></script>
-    <script src="/socios-documento.js?v=20260924-geo-v2"></script>
+    <script src="/socios-documento.js?v=20260926-clase-cliente"></script>
 </body>
 </html>

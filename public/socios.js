@@ -421,7 +421,7 @@ async function loadSocios(search = '', append = false) {
     const renderRow = (item) => `
         <tr>
             <td>${escapeHtml(item.partner_code)}</td>
-            <td>${escapeHtml(item.partner_name)}</td>
+            <td>${escapeHtml(item.partner_name)}${item.clase_cliente ? ` <span class="clase-badge clase-${escapeHtml(item.clase_cliente)}" title="Cliente clase ${escapeHtml(item.clase_cliente)}">${escapeHtml(item.clase_cliente)}</span>` : ''}</td>
             <td>${escapeHtml(item.salesperson_name)}</td>
             <td>${escapeHtml(item.email)}</td>
             <td>${escapeHtml(item.sector)}</td>
