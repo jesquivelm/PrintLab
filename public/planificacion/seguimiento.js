@@ -1254,8 +1254,18 @@ function navShellAware(e,route,label){
   }
   return true;
 }
+
+function abrirOrdenEnPlanificacion(codigoOrden){
+  const ruta=`/planificacion/gantt?orderCode=${encodeURIComponent(codigoOrden)}`;
+  if(window.parent&&window.parent!==window&&window.location.search.includes('embebido=1')){
+    window.parent.postMessage({tipo:'planificacion-abrir-orden',codigoOrden:codigoOrden},window.location.origin);
+    return;
+  }
+  window.location.href=ruta;
+}
 document.getElementById('searchInput').addEventListener('input',e=>{searchTerm=e.target.value;renderAll()});
 document.getElementById('ganttLink').addEventListener('click',e=>{navShellAware(e,'/planificacion/gantt','Gantt')});
+document.getElementById('btnGantt')?.addEventListener('click',e=>{e.preventDefault();abrirOrdenEnPlanificacion(drawerOrder?.orderCode||'')});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDrawer();closeOrderModal();}});
 document.querySelectorAll('.priority-opt[data-priority]').forEach(opt=>{
   opt.addEventListener('click',()=>setPriority(opt.dataset.priority,true));

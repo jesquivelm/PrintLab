@@ -474,7 +474,235 @@ html[data-theme="dark"] .view-tabs{background:var(--app-surface,#111827)}
 html[data-theme="dark"] .view-tab{color:var(--app-text-muted,#94a3b8)}
 html[data-theme="dark"] .view-tab:hover{color:#60a5fa}
 html[data-theme="dark"] .view-tab.active{color:#fff;background:#2563eb}
+
+/* ── POPOVER CALENDARIOS ── */
+.cal-pop-backdrop{position:fixed;inset:0;z-index:9998;background:transparent}
+.cal-pop{
+  position:fixed;z-index:9999;width:520px;
+  background:#fff;border:1px solid #d0dcea;border-radius:16px;
+  box-shadow:0 20px 60px rgba(15,38,56,.18),0 4px 16px rgba(15,38,56,.08);
+  overflow:hidden;
+  opacity:0;transform:translateY(-8px) scale(0.97);
+  pointer-events:none;
+  transition:opacity .22s cubic-bezier(.2,.9,.25,1),transform .22s cubic-bezier(.2,.9,.25,1);
+}
+.cal-pop.open{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+.cal-pop-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px 12px;border-bottom:1px solid #e8eef5;
+  background:linear-gradient(135deg,#f7fbff 0%,#eef5fd 100%);
+}
+.cal-pop-title{display:flex;align-items:center;gap:10px}
+.cal-pop-title-icon{
+  width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,#185FA5,#2d8fdd);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:15px;flex-shrink:0;
+  box-shadow:0 2px 8px rgba(24,95,165,.3);
+}
+.cal-pop-title-text{font-size:14px;font-weight:700;color:#1a2840;letter-spacing:-.01em}
+.cal-pop-title-sub{font-size:11px;color:#6b85a0;margin-top:1px}
+.cal-pop-close{
+  width:28px;height:28px;border-radius:7px;border:0;
+  background:rgba(24,95,165,.07);color:#6b85a0;
+  font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background .14s,color .14s;
+}
+.cal-pop-close:hover{background:rgba(24,95,165,.15);color:#185FA5}
+.cal-pop-body{max-height:380px;overflow-y:auto;padding:14px 20px;
+  scrollbar-width:thin;scrollbar-color:rgba(11,129,184,.42) transparent;
+}
+.cal-pop-body::-webkit-scrollbar{width:8px;height:8px}
+.cal-pop-body::-webkit-scrollbar-thumb{border-radius:999px;background:rgba(11,129,184,.38)}
+.cal-pop-body::-webkit-scrollbar-track{background:transparent}
+.cal-pop-loading{display:flex;align-items:center;justify-content:center;gap:8px;padding:32px 0;color:#6b85a0;font-size:13px}
+.cal-pop-empty{text-align:center;padding:32px 0;color:#6b85a0;font-size:13px}
+.cal-pop-empty-icon{font-size:30px;margin-bottom:8px;opacity:.5}
+.cal-card{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:12px 14px;border-radius:10px;border:1px solid #e0eaf5;
+  background:#f7fbff;margin-bottom:8px;
+  transition:box-shadow .14s,border-color .14s;
+}
+.cal-card:last-child{margin-bottom:0}
+.cal-card:hover{box-shadow:0 4px 14px rgba(15,38,56,.09);border-color:#c4d9f0}
+.cal-card-icon{
+  width:36px;height:36px;border-radius:9px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#e8f4ff,#d2eaff);
+  font-size:16px;box-shadow:0 1px 4px rgba(24,95,165,.12);
+}
+.cal-card-body{flex:1;min-width:0}
+.cal-card-name{font-size:13px;font-weight:600;color:#1a2840;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-card-meta{font-size:11px;color:#6b85a0;margin-top:2px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.cal-card-chip{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:600}
+.cal-card-chip.active{background:#e4f7ef;color:#0a6945}
+.cal-card-chip.inactive{background:#f0f2f5;color:#8899aa}
+.cal-card-actions{display:flex;gap:6px;flex-shrink:0;margin-left:auto;padding-left:8px}
+.cal-card-btn{
+  height:28px;padding:0 11px;border-radius:7px;border:1px solid #c4d9f0;
+  background:#fff;color:#185FA5;font-size:11px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;gap:4px;
+  transition:background .14s,border-color .14s,box-shadow .14s;white-space:nowrap;
+}
+.cal-card-btn:hover{background:#e8f4ff;border-color:#96c2e8;box-shadow:0 2px 6px rgba(24,95,165,.12)}
+.cal-card-btn.danger{color:#A32D2D;border-color:#f0b5b5;background:#fff}
+.cal-card-btn.danger:hover{background:#fceaea;border-color:#e08080}
+.cal-pop-footer{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 20px;border-top:1px solid #e8eef5;
+  background:linear-gradient(135deg,#f7fbff 0%,#eef5fd 100%);
+}
+.cal-pop-add-btn{
+  display:flex;align-items:center;gap:7px;
+  height:36px;padding:0 16px;border-radius:9px;border:0;
+  background:linear-gradient(135deg,#185FA5,#2175c8);
+  color:#fff;font-size:13px;font-weight:600;cursor:pointer;
+  box-shadow:0 2px 8px rgba(24,95,165,.3);
+  transition:box-shadow .15s,filter .15s;
+}
+.cal-pop-add-btn:hover{filter:brightness(1.07);box-shadow:0 4px 14px rgba(24,95,165,.4)}
+.cal-pop-config-link{font-size:11px;color:#6b85a0;text-decoration:none;display:flex;align-items:center;gap:4px}
+.cal-pop-config-link:hover{color:#185FA5}
+
+/* ── DARK MODE POPOVER CALENDARIOS ── */
+html[data-theme="dark"] .cal-pop{background:var(--app-surface,#111827);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .cal-pop-header{background:linear-gradient(135deg,#131f33 0%,#0f1a2e 100%);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .cal-pop-title-text{color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .cal-pop-title-sub{color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .cal-pop-close{background:rgba(56,189,248,.08);color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .cal-pop-close:hover{background:rgba(56,189,248,.18);color:#60c7f0}
+html[data-theme="dark"] .cal-pop-body{background:var(--app-surface,#111827)}
+html[data-theme="dark"] .cal-card{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .cal-card:hover{border-color:#2563eb;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+html[data-theme="dark"] .cal-card-icon{background:linear-gradient(135deg,rgba(37,99,235,.22),rgba(29,78,216,.18))}
+html[data-theme="dark"] .cal-card-name{color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .cal-card-meta{color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .cal-card-btn{background:var(--app-surface-raised,#1f2937);border-color:var(--app-border,#334155);color:#60c7f0}
+html[data-theme="dark"] .cal-card-btn:hover{background:rgba(56,189,248,.12);border-color:rgba(56,189,248,.35)}
+html[data-theme="dark"] .cal-card-btn.danger{color:#f87171;border-color:rgba(248,113,113,.35)}
+html[data-theme="dark"] .cal-card-btn.danger:hover{background:rgba(248,113,113,.1)}
+html[data-theme="dark"] .cal-pop-footer{background:linear-gradient(135deg,#131f33 0%,#0f1a2e 100%);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .cal-pop-config-link{color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .cal-pop-config-link:hover{color:#60c7f0}
+html[data-theme="dark"] .cal-pop-loading{color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .cal-pop-empty{color:var(--app-text-muted,#94a3b8)}
+
+/* ── MODAL CALENDARIOS (dentro del Gantt) ── */
+.gcal-modal-overlay{position:fixed;inset:0;z-index:19000;background:rgba(10,20,36,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s ease;pointer-events:none}
+.gcal-modal-overlay.open{opacity:1;pointer-events:auto}
+.gcal-modal{background:#fff;border-radius:16px;width:min(520px,calc(100vw - 32px));border:1px solid #d0dcea;box-shadow:0 24px 80px rgba(10,20,36,.22);overflow:hidden;transform:scale(.95) translateY(12px);transition:transform .22s cubic-bezier(.2,.9,.25,1)}
+.gcal-modal-overlay.open .gcal-modal{transform:scale(1) translateY(0)}
+.gcal-modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;background:linear-gradient(135deg,#f7fbff,#eef5fd);border-bottom:1px solid #e0eaf5}
+.gcal-modal-title{font-size:15px;font-weight:700;color:#1a2840}
+.gcal-modal-close{width:28px;height:28px;border-radius:7px;border:0;background:rgba(24,95,165,.07);color:#6b85a0;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .14s,color .14s}
+.gcal-modal-close:hover{background:rgba(24,95,165,.15);color:#185FA5}
+.gcal-modal-body{padding:20px 22px;display:flex;flex-direction:column;gap:14px}
+.gcal-field{display:flex;flex-direction:column;gap:5px}
+.gcal-field label{font-size:11px;font-weight:600;color:#60707f;text-transform:uppercase;letter-spacing:.04em}
+.gcal-field input,.gcal-field select{width:100%;height:40px;padding:0 12px;border:1px solid #cfd8df;border-radius:12px;font-size:13px;background:#fff;color:#1a2840;transition:border-color .16s,box-shadow .16s}
+.gcal-field input:focus,.gcal-field select:focus{outline:none;border-color:#118fc6;box-shadow:0 0 0 3px rgba(17,143,198,.15)}
+.gcal-field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.gcal-modal-footer{display:flex;gap:8px;justify-content:flex-end;padding:14px 22px;border-top:1px solid #e0eaf5;background:#f7fbff}
+.gcal-btn{height:36px;padding:0 18px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid #cfd8df;background:#fff;color:#4a6070;transition:background .14s,box-shadow .14s}
+.gcal-btn:hover{background:#f0f5fa}
+.gcal-btn.primary{background:linear-gradient(135deg,#185FA5,#2175c8);border:0;color:#fff;box-shadow:0 2px 8px rgba(24,95,165,.28)}
+.gcal-btn.primary:hover{filter:brightness(1.07);box-shadow:0 4px 14px rgba(24,95,165,.38)}
+html[data-theme="dark"] .gcal-modal{background:var(--app-surface,#111827);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .gcal-modal-header{background:linear-gradient(135deg,#131f33,#0f1a2e);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .gcal-modal-title{color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .gcal-modal-close{background:rgba(56,189,248,.08);color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .gcal-modal-close:hover{background:rgba(56,189,248,.18);color:#60c7f0}
+html[data-theme="dark"] .gcal-modal-body{background:var(--app-surface,#111827)}
+html[data-theme="dark"] .gcal-field label{color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .gcal-field input,.gcal-field select{background:#0f172a;border-color:#2a384a;color:var(--app-text,#dce8f2)}
+html[data-theme="dark"] .gcal-field input:focus{border-color:#3fa9dd;box-shadow:0 0 0 3px rgba(63,169,221,.22)}
+html[data-theme="dark"] .gcal-modal-footer{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .gcal-btn{background:var(--app-surface-raised,#1f2937);border-color:var(--app-border,#334155);color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .gcal-btn:hover{background:rgba(56,189,248,.08)}
+
+/* ── CAJONES LATERALES (mismo patrón que el drawer de Estimar) ── */
+.sg-drawer-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:200;opacity:0;pointer-events:none;transition:opacity .22s ease;backdrop-filter:blur(2px)}
+.sg-drawer-overlay.open{opacity:1;pointer-events:all}
+.sg-drawer{position:fixed;top:0;right:0;bottom:0;background:#fff;border-left:1px solid #d0dcea;box-shadow:0 20px 60px rgba(15,38,56,.22);z-index:201;transform:translateX(100%);transition:transform .26s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden}
+.sg-drawer.open{transform:translateX(0)}
+.sg-drawer .drawer-header{display:flex;align-items:center;gap:10px;padding:18px 20px;border-bottom:1px solid #e8eef5;background:linear-gradient(135deg,#f7fbff 0%,#eef5fd 100%);flex-shrink:0}
+.sg-drawer .drawer-title{font-size:17px;font-weight:700;color:#1a2840;flex:1}
+.sg-drawer .drawer-code{font-size:12px;color:#6b85a0;font-family:inherit;margin-top:2px}
+.sg-drawer .drawer-close{width:28px;height:28px;border-radius:7px;border:1px solid #d0dcea;background:#fff;color:#6b85a0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .12s}
+.sg-drawer .drawer-close:hover{background:rgba(24,95,165,.1);color:#185FA5}
+.sg-drawer .drawer-body{flex:1;overflow-y:auto;padding:20px}
+.sg-drawer .drawer-footer{padding:14px 20px;border-top:1px solid #e8eef5;background:#f7fbff;flex-shrink:0}
+.sg-drawer{width:min(560px,100vw)}
+.sg-drawer-wide{width:min(680px,100vw)}
+.sg-drawer-body{padding:20px;scrollbar-width:thin;scrollbar-color:rgba(11,129,184,.42) transparent}
+.sg-drawer-embed{padding:0;overflow:hidden}
+.sg-drawer .drawer-header{position:relative}
+.sg-drawer .drawer-close{position:absolute;right:16px;top:16px;margin:0}
+.sg-drawer-body::-webkit-scrollbar{width:8px}
+.sg-drawer-body::-webkit-scrollbar-thumb{border-radius:999px;background:rgba(11,129,184,.38)}
+.sg-drawer-body::-webkit-scrollbar-track{background:transparent}
+.sg-drawer-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+html[data-theme="dark"] .sg-drawer{background:var(--app-surface,#111827);border-left-color:var(--app-border,#334155)}
+html[data-theme="dark"] .sg-drawer .drawer-header{background:linear-gradient(135deg,#131f33 0%,#0f1a2e 100%);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .sg-drawer .drawer-title{color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .sg-drawer .drawer-code{color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .sg-drawer .drawer-close{background:rgba(56,189,248,.08);border-color:var(--app-border,#334155);color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .sg-drawer .drawer-close:hover{background:rgba(56,189,248,.18);color:#60c7f0}
+html[data-theme="dark"] .sg-drawer .drawer-footer{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .sg-drawer-overlay{background:rgba(0,0,0,.55)}
+
+/* ── Componentes internos de los cajones ── */
+.cf-wrap{position:relative;display:inline-flex}
+.cf-trigger .cf-caret{font-size:10px;opacity:.7;margin-left:2px}
+.cal-pop-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid #e4ebf3;border-radius:10px;margin-bottom:8px;background:#fbfdff;transition:border-color .15s,box-shadow .15s}
+.cal-pop-item:hover{border-color:#9fc2e2;box-shadow:0 2px 8px rgba(24,95,165,.08)}
+.cal-pop-item-name{font-size:13px;font-weight:600;color:#1a2840}
+.cal-pop-item-sub{font-size:11px;color:#6b85a0;margin-top:2px}
+.cal-pop-item-meta{display:flex;gap:6px;flex-shrink:0}
+.cal-pop-pill{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;background:rgba(24,95,165,.09);color:#185FA5;white-space:nowrap}
+.cal-pop-pill-off{background:#eef1f5;color:#8b9bab}
+.cal-pop-pill-warn{background:rgba(186,117,23,.12);color:#a3691a}
+.cf-kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.cf-kpi{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:12px;border:1px solid #e4ebf3;background:#fbfdff;cursor:pointer;text-align:left;transition:border-color .15s,box-shadow .15s,transform .15s;font-family:inherit}
+.cf-kpi:hover:not(:disabled){border-color:#9fc2e2;box-shadow:0 4px 14px rgba(24,95,165,.12);transform:translateY(-1px)}
+.cf-kpi:disabled{cursor:default;opacity:.85}
+.cf-kpi-num{font-size:22px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.cf-kpi-lbl{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;margin-top:4px}
+.cf-kpi-hint{font-size:10px;color:#8296a8;line-height:1.35;margin-top:2px}
+.cf-kpi-crit{border-color:rgba(226,75,74,.35);background:rgba(226,75,74,.05)}
+.cf-kpi-crit .cf-kpi-num,.cf-kpi-crit .cf-kpi-lbl{color:#c43a39}
+.cf-kpi-warn{border-color:rgba(186,117,23,.35);background:rgba(186,117,23,.05)}
+.cf-kpi-warn .cf-kpi-num,.cf-kpi-warn .cf-kpi-lbl{color:#a3691a}
+.cf-kpi-ok .cf-kpi-num,.cf-kpi-ok .cf-kpi-lbl{color:#1d9e75}
+.cf-secc-title{font-size:11px;font-weight:700;color:#60707f;text-transform:uppercase;letter-spacing:.05em;margin:4px 0 6px}
+.cf-explicacion{font-size:12px;color:#4a6070;line-height:1.5;background:#f4f8fc;border:1px solid #e4ebf3;border-radius:10px;padding:10px 12px;margin-bottom:12px}
+.cf-lista{display:flex;flex-direction:column;gap:6px}
+.cf-fila{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid #e4ebf3;border-radius:10px;background:#fff}
+.cf-fila-num{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#185FA5,#2175c8);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.cf-fila-title{font-size:12px;font-weight:600;color:#1a2840}
+.cf-fila-sub{font-size:11px;color:#6b85a0;margin-top:1px}
+.cf-nota{font-size:11px;color:#8296a8;padding:6px 4px}
+.cf-run-btn{font-size:13px}
+html[data-theme="dark"] .cal-pop-item{background:var(--app-surface-raised,#16223a);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .cal-pop-item:hover{border-color:#3f6f9f}
+html[data-theme="dark"] .cal-pop-item-name,html[data-theme="dark"] .cf-fila-title{color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .cal-pop-item-sub,html[data-theme="dark"] .cf-fila-sub,html[data-theme="dark"] .cf-kpi-hint,html[data-theme="dark"] .cf-nota,html[data-theme="dark"] .cf-explicacion{color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .cal-pop-pill{background:rgba(56,189,248,.12);color:#7dd3fc}
+html[data-theme="dark"] .cal-pop-pill-off{background:rgba(148,163,184,.14);color:#94a3b8}
+html[data-theme="dark"] .cal-pop-pill-warn{background:rgba(186,117,23,.2);color:#f0b862}
+html[data-theme="dark"] .cf-kpi{background:var(--app-surface-raised,#16223a);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .cf-kpi:hover:not(:disabled){border-color:#3f6f9f}
+html[data-theme="dark"] .cf-kpi-crit{border-color:rgba(226,75,74,.4);background:rgba(226,75,74,.08)}
+html[data-theme="dark"] .cf-kpi-crit .cf-kpi-num,html[data-theme="dark"] .cf-kpi-crit .cf-kpi-lbl{color:#f1908f}
+html[data-theme="dark"] .cf-kpi-warn{border-color:rgba(186,117,23,.4);background:rgba(186,117,23,.08)}
+html[data-theme="dark"] .cf-kpi-warn .cf-kpi-num,html[data-theme="dark"] .cf-kpi-warn .cf-kpi-lbl{color:#f0b862}
+html[data-theme="dark"] .cf-kpi-ok .cf-kpi-num,html[data-theme="dark"] .cf-kpi-ok .cf-kpi-lbl{color:#4ade80}
+html[data-theme="dark"] .cf-explicacion{background:var(--app-surface-raised,#16223a);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .cf-fila{background:var(--app-surface-raised,#16223a);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .cf-secc-title{color:var(--app-text-muted,#94a3b8)}
 </style>
+
 <link rel="stylesheet" href="/theme-extensions.css">
 </head>
 <body>
@@ -1290,13 +1518,15 @@ function renderHeader() {
     <div class="toolbar">
       <span class="badge info" style="font-weight:500">👤 <span id="ganttUserName"></span></span>
       <span class="badge ok">● ${enRun} en ejecución</span>
-      ${criticas > 0 ? `<span class="badge crit">▲ ${criticas} crítica(s)</span>` : ''}
       ${lateAlerts.length > 0 ? `<span class="badge crit">⏰ ${lateAlerts.length} fuera de fecha</span>` : ''}
       ${tightAlerts.length > 0 ? `<span class="badge warn">⌛ ${tightAlerts.length} justas</span>` : ''}
-      <span class="conn-status ${isOnline?'online':'offline'}" title="Si dice Reconectando, la conexión está lenta: ves lo último que llegó y se vuelve a intentar solo">${isOnline?'● Conectado':'● Reconectando…'}</span>
-      <button class="btn" onclick="window.location.href='/planificacion/configuracion'" title="Calendarios, turnos y feriados">⚙ Calendarios</button>
-      <button class="btn conflict-toggle-btn ${allConflicts.length?'has-conflicts':''}" onclick="openConflictsModal()">Conflictos (${allConflicts.length})</button>
-      <button class="btn primary" onclick="autoSeqCapacidad()" title="Capacidad finita">⚡ Cap. Finita</button>
+      <div class="cf-wrap" id="cfCalendariosWrap">
+        <button class="btn cf-trigger" id="cfCalendariosBtn" onclick="toggleCalendariosPopover(this)" title="Calendarios, turnos y feriados">⚙ Calendarios <span class="cf-caret">▾</span></button>
+      </div>
+      <div class="cf-wrap" id="cfCapacidadWrap">
+        <button class="btn primary cf-trigger" id="cfCapacidadBtn" onclick="toggleCapacidadPopover()" title="Capacidad finita: vista previa, críticas y conflictos">⚡ Capacidad Finita <span class="cf-caret">▾</span></button>
+      </div>
+      <a class="btn" href="/planificacion/capacidad" onclick="return navShellAware(event,'/planificacion/capacidad')" title="Análisis de capacidad, cola y cuellos de botella por recurso">📊 Capacidad</a>
       <button class="btn" onclick="loadFromAPI()" title="Actualizar"><span id="sgRefrescarIcon">↻</span></button>
       <button class="theme-toggle" onclick="toggleTheme()" title="Cambiar tema" style="width:32px;height:30px;border:1px solid #c4d4e4;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">
         <span class="theme-toggle-icon-sun" id="sgModoClaroIcon">☀</span>
@@ -1379,6 +1609,30 @@ function switchView(view) {
   currentView = view;
   render();
 }
+
+function abrirOrdenDesdeSeguimiento(codigoOrden, reintentoRealizado = false) {
+  const orden = orders.find(op => String(op.id) === String(codigoOrden));
+  if (!orden) {
+    if (reintentoRealizado) {
+      showToast('No pudimos traer esta orden al calendario en este momento. Revisa la conexión e inténtalo de nuevo.', '');
+      return;
+    }
+    showToast('Estamos actualizando la orden para mostrarla en el calendario.', '');
+    loadFromAPI().then(() => abrirOrdenDesdeSeguimiento(codigoOrden, true));
+    return;
+  }
+  currentView = 'gantt';
+  render();
+  requestAnimationFrame(() => openDP(orden.id_ruta));
+}
+
+window.addEventListener('message', (evento) => {
+  if (evento.origin !== window.location.origin) return;
+  const mensaje = evento.data || {};
+  if (mensaje.tipo === 'planificacion-abrir-orden') {
+    abrirOrdenDesdeSeguimiento(mensaje.codigoOrden);
+  }
+});
 
 // ── PROCESS ORDER (pipeline column order is fixed, only card order is mutable) ──
 
@@ -3010,6 +3264,152 @@ document.getElementById('dp-body').addEventListener('click', (e) => {
   if (toggleBtn) { dpFlowToggle(Number(toggleBtn.dataset.flowToggle)); return; }
 });
 
+// ── CAJONES LATERALES (mismo comportamiento que el drawer de Estimar en Seguimiento) ──
+function esc(s) { return escHtml(s); }
+function navShellAware(event, ruta) { if (event) event.preventDefault(); window.location.href = ruta; return false; }
+function abrirDrawer(overlayId, drawerId) {
+  const drawer = document.getElementById(drawerId);
+  if (!drawer) return;
+  document.getElementById(overlayId)?.classList.add('open');
+  drawer.classList.add('open');
+  drawer.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+}
+function cerrarDrawer(overlayId, drawerId, alTerminar) {
+  const drawer = document.getElementById(drawerId);
+  if (!drawer) return;
+  document.getElementById(overlayId)?.classList.remove('open');
+  drawer.classList.remove('open');
+  drawer.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+  if (alTerminar) setTimeout(alTerminar, 260);
+}
+let calEmbedLoaded = false;
+function toggleCalendariosPopover() {
+  const drawer = document.getElementById('calDrawer');
+  if (!drawer) return;
+  if (drawer.classList.contains('open')) { closeDrawerCalendarios(); return; }
+  cerrarDrawer('cfDrawerOverlay', 'cfDrawer');
+  abrirDrawer('calDrawerOverlay', 'calDrawer');
+  // El panel real de Configuración (tab Calendarios) montado embebido: mismas funciones,
+  // mismos datos, sin ninguna diferencia con la pantalla de configuración.
+  if (!calEmbedLoaded) {
+    document.getElementById('calEmbedFrame').src = '/planificacion/configuracion?embebido=1&tab=calendarios';
+    calEmbedLoaded = true;
+  }
+}
+function closeDrawerCalendarios() { cerrarDrawer('calDrawerOverlay', 'calDrawer'); }
+// (La creación/edición de calendarios, turnos, excepciones y feriados vive dentro del panel
+// embebido de Configuración — mismas funciones que la pantalla original, sin duplicarlas.)
+
+// ── CAJÓN: CAPACIDAD FINITA (vista previa + críticas + conflictos) ──
+function toggleCapacidadPopover() {
+  const drawer = document.getElementById('cfDrawer');
+  if (!drawer) return;
+  if (drawer.classList.contains('open')) { closeDrawerCapacidad(); return; }
+  cerrarDrawer('calDrawerOverlay', 'calDrawer');
+  abrirDrawer('cfDrawerOverlay', 'cfDrawer');
+  renderCapacidadPreview();
+}
+function closeDrawerCapacidad() { cerrarDrawer('cfDrawerOverlay', 'cfDrawer'); }
+// Qué haría la reprogramación, ANTES de aceptar: cuántas rutas cambiarían, en qué orden
+// (por prioridad de fecha compromiso) y con qué horarios base. Solo visualización.
+function capacidadPreviewData() {
+  const conHorario = [];
+  const sinHorarioMaquina = [];
+  orders.forEach(op => {
+    if (op.tiene_horario === false) sinHorarioMaquina.push(op);
+    else conHorario.push(op);
+  });
+  const pendientes = conHorario
+    .filter(op => op.estado !== 'DONE' && op.estado !== 'done')
+    .sort((a, b) => {
+      const fa = a.fecha_compromiso ? new Date(a.fecha_compromiso).getTime() : Infinity;
+      const fb = b.fecha_compromiso ? new Date(b.fecha_compromiso).getTime() : Infinity;
+      if (fa !== fb) return fa - fb;
+      return (a.secuencia || 9999) - (b.secuencia || 9999);
+    });
+  return { total: pendientes.length, sinHorario: sinHorarioMaquina.length, lista: pendientes.slice(0, 8), criticas: orders.filter(o => o.alerta).length, conflictos: detectAllConflicts().length };
+}
+function renderCapacidadPreview() {
+  const body = document.getElementById('cfDrawerBody');
+  const d = capacidadPreviewData();
+  const criticas = orders.filter(o => o.alerta);
+  const conflictos = detectAllConflicts();
+  const kpis = `
+    <div class="cf-kpis">
+      <button type="button" class="cf-kpi ${criticas.length ? 'cf-kpi-crit' : 'cf-kpi-ok'}" ${criticas.length ? `onclick="verCriticasDetalle()"` : 'disabled'} title="Órdenes marcadas como críticas por su fecha de entrega frente a la carga de la máquina">
+        <span class="cf-kpi-num">${criticas.length}</span>
+        <span class="cf-kpi-lbl">▲ Críticas</span>
+        <span class="cf-kpi-hint">órdenes que no alcanzan su fecha de entrega con la carga actual</span>
+      </button>
+      <button type="button" class="cf-kpi ${conflictos.length ? 'cf-kpi-warn' : 'cf-kpi-ok'}" ${conflictos.length ? `onclick="verConflictosDetalle()"` : 'disabled'} title="Choques de programa: dos procesos quieren la misma máquina al mismo tiempo, o una secuencia quedó antes de su anterior">
+        <span class="cf-kpi-num">${conflictos.length}</span>
+        <span class="cf-kpi-lbl">⊗ Conflictos</span>
+        <span class="cf-kpi-hint">choques de máquina o de secuencia; el listado muestra las órdenes con problema</span>
+      </button>
+    </div>`;
+  const filas = d.lista.length ? d.lista.map((op, i) => `
+    <div class="cf-fila">
+      <span class="cf-fila-num">${i + 1}</span>
+      <div class="cf-fila-main">
+        <div class="cf-fila-title">${esc(op.id)} · ${esc(op.cliente || 'Sin cliente')}</div>
+        <div class="cf-fila-sub">${esc(op.proceso)} · ${esc(op.maquina || 'Sin máquina')} · ${op.dur}h${op.fecha_compromiso ? ` · entrega ${esc(String(op.fecha_compromiso).slice(0, 10))}` : ''}</div>
+      </div>
+    </div>`).join('') : `<div class="cal-pop-empty">No hay rutas pendientes para reprogramar.</div>`;
+  const nota = d.total > d.lista.length ? `<div class="cf-nota">Y ${d.total - d.lista.length} ruta(s) más después de estas.</div>` : '';
+  body.innerHTML = `${kpis}
+    <div class="cf-secc-title">Qué va a hacer la reprogramación</div>
+    <div class="cf-explicacion">Reordena ${d.total} ruta(s) pendiente(s) por fecha de entrega (la más urgente primero), respetando los horarios de cada calendario y la secuencia de la orden. Los procesos sin horario configurado se programarían de lunes a viernes de 7:00 a 15:00.</div>
+    <div class="cf-lista">${filas}</div>${nota}`;
+}
+function verCriticasDetalle() {
+  const criticas = orders.filter(o => o.alerta);
+  if (!criticas.length) return;
+  const filas = criticas.slice(0, 30).map(op => `
+    <div class="conflict-group" style="margin-bottom:8px">
+      <div class="conflict-group-header"><div class="conflict-group-title">${esc(op.id)} · ${esc(op.cliente || 'Sin cliente')}</div></div>
+      <div style="padding:0 12px 10px;font-size:12px;color:#60707f">${esc(op.proceso)} · ${esc(op.maquina || 'Sin máquina')} · entrega ${esc(String(op.fecha_compromiso || '').slice(0, 10) || 'sin fecha')}</div>
+    </div>`).join('');
+  document.getElementById('confOverlayTitle')?.remove();
+  const overlay = document.getElementById('confOverlay');
+  overlay.querySelector('.gcal-modal-title').textContent = `Órdenes Críticas (${criticas.length})`;
+  document.getElementById('confOverlayBody').innerHTML = criticas.length > 30 ? `${filas}<div class="cf-nota">Y ${criticas.length - 30} más.</div>` : filas;
+  overlay.classList.add('open');
+}
+function verConflictosDetalle() {
+  const overlay = document.getElementById('confOverlay');
+  overlay.querySelector('.gcal-modal-title').textContent = 'Conflictos del Tablero';
+  document.getElementById('confOverlayBody').innerHTML = `<div class="cal-pop-loading"><span class="spinner"></span>Analizando conflictos...</div>`;
+  overlay.classList.add('open');
+  setTimeout(() => {
+    const conflicts = detectAllConflicts();
+    const alerts = detectScheduleAlerts();
+    if (!conflicts.length && !alerts.length) {
+      document.getElementById('confOverlayBody').innerHTML = `<div class="cal-pop-empty"><div class="cal-pop-empty-icon">✓</div>No hay conflictos en el tablero.</div>`;
+      return;
+    }
+    const byOrder = {};
+    conflicts.forEach(c => {
+      const opA = orders.find(o => o.id_ruta === c.ruta_a);
+      const opB = orders.find(o => o.id_ruta === c.ruta_b);
+      const code = opA?.id || opB?.id || 'Desconocido';
+      (byOrder[code] = byOrder[code] || []).push(c);
+    });
+    alerts.forEach(sa => { (byOrder[sa.orderCode] = byOrder[sa.orderCode] || []).push({ message: sa.message, isAlert: true }); });
+    document.getElementById('confOverlayBody').innerHTML = Object.keys(byOrder).sort().map(code => `
+      <div class="conflict-group" style="margin-bottom:10px">
+        <div class="conflict-group-header"><div class="conflict-group-title">${esc(code)}</div></div>
+        <div style="padding:0 12px 10px">${byOrder[code].map(c => `<div style="font-size:12px;padding:3px 0;color:${c.isAlert ? '#BA7517' : '#60707f'}">${c.isAlert ? '⚠' : '⊗'} ${esc(c.message || c.type || '')}</div>`).join('')}</div>
+      </div>`).join('');
+  }, 30);
+}
+function closeConfOverlay() { document.getElementById('confOverlay').classList.remove('open'); }
+async function confirmarCapacidadFinita() {
+  closeDrawerCapacidad();
+  await autoSeqCapacidad();
+}
+
 // ── POLLING ──────────────────────────────────────────────────
 setInterval(() => {
   if (currentDP) return;
@@ -3021,5 +3421,55 @@ setInterval(updateNowLine, 60000);
 // ── INIT ─────────────────────────────────────────────────────
 loadFromAPI();
 </script>
+<!-- CAJÓN LATERAL: CALENDARIOS (monta el panel real de Configuración, solo ese tab) -->
+<div class="sg-drawer-overlay" id="calDrawerOverlay" onclick="closeDrawerCalendarios()"></div>
+<aside class="drawer sg-drawer" id="calDrawer" aria-hidden="true">
+  <div class="drawer-header">
+    <div style="flex:1">
+      <div class="drawer-title">⚙ Calendarios de Recursos</div>
+      <div class="drawer-code">Disponibilidad horaria, turnos, excepciones y feriados</div>
+    </div>
+    <button type="button" class="drawer-close" onclick="closeDrawerCalendarios()" aria-label="Cerrar">×</button>
+  </div>
+  <div class="drawer-body sg-drawer-body sg-drawer-embed" id="calDrawerBody">
+    <iframe id="calEmbedFrame" title="Calendarios de Recursos" style="width:100%;height:100%;border:0;display:block"></iframe>
+  </div>
+</aside>
+
+<!-- CAJÓN LATERAL: CAPACIDAD FINITA (vista previa + críticas + conflictos) -->
+<div class="sg-drawer-overlay" id="cfDrawerOverlay" onclick="closeDrawerCapacidad()"></div>
+<aside class="drawer sg-drawer sg-drawer-wide" id="cfDrawer" aria-hidden="true">
+  <div class="drawer-header">
+    <div>
+      <div class="drawer-title">⚡ Capacidad Finita</div>
+      <div class="drawer-code">Reprograma las rutas según la disponibilidad real de cada recurso</div>
+    </div>
+    <button type="button" class="drawer-close" onclick="closeDrawerCapacidad()" aria-label="Cerrar">×</button>
+  </div>
+  <div class="drawer-body sg-drawer-body" id="cfDrawerBody">
+    <div class="cal-pop-loading"><span class="spinner"></span>Preparando la vista previa...</div>
+  </div>
+  <div class="drawer-footer sg-drawer-footer">
+    <a class="cal-pop-config-link" href="/planificacion/capacidad" onclick="return navShellAware(event,'/planificacion/capacidad')">Abrir análisis completo de Capacidad →</a>
+    <button type="button" class="cal-pop-add-btn cf-run-btn" id="cfRunBtn" onclick="confirmarCapacidadFinita()">⚡ Reprogramar ahora</button>
+  </div>
+</aside>
+
+<!-- MODAL: CONFLICTOS (desde el desplegable de Capacidad Finita) -->
+<div class="gcal-modal-overlay" id="confOverlay">
+  <div class="gcal-modal" style="width:min(640px,calc(100vw - 32px))">
+    <div class="gcal-modal-header">
+      <div class="gcal-modal-title">Conflictos del Tablero</div>
+      <button type="button" class="gcal-modal-close" onclick="closeConfOverlay()" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="gcal-modal-body" id="confOverlayBody" style="max-height:min(60vh,480px);overflow:auto">
+      <div class="cal-pop-loading"><span class="spinner"></span>Analizando conflictos...</div>
+    </div>
+    <div class="gcal-modal-footer">
+      <button type="button" class="gcal-btn" onclick="closeConfOverlay()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

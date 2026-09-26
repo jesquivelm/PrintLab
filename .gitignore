@@ -53,3 +53,13 @@ Entregable-Aplicacion.zip
 "Instalar App.txt"
 test-final.js
 test-pg.js
+
+# ==========================================
+# Datos de clientes, copias viejas y demostraciones
+# ==========================================
+storage/
+public/uploads/produccion-artes/
+public/Last/
+artifacts/
+login.json
+scripts/LC308578-raw.json

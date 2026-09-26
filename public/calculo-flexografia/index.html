@@ -16,7 +16,7 @@
   </script>
   <title>Cálculo de Flexografía</title>
   <link rel="stylesheet" href="/styles.css?v=20260923-mensajes-carga">
-  <link rel="stylesheet" href="/calculo-flexografia/styles.css?v=20260924-tintas-detalle-ancho">
+  <link rel="stylesheet" href="/calculo-flexografia/styles.css?v=20260925-montaje-combinado">
   <link rel="stylesheet" href="/adjuntos-producto.css?v=20260921-tarjetas">
 </head>
 <body>
@@ -120,14 +120,14 @@
               <label class="technical-dim-field">
                 <span>Ancho</span>
                 <span class="display-input-wrap has-suffix">
-                  <input id="embeddedLabelWidth" class="display-input" type="number" min="0" step="0.001" readonly>
+                  <input id="embeddedLabelWidth" class="display-input" type="number" min="0" step="0.001">
                   <span id="embeddedLabelWidthDisplay" class="display-input-mask"></span>
                 </span>
               </label>
               <label class="technical-dim-field">
                 <span>Largo</span>
                 <span class="display-input-wrap has-suffix">
-                  <input id="embeddedLabelHeight" class="display-input" type="number" min="0" step="0.001" readonly>
+                  <input id="embeddedLabelHeight" class="display-input" type="number" min="0" step="0.001">
                   <span id="embeddedLabelHeightDisplay" class="display-input-mask"></span>
                 </span>
               </label>
@@ -145,7 +145,7 @@
         <details id="technicalDataCard" class="calc-card calc-card-collapsible technical-data-card" open>
           <summary class="calc-card-summary technical-data-summary">
             <div class="card-head">
-              <div><h2>Información de Producto</h2></div>
+              <div><h2 id="technicalDataTitle">Información de Producto</h2></div>
             </div>
             <div id="technicalCollapsedSummary" class="technical-collapsed-summary"></div>
           </summary>
@@ -418,7 +418,7 @@
   <script src="/tintas/color-capture.js?v=20260906-colorcapture2"></script>
   <script src="/calculo-flexografia/maquina-modal.js?v=20260916-cilindro-dientes"></script>
   <script src="/adjuntos-producto.js?v=20260921-tarjetas"></script>
-  <script src="/calculo-flexografia/app.js?v=20260924-geo-v1"></script>
+  <script src="/calculo-flexografia/app.js?v=20260925-montaje-combinado"></script>
 </body>
 </html>
 

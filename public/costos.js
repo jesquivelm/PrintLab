@@ -893,8 +893,54 @@ function writeLocalCostsConfig(config) {
     return config;
 }
 
+let costsCalendariosList = [];
+let costsProcesosMaquinasMap = {};
+let costsMaquinasInventario = [];
+
+async function loadCostsCalendarios() {
+    try {
+        const res = await fetch("/api/planificacion/calendarios");
+        const data = await res.json();
+        if (data && data.ok && Array.isArray(data.data)) {
+            costsCalendariosList = data.data;
+        }
+    } catch (error) {
+        console.warn("No fue posible cargar calendarios en Costos:", error);
+    }
+}
+
+async function loadCostsProcesosMaquinas() {
+    try {
+        const [resMaquinas, resInv] = await Promise.all([
+            fetch("/api/costos/procesos/maquinas"),
+            fetch("/api/planificacion/maquinas-inventario")
+        ]);
+        const dataMaquinas = await resMaquinas.json();
+        const dataInv = await resInv.json();
+
+        if (dataInv && dataInv.ok && Array.isArray(dataInv.data)) {
+            costsMaquinasInventario = dataInv.data;
+        }
+
+        if (dataMaquinas && dataMaquinas.ok && Array.isArray(dataMaquinas.data)) {
+            const map = {};
+            dataMaquinas.data.forEach((m) => {
+                const k = m.proceso_key || m.proceso_id;
+                if (k) {
+                    if (!map[k]) map[k] = [];
+                    map[k].push(m);
+                }
+            });
+            costsProcesosMaquinasMap = map;
+        }
+    } catch (e) {
+        console.warn("No fue posible cargar máquinas de procesos en Costos:", e);
+    }
+}
+
 async function loadCosts() {
     try {
+        await Promise.all([loadCostsCalendarios(), loadCostsProcesosMaquinas()]);
         const response = await fetch(COSTS_ENDPOINT);
         const contentType = response.headers.get("content-type") || "";
         if (!response.ok || !contentType.includes("application/json")) {
@@ -1294,6 +1340,11 @@ function renderProcessDefaultRows() {
                     <input type="checkbox" data-process-field="ganttEnabled" data-index="${index}"${row.ganttEnabled ? " checked" : ""}>
                 </label>
             </td>
+            <td>
+                <button type="button" class="costs-btn-secondary" style="height:30px;padding:0 10px;font-size:12px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" onclick="openEditarProcesoModal(${index})">
+                    ⚙️ Editar
+                </button>
+            </td>
             <td class="costs-process-default-cell-check">
                 <label class="costs-process-default-check" aria-label="No Eliminar">
                     <input type="checkbox" data-process-field="locked" data-index="${index}"${row.locked ? " checked" : ""}>
@@ -1315,7 +1366,7 @@ function renderProcessDefaultRows() {
                     <input type="number" min="0" step="1" inputmode="numeric" data-process-field="minimumCost" data-index="${index}" value="${escapeHtml(Math.round(Number(row.minimumCost || 0)))}" placeholder="0">
                 </label>
             </td>
-            <td>
+            <td style="display:none">
                 <label class="costs-process-default-cost has-suffix" aria-label="Buffer de tiempo">
                     <input type="number" min="0" step="1" inputmode="numeric" data-process-field="timeBufferMinutes" data-index="${index}" value="${escapeHtml(Math.round(Number(row.timeBufferMinutes || 0)))}" placeholder="0">
                     <span class="costs-process-default-currency costs-process-default-suffix">min</span>
@@ -1591,6 +1642,15 @@ processDefaultsList?.addEventListener("change", (event) => {
     }
     if (target.dataset.processField === "ganttEnabled") {
         row.ganttEnabled = target.checked;
+    }
+    if (target.dataset.processField === "colorGantt") {
+        row.colorGantt = target.value;
+    }
+    if (target.dataset.processField === "procesoParalelo") {
+        row.procesoParalelo = target.checked;
+    }
+    if (target.dataset.processField === "calendarioId") {
+        row.calendarioId = target.value || null;
     }
     if (target.dataset.processField === "locked") {
         row.locked = target.checked;
@@ -2888,5 +2948,181 @@ inventariosSapSoloStock?.addEventListener("change", () => {
 inventariosSapReloadButton?.addEventListener("click", () => {
     loadInventariosSap(true).catch(() => {});
 });
+
+window.openEditarProcesoModal = function(index) {
+    const row = costsState?.general?.processDefaults?.[index];
+    if (!row) return;
+
+    let modalEl = document.getElementById("costs-edit-process-modal");
+    if (!modalEl) {
+        modalEl = document.createElement("div");
+        modalEl.id = "costs-edit-process-modal";
+        modalEl.className = "costs-modal-overlay";
+        document.body.appendChild(modalEl);
+    }
+    modalEl.removeAttribute("hidden");
+
+    const asignadas = costsProcesosMaquinasMap[row.key] || [];
+    const idsAsignadas = new Set(asignadas.map(a => String(a.maquina_id)));
+    const disponibles = (costsMaquinasInventario || []).filter(m => !idsAsignadas.has(String(m.id)));
+
+    modalEl.innerHTML = `
+        <div class="costs-modal" style="width:580px;max-width:92vw;">
+            <div class="costs-modal-head">
+                <h3 class="costs-modal-title">⚙️ Editar Proceso: ${escapeHtml(row.label)}</h3>
+                <button type="button" class="costs-modal-close" onclick="closeEditarProcesoModal()">✕</button>
+            </div>
+            <div class="costs-modal-body">
+                <div class="costs-modal-field">
+                    <label style="font-size:12px;font-weight:600;color:var(--app-text-muted,#60707f);display:block;margin-bottom:4px;">Nombre del Proceso</label>
+                    <input type="text" id="modal-proc-label" value="${escapeHtml(row.label)}" style="width:100%;height:40px;border-radius:12px;padding:0 12px;border:1px solid #cfd8df;background:var(--app-surface,#ffffff);color:var(--app-text,#0f172a);font-size:13px;">
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div class="costs-modal-field">
+                        <label style="font-size:12px;font-weight:600;color:var(--app-text-muted,#60707f);display:block;margin-bottom:4px;">Orden en Secuencia (Gantt)</label>
+                        <input type="number" id="modal-proc-order" value="${escapeHtml(row.order || (index + 1))}" min="1" max="99" style="width:100%;height:40px;border-radius:12px;padding:0 12px;border:1px solid #cfd8df;background:var(--app-surface,#ffffff);color:var(--app-text,#0f172a);font-size:13px;">
+                    </div>
+                    <div class="costs-modal-field">
+                        <label style="font-size:12px;font-weight:600;color:var(--app-text-muted,#60707f);display:block;margin-bottom:4px;">Color en el Gantt</label>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <input type="color" id="modal-proc-color" value="${escapeHtml(row.colorGantt || '#378ADD')}" style="width:48px;height:40px;border-radius:10px;border:1px solid #cfd8df;cursor:pointer;padding:2px;background:none;" onchange="document.getElementById('modal-proc-color-hex').innerText = this.value">
+                            <span id="modal-proc-color-hex" style="font-size:13px;font-weight:600;color:var(--app-text,#0f172a);">${escapeHtml(row.colorGantt || '#378ADD')}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:10px;padding:12px;border:1px solid var(--app-border,#e2e8f0);border-radius:12px;background:var(--app-surface-soft,#f8fafc);">
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;color:var(--app-text,#0f172a);">
+                        <input type="checkbox" id="modal-proc-paralelo"${row.procesoParalelo ? " checked" : ""}>
+                        <span>Proceso paralelo (puede ejecutarse al mismo tiempo que el anterior)</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;color:var(--app-text,#0f172a);">
+                        <input type="checkbox" id="modal-proc-gantt"${row.ganttEnabled ? " checked" : ""}>
+                        <span>Activo en Gantt (visible en la línea de tiempo)</span>
+                    </label>
+                </div>
+
+                <div class="costs-modal-field">
+                    <label style="font-size:12px;font-weight:600;color:var(--app-text-muted,#60707f);display:block;margin-bottom:4px;">Horario por Defecto del Proceso</label>
+                    <select id="modal-proc-calendario" style="width:100%;height:40px;border-radius:12px;padding:0 12px;border:1px solid #cfd8df;background:var(--app-surface,#ffffff);color:var(--app-text,#0f172a);font-size:13px;">
+                        <option value="">(Sin horario individual - usa 8 hrs Lunes a Viernes)</option>
+                        ${(costsCalendariosList || []).map(c => `<option value="${escapeHtml(c.id)}"${row.calendarioId === c.id ? " selected" : ""}>${escapeHtml(c.nombre)}</option>`).join("")}
+                    </select>
+                </div>
+
+                <div class="costs-modal-field" style="border-top:1px solid var(--app-border,#e2e8f0);padding-top:14px;">
+                    <label style="font-size:12px;font-weight:600;color:var(--app-text-muted,#60707f);display:block;margin-bottom:8px;">Máquinas Asignadas al Proceso</label>
+                    ${!asignadas.length ? '<div style="font-size:12px;color:var(--app-text-muted,#64748b);padding:10px;background:var(--app-surface-soft,#f8fafc);border-radius:10px;border:1px dashed var(--app-border,#cbd5e1);">Sin máquinas asignadas actualmente.</div>' : `
+                        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
+                            ${asignadas.map(a => `
+                                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--app-surface-soft,#f8fafc);border:1px solid var(--app-border,#e2e8f0);border-radius:10px;font-size:13px;">
+                                    <div>
+                                        <strong style="color:var(--app-text,#0f172a);">${escapeHtml(a.maquina_nombre)}</strong>
+                                        ${a.calendario_nombre ? `<span style="font-size:11px;color:var(--app-text-muted,#64748b);margin-left:6px;">(${escapeHtml(a.calendario_nombre)})</span>` : ''}
+                                    </div>
+                                    <button type="button" style="border:0;background:transparent;color:#ef4444;cursor:pointer;font-size:14px;" title="Quitar máquina" onclick="quitarMaquinaModalProceso('${escapeHtml(row.key)}', '${escapeHtml(a.id)}', ${index})">🗑️</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `}
+                    ${!disponibles.length ? '' : `
+                        <div style="display:flex;gap:8px;margin-top:10px;">
+                            <select id="modal-nueva-maquina-select" style="flex:1;height:38px;border-radius:10px;padding:0 8px;border:1px solid #cfd8df;background:var(--app-surface,#ffffff);color:var(--app-text,#0f172a);font-size:12px;">
+                                <option value="">Seleccionar máquina...</option>
+                                ${disponibles.map(m => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.nombre)}</option>`).join("")}
+                            </select>
+                            <select id="modal-nueva-maquina-calendario" style="flex:1;height:38px;border-radius:10px;padding:0 8px;border:1px solid #cfd8df;background:var(--app-surface,#ffffff);color:var(--app-text,#0f172a);font-size:12px;">
+                                <option value="">(Sin horario individual)</option>
+                                ${(costsCalendariosList || []).map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.nombre)}</option>`).join('')}
+                            </select>
+                            <button type="button" class="costs-btn-primary" style="height:38px;padding:0 14px;font-size:12px;border-radius:10px;" onclick="agregarMaquinaModalProceso('${escapeHtml(row.key)}', ${index})">+ Asignar</button>
+                        </div>
+                    `}
+                </div>
+            </div>
+            <div class="costs-modal-foot">
+                <button type="button" class="costs-btn-secondary" onclick="closeEditarProcesoModal()">Cancelar</button>
+                <button type="button" class="costs-btn-primary" onclick="guardarEditarProcesoModal(${index})">Guardar Cambios</button>
+            </div>
+        </div>
+    `;
+};
+
+window.closeEditarProcesoModal = function() {
+    const modalEl = document.getElementById("costs-edit-process-modal");
+    if (modalEl) modalEl.remove();
+};
+
+window.guardarEditarProcesoModal = function(index) {
+    const row = costsState?.general?.processDefaults?.[index];
+    if (!row) return;
+
+    const labelVal = document.getElementById("modal-proc-label")?.value?.trim();
+    const orderVal = Number(document.getElementById("modal-proc-order")?.value || 0);
+    const colorVal = document.getElementById("modal-proc-color")?.value;
+    const paraleloVal = Boolean(document.getElementById("modal-proc-paralelo")?.checked);
+    const ganttVal = Boolean(document.getElementById("modal-proc-gantt")?.checked);
+    const calendarioVal = document.getElementById("modal-proc-calendario")?.value || null;
+
+    if (labelVal) row.label = labelVal;
+    if (orderVal > 0) row.order = orderVal;
+    if (colorVal) row.colorGantt = colorVal;
+    row.procesoParalelo = paraleloVal;
+    row.ganttEnabled = ganttVal;
+    row.calendarioId = calendarioVal;
+
+    closeEditarProcesoModal();
+    syncProcessDefaultOrders();
+    renderProcessDefaultRows();
+    queueCostsSave();
+};
+
+window.agregarMaquinaModalProceso = async function(procesoKey, index) {
+    const maquinaSelect = document.getElementById("modal-nueva-maquina-select");
+    const calSelect = document.getElementById("modal-nueva-maquina-calendario");
+    const maquinaId = maquinaSelect?.value;
+    const calendarioId = calSelect?.value || null;
+    if (!maquinaId) {
+        alert("Debes seleccionar una máquina para asignar.");
+        return;
+    }
+    try {
+        const res = await fetch(`/api/costos/procesos/${encodeURIComponent(procesoKey)}/maquinas`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ maquina_id: maquinaId, calendario_id: calendarioId })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            await loadCostsProcesosMaquinas();
+            renderProcessDefaultRows();
+            openEditarProcesoModal(index);
+        } else {
+            alert(data.error || "No fue posible asignar la máquina.");
+        }
+    } catch (e) {
+        alert("Ocurrió un error al asignar la máquina.");
+    }
+};
+
+window.quitarMaquinaModalProceso = async function(procesoKey, asignacionId, index) {
+    if (!confirm("¿Deseas quitar esta máquina del proceso?")) return;
+    try {
+        const res = await fetch(`/api/costos/procesos/${encodeURIComponent(procesoKey)}/maquinas/${encodeURIComponent(asignacionId)}`, {
+            method: "DELETE"
+        });
+        const data = await res.json();
+        if (data.ok) {
+            await loadCostsProcesosMaquinas();
+            renderProcessDefaultRows();
+            openEditarProcesoModal(index);
+        } else {
+            alert(data.error || "No fue posible quitar la máquina.");
+        }
+    } catch (e) {
+        alert("Ocurrió un error al quitar la máquina.");
+    }
+};
 
 init();

@@ -2522,6 +2522,266 @@ function storedLineRaw(line = {}) {
   return line.raw_data || line.rawData || {};
 }
 
+// ===== Montaje Combinado Frente y Dorso =====
+// El grupo monta las dos caras en un solo troquel. La calculadora existente no se toca: este
+// panel vive dentro de la tarjeta Troquel solo cuando el cálculo es grupo Frente y Dorso.
+
+function frenteDorsoCaras() {
+  const group = currentFrontBackGroup();
+  if (!group || group.role !== "grupo") return [];
+  const { elements } = relatedFrontBackLines(group);
+  return elements.map((element, index) => {
+    const line = element.line || {};
+    const raw = storedLineRaw(line);
+    const savedUi = line.ui_state || {};
+    const ancho = n(first(line.width_inches, raw["DIMENSIONES ETIQUETA | ANCHO"]), 0);
+    const largo = n(first(line.length_inches, raw["DIMENSIONES ETIQUETA | LARGO"]), 0);
+    return {
+      code: element.code,
+      role: String(element.role || (index === 0 ? "frente" : "dorso")),
+      name: String(element.role || (index === 0 ? "Frente" : "Dorso")),
+      anchoIn: ancho,
+      largoIn: largo,
+      forma: String(first(raw["REQ | Forma"], line.troquel_forma, "rectangular")).trim().toLowerCase(),
+      radioIn: n(first(raw["General | Radio de Esquina"], raw["REQ | Radio de Esquina"], 0), 0),
+      stations: Array.isArray(savedUi?.types?.[0]?.inkStations) ? savedUi.types[0].inkStations.filter((s) => s?.active !== false && String(s?.tipo || "").trim()) : [],
+      cantidad: n(first(savedUi?.types?.[0]?.quantity, line.quantity, 0), 0)
+    };
+  });
+}
+
+// Estado del panel de Montaje Combinado (solo memoria de la página; se guarda junto al cálculo
+// como uiState.montajeCombinado para que sobreviva a la recarga).
+let montajeCombinadoEstado = { acomodo: "optimo", resolucion: null };
+
+// Perímetro de corte de una cara (misma fórmula de la calculadora de troquel existente).
+function montajePerimetroCara(cara) {
+  const forma = String(cara.forma || "rectangular").trim().toLowerCase();
+  const ancho = n(cara.anchoIn, 0);
+  const alto = n(cara.largoIn, 0);
+  const radio = n(cara.radioIn, 0);
+  if (forma === "circular") return Math.PI * ancho;
+  if (forma === "ovalado") {
+    const a = ancho / 2, b = alto / 2;
+    return Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)));
+  }
+  if (forma === "cuadrado" || forma === "rectangular") return 2 * (ancho + alto) - (8 - 2 * Math.PI) * radio;
+  return 2 * (ancho + alto);
+}
+
+function montajeCabeEnAncho(anchoNecesario, anchoBobina) {
+  const bobina = n(anchoBobina, 0);
+  if (bobina <= 0) return { cabe: true, sobra: 0 };
+  return { cabe: anchoNecesario <= bobina + 0.0001, sobra: r(bobina - anchoNecesario, 3) };
+}
+
+// Acomodo HORIZONTAL: frente a la izquierda y dorso a la derecha, side by side, en cada fila.
+// Cada fila del troquel lleva las dos caras; pulgadas lineales = perímetro total de la fila ×
+// repeticiones a lo largo.
+function montajeResolucionHorizontal(caras, params) {
+  const [caraA, caraB] = caras;
+  const sep = n(params.separacionLateralIn, 0);
+  const margen = n(params.margenIn, 0);
+  const anchoFila = r(margen * 2 + caraA.anchoIn + sep + caraB.anchoIn, 4);
+  const anchoMaximoCara = Math.max(caraA.largoIn, caraB.largoIn);
+  const chequeo = montajeCabeEnAncho(anchoFila, params.anchoBobinaIn);
+  return {
+    acomodo: "horizontal",
+    cabe: chequeo.cabe,
+    anchoFilaIn: anchoFila,
+    anchoTotalIn: anchoFila,
+    pasoLongitudinalIn: anchoMaximoCara,
+    anchoBobinaIn: n(params.anchoBobinaIn, 0),
+    detalle: [
+      { cara: caraA.name, huecos: 1, anchoIn: caraA.anchoIn, largoIn: caraA.largoIn },
+      { cara: caraB.name, huecos: 1, anchoIn: caraB.anchoIn, largoIn: caraB.largoIn }
+    ],
+    mensaje: chequeo.cabe ? "" : `El montaje de las dos caras lado a lado (${num(anchoFila, 3)} in) no cabe en el ancho de bobina disponible${n(params.anchoBobinaIn, 0) > 0 ? ` (${num(params.anchoBobinaIn, 3)} in)` : ""}.`
+  };
+}
+
+// Acomodo VERTICAL: primero todos los huecos del frente extendidos a lo ancho, luego los del
+// dorso. Cada cara ocupa su propia banda a lo largo del desarrollo; el corte pasa por las dos
+// bandas en el mismo ciclo de la matriz.
+function montajeResolucionVertical(caras, params) {
+  const sep = n(params.separacionLateralIn, 0);
+  const margen = n(params.margenIn, 0);
+  const anchoBobina = n(params.anchoBobinaIn, 0);
+  const detalle = [];
+  let anchoTotal = margen * 2;
+  let pasoMaximo = 0;
+  let cabe = true;
+  let mensaje = "";
+  caras.forEach((cara) => {
+    const anchoCara = Math.max(n(cara.anchoIn, 0), 0.0001);
+    let huecos = anchoBobina > 0 ? Math.max(1, Math.floor((anchoBobina - margen * 2 + sep + 0.0001) / (anchoCara + sep))) : 1;
+    const banda = r(margen * 2 + huecos * anchoCara + (huecos - 1) * sep, 4);
+    if (anchoBobina > 0 && banda > anchoBobina + 0.0001) cabe = false;
+    anchoTotal = Math.max(anchoTotal, banda);
+    pasoMaximo = Math.max(pasoMaximo, cara.largoIn);
+    detalle.push({ cara: cara.name, huecos, anchoIn: cara.anchoIn, largoIn: cara.largoIn });
+  });
+  if (!cabe) mensaje = `Una de las bandas de cavidades no cabe en el ancho de bobina disponible${anchoBobina > 0 ? ` (${num(anchoBobina, 3)} in)` : ""}.`;
+  return {
+    acomodo: "vertical",
+    cabe,
+    anchoFilaIn: anchoTotal,
+    anchoTotalIn: anchoTotal,
+    pasoLongitudinalIn: r(pasoMaximo * 2 + n(params.separacionLongitudinalIn, 0), 4),
+    anchoBobinaIn: anchoBobina,
+    detalle,
+    mensaje
+  };
+}
+
+// Elige el acomodo: prueba horizontal y vertical, se queda con el que da el paso longitudinal
+// más corto (más producto en menos material) entre los que caben. El usuario puede fijarlo a mano.
+function montajeResolucionOptima(caras, params) {
+  const opciones = [montajeResolucionHorizontal(caras, params), montajeResolucionVertical(caras, params)];
+  const validas = opciones.filter((o) => o.cabe);
+  const elegida = validas.length
+    ? validas.reduce((mejor, actual) => (actual.pasoLongitudinalIn < mejor.pasoLongitudinalIn ? actual : mejor))
+    : opciones[0];
+  return { ...elegida, disponible: opciones };
+}
+
+function montajeCombinadoResolucion(caras, params, acomodo) {
+  const modo = String(acomodo || montajeCombinadoEstado.acomodo || "optimo");
+  if (modo === "horizontal") return montajeResolucionHorizontal(caras, params);
+  if (modo === "vertical") return montajeResolucionVertical(caras, params);
+  const optima = montajeResolucionOptima(caras, params);
+  montajeCombinadoEstado.resolucion = optima;
+  return optima;
+}
+
+function montajeCombinadoParams(form = state.form) {
+  const troquel = form?.troquel || {};
+  return {
+    anchoBobinaIn: n(form?.header?.rollWidthIn, 0),
+    separacionLateralIn: n(form.montajeCombinado?.separacionLateralIn, 0),
+    separacionLongitudinalIn: n(form.montajeCombinado?.separacionLongitudinalIn, 0),
+    margenIn: n(form.montajeCombinado?.margenIn, 0),
+    desarrolloCilindroIn: firstPositiveNumber(troquel.cylinderDevelopmentIn, troquel.developmentIn, troquel.lengthIn, 0)
+  };
+}
+
+// Cantidad de impresión de cada cara (editable en el panel; por defecto la cantidad completa
+// del pedido en cada cara, porque cada etiqueta recibe frente y dorso).
+function montajeCantidadCara(index, form = state.form) {
+  const caras = frenteDorsoCaras();
+  const guardadas = form.montajeCombinado?.cantidades;
+  const guardada = Array.isArray(guardadas) ? guardadas[index] : undefined;
+  if (guardada !== undefined && guardada !== null && String(guardada).trim() !== "") return Math.max(0, n(guardada, 0));
+  return Math.max(0, n(caras[index]?.cantidad, 0) || Math.max(0, n(form?.header?.quantity, 0)));
+}
+
+// Aplica el montaje combinado a la ficha del troquel (la misma de la que se alimentan material,
+// merma y sellos). No toca la calculadora existente ni el troquel físico elegido: solo recalcula
+// huecos al través, desarrollo y repetición según el acomodo de las dos caras.
+function aplicarMontajeCombinado(form = state.form) {
+  const caras = frenteDorsoCaras();
+  if (caras.length < 2) return null;
+  const params = montajeCombinadoParams(form);
+  const resolucion = montajeCombinadoResolucion(caras, params, form.montajeCombinado?.acomodo);
+  const troquel = form.troquel || (form.troquel = {});
+  const desarrollo = params.desarrolloCilindroIn > 0 ? params.desarrolloCilindroIn : resolucion.pasoLongitudinalIn;
+  const paso = resolucion.pasoLongitudinalIn > 0 ? resolucion.pasoLongitudinalIn : desarrollo;
+  const repeticiones = paso > 0 ? Math.max(1, Math.floor(desarrollo / paso)) : 1;
+  let huecosAlTraves = 0;
+  if (resolucion.acomodo === "horizontal") {
+    huecosAlTraves = 2 * Math.max(1, Math.floor((n(params.anchoBobinaIn, 0) - 2 * params.margenIn) / Math.max(0.0001, resolucion.anchoFilaIn - 2 * params.margenIn) || 1));
+  } else {
+    huecosAlTraves = resolucion.detalle.reduce((sum, item) => sum + Math.max(0, n(item.huecos, 0)), 0);
+  }
+  huecosAlTraves = Math.max(1, huecosAlTraves);
+  troquel.rows = huecosAlTraves;
+  troquel.acrossCount = huecosAlTraves;
+  troquel.lengthIn = r(desarrollo, 4);
+  troquel.repeats = repeticiones;
+  troquel.mountWidthIn = r(resolucion.anchoTotalIn, 4);
+  troquel.mountLengthIn = r(desarrollo, 4);
+  form.plates.laser.area = laserPlateMetrics(form).totalArea;
+  return resolucion;
+}
+
+// Tinta del grupo Frente y Dorso = suma de lo que gasta cada cara con su área real, su cantidad
+// y sus propias estaciones, con la merma de la corrida. Reemplaza el cálculo por área de rollo.
+function montajeCombinadoInkTotals(form = state.form) {
+  const caras = frenteDorsoCaras();
+  const types = ensureTypesList(form);
+  const mermaRatio = inkMermaRatio(form);
+  let totalConsumption = 0;
+  let totalSubtotal = 0;
+  let totalMermaConsumption = 0;
+  let totalMermaSubtotal = 0;
+  // Una entrada por CARA: cada cara cobra su tinta de forma independiente (área real de la
+  // cara × su cantidad × sus propias estaciones; el dorso sin estaciones propias usa las del
+  // motivo del grupo). El total del grupo es la suma de las dos caras.
+  const byType = caras.map((cara, index) => {
+    const areaUnidad = r(n(cara.anchoIn, 0) * n(cara.largoIn, 0), 6);
+    const cantidad = montajeCantidadCara(index, form);
+    const printedAreaIn2 = form.header?.noPrint ? 0 : r(areaUnidad * cantidad, 6);
+    const estacionesBase = cara.stations.length
+      ? cara.stations
+      : (caras[0]?.stations?.length ? caras[0].stations : motivoInkStations(types[0] || {}, 0, form));
+    const stations = estacionesBase.filter((station) => station.active !== false);
+    const stationRows = stations.map((station) => calcMotivoInkStationRow(printedAreaIn2, station, mermaRatio));
+    const consumption = r(stationRows.reduce((sum, row) => sum + n(row.consumptionKg, 0), 0), 6);
+    const subtotal = r(stationRows.reduce((sum, row) => sum + n(row.subtotal, 0), 0));
+    const mermaConsumption = r(stationRows.reduce((sum, row) => sum + n(row.mermaConsumptionKg, 0), 0), 6);
+    const mermaSubtotal = r(stationRows.reduce((sum, row) => sum + n(row.mermaSubtotal, 0), 0));
+    totalConsumption += consumption;
+    totalSubtotal += subtotal;
+    totalMermaConsumption += mermaConsumption;
+    totalMermaSubtotal += mermaSubtotal;
+    return { index, name: cara.name, quantity: cantidad, stations: stationRows, consumption, subtotal, mermaConsumption, mermaSubtotal, areaUnidad };
+  });
+  return { consumption: r(totalConsumption, 6), subtotal: r(totalSubtotal), mermaConsumption: r(totalMermaConsumption, 6), mermaSubtotal: r(totalMermaSubtotal), mermaRatio, byType, esMontajeCombinado: true };
+}
+
+// Panel visible del Montaje Combinado: tarjetas por cara, cantidades editables, acomodo
+// (Óptimo/Horizontal/Vertical) y resultado del montaje. Solo memoria + uiState; no toca la
+// calculadora de troquel existente.
+// Estaciones efectivas de una cara: propias o heredadas del frente (el dorso sin configuración
+// usa la del frente, igual que el sistema copia estaciones entre motivos).
+function montajeEstacionesEfectivasCara(index, caras = frenteDorsoCaras()) {
+  const cara = caras[index];
+  if (!cara) return [];
+  if (cara.stations.length) return cara.stations;
+  return caras[0]?.stations || [];
+}
+
+function renderMontajeCombinadoPanel() {
+  const caras = frenteDorsoCaras();
+  if (caras.length < 2) return "";
+  const params = montajeCombinadoParams();
+  const resolucion = montajeCombinadoResolucion(caras, params, state.form.montajeCombinado?.acomodo);
+  const acomodoGuardado = String(state.form.montajeCombinado?.acomodo || "optimo");
+  const chip = (valor, etiqueta) => `<button type="button" class="inline-button mc-acomodo-chip${acomodoGuardado === valor ? " is-active" : ""}" data-action="mc-acomodo" data-valor="${valor}">${esc(etiqueta)}</button>`;
+  const caraCard = (cara, index) => {
+    const efectivas = montajeEstacionesEfectivasCara(index, caras);
+    const heredadas = !cara.stations.length && efectivas.length ? " (hereda del Frente)" : "";
+    return `<div class="mc-cara-card"><div class="mc-cara-head"><strong>${esc(cara.name)}</strong><span>${num(cara.anchoIn, 3)} × ${num(cara.largoIn, 3)} in · ${efectivas.length} estaciones de tinta${esc(heredadas)}</span></div><div class="mc-cara-cantidad"><span>Cantidad a Imprimir</span>${displayInput("montajeCombinado", `cantidades.${index}`, montajeCantidadCara(index), { integer: true, step: "1" })}</div></div>`;
+  };
+  const detalleRows = (resolucion.detalle || []).map((item) => `<tr><td>${esc(item.cara)}</td><td>${formatInteger(item.huecos)}</td><td>${num(item.anchoIn, 3)} in</td><td>${num(item.largoIn, 3)} in</td></tr>`).join("");
+  const metricas = `<div class="readonly-grid compact-top">${metricBox("Ancho del Montaje", resolucion.anchoTotalIn > 0 ? `${num(resolucion.anchoTotalIn, 3)} in` : "Pendiente", resolucion.anchoTotalIn <= 0)}${metricBox("Paso a lo Largo", resolucion.pasoLongitudinalIn > 0 ? `${num(resolucion.pasoLongitudinalIn, 3)} in` : "Pendiente", resolucion.pasoLongitudinalIn <= 0)}${metricBox("Huecos al Través", formatInteger(troquelHuecosAlTraves(resolucion)))}</div>`;
+  return `<div class="process-zone mc-montaje-zone"><div class="process-zone-head"><h4>Montaje Combinado Frente y Dorso</h4></div><div class="mc-caras-grid">${caraCard(caras[0], 0)}${caraCard(caras[1], 1)}</div><div class="mc-acomodo-row"><span>Acomodo</span>${chip("optimo", "Óptimo")}${chip("horizontal", "Horizontal")}${chip("vertical", "Vertical")}</div>${resolucion.mensaje ? issueList("Aviso", [resolucion.mensaje]) : ""}${metricas}<table class="mc-detalle-table"><thead><tr><th>Cara</th><th>Huecos</th><th>Ancho</th><th>Alto</th></tr></thead><tbody>${detalleRows}</tbody></table><p class="mc-nota">El montaje combinado alimenta material, merma, sellos y tinta. Las pulgadas lineales del corte y el costo del troquel nuevo siguen saliendo de la calculadora de Troquel.</p></div>`;
+}
+
+function troquelHuecosAlTraves(resolucion) {
+  if (resolucion.acomodo === "horizontal") return 2;
+  return (resolucion.detalle || []).reduce((sum, item) => sum + Math.max(0, n(item.huecos, 0)), 0);
+}
+
+function aplicarMontajeCombinadoACalculo() {
+  const resolucion = aplicarMontajeCombinado(state.form);
+  if (!resolucion) return;
+  syncDerivedHeaderAndPackaging(state.form);
+  renderProcesses();
+  refreshCalculationValidation();
+  scheduleSave();
+}
+
 function storedLineJobName(line = {}) {
   const raw = storedLineRaw(line);
   return first(line.jobName, line.job_name, raw["NOMBRE TRABAJO"], raw["Nombre Trabajo"], line.lineCode, line.line_code, "");
@@ -3661,6 +3921,9 @@ function inkUnitAreaIn2(form = state.form) {
 }
 
 function calcMotivoInkTotals(form = state.form) {
+  // Grupo Frente y Dorso: la tinta es la suma de las caras (área real de cada cara × su
+  // cantidad × sus estaciones), no el área del rollo. Misma fuente para todos los consumidores.
+  if (isFrontBackGroupContext()) return montajeCombinadoInkTotals(form);
   const areaIn2 = inkUnitAreaIn2(form);
   const types = ensureTypesList(form);
   const mermaRatio = inkMermaRatio(form);
@@ -5676,8 +5939,15 @@ function laserPlateMetrics(form = state.form) {
   const virgin = form?.plates?.virgin || {};
   const troquel = form?.troquel || {};
   const totalColors = Math.max(0, totalPlateSetsColorCount(form));
-  const mountWidthIn = numericValue(first(troquel.mountWidthIn, troquel.widthIn, form?.header?.labelWidthIn), 0);
-  const mountLengthIn = numericValue(first(troquel.mountLengthIn, troquel.lengthIn, form?.header?.labelHeightIn), 0);
+  // Frente y Dorso: sin respaldo a la etiqueta. Si al troquel le falta la medida del montaje,
+  // el costo queda en $0 y la pantalla muestra el aviso (missing.mountWidthIn/mountLengthIn).
+  const esGrupoFD = isFrontBackGroupContext();
+  const mountWidthIn = numericValue(esGrupoFD
+    ? first(troquel.mountWidthIn, troquel.widthIn, 0)
+    : first(troquel.mountWidthIn, troquel.widthIn, form?.header?.labelWidthIn), 0);
+  const mountLengthIn = numericValue(esGrupoFD
+    ? first(troquel.mountLengthIn, troquel.lengthIn, 0)
+    : first(troquel.mountLengthIn, troquel.lengthIn, form?.header?.labelHeightIn), 0);
   const marginIn = numericValue(first(laser.safetyMarginIn, 0.5), 0.5);
   const elongationPct = numericValue(troquel.elongationPct, 0);
   const elongation = elongationPct > 0 ? elongationFactor(elongationPct) : 1;
@@ -8772,7 +9042,8 @@ function maquinaModalMotivos() {
   const form = state.form || {};
   const header = form.header || {};
   const mermaRatio = inkMermaRatio(form);
-  const areaIn2 = inkUnitAreaIn2(form);
+  const totalsFD = isFrontBackGroupContext() ? montajeCombinadoInkTotals(form) : null;
+  const areaIn2 = totalsFD ? 0 : inkUnitAreaIn2(form);
   const machineId = form.printStages?.[0]?.machineId || "";
   const stationsConfig = machineId ? (state.catalogs.machineStationsByMachine?.[machineId] || {}) : {};
   const types = Array.isArray(form.types) ? form.types : [];
@@ -8797,8 +9068,11 @@ function maquinaModalMotivos() {
     tintaOpcionesHtml: motivoStationTintaOptionsHtml({})
   };
   return types.map((type, index) => {
+    const cara = totalsFD?.byType?.[index] || null;
     const stations = ensureMotivoStationsList(type, form);
-    const printedAreaIn2 = header.noPrint ? 0 : r(areaIn2 * Math.max(0, n(type.quantity, 0)), 6);
+    const printedAreaIn2 = cara
+      ? r(n(cara.areaUnidad, 0) * n(cara.quantity, 0), 6)
+      : header.noPrint ? 0 : r(areaIn2 * Math.max(0, n(type.quantity, 0)), 6);
     const estaciones = stations.map((station, sIndex) => {
       const detail = calcMotivoInkStationRow(printedAreaIn2, station, mermaRatio);
       const cargaMinimaMl = stationsConfig[sIndex + 1];
@@ -9908,8 +10182,13 @@ function motivoStationsRowHtml(motivoIndex) {
   const type = state.form.types?.[motivoIndex];
   if (!type) return "";
   const stations = ensureMotivoStationsList(type);
-  const areaIn2 = inkUnitAreaIn2(state.form);
-  const printedAreaIn2 = state.form.header?.noPrint ? 0 : r(areaIn2 * Math.max(0, n(type.quantity, 0)), 6);
+  const esGrupoFD = isFrontBackGroupContext();
+  const totalsFD = esGrupoFD ? montajeCombinadoInkTotals(state.form) : null;
+  const caraFD = totalsFD?.byType?.[motivoIndex] || null;
+  const areaIn2 = esGrupoFD ? 0 : inkUnitAreaIn2(state.form);
+  const printedAreaIn2 = state.form.header?.noPrint ? 0 : caraFD
+    ? r(n(caraFD.areaUnidad, 0) * n(caraFD.quantity, 0), 6)
+    : r(areaIn2 * Math.max(0, n(type.quantity, 0)), 6);
   const mermaRatio = inkMermaRatio(state.form);
   const machineId = state.form.printStages?.[0]?.machineId || "";
   const stationsConfig = machineId ? (state.catalogs.machineStationsByMachine?.[machineId] || {}) : {};
@@ -10003,6 +10282,8 @@ function syncFrontBackCalculationShell() {
   document.body.classList.toggle("is-front-back-embedded", isEmbeddedView());
   document.body.classList.toggle("is-front-back-embedded-element", isEmbeddedElement);
   document.documentElement.classList.toggle("is-front-back-embedded-early", isEmbeddedElement);
+  const tituloInformacionProducto = document.getElementById("technicalDataTitle");
+  if (tituloInformacionProducto) tituloInformacionProducto.textContent = isGroup ? "Información General del Producto" : "Información de Producto";
 }
 
 function renderFrontBackElementsCard() {
@@ -14589,13 +14870,18 @@ function motivoInkTiposBreakdown(motivoInkTotals) {
 // (ver renderMotivoInkCostInfoAnchor), así que puede usar comillas dobles con normalidad.
 function motivoInkCostAuditHtml(form = state.form) {
   const totals = calcMotivoInkTotals(form);
+  const esMontajeCombinado = Boolean(totals.esMontajeCombinado);
   const widthIn = n(form.header?.labelWidthIn, 0);
   const heightIn = n(form.header?.labelHeightIn, 0);
   const areaPerLabel = r(widthIn * heightIn, 6);
   const mermaRatio = n(totals.mermaRatio, 1);
   const noPrint = Boolean(form.header?.noPrint);
 
-  const baseRows = [
+  const baseRows = esMontajeCombinado ? [
+    ["Modo de cálculo", "Frente y Dorso — suma de las caras"],
+    ["Proporción de merma", `× ${num(mermaRatio, 4)} (longitud total con merma ÷ longitud neta, igual que Sustrato)`],
+    ["Sin impresión", noPrint ? "Sí — área impresa = 0" : "No"]
+  ] : [
     ["Ancho de etiqueta", `${num(widthIn, 4)} in`],
     ["Alto de etiqueta", `${num(heightIn, 4)} in`],
     ["Área impresa por etiqueta", `${num(widthIn, 4)} in × ${num(heightIn, 4)} in = ${num(areaPerLabel, 4)} in²`],
@@ -14607,11 +14893,14 @@ function motivoInkCostAuditHtml(form = state.form) {
 
   const motivoBlocks = totals.byType.map((motivo) => {
     const motivoName = esc(motivo.name || `Arte ${motivo.index + 1}`);
-    const printedArea = noPrint ? 0 : r(areaPerLabel * Math.max(0, n(motivo.quantity, 0)), 6);
+    const areaUnidadMotivo = esMontajeCombinado ? n(motivo.areaUnidad, 0) : areaPerLabel;
+    const printedArea = noPrint ? 0 : r(areaUnidadMotivo * Math.max(0, n(motivo.quantity, 0)), 6);
     const areaStep = auditFormulaStepHtml(
       `Área impresa total — ${motivoName}`,
-      "Área impresa total = Área impresa por etiqueta × Cantidad de productos",
-      `${num(areaPerLabel, 4)} in² × ${formatInteger(motivo.quantity)} uds`,
+      esMontajeCombinado
+        ? "Área impresa total = Ancho de la cara × Largo de la cara × Cantidad de productos (medidas reales de esta cara)"
+        : "Área impresa total = Área impresa por etiqueta × Cantidad de productos",
+      `${num(areaUnidadMotivo, 4)} in² × ${formatInteger(motivo.quantity)} uds`,
       `= ${num(printedArea, 2)} in²`
     );
     const stationLines = (motivo.stations || []).map((s, i) =>
@@ -14974,7 +15263,8 @@ function renderProcesses() {
       const dieMode = normalizeDieMode(state.form.troquel?.dieMode);
       const body = renderDieInventoryPanel(troquel);
       const cardValue = dieMode === "external" && n(troquel.subtotal, 0) > 0 ? troquel.subtotal : null;
-      return card("troquel", nextTitle("Troquel"), dieMode === "inventory" ? state.form.troquel.dieDescription : "", cardValue, body);
+      const panelFD = isFrontBackGroupContext() ? renderMontajeCombinadoPanel() : "";
+      return card("troquel", nextTitle("Troquel"), dieMode === "inventory" ? state.form.troquel.dieDescription : "", cardValue, `${panelFD}${body}`);
     },
     sustrato: () => card("sustrato", nextTitle("Sustrato"), sustrato.materialName || "Selecciona material", sustrato.subtotal, `<div class="editable-grid substrate-grid"><label class="span-3"><span>Material</span><select data-scope="substrate" data-field="materialId">${processOptions(substrateMaterialOptions().map((item) => ({ id: item.id, nombre: item.nombre || item.name || item.descripcion || item.id })), state.form.substrate.materialId)}</select></label><label><span>Costo/metro</span>${displayInput("substrate", "costPerMeter", state.form.substrate.costPerMeter, { prefix: "$", suffix: "/m", maximumFractionDigits: 6, step: "0.000001" })}</label><label class="span-3"><span>Nombre Comercial</span><input data-scope="substrate" data-field="nombreComercial" type="text" value="${esc(state.form.substrate.nombreComercial || '')}" placeholder="Nombre del material"></label></div>${sustratoFichaSapPanel(material)}<div class="readonly-grid compact-top">${metricBox("Etiquetas al Través", sustrato.acrossCount > 0 ? num(sustrato.acrossCount, 0) : "Pendiente", n(sustrato.acrossCount, 0) <= 0)}${metricBox("Desarrollo del Cilindro", sustrato.cylinderDevelopmentIn > 0 ? `${num(sustrato.cylinderDevelopmentIn, 3)} in` : "Pendiente", n(sustrato.cylinderDevelopmentIn, 0) <= 0)}${metricBox("Merma Total", sustrato.startupWasteMeters > 0 ? `${num(sustrato.startupWasteMeters, 2)} m` : "Pendiente", (sustrato.issues || []).some((issue) => String(issue).toLowerCase().includes("merma")))}${metricBox("Longitud Total", sustrato.totalLengthMeters > 0 ? `${num(sustrato.totalLengthMeters, 2)} m` : "Pendiente", (sustrato.issues || []).length > 0)}${metricBox("Área Total Consumida", sustrato.totalAreaM2 > 0 ? `${num(sustrato.totalAreaM2, 2)} m²` : "Pendiente", n(sustrato.webWidthIn, 0) <= 0 || (sustrato.issues || []).length > 0)}${metric("Costo por Metro", money(sustrato.unitCost))}${metric("Subtotal", money(sustrato.subtotal))}</div>${issueList("Problemas detectados en la fórmula", sustrato.issues || [])}${formula("Costo del Sustrato", sustrato.formulaCost, sustrato.explanation, {
       exampleLines: [
@@ -15946,7 +16236,7 @@ function bindHeader() {
   // Aplicación y Tipo de Superficie usan el desplegable animado del sistema
   // (desplegable.js). El panel de sugerencias propio quedó retirado para que el
   // formato sea el mismo que en el resto de la aplicación.
-  [["customerCode", els.customerCode, "text"], ["customerName", els.customerName, "text"], ["codigoCliente", els.codigoCliente, "text"], ["productType", els.productType, "text"], ["jobName", els.jobName, "text"], ["salespersonName", els.salespersonName, "text"], ["workType", els.workType, "text"], ["labelWidthIn", els.labelWidthIn, "number"], ["labelHeightIn", els.labelHeightIn, "number"], ["rollWidthIn", els.rollWidthIn, "number"], ["applicationType", els.applicationType, "text"], ["applicationEnvironment", els.applicationEnvironment, "text"], ["surfaceType", els.surfaceType, "text"], ["outputType", els.outputType, "text"], ["referencia", els.referencia, "text"], ["referenciaComentario", els.referenciaComentario, "text"]].forEach(([key, element, type]) => {
+  [["customerCode", els.customerCode, "text"], ["customerName", els.customerName, "text"], ["codigoCliente", els.codigoCliente, "text"], ["productType", els.productType, "text"], ["jobName", els.jobName, "text"], ["salespersonName", els.salespersonName, "text"], ["workType", els.workType, "text"], ["labelWidthIn", els.labelWidthIn, "number"], ["labelHeightIn", els.labelHeightIn, "number"], ["labelWidthIn", els.embeddedLabelWidth, "number"], ["labelHeightIn", els.embeddedLabelHeight, "number"], ["rollWidthIn", els.rollWidthIn, "number"], ["applicationType", els.applicationType, "text"], ["applicationEnvironment", els.applicationEnvironment, "text"], ["surfaceType", els.surfaceType, "text"], ["outputType", els.outputType, "text"], ["referencia", els.referencia, "text"], ["referenciaComentario", els.referenciaComentario, "text"]].forEach(([key, element, type]) => {
     const updateState = () => {
       state.form.header[key] = type === "number" ? n(element.value, 0) : element.value;
       syncDerivedHeaderAndPackaging(state.form);
@@ -16097,6 +16387,17 @@ function bindTypesDetail() {
     }
   };
   els.processSections.addEventListener("input", (event) => {
+    const mcCantidad = event.target.closest("[data-scope='montajeCombinado']");
+    if (mcCantidad) {
+      if (!state.form.montajeCombinado) state.form.montajeCombinado = { acomodo: "optimo", separacionLateralIn: 0, separacionLongitudinalIn: 0, margenIn: 0, cantidades: [] };
+      const campo = String(mcCantidad.dataset.field || "");
+      if (campo.startsWith("cantidades.")) {
+        const idx = Number(campo.split(".")[1]);
+        state.form.montajeCombinado.cantidades[idx] = Math.max(0, n(event.target.value, 0));
+      }
+      scheduleSave();
+      return;
+    }
     const element = event.target.closest("[data-type-index][data-type-field]");
     if (!element) return;
     applyField(element);
@@ -16114,6 +16415,13 @@ function bindTypesDetail() {
     scheduleSave();
   });
   els.processSections.addEventListener("click", (event) => {
+    const chipAcomodo = event.target.closest("[data-action='mc-acomodo']");
+    if (chipAcomodo) {
+      if (!state.form.montajeCombinado) state.form.montajeCombinado = { acomodo: "optimo", separacionLateralIn: 0, separacionLongitudinalIn: 0, margenIn: 0, cantidades: [] };
+      state.form.montajeCombinado.acomodo = String(chipAcomodo.dataset.valor || "optimo");
+      aplicarMontajeCombinadoACalculo();
+      return;
+    }
     const button = event.target.closest("button[data-action]");
     if (!button) return;
     if (button.dataset.action === "open-maquina-modal") {
@@ -17093,6 +17401,8 @@ async function init() {
     // inventario en vez de caer al genérico.
     await ensureTintasStationCatalogs();
     applyAllMotivosAutoInkStations(state.form);
+    // Frente y Dorso: aplicar el montaje combinado a la ficha del troquel al abrir el grupo.
+    if (isFrontBackGroupContext()) aplicarMontajeCombinado(state.form);
     await loadLineNotifications();
     els.pageTitle.textContent = "Cálculo de Flexografía";
     renderHeader();

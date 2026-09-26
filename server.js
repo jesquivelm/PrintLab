@@ -3440,7 +3440,10 @@ async function loadCostsConfig() {
                     order: p.orden,
                     minimumCost: p.costo_minimo,
                     timeBufferMinutes: p.tiempo_buffer_minutos,
-                    capacityMinutes: p.capacidad_minutos
+                    capacityMinutes: p.capacidad_minutos,
+                    colorGantt: p.color_gantt || '#378ADD',
+                    procesoParalelo: Boolean(p.proceso_paralelo),
+                    calendarioId: p.calendario_id || null
                 }))
             },
             convencional: {
@@ -3725,8 +3728,8 @@ async function saveCostsConfig(config) {
         };
 
         await replaceRows('costo_proceso_defaults',
-            ['proceso_key', 'etiqueta', 'activo', 'crear_habilitado', 'bloqueado', 'repetible', 'gantt_habilitado', 'visible_boton_flotante', 'orden', 'costo_minimo', 'tiempo_buffer_minutos', 'capacidad_minutos'],
-            gen.processDefaults.map((p) => [p.key, p.label, p.active, p.createEnabled, p.locked, p.repeatable, p.ganttEnabled, p.visibleBotonFlotante, p.order, p.minimumCost, p.timeBufferMinutes, p.capacityMinutes])
+            ['proceso_key', 'etiqueta', 'activo', 'crear_habilitado', 'bloqueado', 'repetible', 'gantt_habilitado', 'visible_boton_flotante', 'orden', 'costo_minimo', 'tiempo_buffer_minutos', 'capacidad_minutos', 'color_gantt', 'proceso_paralelo', 'calendario_id'],
+            gen.processDefaults.map((p) => [p.key, p.label, p.active, p.createEnabled, p.locked, p.repeatable, p.ganttEnabled, p.visibleBotonFlotante, p.order, p.minimumCost, p.timeBufferMinutes, p.capacityMinutes, p.colorGantt || '#378ADD', Boolean(p.procesoParalelo), p.calendarioId || null])
         );
 
         await replaceRows('costo_deposito_tinta',
@@ -5365,6 +5368,11 @@ function mapCalculationLine(row) {
         ruta_calculada: lineSummary.ruta_calculada,
         montaje_resumen: lineSummary.montaje_resumen,
         material_nombre: lineSummary.material_nombre,
+        // El grupo Frente/Dorso necesita leer la configuración de tintas y las medidas de cada
+        // cara (renglones elemento) para el montaje combinado y la tinta = suma de caras.
+        ui_state: row.ui_state || null,
+        width_inches: row.width_inches ?? null,
+        length_inches: row.length_inches ?? null,
         line_summary: lineSummary,
         raw_data: raw
     };
@@ -10603,6 +10611,7 @@ async function ensurePlanningSchema() {
     }
 
     await pgQuery(`
+        ALTER TABLE costo_proceso_defaults ADD COLUMN IF NOT EXISTS color_gantt TEXT NOT NULL DEFAULT '#378ADD', ADD COLUMN IF NOT EXISTS proceso_paralelo BOOLEAN NOT NULL DEFAULT false, ADD COLUMN IF NOT EXISTS calendario_id UUID REFERENCES resource_calendars(id) ON DELETE SET NULL;
         ALTER TABLE production_process_definitions
             ADD COLUMN IF NOT EXISTS calendario_id UUID REFERENCES resource_calendars(id) ON DELETE SET NULL
     `);
@@ -10614,7 +10623,10 @@ async function ensurePlanningSchema() {
             calendario_id UUID REFERENCES resource_calendars(id) ON DELETE SET NULL,
             creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             UNIQUE (proceso_id, maquina_id)
-        )
+        );
+    `);
+    await pgQuery(`
+        ALTER TABLE proceso_maquina ADD COLUMN IF NOT EXISTS proceso_key TEXT;
     `);
     await pgQuery(`
         DO $$
@@ -21898,14 +21910,15 @@ app.get('/api/planificacion/procesos', async (req, res) => {
     try {
         const result = await pgQuery(`
             SELECT
-                   p.id AS id_proceso,
-                   p.process_key,
-                   p.process_name AS nombre,
-                   p.sequence_order AS orden_secuencia,
-                   p.color_hex,
-                   p.icon_key AS icono,
-                   p.is_parallel AS es_paralelo,
-                   p.is_active AS activo,
+                   p.proceso_key AS id_proceso,
+                   p.proceso_key AS process_key,
+                   p.etiqueta AS nombre,
+                   p.etiqueta AS process_name,
+                   p.orden AS orden_secuencia,
+                   p.color_gantt AS color_hex,
+                   '[P]' AS icono,
+                   p.proceso_paralelo AS es_paralelo,
+                   p.gantt_habilitado AS activo,
                    p.calendario_id,
                    rc.calendar_name AS calendario_nombre,
                    COALESCE((
@@ -21919,12 +21932,13 @@ app.get('/api/planificacion/procesos', async (req, res) => {
                        FROM proceso_maquina pm
                        JOIN maquina m ON m.id = pm.maquina_id
                        LEFT JOIN resource_calendars rcm ON rcm.id = pm.calendario_id
-                       WHERE pm.proceso_id = p.id
+                       WHERE pm.proceso_key = p.proceso_key OR pm.proceso_id::text = p.proceso_key
                    ), '[]'::json) AS maquinas_asignadas,
-                   (SELECT COUNT(*) FROM proceso_maquina pm WHERE pm.proceso_id = p.id) AS total_maquinas
-            FROM production_process_definitions p
+                   (SELECT COUNT(*) FROM proceso_maquina pm WHERE pm.proceso_key = p.proceso_key OR pm.proceso_id::text = p.proceso_key) AS total_maquinas
+            FROM costo_proceso_defaults p
             LEFT JOIN resource_calendars rc ON rc.id = p.calendario_id
-            ORDER BY p.sequence_order, p.process_name
+            WHERE p.gantt_habilitado = TRUE AND p.activo = TRUE
+            ORDER BY p.orden, p.etiqueta
         `);
         res.json({ ok: true, data: result.rows });
     } catch (error) {
@@ -21943,14 +21957,14 @@ app.get('/api/planificacion/maquinas', async (req, res) => {
                    mp.machine_name AS nombre_recurso,
                    mp.process_key,
                    mp.process_name AS proceso_nombre,
-                   p.sequence_order AS orden_secuencia,
-                   p.color_hex,
-                   p.icon_key AS proceso_icono,
-                   p.is_parallel AS es_paralelo
+                   COALESCE(p.orden, 1) AS orden_secuencia,
+                   COALESCE(p.color_gantt, '#378ADD') AS color_hex,
+                   '[M]' AS proceso_icono,
+                   COALESCE(p.proceso_paralelo, FALSE) AS es_paralelo
             FROM production_machine_profiles mp
-            LEFT JOIN production_process_definitions p ON p.process_key = mp.process_key
+            LEFT JOIN costo_proceso_defaults p ON p.proceso_key = mp.process_key
             WHERE mp.is_active = TRUE
-            ORDER BY p.sequence_order, mp.process_name, mp.machine_name
+            ORDER BY p.orden, mp.process_name, mp.machine_name
         `);
         res.json({ ok: true, data: result.rows });
     } catch (error) {
@@ -21968,11 +21982,11 @@ app.get('/api/planificacion/maquinas/config', async (req, res) => {
                 mp.machine_name AS nombre_recurso,
                 mp.machine_name AS name,
                 COALESCE(mp.source_payload->>'sub_descripcion', '') AS sub_descripcion,
-                p.id AS id_proceso,
+                p.proceso_key AS id_proceso,
                 mp.process_name AS proceso_nombre,
-                p.sequence_order AS orden_secuencia,
-                p.color_hex,
-                p.icon_key AS proceso_icono,
+                COALESCE(p.orden, 1) AS orden_secuencia,
+                COALESCE(p.color_gantt, '#378ADD') AS color_hex,
+                '[M]' AS proceso_icono,
                 COALESCE((mp.source_payload->>'capacidad_colores')::int, 0) AS capacidad_colores,
                 mp.velocidad_nominal_m_min AS velocidad_nom,
                 mp.oee_target AS oee,
@@ -21985,8 +21999,8 @@ app.get('/api/planificacion/maquinas/config', async (req, res) => {
                 mp.hourly_operator_cost,
                 mp.is_active AS activa
             FROM production_machine_profiles mp
-            LEFT JOIN production_process_definitions p ON p.process_key = mp.process_key
-            ORDER BY p.sequence_order, mp.machine_name
+            LEFT JOIN costo_proceso_defaults p ON p.proceso_key = mp.process_key
+            ORDER BY p.orden, mp.machine_name
         `);
         res.json({ ok: true, data: result.rows });
     } catch (error) {
@@ -22122,10 +22136,39 @@ app.put('/api/planificacion/procesos/:id/maquinas/:asignacionId', async (req, re
 
 app.delete('/api/planificacion/procesos/:id/maquinas/:asignacionId', async (req, res) => {
     try {
-        await pgQuery(`DELETE FROM proceso_maquina WHERE id = $1::uuid AND proceso_id = $2::uuid`, [req.params.asignacionId, req.params.id]);
+        await pgQuery(`DELETE FROM proceso_maquina WHERE id = $1::uuid AND (proceso_id = $2::uuid OR proceso_key = $2)`, [req.params.asignacionId, req.params.id]);
         res.json({ ok: true });
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible quitar la máquina.' });
+    }
+});
+
+app.get('/api/costos/procesos/maquinas', async (req, res) => {
+    try {
+        const result = await pgQuery(`
+            SELECT pm.id, pm.proceso_key, pm.proceso_id, pm.maquina_id, pm.calendario_id, m.nombre AS maquina_nombre, c.nombre AS calendario_nombre
+            FROM proceso_maquina pm
+            JOIN maquina m ON m.id = pm.maquina_id
+            LEFT JOIN resource_calendars c ON c.id = pm.calendario_id
+            ORDER BY m.nombre
+        `);
+        res.json({ ok: true, data: result.rows });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar las máquinas asignadas a los procesos.' });
+    }
+});
+
+app.post('/api/costos/procesos/:key/maquinas', async (req, res) => {
+    try {
+        const { maquina_id, calendario_id } = req.body || {};
+        if (!maquina_id) return res.status(400).json({ ok: false, error: 'Debes elegir una máquina.' });
+        await pgQuery(`
+            INSERT INTO proceso_maquina (proceso_key, maquina_id, calendario_id)
+            VALUES ($1, $2::uuid, $3::uuid)
+        `, [req.params.key, maquina_id, calendario_id || null]);
+        res.json({ ok: true });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible asignar la máquina.' });
     }
 });
 
@@ -36542,11 +36585,17 @@ app.get('/planificacion/lanzamiento', (req, res) => {
 });
 
 app.get('/planificacion/seguimiento', (req, res) => {
+    if (String(req.query?.embebido || '') !== '1') {
+        const parametrosSeguimiento = new URLSearchParams(req.query || {});
+        parametrosSeguimiento.delete('embebido');
+        parametrosSeguimiento.set('vista', 'seguimiento');
+        return res.redirect(`/planificacion/gantt?${parametrosSeguimiento.toString()}`);
+    }
     res.sendFile(path.join(__dirname, 'public', 'planificacion', 'seguimiento.html'));
 });
 
 app.get('/planificacion', (req, res) => {
-    res.redirect('/planificacion/seguimiento');
+    res.redirect('/planificacion/gantt?vista=seguimiento');
 });
 
 app.get('/planificacion/configuracion', (req, res) => {

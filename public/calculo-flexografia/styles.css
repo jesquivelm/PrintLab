@@ -11577,8 +11577,93 @@ html[data-theme="dark"] .station-row .motivo-station-bcm-pick {
 }
 
 .substrate-ficha-faltante-msg {
-  margin: 0;
+/* ===== Montaje Combinado Frente y Dorso (tarjeta Troquel del grupo) ===== */
+.mc-montaje-zone .mc-caras-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mc-cara-card {
+  border: 1px solid var(--border, #cfd8df);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mc-cara-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.mc-cara-head span {
+  font-size: 11px;
+  color: #60707f;
+}
+
+.mc-cara-cantidad {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mc-cara-cantidad > span {
+  font-size: 11px;
+  font-weight: 600;
+  color: #60707f;
+}
+
+.mc-acomodo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
   font-size: 12px;
-  color: var(--color-text-warning);
+  color: #60707f;
+}
+
+.mc-acomodo-row .mc-acomodo-chip.is-active {
+  border-color: #118fc6;
+  box-shadow: 0 0 0 2px rgba(17, 143, 198, 0.18);
+}
+
+.mc-detalle-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.mc-detalle-table th,
+.mc-detalle-table td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border2, #e3e9ee);
+}
+
+.mc-nota {
+  margin: 0;
+  font-size: 11px;
+  color: #60707f;
   line-height: 1.45;
+}
+
+html[data-theme="dark"] .mc-cara-card {
+  background: #0f172a;
+  border-color: #2a384a;
+}
+
+html[data-theme="dark"] .mc-cara-head span,
+html[data-theme="dark"] .mc-cara-cantidad > span,
+html[data-theme="dark"] .mc-acomodo-row,
+html[data-theme="dark"] .mc-nota {
+  color: var(--app-text-muted, #8fa3b5);
+}
+
+html[data-theme="dark"] .mc-detalle-table th,
+html[data-theme="dark"] .mc-detalle-table td {
+  border-bottom-color: #223047;
 }
