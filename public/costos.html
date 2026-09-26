@@ -93,6 +93,12 @@
                                         <span class="costs-buffer-suffix">d&iacute;as</span>
                                         <span class="costs-buffer-info" aria-hidden="true">i</span>
                                     </label>
+                                    <label class="costs-buffer-field" title="Holgura para los procesos que deben terminar dentro del turno (p. ej. Impresión): una orden solo se inicia si cabe entera en lo que queda del turno y todavía sobran estos minutos. Si no, se busca otra orden que sí quepa en ese rato.">
+                                        <span>Holgura en el turno</span>
+                                        <input id="costosHolguraTurnoMinutos" type="number" min="0" max="240" step="5" inputmode="numeric">
+                                        <span class="costs-buffer-suffix">min</span>
+                                        <span class="costs-buffer-info" aria-hidden="true">i</span>
+                                    </label>
                                 </div>
                                 <div class="copy-popover-table-wrap costs-table-wrap costs-process-table-wrap costs-process-table-wrap-plain" aria-label="Orden y costos m&iacute;nimos por proceso">
                                     <table class="copy-popover-table costs-table costs-process-table">
@@ -1000,6 +1006,6 @@
 
     <script src="/access-control.js?v=20260923-mensajes-carga"></script>
     <script src="/formato-numero.js"></script>
-    <script src="/costos.js?v=20260925-hide-tiempo-adicional"></script>
+    <script src="/costos.js?v=20260926-terminar-en-turno"></script>
 </body>
 </html>

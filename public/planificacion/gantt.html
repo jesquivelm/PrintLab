@@ -105,6 +105,8 @@ html[data-theme="dark"] .aviso-sin-horario{color:#fcd34d;background:rgba(146,64,
 .task-bar.partida.conflict-machine{outline:none;animation:none}
 .task-bar.partida.conflict-machine .task-tramo{border-color:#E24B4A!important}
 .task-bar.partida .task-lbl,.task-bar.partida .task-cliente,.task-bar.partida .task-sub{transform:none}
+.gantt-aviso{margin:0 0 8px;padding:10px 14px;border-radius:10px;background:#fdecec;border:1px solid #f5b5b5;color:#7f1d1d;font-size:13px}
+html[data-theme="dark"] .gantt-aviso{background:rgba(226,75,74,.12);border-color:rgba(226,75,74,.4);color:#fecaca}
 .task-pausa{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 4px,rgba(255,255,255,.15) 4px 8px);pointer-events:none;border-left:1px dashed rgba(255,255,255,.8);border-right:1px dashed rgba(255,255,255,.8)}
 .tt-pausas{margin-top:6px;padding-top:6px;border-top:1px solid rgba(0,0,0,.08);font-size:11px}
 .tt-pausas div{margin:2px 0}
@@ -1033,6 +1035,15 @@ async function loadFromAPI() {
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Error en respuesta');
     window._horarios = horarios && horarios.ok ? horarios.recursos : {};
+    window._horariosError = horarios && horarios.ok ? null : ((horarios && horarios.error) || 'sin respuesta del servidor');
+    // Órdenes con un proceso posterior (orden de Costos) terminado y el anterior no.
+    {
+      const pos = new Map((data.procesos || []).map((p, i) => [String(p.process_key), Number(p.orden_secuencia ?? i)]));
+      const porOrden = new Map();
+      (data.rutas || []).forEach(r => { if (!porOrden.has(r.codigo_op)) porOrden.set(r.codigo_op, []); porOrden.get(r.codigo_op).push(r); });
+      window._terminadoAntes = [...porOrden].filter(([, rs]) => rs.some(b => b.estado === 'COMPLETADO'
+        && rs.some(a => (pos.get(a.clave_proceso) ?? 999) < (pos.get(b.clave_proceso) ?? 999) && a.estado !== 'COMPLETADO'))).map(([c]) => c);
+    }
     // Un proceso terminado se dibuja con sus horas reales y en gris; solo con "Terminados".
     data.rutas = (data.rutas || []).map(r => r.estado === 'COMPLETADO'
       ? { ...r, terminado: true, fecha_plan_inicio: r.fecha_real_inicio || r.fecha_plan_inicio, fecha_plan_fin: r.fecha_real_fin || r.fecha_plan_fin }
@@ -1572,9 +1583,25 @@ function esperaDeBarra(op) {
   return `${desde} al siguiente turno disponible.`;
 }
 
+// Color de Costos para el proceso de la barra, con borde más oscuro y texto legible.
+function colorDeProceso(op) {
+  const proc = (procesos || []).find(p => String(p.process_key) === String(op.clave_proceso));
+  const hex = proc && /^#[0-9a-f]{6}$/i.test(proc.color || '') ? proc.color : null;
+  if (!hex) return null;
+  const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+  const osc = v => Math.max(0, Math.round(v * 0.72)).toString(16).padStart(2, '0');
+  const luz = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return { bg: hex, bd: '#' + osc(r) + osc(g) + osc(b), tx: luz > 0.62 ? '#1f2937' : '#fff' };
+}
+
 // ── TASK BAR HTML ────────────────────────────────────────────
 function taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlertsMap) {
-  const baseColor = op.terminado ? COLORS.TERMINADO : op.alerta ? COLORS.PARO : (COLORS[op.estado] || COLORS.PENDIENTE);
+  // Color del proceso definido en Costos (Impresión, Rebobinado, Empaque…). Gris si ya
+  // terminó y rojo si está en paro; el atraso se marca con el borde rojo, no con el relleno.
+  const colorProceso = colorDeProceso(op);
+  const baseColor = op.terminado ? COLORS.TERMINADO
+    : op.estado === 'PARO' ? COLORS.PARO
+    : colorProceso || COLORS[op.estado] || COLORS.PENDIENTE;
   const customColor = op.terminado ? '' : String(op.route_payload?.colorHex || '').trim();
   const c = customColor ? { bg: customColor, bd: customColor, tx: '#fff' } : baseColor;
   const pausas = op.terminado ? [] : pausasDeBarra(op);
@@ -2166,7 +2193,21 @@ function renderGantt() {
 
   const slotW = ZOOM_CONFIG[zoomLevel].slotW;
 
+  // Avisos: el tablero muestra lo guardado; si lo guardado rompe la secuencia o no se
+  // pudo leer el horario, se dice en grande en vez de dibujarlo como si estuviera bien.
+  const fueraDeOrden = [...new Set(orders.filter(o => {
+    if (o.terminado || !o.dep_ruta_id) return false;
+    const previa = orders.find(x => x.id_ruta === o.dep_ruta_id);
+    return previa && !previa.terminado && _ms(o.fecha_plan_inicio_iso) < _ms(previa.fecha_plan_fin_iso) - 60000;
+  }).map(o => o.id))];
+  const terminadoAntes = window._terminadoAntes || [];
+  const avisos = [];
+  if (fueraDeOrden.length) avisos.push(`⛔ <b>${fueraDeOrden.length} órdenes guardadas con un proceso antes que el anterior</b> (${fueraDeOrden.slice(0, 8).join(', ')}${fueraDeOrden.length > 8 ? '…' : ''}). Son fechas viejas: pulsa <b>⚡ Capacidad Finita</b> y aplica para reprogramarlas en orden.`);
+  if (terminadoAntes.length) avisos.push(`⚠ <b>${terminadoAntes.length} órdenes con un proceso terminado antes que el anterior</b> (${terminadoAntes.join(', ')}): revisa el estado en la orden.`);
+  if (window._horariosError) avisos.push(`⚠ No se pudo leer el horario de las máquinas (${escHtml(window._horariosError)}): las barras se muestran sin los cortes de turno.`);
+
   let html = `
+  ${avisos.map(a => `<div class="gantt-aviso">${a}</div>`).join('')}
   <div class="gantt-zoom-bar">
     <span class="gantt-zoom-label" style="font-size:11px">Zoom:</span>
     <div class="zoom-group">
@@ -2299,10 +2340,8 @@ function renderGantt() {
 
   html += `</div></div>
   <div class="legend">
-    <span class="leg-item"><span class="leg-dot" style="background:#1D9E75"></span>En ejecución</span>
-    <span class="leg-item"><span class="leg-dot" style="background:#BA7517"></span>Setup</span>
-    <span class="leg-item"><span class="leg-dot" style="background:#378ADD"></span>Pendiente</span>
-    <span class="leg-item"><span class="leg-dot" style="background:#E24B4A"></span>Alerta</span>
+    ${(procesos || []).map(p => `<span class="leg-item"><span class="leg-dot" style="background:${escHtml(p.color)}"></span>${escHtml(displayProcessName(p.nombre))}</span>`).join('')}
+    <span class="leg-item"><span class="leg-dot" style="background:#E24B4A"></span>En paro</span>
     <span class="leg-item"><span class="leg-dot" style="background:#b8c2cf"></span>Terminado</span>
     <span class="leg-item"><span class="leg-dot" style="background:transparent;border:2px solid #E24B4A"></span>Borde rojo: atrasa su fecha comprometida</span>
     <span class="leg-item"><span style="display:inline-block;width:18px;border-top:2px dotted #378ADD;vertical-align:middle"></span>Misma orden en pausa (fuera de turno, domingo, feriado, mantenimiento)</span>
@@ -2589,7 +2628,12 @@ async function abrirImpactoMovimiento(op, newStart, newMaq) {
     const base = new Map((sin.ordenes || []).map(o => [o.orderCode, o]));
     const movida = con.ordenes.find(o => o.rutas.some(r => r.motivoFija === 'movida-ahora'));
     const rutaMovida = movida && movida.rutas.find(r => r.motivoFija === 'movida-ahora');
-    if (!rutaMovida) throw new Error('Ese proceso no se puede colocar ahí: la máquina no tiene horario disponible.');
+    if (!rutaMovida) {
+      const liberada = (con.resumen?.liberadasPorSecuencia || []).find(x => x.orden === op.id);
+      throw new Error(liberada
+        ? `Ese proceso no se puede colocar ahí: ${op.id} todavía tiene pendiente un proceso anterior (${op.dep_proceso || 'el anterior'}). Primero va el anterior.`
+        : 'Ese proceso no se puede colocar ahí: la máquina no tiene horario disponible en ese momento.');
+    }
     const afectadas = con.ordenes.map(o => {
       const b = base.get(o.orderCode) || {};
       const dh = o.finDespues && b.finDespues ? (new Date(o.finDespues) - new Date(b.finDespues)) / 3600000 : 0;

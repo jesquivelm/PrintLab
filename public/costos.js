@@ -89,6 +89,7 @@ const DEFAULT_COSTS_CONFIG = {
         defaultTaxPct: 13,
         defaultCostoPulgadaLinealTroquel: 0,
         bufferProgramacionDias: 2,
+        holguraTurnoMinutos: 15,
         processDefaults: PROCESS_DEFAULTS.map((item) => ({ ...item, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 }))
     },
     convencional: {
@@ -245,7 +246,8 @@ const generalDefaultFields = {
     materiaPrimaMaximaPct: document.getElementById("costosMateriaPrimaMaximaPct"),
     defaultTaxPct: document.getElementById("costosDefaultTaxPct"),
     defaultCostoPulgadaLinealTroquel: document.getElementById("costosDefaultCostoPulgadaLinealTroquel"),
-    bufferProgramacionDias: document.getElementById("costosBufferProgramacionDias")
+    bufferProgramacionDias: document.getElementById("costosBufferProgramacionDias"),
+    holguraTurnoMinutos: document.getElementById("costosHolguraTurnoMinutos")
 };
 const coreDiameterOptionsTableBody = document.getElementById("costosCoreDiameterOptionsTableBody");
 const addCoreDiameterOptionButton = document.getElementById("costosAddCoreDiameterOption");
@@ -577,6 +579,7 @@ function normalizeProcessDefaults(value) {
             // Programación: se conservan al guardar (antes se perdían el horario y el color).
             colorGantt: row?.colorGantt || "#378ADD",
             procesoParalelo: booleanValue(row?.procesoParalelo, false),
+            terminarEnTurno: booleanValue(row?.terminarEnTurno, false),
             calendarioId: row?.calendarioId || null
         };
     }).filter(Boolean);
@@ -817,6 +820,7 @@ function normalizeCostsConfig(config) {
             materiaPrimaMaximaPct: Math.max(0, numberValue(source?.general?.materiaPrimaMaximaPct, DEFAULT_COSTS_CONFIG.general.materiaPrimaMaximaPct)),
             defaultTaxPct: Math.max(0, numberValue(source?.general?.defaultTaxPct, DEFAULT_COSTS_CONFIG.general.defaultTaxPct)),
             bufferProgramacionDias: Math.max(0, Math.round(numberValue(source?.general?.bufferProgramacionDias, DEFAULT_COSTS_CONFIG.general.bufferProgramacionDias))),
+            holguraTurnoMinutos: Math.max(0, Math.round(numberValue(source?.general?.holguraTurnoMinutos, DEFAULT_COSTS_CONFIG.general.holguraTurnoMinutos))),
             defaultCostoPulgadaLinealTroquel: Math.max(0, numberValue(source?.general?.defaultCostoPulgadaLinealTroquel, DEFAULT_COSTS_CONFIG.general.defaultCostoPulgadaLinealTroquel)),
             processDefaults: normalizeProcessDefaults(source?.general?.processDefaults || DEFAULT_COSTS_CONFIG.general.processDefaults)
         },
@@ -2998,6 +3002,10 @@ window.openEditarProcesoModal = function(index) {
                         <input type="checkbox" id="modal-proc-paralelo"${row.procesoParalelo ? " checked" : ""}>
                         <span>Proceso paralelo (puede ejecutarse al mismo tiempo que el anterior)</span>
                     </label>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;color:var(--app-text,#0f172a);" title="Al programar, el trabajo debe caber entero en un turno (con la holgura de Costos). Si no cabe, no se inicia y se pasa al siguiente turno; ese rato lo puede usar otra orden que sí quepa.">
+                        <input type="checkbox" id="modal-proc-turno"${row.terminarEnTurno ? " checked" : ""}>
+                        <span>Terminar dentro del turno (no se parte entre turnos)</span>
+                    </label>
                     <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;color:var(--app-text,#0f172a);">
                         <input type="checkbox" id="modal-proc-gantt"${row.ganttEnabled ? " checked" : ""}>
                         <span>Activo en Gantt (visible en la línea de tiempo)</span>
@@ -3063,6 +3071,7 @@ window.guardarEditarProcesoModal = function(index) {
     const orderVal = Number(document.getElementById("modal-proc-order")?.value || 0);
     const colorVal = document.getElementById("modal-proc-color")?.value;
     const paraleloVal = Boolean(document.getElementById("modal-proc-paralelo")?.checked);
+    const turnoVal = Boolean(document.getElementById("modal-proc-turno")?.checked);
     const ganttVal = Boolean(document.getElementById("modal-proc-gantt")?.checked);
     const calendarioVal = document.getElementById("modal-proc-calendario")?.value || null;
 
@@ -3070,6 +3079,7 @@ window.guardarEditarProcesoModal = function(index) {
     if (orderVal > 0) row.order = orderVal;
     if (colorVal) row.colorGantt = colorVal;
     row.procesoParalelo = paraleloVal;
+    row.terminarEnTurno = turnoVal;
     row.ganttEnabled = ganttVal;
     row.calendarioId = calendarioVal;
 

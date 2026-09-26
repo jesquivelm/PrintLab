@@ -3182,6 +3182,8 @@ function normalizeCostsConfigRecord(config) {
                 // Programación: sin estos campos, guardar Costos borraba el horario del proceso.
                 colorGantt: String(row?.colorGantt || fallback.colorGantt || '#378ADD'),
                 procesoParalelo: row?.procesoParalelo === true || String(row?.procesoParalelo || '').trim().toLowerCase() === 'true',
+                // Programación: el trabajo debe caber entero dentro de un turno (no se parte).
+                terminarEnTurno: row?.terminarEnTurno === true || String(row?.terminarEnTurno || '').trim().toLowerCase() === 'true',
                 calendarioId: row?.calendarioId ? String(row.calendarioId) : null
             };
         }).filter(Boolean);
@@ -3203,6 +3205,7 @@ function normalizeCostsConfigRecord(config) {
                 capacityMinutes: Math.max(0, Number(item.capacityMinutes || 480)),
                 colorGantt: String(item.colorGantt || '#378ADD'),
                 procesoParalelo: Boolean(item.procesoParalelo),
+                terminarEnTurno: Boolean(item.terminarEnTurno),
                 calendarioId: item.calendarioId || null
             });
         });
@@ -3441,6 +3444,7 @@ async function loadCostsConfig() {
                 defaultBoxCost: r.costo_caja,
                 defaultCostoPulgadaLinealTroquel: r.costo_pulgada_lineal_troquel_default,
                 bufferProgramacionDias: r.buffer_programacion_dias == null ? 2 : Number(r.buffer_programacion_dias),
+                holguraTurnoMinutos: r.holgura_turno_minutos == null ? 15 : Number(r.holgura_turno_minutos),
                 processDefaults: procesos.rows.map((p) => ({
                     key: p.proceso_key,
                     label: p.etiqueta,
@@ -3456,6 +3460,7 @@ async function loadCostsConfig() {
                     capacityMinutes: p.capacidad_minutos,
                     colorGantt: p.color_gantt || '#378ADD',
                     procesoParalelo: Boolean(p.proceso_paralelo),
+                    terminarEnTurno: Boolean(p.terminar_en_turno),
                     calendarioId: p.calendario_id || null
                 }))
             },
@@ -3740,11 +3745,12 @@ async function saveCostsConfig(config) {
             );
         };
 
-        await client.query(`UPDATE costo_general SET buffer_programacion_dias = $2 WHERE tenant_id = $1`, [tenantId, gen.bufferProgramacionDias ?? 2]);
+        await client.query(`UPDATE costo_general SET buffer_programacion_dias = $2, holgura_turno_minutos = $3 WHERE tenant_id = $1`,
+            [tenantId, gen.bufferProgramacionDias ?? 2, Math.max(0, Math.round(Number(gen.holguraTurnoMinutos ?? 15)))]);
 
         await replaceRows('costo_proceso_defaults',
-            ['proceso_key', 'etiqueta', 'activo', 'crear_habilitado', 'bloqueado', 'repetible', 'gantt_habilitado', 'visible_boton_flotante', 'orden', 'costo_minimo', 'tiempo_buffer_minutos', 'capacidad_minutos', 'color_gantt', 'proceso_paralelo', 'calendario_id'],
-            gen.processDefaults.map((p) => [p.key, p.label, p.active, p.createEnabled, p.locked, p.repeatable, p.ganttEnabled, p.visibleBotonFlotante, p.order, p.minimumCost, p.timeBufferMinutes, p.capacityMinutes, p.colorGantt || '#378ADD', Boolean(p.procesoParalelo), p.calendarioId || null])
+            ['proceso_key', 'etiqueta', 'activo', 'crear_habilitado', 'bloqueado', 'repetible', 'gantt_habilitado', 'visible_boton_flotante', 'orden', 'costo_minimo', 'tiempo_buffer_minutos', 'capacidad_minutos', 'color_gantt', 'proceso_paralelo', 'terminar_en_turno', 'calendario_id'],
+            gen.processDefaults.map((p) => [p.key, p.label, p.active, p.createEnabled, p.locked, p.repeatable, p.ganttEnabled, p.visibleBotonFlotante, p.order, p.minimumCost, p.timeBufferMinutes, p.capacityMinutes, p.colorGantt || '#378ADD', Boolean(p.procesoParalelo), Boolean(p.terminarEnTurno), p.calendarioId || null])
         );
 
         await replaceRows('costo_deposito_tinta',
@@ -23102,6 +23108,14 @@ async function ensureProgramacionSchema() {
     // Las personas vienen de la orden (del cálculo), no de un valor fijo en Costos.
     await pgQuery(`ALTER TABLE costo_proceso_defaults DROP COLUMN IF EXISTS personas_disponibles`);
     await pgQuery(`ALTER TABLE costo_general ADD COLUMN IF NOT EXISTS buffer_programacion_dias INTEGER NOT NULL DEFAULT 2`);
+    // Procesos que deben terminar dentro del mismo turno (Impresión: no se parte entre
+    // turnos) y la holgura mínima que debe sobrar para iniciarlos.
+    await pgQuery(`ALTER TABLE costo_general ADD COLUMN IF NOT EXISTS holgura_turno_minutos INTEGER NOT NULL DEFAULT 15`);
+    const colTurno = await pgQuery(`SELECT 1 FROM information_schema.columns WHERE table_name = 'costo_proceso_defaults' AND column_name = 'terminar_en_turno'`);
+    if (!colTurno.rows.length) {
+        await pgQuery(`ALTER TABLE costo_proceso_defaults ADD COLUMN terminar_en_turno BOOLEAN NOT NULL DEFAULT FALSE`);
+        await pgQuery(`UPDATE costo_proceso_defaults SET terminar_en_turno = TRUE WHERE proceso_key = 'impresion'`);
+    }
     // Personas de Empaque: viven en la orden (empaque_operarios; la vigente la corrige
     // producción). Si falta, se trae del cálculo; y al producto, de su orden o cálculo.
     await pgQuery(`
@@ -23821,7 +23835,7 @@ const SQL_RECURSOS_CADENA = `
 // Procesos que se programan (check "Activo en Gantt"), en el orden de Costos.
 async function cargarProcesosProgramables() {
     const { rows } = await pgQuery(`
-        SELECT proceso_key, etiqueta, orden, calendario_id, proceso_paralelo, color_gantt
+        SELECT proceso_key, etiqueta, orden, calendario_id, proceso_paralelo, color_gantt, terminar_en_turno
           FROM costo_proceso_defaults
          WHERE activo = TRUE AND gantt_habilitado = TRUE
          ORDER BY orden, etiqueta
@@ -23932,7 +23946,10 @@ function disponibilidadRecursoEnDia(recurso, dateKey, contexto = {}) {
         horasExtra = null
     } = contexto;
 
-    if (esFeriado(feriados, dateKey)) return [];
+    // Niveles: 1) horas extra (siempre cuentan, incluso en feriado o día sin turno);
+    // 2) el turno de ese día de la semana (si el turno incluye domingo, el domingo se
+    // trabaja); 3) feriados y días sin turno, que cierran el turno regular.
+    const feriado = esFeriado(feriados, dateKey);
 
     const adjustment = recurso.scenarioAdjustment || {};
     const closedDates = new Set(
@@ -23956,10 +23973,12 @@ function disponibilidadRecursoEnDia(recurso, dateKey, contexto = {}) {
     const hasOverrideHours = exception
         && exception.override_start_hour !== null
         && exception.override_end_hour !== null;
-    if (exception && !hasOverrideHours) return [];
+    const cerradoPorCalendario = Boolean(exception && !hasOverrideHours);
 
     let intervals = [];
-    if (hasOverrideHours) {
+    if (feriado || cerradoPorCalendario) {
+        intervals = []; // el turno regular no aplica; solo cuentan horas extra (abajo)
+    } else if (hasOverrideHours) {
         intervals = [{
             startHour: Number(exception.override_start_hour),
             endHour: Number(exception.override_end_hour)
@@ -23984,7 +24003,11 @@ function disponibilidadRecursoEnDia(recurso, dateKey, contexto = {}) {
             const last = intervals[intervals.length - 1];
             intervals[intervals.length - 1] = { startHour: last.startHour, endHour: Math.min(24, last.endHour + extra) };
         } else {
-            intervals = [{ startHour: 6, endHour: Math.min(24, 6 + extra) }];
+            // Día sin turno (domingo, feriado…): las horas extra empiezan a la hora en que
+            // arranca normalmente el turno de ese recurso (6:00 si no tiene turno).
+            const turnos = recurso.calendarId ? (turnosPorCalendario.get(recurso.calendarId) || []) : [];
+            const inicio = turnos.length ? Math.min(...turnos.map((t) => Number(t.start_hour))) : 6;
+            intervals = [{ startHour: inicio, endHour: Math.min(24, inicio + extra) }];
         }
     }
 
@@ -24437,6 +24460,10 @@ async function runFiniteCapacityEngine(options = {}) {
     const ordenProceso = new Map(procesosProgramables.map((p) => [p.clave, Number(p.orden || 0)]));
     const mantenimientos = await cargarMantenimientos(fromDate, schedulingLimitDate);
     const horasExtra = await cargarHorasExtra(fromDate, schedulingLimitDate);
+    const procesosEnTurno = new Set(procesosProgramables.filter((p) => p.terminar_en_turno).map((p) => p.clave));
+    const holguraTurnoHoras = await pgQuery(`SELECT holgura_turno_minutos FROM costo_general LIMIT 1`)
+        .then((r) => Math.max(0, Number(r.rows[0]?.holgura_turno_minutos ?? 15)) / 60)
+        .catch(() => 0.25);
     const bufferDefecto = await pgQuery(`SELECT buffer_programacion_dias FROM costo_general LIMIT 1`)
         .then((r) => Math.max(0, Number(r.rows[0]?.buffer_programacion_dias ?? 2)))
         .catch(() => 2);
@@ -24693,10 +24720,46 @@ async function runFiniteCapacityEngine(options = {}) {
         return resource.lanes.slice(0, Math.min(resource.lanes.length, maxParallelJobs));
     }
 
-    function simulateLane(resource, cursorInicial, durationHours, processKey) {
+    // Procesos que deben terminar dentro del mismo turno (Costos → "Terminar en el turno",
+    // p. ej. Impresión): el trabajo entra entero en una franja con la holgura de Costos;
+    // si no cabe, no se inicia y se busca la siguiente franja donde sí quepa. El hueco que
+    // queda lo puede usar otra orden que sí quepa (scheduleLane prueba cada orden desde el
+    // primer espacio libre). Si el trabajo es más largo que un turno completo, solo puede
+    // arrancar al inicio de un turno y continúa en los siguientes.
+    function simulateLaneEnTurno(resource, cursorInicial, durationHours, processKey, productiveRate) {
+        const need = Math.max(0, Number(durationHours || 0)) / productiveRate;
+        let cursor = new Date(cursorInicial);
+        for (let guard = 0; guard < 730; guard += 1) {
+            const dateKey = capacityDateKey(cursor);
+            if (!dateKey || dateKey > schedulingLimitDate) return null;
+            for (const interval of resourceIntervalsForDay(resource, dateKey, processKey)) {
+                const intervalStart = capacityDateAtHour(dateKey, interval.startHour);
+                const intervalEnd = capacityDateAtHour(dateKey, interval.endHour);
+                const segmentStart = new Date(Math.max(cursor.getTime(), intervalStart.getTime()));
+                if (segmentStart >= intervalEnd) continue;
+                const disponible = (intervalEnd - segmentStart) / 3600000;
+                const turnoCompleto = (intervalEnd - intervalStart) / 3600000;
+                if (need + holguraTurnoHoras <= disponible + 1e-9) {
+                    const end = new Date(segmentStart.getTime() + need * 3600000);
+                    return { start: segmentStart, end, segments: [{ date: dateKey, hours: Number(durationHours || 0) }], productiveRate };
+                }
+                if (need + holguraTurnoHoras > turnoCompleto && segmentStart.getTime() === intervalStart.getTime()) {
+                    const plan = simulateLane(resource, segmentStart, durationHours, processKey, true);
+                    return plan ? { ...plan, excedeTurno: true } : null;
+                }
+            }
+            cursor = capacityDateAtHour(capacityAddDays(dateKey, 1), 0);
+        }
+        return null;
+    }
+
+    function simulateLane(resource, cursorInicial, durationHours, processKey, sinReglaTurno = false) {
         const proficiency = proficiencyFor(resource, processKey);
         if (proficiency <= 0) return null;
         const productiveRate = Math.max(0.05, resource.efficiencyFactor * proficiency);
+        if (!sinReglaTurno && procesosEnTurno.has(canonicalProductionFlowKey(processKey))) {
+            return simulateLaneEnTurno(resource, cursorInicial, durationHours, processKey, productiveRate);
+        }
         let cursor = new Date(cursorInicial);
         let remaining = Math.max(0, Number(durationHours || 0));
         let start = null;
@@ -24843,11 +24906,23 @@ async function runFiniteCapacityEngine(options = {}) {
     }
 
     // ── Fase 1: reservar lo fijo (en marcha, movido a mano, bloqueo suave, mantenido)
+    // Secuencia: un proceso posterior solo queda fijo si todos los anteriores de su orden
+    // también lo están (o van en marcha) y terminan antes; si no, esta corrida lo vuelve a
+    // programar detrás del anterior (Rebobinado nunca antes que Impresión).
+    const liberadasPorSecuencia = new Set();
     for (const [codigoOrden, orderRoutes] of routesByOrder) {
         if (enAprobacion.has(codigoOrden)) continue;
+        let anteriorPendiente = false;
+        let finAnteriorFija = null;
         for (const route of orderRoutes) {
             const motivo = motivoFija(route);
-            if (!motivo) continue;
+            if (!motivo) { anteriorPendiente = true; continue; }
+            const iniGuardado = motivo === 'movida-ahora' ? new Date(mover.start) : (route.planned_start_at ? new Date(route.planned_start_at) : null);
+            if (motivo !== 'en-marcha' && (anteriorPendiente || (finAnteriorFija && iniGuardado && iniGuardado < finAnteriorFija))) {
+                liberadasPorSecuencia.add(String(route.id));
+                anteriorPendiente = true;
+                continue;
+            }
             let recurso = recursoParaFija(route);
             if (motivo === 'movida-ahora' && mover.maquinaId) {
                 recurso = resources.find((r) => r.maquinaId && r.maquinaId === String(mover.maquinaId)) || recurso;
@@ -24865,7 +24940,8 @@ async function runFiniteCapacityEngine(options = {}) {
                 // En marcha sin fechas vigentes: ocupa la máquina desde ahora.
                 plan = simulateLane(recurso, ahora, Math.max(0.01, Number(route.duration_hours || 0.01)), canonicalProductionFlowKey(route.process_key));
             }
-            if (!plan) continue; // fecha ya vencida y sin estar en marcha: se reprograma normal
+            if (!plan) { anteriorPendiente = true; continue; } // fecha ya vencida y sin estar en marcha: se reprograma normal
+            finAnteriorFija = new Date(plan.end);
             const carril = recurso.lanes.find((l) => !l.busy.some((b) => b.start < plan.end && b.end > plan.start)) || recurso.lanes[0];
             commitLane(recurso, carril, plan, route.duration_hours);
             recurso.assignedRouteIds.push(String(route.id));
@@ -25134,6 +25210,22 @@ async function runFiniteCapacityEngine(options = {}) {
             route.resourceUtilizationPct = Number(resource?.utilizationPct || 0);
         });
     });
+    // Verificación final de secuencia (orden de Costos): ningún proceso puede empezar antes
+    // de que termine el anterior de su misma orden. Si pasa, se marca la orden y no se
+    // permite aplicar (ver /reprogramar/aplicar).
+    orderSummaries.forEach((order) => {
+        const conFecha = order.routes
+            .filter((r) => r.projectedStart && r.projectedEnd)
+            .sort((a, b) => (ordenProceso.get(a.processKey) ?? 9999) - (ordenProceso.get(b.processKey) ?? 9999));
+        for (let i = 1; i < conFecha.length; i += 1) {
+            if (new Date(conFecha[i].projectedStart) < new Date(conFecha[i - 1].projectedEnd) - 60000) {
+                order.sequenceConflict = `${conFecha[i].processName} empieza antes de que termine ${conFecha[i - 1].processName}`;
+                break;
+            }
+        }
+        const liberadas = order.routes.filter((r) => liberadasPorSecuencia.has(String(r.routeId)));
+        if (liberadas.length) order.releasedForSequence = liberadas.map((r) => r.processName);
+    });
     const lateOrders = orderSummaries.filter((order) => order.projectedLate);
 
     return {
@@ -25297,6 +25389,8 @@ async function construirVistaPreviaReprogramacion(opciones = {}) {
             procesoActual: actual.proceso || null,
             enAprobacion: o.waitingApproval || null,
             faltaDato: o.missingData || null,
+            secuenciaRota: o.sequenceConflict || null,
+            liberadasPorSecuencia: o.releasedForSequence || [],
             rutas: o.routes.map((r) => ({
                 routeId: r.routeId,
                 idRuta: r.idRuta,
@@ -25340,7 +25434,9 @@ async function construirVistaPreviaReprogramacion(opciones = {}) {
         faltaDato: cuenta((o) => o.estado === 'falta-dato'),
         enAprobacion: cuenta((o) => o.movimiento === 'en-aprobacion'),
         sinHorario: engine.sinHorario,
-        fueraDeSecuencia: await procesosFueraDeSecuencia()
+        fueraDeSecuencia: await procesosFueraDeSecuencia(),
+        secuenciaRota: ordenes.filter((o) => o.secuenciaRota).map((o) => ({ orden: o.orderCode, detalle: o.secuenciaRota })),
+        liberadasPorSecuencia: ordenes.filter((o) => o.liberadasPorSecuencia.length).map((o) => ({ orden: o.orderCode, procesos: o.liberadasPorSecuencia }))
     };
     const recursos = engine.resources.map((r) => ({
         nombre: r.resourceName,
@@ -25436,6 +25532,9 @@ app.post('/api/planificacion/reprogramar/aplicar', async (req, res) => {
             ajustes,
             mover
         });
+        if (vista.resumen.secuenciaRota.length) {
+            return res.status(409).json({ ok: false, error: `No se aplica: en ${vista.resumen.secuenciaRota.map((x) => `${x.orden} (${x.detalle})`).join(', ')}. Un proceso no puede empezar antes de que termine el anterior.` });
+        }
         const rutasCambian = [];
         let rutaMovida = null;
         vista.ordenes.forEach((o) => o.rutas.forEach((r) => {
