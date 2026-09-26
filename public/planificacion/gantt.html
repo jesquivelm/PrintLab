@@ -51,7 +51,7 @@ body{font-family:system-ui,sans-serif;font-size:14px;color:#1a1a1a;background:#f
 .res-col{width:190px;min-width:190px;padding:8px 12px;font-size:11px;font-weight:500;color:#888;border-right:1px solid #d8e4ef;flex-shrink:0}
 .time-col{display:flex;flex-direction:column;flex:1;min-width:0}
 .day-hdr{display:flex;border-bottom:1px solid #d8e4ef;background:#edf5fb}
-.day-hdr-item{padding:6px 8px 4px;font-size:11px;font-weight:600;color:#445;border-right:1px solid #d8e0e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
+.day-hdr-item{padding:6px 4px 4px;font-size:11px;font-weight:600;color:#445;border-right:1px solid #d8e0e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
 .time-hdr{display:flex;flex:1}
 .t-slot{flex:1;min-width:52px;padding:6px 4px;text-align:center;font-size:10px;color:#aaa;border-right:1px solid #e2e8f0}
 .g-row{display:flex;border-bottom:1px solid #d8e4ef;min-height:72px;align-items:stretch;position:relative;background:#fff}
@@ -102,9 +102,11 @@ html[data-theme="dark"] .aviso-sin-horario{color:#fcd34d;background:rgba(146,64,
 .task-bar.dragging{opacity:0.4;cursor:grabbing}
 .task-bar.drag-target{outline:2.5px dashed rgba(255,255,255,.7);outline-offset:-3px}
 .task-bar.chain-active{box-shadow:0 0 0 3px rgba(6,182,212,.6),0 0 20px rgba(6,182,212,.3);z-index:30;filter:brightness(1.08);border-color:#06b6d4!important}
-.task-bar.chain-dim{opacity:0.15}
+.task-bar.chain-dim{opacity:0.4}
 .task-cliente{font-size:9.5px;opacity:0.85;overflow:hidden;text-overflow:ellipsis;line-height:1.2;font-weight:500}
 .task-lbl{font-size:11.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+/* El texto de una barra larga acompaña al desplazarse: siempre se sabe qué orden es. */
+.task-bar .task-lbl,.task-bar .task-cliente,.task-bar .task-sub{transform:translateX(var(--lbl-dx,0px));max-width:280px}
 .task-sub{font-size:9.5px;opacity:0.80;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px}
 .task-mode-pill{display:inline-flex;align-items:center;padding:1px 5px;border-radius:999px;font-size:8.5px;font-weight:700;background:rgba(255,255,255,.22)}
 .task-config-btn{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:20px;height:20px;border:0;border-radius:5px;background:rgba(255,255,255,.18);color:#fff;font-size:13px;line-height:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;flex-shrink:0}
@@ -452,6 +454,12 @@ html[data-theme="dark"] .res-col,
 html[data-theme="dark"] .t-slot,
 html[data-theme="dark"] .res-lbl,
 html[data-theme="dark"] .proceso-hdr-lbl{border-color:var(--app-border,#334155)}
+/* La columna de procesos/máquinas queda fija al desplazarse de lado: nunca se pierde la fila. */
+.res-col,.res-lbl,.proceso-hdr-lbl{position:sticky;left:0;z-index:70;background:#fff}
+.proceso-hdr-lbl{background:#f4f8fc}
+html[data-theme="dark"] .res-col,
+html[data-theme="dark"] .res-lbl,
+html[data-theme="dark"] .proceso-hdr-lbl{background:var(--app-surface,#111827)}
 html[data-theme="dark"] .stat-lbl,
 html[data-theme="dark"] .res-sub,
 html[data-theme="dark"] .t-slot,
@@ -950,7 +958,10 @@ function configureTimelineHorizon() {
     if (!dayMap[dayKey]) {
       dayMap[dayKey] = {
         key: dayKey,
-        label: stamp.toLocaleDateString('es-CR', { weekday: 'long', day: 'numeric', month: 'short' }),
+        // En las vistas por días la columna es angosta: "sáb 2 nov" siempre cabe completo.
+        label: ZOOM_CONFIG[zoomLevel].granularity === 'day'
+          ? stamp.toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '')
+          : stamp.toLocaleDateString('es-CR', { weekday: 'long', day: 'numeric', month: 'short' }),
         slot: i
       };
       DAYS.push(dayMap[dayKey]);
@@ -1583,12 +1594,15 @@ function taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlerts
   const estPx = (op.dur / SLOTS) * (SLOTS * slotW);
   const isNarrow = estPx < 70;
   const isVeryNarrow = estPx < 36;
+  // En "1 sem" y "15 días" cada barra ocupa su ancho real: un ancho mínimo forzado hacía
+  // que trabajos cortos seguidos parecieran encimados.
+  const vistaDias = ZOOM_CONFIG[zoomLevel].granularity === 'day';
 
   return `<div class="task-bar${chainClass}${conflictClass}${scheduleClass}${runningClass}${op.terminado ? ' is-done' : ''}"
     id="bar-${op.id_ruta}"
     data-id="${op.id}"
     data-ruta="${op.id_ruta}"
-    style="left:${pct(op.inicio)};width:${pct(op.dur)};background:${c.bg};border-color:${c.bd};${isVeryNarrow?'padding:0 4px;min-width:24px':''}"
+    style="left:${pct(op.inicio)};width:${pct(op.dur)};background:${c.bg};border-color:${c.bd};${vistaDias && isNarrow ? 'padding:0;min-width:4px;border-width:1px' : isVeryNarrow ? 'padding:0 4px;min-width:24px' : ''}"
     draggable="${op.terminado ? 'false' : 'true'}"
     onmouseenter="showTT(event,'${routeArg}')"
     onmouseleave="hideTT()"
@@ -1603,8 +1617,10 @@ function taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlerts
     ${op.manual_lock ? '<div class="task-lock-icon" title="Fija: el Reprogramador no la mueve">🔒</div>' : ''}
     ${isLate ? '<div class="task-late-icon" title="Fuera de fecha prometida">⚠</div>' : ''}
     ${hasProgress ? `<div class="task-progress-track"><div class="task-progress-fill" style="width:${progressPct}%;background:rgba(255,255,255,.55)"></div></div>` : ''}
-    ${!isVeryNarrow ? `<button type="button" class="task-config-btn" onclick="event.stopPropagation();openDP('${routeArg}')" title="Configurar">⋯</button>` : ''}
-    ${isVeryNarrow
+    ${!isVeryNarrow && !(vistaDias && isNarrow) ? `<button type="button" class="task-config-btn" onclick="event.stopPropagation();openDP('${routeArg}')" title="Configurar">⋯</button>` : ''}
+    ${vistaDias && isNarrow
+      ? ''
+      : isVeryNarrow
       ? `<div style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.5);margin:auto"></div>`
       : isNarrow
         ? `<div class="task-lbl" style="color:${c.tx};font-size:10px">${op.id}</div>`
@@ -2242,7 +2258,10 @@ function renderGantt() {
     <span class="leg-item"><span class="leg-dot" style="background:#BA7517"></span>Setup</span>
     <span class="leg-item"><span class="leg-dot" style="background:#378ADD"></span>Pendiente</span>
     <span class="leg-item"><span class="leg-dot" style="background:#E24B4A"></span>Alerta</span>
-    <span class="leg-item"><span class="leg-dot" style="background:#639922"></span>Completado</span>
+    <span class="leg-item"><span class="leg-dot" style="background:#b8c2cf"></span>Terminado</span>
+    <span class="leg-item"><span class="leg-dot" style="background:transparent;border:2px solid #E24B4A"></span>Borde rojo: atrasa su fecha comprometida</span>
+    <span class="leg-item"><span class="leg-dot" style="background:transparent;border:2px solid #f59e0b"></span>Borde naranja: negociar (después de la fecha del cliente)</span>
+    <span class="leg-item"><span class="leg-dot" style="background:repeating-linear-gradient(135deg,#378ADD 0 3px,#a9c9ee 3px 6px)"></span>Rayas: pausa (fuera de turno, domingo, feriado, mantenimiento)</span>
     <span class="leg-item" style="font-size:10px;color:#aaa;margin-left:auto">
       <span style="background:#06b6d4;padding:1px 5px;border-radius:3px;color:#fff">⬤</span> Cadena activa
     </span>
@@ -2297,6 +2316,12 @@ function drawArrows() {
     }
   });
 
+  // Solo se dibuja la cadena de la orden que se tocó: con todas a la vez las líneas se
+  // cruzan y no se lee nada.
+  if (!activeChainIds) return;
+  const depsCadena = visibleDeps.filter(d => activeChainIds.has(d.srcId) && activeChainIds.has(d.dstId));
+  visibleDeps.length = 0;
+  visibleDeps.push(...depsCadena);
   if (!visibleDeps.length) return;
 
   const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
@@ -2873,6 +2898,24 @@ function showTT(e, id_ruta) {
   tt.style.top  = (e.clientY - 16) + 'px';
 }
 function hideTT() { document.getElementById('tt').style.display = 'none'; }
+
+// El texto de una barra larga acompaña al desplazarse de lado: siempre se ve qué orden es.
+function acomodarTextosBarras() {
+  const wrap = document.querySelector('.gantt-wrap');
+  if (!wrap) return;
+  const bordeIzq = wrap.getBoundingClientRect().left + 196;
+  wrap.querySelectorAll('.task-bar').forEach(bar => {
+    const r = bar.getBoundingClientRect();
+    const dx = r.left < bordeIzq && r.right > bordeIzq ? Math.min(bordeIzq - r.left, Math.max(0, r.width - 200)) : 0;
+    bar.style.setProperty('--lbl-dx', dx + 'px');
+  });
+}
+let _acomodoPendiente = false;
+document.addEventListener('scroll', (e) => {
+  if (!e.target.classList || !e.target.classList.contains('gantt-wrap') || _acomodoPendiente) return;
+  _acomodoPendiente = true;
+  requestAnimationFrame(() => { _acomodoPendiente = false; acomodarTextosBarras(); });
+}, true);
 
 // ── DRAG TO PAN ──────────────────────────────────────────────
 let panning = false, panStartX = 0, panStartScroll = 0;
