@@ -22375,6 +22375,75 @@ app.put('/api/planificacion/maquinas/:id/especificaciones', async (req, res) => 
     }
 });
 
+// Horario real de cada recurso del Gantt (máquina+proceso o proceso sin máquina), día
+// por día: franjas de trabajo y, cuando no se trabaja, por qué (feriado, domingo, sin
+// turno, excepción) y si hay mantenimiento. Con esto el Gantt explica cada pausa de una
+// barra. Misma fuente que el motor: disponibilidadRecursoEnDia.
+app.get('/api/planificacion/gantt/horarios', async (req, res) => {
+    try {
+        const desde = capacityDateKey(req.query.desde || new Date());
+        let hasta = capacityDateKey(req.query.hasta || '') || capacityAddDays(desde, 30);
+        if (hasta > capacityAddDays(desde, 120)) hasta = capacityAddDays(desde, 120);
+        const [feriados, nombresFeriados, shiftsRes, excRes, recursosRes, mantenimientos, horasExtra] = await Promise.all([
+            cargarFeriados(),
+            pgQuery(`SELECT fecha::text AS fecha, recurrente, nombre FROM dias_feriados WHERE activo = TRUE`),
+            pgQuery(`SELECT * FROM resource_shifts WHERE is_active = TRUE`),
+            pgQuery(`SELECT * FROM resource_calendar_exceptions WHERE is_active = TRUE`),
+            pgQuery(SQL_RECURSOS_CADENA),
+            cargarMantenimientos(desde, hasta),
+            cargarHorasExtra(desde, hasta)
+        ]);
+        const turnosPorCalendario = new Map();
+        shiftsRes.rows.forEach((row) => {
+            const k = String(row.calendar_id);
+            if (!turnosPorCalendario.has(k)) turnosPorCalendario.set(k, []);
+            turnosPorCalendario.get(k).push({ ...row, valid_from: capacityDateKey(row.valid_from) || '0000-01-01', valid_to: row.valid_to ? capacityDateKey(row.valid_to) : null });
+        });
+        const excepcionesPorCalendario = new Map();
+        excRes.rows.forEach((row) => {
+            const k = String(row.calendar_id);
+            if (!excepcionesPorCalendario.has(k)) excepcionesPorCalendario.set(k, new Map());
+            excepcionesPorCalendario.get(k).set(capacityDateKey(row.exception_date), row);
+        });
+        const feriadoNombre = (dk) => {
+            const f = nombresFeriados.rows.find((x) => (x.recurrente ? x.fecha.slice(5) === dk.slice(5) : x.fecha.slice(0, 10) === dk));
+            return f ? f.nombre : null;
+        };
+        const contexto = { turnosPorCalendario, excepcionesPorCalendario, feriados, mantenimientos, horasExtra };
+        const recursos = {};
+        recursosRes.rows.forEach((row) => {
+            const proceso = canonicalProductionFlowKey(row.process_key);
+            const recurso = {
+                calendarId: row.calendar_id ? String(row.calendar_id) : '',
+                maquinaId: row.maquina_id ? String(row.maquina_id) : '',
+                processKey: proceso,
+                scenarioAdjustment: {}
+            };
+            const dias = [];
+            for (let dk = desde; dk <= hasta; dk = capacityAddDays(dk, 1)) {
+                const franjas = disponibilidadRecursoEnDia(recurso, dk, contexto);
+                const dia = { fecha: dk, franjas: franjas.map((f) => [capacityDateAtHour(dk, f.startHour).toISOString(), capacityDateAtHour(dk, f.endHour).toISOString()]) };
+                if (!franjas.length) {
+                    const excepcion = recurso.calendarId ? excepcionesPorCalendario.get(recurso.calendarId)?.get(dk) : null;
+                    if (esFeriado(feriados, dk)) dia.motivo = `feriado${feriadoNombre(dk) ? ` (${feriadoNombre(dk)})` : ''}`;
+                    else if (excepcion) dia.motivo = excepcion.description || 'día cerrado en el calendario';
+                    else if (!recurso.calendarId) dia.motivo = 'sin horario';
+                    else dia.motivo = new Date(`${dk}T00:00:00.000Z`).getUTCDay() === 0 ? 'domingo' : 'sin turno ese día';
+                }
+                const mant = recurso.maquinaId ? mantenimientos.get(recurso.maquinaId) : null;
+                if (mant && mant.horas > 0 && mant.fechas.has(dk)) dia.mantenimiento = mant.horas;
+                dias.push(dia);
+            }
+            const clave = recurso.maquinaId ? `m:${recurso.maquinaId}|${proceso}` : `p:${proceso}`;
+            recursos[clave] = { nombre: row.resource_name, dias };
+            if (recurso.maquinaId && !recursos[`m:${recurso.maquinaId}`]) recursos[`m:${recurso.maquinaId}`] = recursos[clave];
+        });
+        res.json({ ok: true, desde, hasta, recursos });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible leer los horarios.' });
+    }
+});
+
 app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
     try {
         const [machinesResult, routesResult, procesosResult] = await Promise.all([
@@ -22416,6 +22485,8 @@ app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
                     COALESCE((r.datos_extra->>'start_turn_hour')::numeric, 0) AS inicio,
                     r.fecha_plan_inicio,
                     r.fecha_plan_fin,
+                    opm.fecha_real_inicio,
+                    opm.fecha_real_fin,
                     COALESCE(r.bloqueo_manual, FALSE) AS bloqueo_manual,
                     r.datos_extra->>'manualLockBy' AS bloqueo_por,
                     r.datos_extra->>'manualLockAt' AS bloqueo_en,

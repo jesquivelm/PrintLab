@@ -93,6 +93,12 @@ html[data-theme="dark"] .aviso-sin-horario{color:#fcd34d;background:rgba(146,64,
   min-width:48px;
 }
 .task-bar:hover{filter:brightness(1.07);z-index:20;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.task-bar.is-done{cursor:default;opacity:.8;background-image:linear-gradient(90deg,rgba(255,255,255,.18),rgba(255,255,255,0))}
+/* Pausa dentro de una barra: fuera de turno, domingo, feriado o mantenimiento. */
+.task-pausa{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 4px,rgba(255,255,255,.15) 4px 8px);pointer-events:none;border-left:1px dashed rgba(255,255,255,.8);border-right:1px dashed rgba(255,255,255,.8)}
+.tt-pausas{margin-top:6px;padding-top:6px;border-top:1px solid rgba(0,0,0,.08);font-size:11px}
+.tt-pausas div{margin:2px 0}
+.btn.terminados-on{background:#eef2f7;border-color:#94a3b8}
 .task-bar.dragging{opacity:0.4;cursor:grabbing}
 .task-bar.drag-target{outline:2.5px dashed rgba(255,255,255,.7);outline-offset:-3px}
 .task-bar.chain-active{box-shadow:0 0 0 3px rgba(6,182,212,.6),0 0 20px rgba(6,182,212,.3);z-index:30;filter:brightness(1.08);border-color:#06b6d4!important}
@@ -877,10 +883,18 @@ function getPipelineProc(processKey) {
 }
 
 // Inicio del eje del Gantt: la hora actual (sin mostrar horas que ya pasaron).
+// Con "Terminados" activo el tablero arranca 7 días atrás para ver lo ya hecho (en gris).
+let mostrarTerminados = (() => { try { return localStorage.getItem('gantt-terminados') === '1'; } catch (e) { return false; } })();
 function ganttBaseDate() {
   const base = new Date();
   base.setMinutes(0, 0, 0);
+  if (mostrarTerminados) base.setTime(base.getTime() - 7 * 24 * 3600000);
   return base;
+}
+function toggleTerminados() {
+  mostrarTerminados = !mostrarTerminados;
+  try { localStorage.setItem('gantt-terminados', mostrarTerminados ? '1' : '0'); } catch (e) {}
+  loadFromAPI();
 }
 
 function configureTimelineHorizon() {
@@ -985,10 +999,21 @@ function displayProcessName(value) {
 // ── API ──────────────────────────────────────────────────────
 async function loadFromAPI() {
   try {
-    const res = await fetch(`${API}/gantt-agrupado`);
+    const baseHorarios = ganttBaseDate();
+    const diaISO = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    const [res, horarios] = await Promise.all([
+      fetch(`${API}/gantt-agrupado`),
+      fetch(`${API}/gantt/horarios?desde=${diaISO(new Date(baseHorarios.getTime() - 86400000))}&hasta=${diaISO(new Date(baseHorarios.getTime() + 40 * 86400000))}`)
+        .then(r => r.json()).catch(() => null)
+    ]);
     if (!res.ok) throw new Error('Error HTTP ' + res.status);
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Error en respuesta');
+    window._horarios = horarios && horarios.ok ? horarios.recursos : {};
+    // Un proceso terminado se dibuja con sus horas reales y en gris; solo con "Terminados".
+    data.rutas = (data.rutas || []).map(r => r.estado === 'COMPLETADO'
+      ? { ...r, terminado: true, fecha_plan_inicio: r.fecha_real_inicio || r.fecha_plan_inicio, fecha_plan_fin: r.fecha_real_fin || r.fecha_plan_fin }
+      : r).filter(r => !r.terminado || mostrarTerminados);
 
     let turnosData = [];
     try {
@@ -1029,6 +1054,9 @@ async function loadFromAPI() {
       dep:         r.dep || null,
       dep_ruta_id: r.dep_ruta_id || null,
       estado:      r.estado,
+      terminado:   Boolean(r.terminado),
+      fecha_plan_inicio_iso: r.fecha_plan_inicio,
+      fecha_plan_fin_iso:    r.fecha_plan_fin,
       // Resultado del Reprogramador (ficha de la orden): cumple / adelanta / atrasa / negociar…
       estado_programacion: r.estado_programacion || null,
       fecha_entrega_estimada: r.fecha_entrega_estimada || null,
@@ -1082,6 +1110,7 @@ const COLORS = {
   PENDIENTE: {bg:'#378ADD', bd:'#185FA5', tx:'#fff'},
   PARO:      {bg:'#E24B4A', bd:'#A32D2D', tx:'#fff'},
   COMPLETADO:{bg:'#639922', bd:'#3B6D11', tx:'#fff'},
+  TERMINADO: {bg:'#b8c2cf', bd:'#9aa6b5', tx:'#334155'},
 };
 
 function pct(v) { return (v / SLOTS * 100).toFixed(4) + '%'; }
@@ -1453,11 +1482,67 @@ function getChain(id_ruta) {
   return chain;
 }
 
+// ── PAUSAS Y ESPERAS: por qué una barra se corta o empieza tarde ──
+// Usa el horario real de cada recurso (/gantt/horarios: turnos, feriados, domingos,
+// mantenimientos y horas extra), el mismo que usa el Reprogramador.
+function horarioDeRecurso(op) {
+  const h = window._horarios || {};
+  const clave = String(op.clave_proceso || op.proceso_key || '').toLowerCase();
+  return (op.maquina && (h[`m:${op.maquina}|${clave}`] || h[`m:${op.maquina}`])) || h[`p:${clave}`] || null;
+}
+const _ms = v => new Date(v).getTime();
+const _hhmm = t => new Date(t).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+const _diaHora = t => new Date(t).toLocaleDateString('es', { weekday: 'short', day: '2-digit' }) + ' ' + _hhmm(t);
+const _diaLocal = t => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+function pausasDeBarra(op) {
+  const rec = horarioDeRecurso(op);
+  if (!rec || !op.fecha_plan_inicio_iso || !op.fecha_plan_fin_iso) return [];
+  const s = _ms(op.fecha_plan_inicio_iso), e = _ms(op.fecha_plan_fin_iso);
+  if (!(e > s)) return [];
+  const franjas = rec.dias.flatMap(d => d.franjas.map(([a, b]) => [_ms(a), _ms(b)])).sort((x, y) => x[0] - y[0]);
+  const huecos = [];
+  let cursor = s;
+  for (const [a, b] of franjas) {
+    if (b <= cursor) continue;
+    if (a >= e) break;
+    if (a > cursor) huecos.push([cursor, a]);
+    cursor = Math.max(cursor, b);
+  }
+  return huecos.filter(([a, b]) => b - a > 5 * 60000).map(([a, b]) => {
+    const motivos = [];
+    if (franjas.some(f => Math.abs(f[1] - a) < 60000)) motivos.push(`fin de turno ${_hhmm(a)}`);
+    for (let t = a; t < b; t += 86400000) {
+      const dia = rec.dias.find(d => d.fecha === _diaLocal(t));
+      if (dia && dia.motivo && !dia.franjas.length && !motivos.includes(dia.motivo)) motivos.push(dia.motivo);
+    }
+    const diaFin = rec.dias.find(d => d.fecha === _diaLocal(b));
+    if (diaFin && diaFin.mantenimiento) motivos.push(`mantenimiento hasta ${_hhmm(b)}`);
+    return { izq: (a - s) / (e - s) * 100, ancho: (b - a) / (e - s) * 100, texto: `${_diaHora(a)} → ${_diaHora(b)}: ${motivos.join(', ') || 'fuera de horario'}` };
+  });
+}
+function esperaDeBarra(op) {
+  if (op.terminado || !op.fecha_plan_inicio_iso) return null;
+  const inicio = _ms(op.fecha_plan_inicio_iso);
+  const previa = op.dep_ruta_id ? orders.find(o => o.id_ruta === op.dep_ruta_id) : null;
+  const listo = previa && previa.fecha_plan_fin_iso ? _ms(previa.fecha_plan_fin_iso) : Date.now();
+  if (inicio - listo < 30 * 60000) return null;
+  const mismaMaquina = o => o.id_ruta !== op.id_ruta && o.id !== op.id && !o.terminado
+    && (op.maquina ? String(o.maquina) === String(op.maquina) : o.clave_proceso === op.clave_proceso);
+  const ocupan = orders.filter(o => mismaMaquina(o) && o.fecha_plan_inicio_iso && _ms(o.fecha_plan_fin_iso) > listo && _ms(o.fecha_plan_inicio_iso) < inicio);
+  const desde = previa ? `Terminó ${previa.proceso} el ${_diaHora(listo)}; esperó` : 'Esperó';
+  if (ocupan.length) {
+    const codigos = [...new Set(ocupan.map(o => o.id))];
+    return `${desde} porque la ${op.maquina ? 'máquina' : 'estación'} estaba ocupada con ${codigos.slice(0, 4).join(', ')}${codigos.length > 4 ? ` y ${codigos.length - 4} más` : ''}.`;
+  }
+  return `${desde} al siguiente turno disponible.`;
+}
+
 // ── TASK BAR HTML ────────────────────────────────────────────
 function taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlertsMap) {
-  const baseColor = op.alerta ? COLORS.PARO : (COLORS[op.estado] || COLORS.PENDIENTE);
-  const customColor = String(op.route_payload?.colorHex || '').trim();
+  const baseColor = op.terminado ? COLORS.TERMINADO : op.alerta ? COLORS.PARO : (COLORS[op.estado] || COLORS.PENDIENTE);
+  const customColor = op.terminado ? '' : String(op.route_payload?.colorHex || '').trim();
   const c = customColor ? { bg: customColor, bd: customColor, tx: '#fff' } : baseColor;
+  const pausas = op.terminado ? [] : pausasDeBarra(op);
   const routeArg = String(op.id_ruta).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   let chainClass = '';
   if (activeChainIds) {
@@ -1486,12 +1571,12 @@ function taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlerts
   const isNarrow = estPx < 70;
   const isVeryNarrow = estPx < 36;
 
-  return `<div class="task-bar${chainClass}${conflictClass}${scheduleClass}${runningClass}"
+  return `<div class="task-bar${chainClass}${conflictClass}${scheduleClass}${runningClass}${op.terminado ? ' is-done' : ''}"
     id="bar-${op.id_ruta}"
     data-id="${op.id}"
     data-ruta="${op.id_ruta}"
     style="left:${pct(op.inicio)};width:${pct(op.dur)};background:${c.bg};border-color:${c.bd};${isVeryNarrow?'padding:0 4px;min-width:24px':''}"
-    draggable="true"
+    draggable="${op.terminado ? 'false' : 'true'}"
     onmouseenter="showTT(event,'${routeArg}')"
     onmouseleave="hideTT()"
     oncontextmenu="openColorMenu(event,'${routeArg}')"
@@ -1500,6 +1585,8 @@ function taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlerts
     onclick="openDP('${routeArg}')"
     title="${op.id} · ${op.cliente} · ${op.proceso} · ${op.horas_trabajo ?? op.dur}h${op.manual_lock ? ` · 🔒 Fija${op.bloqueo_por ? ` — la movió ${op.bloqueo_por}` : ''}${op.bloqueo_en ? ` el ${new Date(op.bloqueo_en).toLocaleString('es')}` : ''}` : ''}"
   >
+    ${pausas.map(pz => `<div class="task-pausa" style="left:${pz.izq}%;width:${pz.ancho}%"></div>`).join('')}
+    ${op.terminado ? '<div class="task-lock-icon" title="Terminado">✓</div>' : ''}
     ${op.manual_lock ? '<div class="task-lock-icon" title="Fija: el Reprogramador no la mueve">🔒</div>' : ''}
     ${isLate ? '<div class="task-late-icon" title="Fuera de fecha prometida">⚠</div>' : ''}
     ${hasProgress ? `<div class="task-progress-track"><div class="task-progress-fill" style="width:${progressPct}%;background:rgba(255,255,255,.55)"></div></div>` : ''}
@@ -1565,6 +1652,7 @@ function renderHeader() {
       <div class="cf-wrap" id="cfCapacidadWrap">
         <button class="btn primary cf-trigger" id="cfCapacidadBtn" onclick="toggleCapacidadPopover()" title="Capacidad finita: vista previa, críticas y conflictos">⚡ Capacidad Finita <span class="cf-caret">▾</span></button>
       </div>
+      <button class="btn${mostrarTerminados ? ' terminados-on' : ''}" onclick="toggleTerminados()" title="Mostrar en gris los procesos ya terminados (últimos 7 días)">✓ Terminados</button>
       <a class="btn" href="/planificacion/capacidad" onclick="return navShellAware(event,'/planificacion/capacidad')" title="Análisis de capacidad, cola y cuellos de botella por recurso">📊 Capacidad</a>
       <button class="btn" onclick="loadFromAPI()" title="Actualizar"><span id="sgRefrescarIcon">↻</span></button>
       <button class="theme-toggle" onclick="toggleTheme()" title="Cambiar tema" style="width:32px;height:30px;border:1px solid #c4d4e4;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">
@@ -2307,6 +2395,7 @@ function dragStart(e, id_ruta) {
   const el = document.getElementById('bar-' + id_ruta);
   if (!el) return;
   dragOp = orders.find(o => o.id_ruta === id_ruta);
+  if (dragOp && dragOp.terminado) { e.preventDefault(); dragOp = null; return; }
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', String(id_ruta));
   if (el) { el.classList.add('dragging'); }
@@ -2746,15 +2835,19 @@ function showTT(e, id_ruta) {
   document.getElementById('tt-b').innerHTML = `
     <div class="tt-row"><span>Proceso</span>  <span class="tt-val">${op.proceso}</span></div>
     <div class="tt-row"><span>Inicio</span>   <span class="tt-val">${formatHora(op.inicio)}</span></div>
-    <div class="tt-row"><span>Duración</span> <span class="tt-val">${op.dur}h</span></div>
+    <div class="tt-row"><span>Duración</span> <span class="tt-val">${(Number(op.horas_trabajo) || op.dur).toFixed(1)} h de trabajo${op.dur - (Number(op.horas_trabajo) || op.dur) > 0.5 ? ` · ${op.dur.toFixed(1)} h en reloj` : ''}</span></div>
     <div class="tt-row"><span>Fin prod.</span><span class="tt-val">${formatPromisedDate(op.fecha_fin_produccion)}</span></div>
     <div class="tt-row"><span>Entrega</span>  <span class="tt-val">${formatPromisedDate(op.fecha_entrega_prometida)}</span></div>
     <div class="tt-row"><span>Pies</span>     <span class="tt-val">${Number(op.pies).toLocaleString()}</span></div>
     <div class="tt-row"><span>Estado</span>   <span class="tt-val" style="${isRunning?'color:#1D9E75;font-weight:600':scheduleAlert?.type==='late'?'color:#E24B4A;font-weight:600':''}">${op.estado}${isRunning?' ▶':''}${scheduleAlert?.type==='late'?' ⚠':''}</span></div>
     ${isRunning && progPct > 0 ? `<div class="tt-row"><span>Progreso</span><span class="tt-val" style="color:#1D9E75">${progPct}%</span></div>` : ''}
-    ${scheduleAlert?.type==='late'  ? `<div class="tt-row" style="color:#E24B4A"><span>⚠ Atraso</span><span class="tt-val" style="color:#E24B4A">${Math.abs(scheduleAlert.slack).toFixed(1)}h</span></div>` : ''}
-    ${scheduleAlert?.type==='tight' ? `<div class="tt-row" style="color:#BA7517"><span>⌛ Margen</span><span class="tt-val" style="color:#BA7517">${scheduleAlert.slack.toFixed(1)}h</span></div>` : ''}
+    ${op.fecha_entrega_estimada ? `<div class="tt-row"><span>Comprometida</span><span class="tt-val">${formatPromisedDate(op.fecha_entrega_estimada)}</span></div>` : ''}
+    ${scheduleAlert?.type==='late'  ? `<div class="tt-row" style="color:#E24B4A"><span>⏰ Atrasa</span><span class="tt-val" style="color:#E24B4A">vs. fecha comprometida</span></div>` : ''}
+    ${scheduleAlert?.type==='tight' ? `<div class="tt-row" style="color:#BA7517"><span>🤝 Negociar</span><span class="tt-val" style="color:#BA7517">después de la fecha del cliente</span></div>` : ''}
     ${op.dep ? `<div class="tt-row"><span>Depende de</span><span class="tt-val">${op.dep}</span></div>` : ''}
+    ${op.terminado ? `<div class="tt-pausas">✓ Terminado: ${_diaHora(_ms(op.fecha_plan_inicio_iso))} → ${_diaHora(_ms(op.fecha_plan_fin_iso))}</div>` : ''}
+    ${(() => { const pz = op.terminado ? [] : pausasDeBarra(op); const esp = esperaDeBarra(op);
+      return (pz.length || esp) ? `<div class="tt-pausas">${esp ? `<div>⏳ ${esc(esp)}</div>` : ''}${pz.length ? `<div><b>⏸ Pausas</b></div>${pz.slice(0, 6).map(p => `<div>· ${esc(p.texto)}</div>`).join('')}${pz.length > 6 ? `<div>· y ${pz.length - 6} más</div>` : ''}` : ''}</div>` : ''; })()}
     ${op.trans_costo ? `<div class="tt-row"><span>Lavado</span><span class="tt-val" style="color:#854F0B">${op.trans_costo}min</span></div>` : ''}
     <div style="font-size:10px;color:#bbb;margin-top:6px">Click → ver cadena completa</div>
   `;
@@ -2795,13 +2888,10 @@ document.addEventListener('mouseup', () => {
   document.body.style.userSelect = '';
 });
 
+// Horas desde el inicio del tablero → fecha y hora reales.
 function formatHora(h) {
-  const base = 6;
-  const total = base + h;
-  const hh = Math.floor(total);
-  const mm = Math.round((total - hh) * 60);
-  const ampm = hh >= 12 ? 'pm' : 'am';
-  return `${hh > 12 ? hh - 12 : hh}:${mm.toString().padStart(2,'0')}${ampm}`;
+  const d = new Date(ganttBaseDate().getTime() + Number(h || 0) * 3600000);
+  return d.toLocaleDateString('es', { weekday: 'short', day: '2-digit', month: 'short' }) + ' ' + d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
 }
 
 function parsePromisedTime(value) {
