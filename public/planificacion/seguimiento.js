@@ -546,9 +546,13 @@ function openDrawer(code){
   document.getElementById('btnGantt').href=`/planificacion/gantt?orderCode=${code}`;
   document.getElementById('calcBtnText').textContent='Calcular fecha estimada';
 
+  // Prioridad y buffer guardados en la ficha de la orden (los usa el Reprogramador).
   const tier=String(order.customerTier||order.clientTier||'').toUpperCase();
-  setPriority(tier==='A'?'premium':'normal');
+  const guardada={urgente:'urgent',clase_a:'premium',normal:'normal'}[order.prioridad];
+  setPriority(guardada&&order.prioridad!=='normal'?guardada:(tier==='A'?'premium':'normal'));
+  if(order.bufferDias!=null)document.getElementById('bufferSlider').value=order.bufferDias;
   updateBuffer();
+  document.getElementById('btnSetDate').textContent=order.fechaForzada?`Fecha forzada: ${order.fechaForzada} · cambiar`:'Establecer fecha en orden';
   document.getElementById('lockToggle').checked=!!order.fechaComprometidaBloqueada;
 
   const steps=buildSteps(order);
@@ -816,8 +820,10 @@ function setPriority(p,persist){
   // Solo cuando la persona lo elige a mano (no cuando el cajón se abre y pone
   // un valor por defecto) se actualiza la prioridad real de la orden. Normal
   // y Cliente A son solo para ver "qué pasaría"; Urgente sí mueve la fila real.
-  if(persist&&drawerOrder&&(p==='urgent'||previous==='urgent')){
-    const real=p==='urgent'?'urgente':'normal';
+  // Regular, Clase A y Urgente se guardan en la orden: el Reprogramador las usa
+  // para decidir quién va primero.
+  if(persist&&drawerOrder&&p!==previous){
+    const real={urgent:'urgente',premium:'clase_a',normal:'normal'}[p]||'normal';
     if(p==='urgent'&&!confirm(`Esto va a marcar la orden ${drawerOrder.orderCode} como urgente DE VERDAD en el sistema — va a saltar delante de las demás en la cola real. ¿Confirma?`)){
       drawerPriority=previous;
       setPriority(previous,false);
@@ -953,9 +959,8 @@ async function setDateInOrder(){
     const response=await fetch(`${API}/ordenes-produccion/${encodeURIComponent(drawerOrder.orderCode)}/details`,{
       method:'PATCH',
       headers:Object.assign({'Content-Type':'application/json'},sessionHeader()),
+      // Nunca se toca la fecha que pidió el cliente (promisedDeliveryDate).
       body:JSON.stringify({planningControl:{
-        promisedDeliveryDate:dateInputValue(committedEnd),
-        scheduledDeliveryDate:dateInputValue(earlyEnd),
         estimatePriority:drawerPriority,
         deliveryBufferBusinessDays:bufferDays,
         estimatedProductionEndDate:earlyEnd.toISOString(),
@@ -968,13 +973,20 @@ async function setDateInOrder(){
     });
     const data=await response.json().catch(()=>({}));
     if(!response.ok||data.ok===false)throw new Error(data.error||'No fue posible guardar la fecha.');
-    if(!data.fechaEntregaIgnorada)drawerOrder.promisedDeliveryDate=dateInputValue(committedEnd);
-    drawerOrder.scheduledDeliveryDate=dateInputValue(earlyEnd);
+    // Fecha forzada + prioridad + buffer en la ficha de la orden.
+    const est=await fetch(`${API}/planificacion/${encodeURIComponent(drawerOrder.orderCode)}/estimacion`,{
+      method:'PATCH',
+      headers:Object.assign({'Content-Type':'application/json'},sessionHeader()),
+      body:JSON.stringify({prioridad:{urgent:'urgente',premium:'clase_a',normal:'normal'}[drawerPriority]||'normal',bufferDias:bufferDays,fechaForzada:dateInputValue(committedEnd)})
+    });
+    const estData=await est.json().catch(()=>({}));
+    if(!est.ok||estData.ok===false)throw new Error(estData.error||'No fue posible guardar la fecha forzada.');
+    drawerOrder.fechaForzada=dateInputValue(committedEnd);
     drawerOrder.productionEndDate=earlyEnd.toISOString();
     drawerOrder.estimatedDeliveryDateEarly=earlyEnd.toISOString();
     drawerOrder.estimatedDeliveryDateLate=lateEnd.toISOString();
     softLocks[drawerOrder.orderCode]={earlyEnd,lateEnd,priority:drawerPriority};
-    btn.textContent='Fecha establecida en la orden';
+    btn.textContent=`Fecha forzada: ${drawerOrder.fechaForzada} · se aplica al reprogramar`;
     updateSummary();
     renderAll();
   }catch(error){
@@ -984,7 +996,13 @@ async function setDateInOrder(){
   }
 }
 
-async function recalcularPlanificacion(){
+// Recalcular = vista previa del Reprogramador (el mismo del Gantt). Si Seguimiento
+// vive dentro de la consola, se abre en la ventana de la consola.
+function recalcularPlanificacion(){
+  const destino=(()=>{try{return window.parent!==window&&typeof window.parent.abrirReprogramador==='function'?window.parent:window;}catch(e){return window;}})();
+  destino.abrirReprogramador(()=>loadData());
+}
+async function recalcularPlanificacionAnterior(){
   const btn=document.getElementById('recalcBtn');
   const original=btn.textContent;
   btn.textContent='Revisando...';btn.disabled=true;

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reprogramar producción</title>
+<script>
+(function(){try{var t=localStorage.getItem('theme')||localStorage.getItem('erp-theme');if(!t&&window.parent&&window.parent!==window){t=window.parent.document.documentElement.getAttribute('data-theme');}if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+<style>
+:root{
+  --bg:#f5f7fb;--surface:#ffffff;--surface2:#f8fafc;--border:#e2e8f0;--border2:#cbd5e1;
+  --text:#0f172a;--text2:#475569;--text3:#94a3b8;--grid:#eef2f7;
+  --good:#0ca30c;--warn:#b7791f;--crit:#d03b3b;--neutral:#94a3b8;--accent:#6d28d9;
+  --good-bg:rgba(12,163,12,.08);--warn-bg:rgba(250,178,25,.12);--crit-bg:rgba(208,59,59,.08);--accent-bg:rgba(109,40,217,.08);
+  --before:#b6c0cd;--link:#cbd5e1;
+}
+html[data-theme="dark"]{
+  --bg:#0b1220;--surface:#111a2e;--surface2:#0f172a;--border:#1f2c44;--border2:#2b3a57;
+  --text:#e2e8f0;--text2:#a3b1c6;--text3:#6b7a92;--grid:#1a2539;
+  --good:#34c759;--warn:#fab219;--crit:#ff6b6b;--neutral:#64748b;--accent:#a78bfa;
+  --good-bg:rgba(52,199,89,.12);--warn-bg:rgba(250,178,25,.12);--crit-bg:rgba(255,107,107,.12);--accent-bg:rgba(167,139,250,.12);
+  --before:#4b5b75;--link:#334155;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 'DM Sans',system-ui,-apple-system,Segoe UI,sans-serif}
+.wrap{max-width:1280px;margin:0 auto;padding:20px 20px 120px}
+header.top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+h1{font-size:22px;margin:0}
+.sub{color:var(--text2);margin-top:4px}
+.pill-preview{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--accent-bg);color:var(--accent);font-weight:700;font-size:12px;margin-top:8px}
+.btn{font:inherit;font-weight:600;padding:9px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--surface);color:var(--text);cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{color:var(--crit);border-color:var(--crit)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px}
+.tile .n{font-size:26px;font-weight:800;line-height:1.1}
+.tile .l{font-size:12px;color:var(--text2);margin-top:2px}
+.tile .i{font-size:12px;margin-right:4px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px}
+.card h2{font-size:16px;margin:0 0 4px}
+.card .hint{color:var(--text2);font-size:13px;margin-bottom:12px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin-bottom:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.tick{width:3px;height:12px;background:var(--text);display:inline-block;border-radius:2px}
+.chart-scroll{overflow-x:auto}
+svg text{fill:var(--text2);font-size:11px}
+.tt{position:fixed;pointer-events:none;background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;font-size:12px;box-shadow:0 10px 30px rgba(15,23,42,.18);max-width:320px;z-index:50;display:none}
+.tt b{font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);padding:6px 8px;border-bottom:1px solid var(--border)}
+td{padding:8px;border-top:1px solid var(--grid);vertical-align:middle}
+tr.excl td{opacity:.55}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.b-tarde{color:var(--crit);background:var(--crit-bg)}
+.b-sin-colchon{color:var(--warn);background:var(--warn-bg)}
+.b-a-tiempo{color:var(--good);background:var(--good-bg)}
+.b-neutral{color:var(--text2);background:var(--surface2);border:1px solid var(--border)}
+.mov-adelanta{color:var(--good);font-weight:700}
+.mov-atrasa{color:var(--crit);font-weight:700}
+.muted{color:var(--text3)}
+.small{font-size:12px}
+details summary{cursor:pointer;font-weight:700;margin-bottom:8px}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:12px;justify-content:flex-end;flex-wrap:wrap;box-shadow:0 -8px 24px rgba(15,23,42,.08)}
+.bar .info{margin-right:auto;color:var(--text2);font-size:13px}
+.loading{padding:60px;text-align:center;color:var(--text2)}
+.res-row{display:grid;grid-template-columns:180px 1fr 60px;gap:10px;align-items:center;margin:6px 0;font-size:13px}
+.res-track{height:10px;border-radius:999px;background:var(--surface2);border:1px solid var(--border);overflow:hidden}
+.res-fill{height:100%;background:var(--accent);border-radius:999px}
+.empty{padding:14px;color:var(--text2);font-size:13px}
+@media (max-width:720px){.res-row{grid-template-columns:110px 1fr 50px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Reprogramar producción</h1>
+      <div class="sub">Así quedaría la programación. Revísala antes de aplicar.</div>
+      <div class="pill-preview">👁 Vista previa — todavía no se ha cambiado nada</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="btnRecalcular" type="button">↻ Recalcular con mis cambios</button>
+    </div>
+  </header>
+  <div id="contenido"><div class="loading">Calculando la programación…</div></div>
+</div>
+<div class="bar">
+  <div class="info" id="barInfo"></div>
+  <button class="btn danger" id="btnDeshacer" type="button" title="Vuelve las fechas a como estaban antes de la última reprogramación aplicada">⟲ Deshacer la última</button>
+  <button class="btn" id="btnCerrar" type="button">Cancelar</button>
+  <button class="btn primary" id="btnAplicar" type="button" disabled>Aplicar reprogramación</button>
+</div>
+<div class="tt" id="tt"></div>
+<script>
+const API='/api/planificacion/reprogramar';
+const ESTADO={ 'tarde':['b-tarde','⏰ Tarde'], 'sin-colchon':['b-sin-colchon','⚠ Sin colchón'], 'a-tiempo':['b-a-tiempo','✓ A tiempo'], 'en-aprobacion':['b-neutral','⏳ En aprobación'], 'sin-programar':['b-neutral','— Sin horario'], 'sin-fecha':['b-neutral','Sin fecha del cliente'] };
+const MOTIVO={ 'bloqueo-suave':'Bloqueo suave', 'movida-a-mano':'Movida a mano en el Gantt', 'en-marcha':'En marcha', 'mantenida':'La mantuviste como está' };
+const PRIORIDAD={ forzada:'📌 Fecha forzada', urgente:'Urgente', clase_a:'Clase A', normal:'Regular' };
+const ESTADO_ORDEN={ PENDIENTE_VENTAS:'Pendiente de Ventas', PENDIENTE_PLANIFICACION:'Pendiente de Planeación', EN_GANTT:'Programada', EN_PRODUCCION:'En producción', COMPLETADA:'Completada' };
+const estadoOrden=v=>ESTADO_ORDEN[v]||String(v||'').replace(/_/g,' ').toLowerCase();
+let datos=null;
+const mantener=new Set();
+const liberar=new Set();
+
+function sesion(){try{const s=JSON.parse(localStorage.getItem('erp-user-session')||'null');if(!s)return{};return{'x-erp-session':JSON.stringify({id:s.id||s.userId||'',userId:s.userId||s.id||'',username:s.username||s.user||'',user:s.user||s.username||'',name:s.fullName||s.name||s.user||'',fullName:s.fullName||s.name||''})};}catch(e){return{};}}
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function fDia(v){if(!v)return'—';const d=new Date(String(v).length===10?v+'T12:00:00':v);return d.toLocaleDateString('es',{weekday:'short',day:'2-digit',month:'short'});}
+function fHora(v){if(!v)return'—';const d=new Date(v);return d.toLocaleDateString('es',{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});}
+function dif(h){if(h===null||h===undefined)return'—';const a=Math.abs(h);const t=a>=24?`${Math.round(a/24*10)/10} días`:`${Math.round(a)} h`;return h>0?`<span class="mov-atrasa">▲ ${t} más tarde</span>`:h<0?`<span class="mov-adelanta">▼ ${t} antes</span>`:'Igual';}
+function badge(e){const[c,l]=ESTADO[e]||['b-neutral',e||'—'];return`<span class="badge ${c}">${l}</span>`;}
+
+async function cargar(){
+  document.getElementById('btnAplicar').disabled=true;
+  document.getElementById('contenido').innerHTML='<div class="loading">Calculando la programación…</div>';
+  const q=new URLSearchParams();if(mantener.size)q.set('mantener',[...mantener].join(','));if(liberar.size)q.set('liberar',[...liberar].join(','));
+  try{
+    const r=await fetch(`${API}/vista-previa?${q}`,{headers:sesion()});
+    datos=await r.json();
+    if(!datos.ok)throw new Error(datos.error||'No se pudo calcular');
+    pintar();
+  }catch(e){document.getElementById('contenido').innerHTML=`<div class="card"><b>No se pudo calcular la vista previa.</b><div class="hint">${esc(e.message)}</div></div>`;}
+}
+
+function pintar(){
+  const r=datos.resumen, o=datos.ordenes;
+  const tiles=[
+    ['▼','Se adelantan',r.adelantan,'var(--good)'],
+    ['▲','Se atrasan',r.atrasan,'var(--crit)'],
+    ['=','Sin cambio',r.igual,'var(--text2)'],
+    ['⏰','Quedarían tarde',r.tarde,'var(--crit)'],
+    ['⚠','Sin colchón',r.sinColchon,'var(--warn)'],
+    ['✓','A tiempo',r.aTiempo,'var(--good)'],
+    ['🔒','Fijas (no se mueven)',r.fijas,'var(--accent)'],
+    ['⏳','En aprobación',r.enAprobacion,'var(--text2)']
+  ].map(([i,l,n,c])=>`<div class="tile"><div class="n" style="color:${c}">${n}</div><div class="l"><span class="i">${i}</span>${l}</div></div>`).join('');
+  const afectadas=o.filter(x=>['tarde','sin-colchon'].includes(x.estado)).sort((a,b)=>(a.fechaCliente||'').localeCompare(b.fechaCliente||''));
+  const fijas=o.filter(x=>x.fija||x.bloqueoSuave);
+  const espera=o.filter(x=>x.movimiento==='en-aprobacion');
+  const sinHorario=(r.sinHorario||[]);
+  document.getElementById('contenido').innerHTML=`
+    <div class="tiles">${tiles}</div>
+    ${sinHorario.length?`<div class="card" style="border-color:var(--crit)"><b style="color:var(--crit)">⚠ Procesos sin horario</b><div class="hint">No se pueden programar hasta que tengan horario: ${sinHorario.map(s=>esc(s.proceso+(s.maquina?' · '+s.maquina:''))).join(', ')}.</div></div>`:''}
+    <div class="card">
+      <h2>Antes y después</h2>
+      <div class="hint">Cada fila es una orden. El punto gris es cuándo termina hoy; el punto de color, cuándo terminaría si aplicas. La rayita negra es la fecha que pidió el cliente.</div>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--before)"></i>Termina hoy</span>
+        <span><i class="dot" style="background:var(--good)"></i>✓ Nuevo: a tiempo</span>
+        <span><i class="dot" style="background:var(--warn)"></i>⚠ Nuevo: sin colchón</span>
+        <span><i class="dot" style="background:var(--crit)"></i>⏰ Nuevo: tarde</span>
+        <span><i class="tick"></i>Fecha del cliente</span>
+      </div>
+      <div class="chart-scroll" id="chart"></div>
+    </div>
+    <div class="card">
+      <h2>Órdenes afectadas en su fecha de entrega (${afectadas.length})</h2>
+      <div class="hint">Estas no llegarían con margen o no llegarían a la fecha del cliente. Marca <b>Mantener</b> para dejar una orden como está y luego pulsa <b>Recalcular con mis cambios</b>.</div>
+      ${afectadas.length?tablaOrdenes(afectadas):'<div class="empty">Ninguna orden queda afectada. 🎉</div>'}
+    </div>
+    <div class="card">
+      <h2>Fijas: no se mueven (${fijas.length})</h2>
+      <div class="hint">Se respetan tal como están. Si una con bloqueo suave debe ceder (por ejemplo, ante una urgente), marca <b>Liberar</b> y recalcula.</div>
+      ${fijas.length?tablaFijas(fijas):'<div class="empty">No hay órdenes fijas en esta corrida.</div>'}
+    </div>
+    <div class="card">
+      <h2>Carga de cada máquina o puesto</h2>
+      <div class="hint">Qué tan ocupado queda cada recurso en los próximos 60 días.</div>
+      ${datos.recursos.map(x=>`<div class="res-row"><div><b>${esc(x.nombre)}</b><div class="muted small">${esc(x.proceso)}</div></div><div class="res-track"><div class="res-fill" style="width:${Math.min(100,x.utilizacion)}%"></div></div><div>${x.utilizacion}%</div></div>`).join('')}
+    </div>
+    <div class="card">
+      <details><summary>Todas las órdenes (${o.length})</summary>${tablaOrdenes(o.slice().sort((a,b)=>(a.fechaCliente||'').localeCompare(b.fechaCliente||'')))}</details>
+    </div>
+    ${espera.length?`<div class="card"><details><summary>⏳ En espera de aprobación (${espera.length})</summary><div class="hint">Todavía no pasan Diseño, Preprensa o Aprobaciones; se programan cuando se aprueben.</div><table><thead><tr><th>Orden</th><th>Cliente</th><th>Pendiente</th><th>Fecha del cliente</th></tr></thead><tbody>${espera.map(x=>`<tr><td><b>${esc(x.orderCode)}</b></td><td>${esc(x.cliente)}</td><td>${esc(x.enAprobacion||'')}</td><td>${fDia(x.fechaCliente)}</td></tr>`).join('')}</tbody></table></details></div>`:''}
+  `;
+  dibujar(o.filter(x=>x.movimiento!=='en-aprobacion'&&(x.finDespues||x.finAntes)).sort((a,b)=>(a.fechaCliente||'9').localeCompare(b.fechaCliente||'9')||a.orderCode.localeCompare(b.orderCode)));
+  document.querySelectorAll('[data-mantener]').forEach(c=>c.addEventListener('change',()=>{c.checked?mantener.add(c.dataset.mantener):mantener.delete(c.dataset.mantener);marcarPendiente();}));
+  document.querySelectorAll('[data-liberar]').forEach(c=>c.addEventListener('change',()=>{c.checked?liberar.add(c.dataset.liberar):liberar.delete(c.dataset.liberar);marcarPendiente();}));
+  const movidas=r.adelantan+r.atrasan+r.nuevas;
+  document.getElementById('barInfo').innerHTML=movidas?`Al aplicar cambian <b>${movidas}</b> órdenes. ${r.nuevasTarde?`<span style="color:var(--crit)">${r.nuevasTarde} quedarían tarde frente al cliente.</span>`:''}`:'No hay cambios que aplicar.';
+  document.getElementById('btnAplicar').disabled=!movidas;
+}
+function marcarPendiente(){document.getElementById('barInfo').innerHTML='<b>Hiciste cambios.</b> Pulsa “Recalcular con mis cambios” para ver cómo queda.';document.getElementById('btnAplicar').disabled=true;}
+
+function tablaOrdenes(lista){
+  return `<table><thead><tr><th>Mantener</th><th>Orden</th><th>Cliente</th><th>Ahora está en</th><th>Prioridad</th><th>Fecha del cliente</th><th>Termina hoy</th><th>Terminaría</th><th>Cambio</th><th>Resultado</th><th>Entrega estimada</th></tr></thead><tbody>${lista.map(x=>`
+    <tr class="${mantener.has(x.orderCode)?'excl':''}">
+      <td><input type="checkbox" data-mantener="${esc(x.orderCode)}" ${mantener.has(x.orderCode)?'checked':''} title="Dejar esta orden como está"></td>
+      <td><b>${esc(x.orderCode)}</b></td><td>${esc(x.cliente)}</td>
+      <td>${esc(x.procesoActual||'—')}<div class="muted small">${esc(estadoOrden(x.estadoOrden))}</div></td>
+      <td>${esc(PRIORIDAD[x.prioridad]||x.prioridad)}</td>
+      <td>${fDia(x.fechaCliente)}<div class="muted small">objetivo ${fDia(x.fechaObjetivo)} · buffer ${x.bufferDias}d</div></td>
+      <td>${fHora(x.finAntes)}</td><td>${fHora(x.finDespues)}</td><td>${dif(x.diferenciaHoras)}</td>
+      <td>${badge(x.estado)}</td><td><b>${fDia(x.fechaEstimada)}</b>${x.fechaEstimadaAntes&&x.fechaEstimadaAntes!==x.fechaEstimada?`<div class="muted small">antes ${fDia(x.fechaEstimadaAntes)}</div>`:''}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+function tablaFijas(lista){
+  return `<table><thead><tr><th>Liberar</th><th>Orden</th><th>Cliente</th><th>Por qué no se mueve</th><th>Quién</th><th>Termina</th><th>Resultado</th></tr></thead><tbody>${lista.map(x=>{
+    const motivos=x.motivosFija.length?x.motivosFija:(x.bloqueoSuave?['bloqueo-suave']:[]);
+    const puedeLiberar=x.bloqueoSuave;
+    return `<tr><td>${puedeLiberar?`<input type="checkbox" data-liberar="${esc(x.orderCode)}" ${liberar.has(x.orderCode)?'checked':''} title="Permitir moverla en esta reprogramación">`:'<span class="muted small">—</span>'}</td>
+      <td><b>${esc(x.orderCode)}</b></td><td>${esc(x.cliente)}</td><td>${motivos.map(m=>esc(MOTIVO[m]||m)).join(', ')}</td><td>${esc(x.fijaPor||x.bloqueoSuavePor||'—')}</td><td>${fHora(x.finDespues)}</td><td>${badge(x.estado)}</td></tr>`;}).join('')}</tbody></table>`;
+}
+
+function dibujar(lista){
+  const cont=document.getElementById('chart');
+  if(!lista.length){cont.innerHTML='<div class="empty">No hay órdenes programadas para comparar.</div>';return;}
+  const fechas=[];
+  lista.forEach(x=>{[x.finAntes,x.finDespues].forEach(v=>v&&fechas.push(new Date(v).getTime()));if(x.fechaCliente)fechas.push(new Date(x.fechaCliente+'T12:00:00').getTime());});
+  const DIA=86400000;let min=Math.min(...fechas),max=Math.max(...fechas);min=Math.floor(min/DIA)*DIA-DIA;max=Math.ceil(max/DIA)*DIA+DIA;
+  const rowH=26,left=190,right=24,top=28,W=Math.max(760,cont.clientWidth||900),H=top+lista.length*rowH+10;
+  const x=t=>left+(t-min)/(max-min)*(W-left-right);
+  const ticks=[];const paso=Math.max(1,Math.ceil((max-min)/DIA/10));for(let t=min;t<=max;t+=paso*DIA)ticks.push(t);
+  const css=getComputedStyle(document.documentElement);const col=n=>css.getPropertyValue(n).trim();
+  const colorEstado={ 'tarde':col('--crit'),'sin-colchon':col('--warn'),'a-tiempo':col('--good') };
+  let s=`<svg width="${W}" height="${H}" role="img" aria-label="Antes y después por orden">`;
+  ticks.forEach(t=>{s+=`<line x1="${x(t)}" x2="${x(t)}" y1="${top-6}" y2="${H-6}" stroke="${col('--grid')}"/><text x="${x(t)}" y="${top-12}" text-anchor="middle">${new Date(t).toLocaleDateString('es',{day:'2-digit',month:'short'})}</text>`;});
+  const hoy=Date.now();if(hoy>min&&hoy<max)s+=`<line x1="${x(hoy)}" x2="${x(hoy)}" y1="${top-6}" y2="${H-6}" stroke="${col('--accent')}" stroke-dasharray="4 4"/><text x="${x(hoy)+4}" y="${H-10}" style="fill:${col('--accent')}">hoy</text>`;
+  lista.forEach((o,i)=>{
+    const y=top+i*rowH+rowH/2;
+    s+=`<g class="fila" data-i="${i}"><rect x="0" y="${y-rowH/2}" width="${W}" height="${rowH}" fill="transparent"/>`;
+    s+=`<text x="8" y="${y+4}" style="fill:${col('--text')};font-weight:600">${esc(o.orderCode)}</text><text x="92" y="${y+4}">${esc((o.cliente||'').slice(0,14))}</text>`;
+    const a=o.finAntes?x(new Date(o.finAntes).getTime()):null,b=o.finDespues?x(new Date(o.finDespues).getTime()):null;
+    if(a!==null&&b!==null)s+=`<line x1="${a}" x2="${b}" y1="${y}" y2="${y}" stroke="${col('--link')}" stroke-width="2" stroke-linecap="round"/>`;
+    if(o.fechaCliente){const c=x(new Date(o.fechaCliente+'T12:00:00').getTime());s+=`<rect x="${c-1.5}" y="${y-8}" width="3" height="16" rx="1.5" fill="${col('--text')}"/>`;}
+    if(a!==null)s+=`<circle cx="${a}" cy="${y}" r="5" fill="${col('--before')}" stroke="${col('--surface')}" stroke-width="2"/>`;
+    if(b!==null)s+=`<circle cx="${b}" cy="${y}" r="6" fill="${colorEstado[o.estado]||col('--neutral')}" stroke="${col('--surface')}" stroke-width="2"/>`;
+    s+='</g>';
+  });
+  s+='</svg>';cont.innerHTML=s;
+  const tt=document.getElementById('tt');
+  cont.querySelectorAll('.fila').forEach(g=>{
+    g.addEventListener('mousemove',e=>{const o=lista[g.dataset.i];tt.innerHTML=`<b>${esc(o.orderCode)}</b> · ${esc(o.cliente)}<br>Ahora está en: ${esc(o.procesoActual||'—')}<br>Fecha del cliente: <b>${fDia(o.fechaCliente)}</b><br>Termina hoy: ${fHora(o.finAntes)}<br>Terminaría: <b>${fHora(o.finDespues)}</b><br>${dif(o.diferenciaHoras)}<br>${badge(o.estado)}`;tt.style.display='block';tt.style.left=Math.min(e.clientX+14,innerWidth-330)+'px';tt.style.top=(e.clientY+14)+'px';});
+    g.addEventListener('mouseleave',()=>{tt.style.display='none';});
+  });
+}
+
+document.getElementById('btnRecalcular').addEventListener('click',cargar);
+document.getElementById('btnCerrar').addEventListener('click',()=>{if(window.parent!==window)window.parent.postMessage({tipo:'reprogramar-cerrar'},location.origin);else history.back();});
+document.getElementById('btnAplicar').addEventListener('click',async()=>{
+  const r=datos.resumen;const movidas=r.adelantan+r.atrasan+r.nuevas;
+  if(!confirm(`Vas a aplicar la reprogramación:\n\n• ${r.adelantan} órdenes se adelantan\n• ${r.atrasan} órdenes se atrasan\n• ${r.tarde} quedarían tarde frente al cliente\n• ${mantener.size} órdenes se mantienen como están\n\nQueda registrado a tu nombre y se puede deshacer. ¿Aplicar?`))return;
+  const b=document.getElementById('btnAplicar');b.disabled=true;b.textContent='Aplicando…';
+  try{
+    const res=await fetch(`${API}/aplicar`,{method:'POST',headers:{'Content-Type':'application/json',...sesion()},body:JSON.stringify({mantener:[...mantener],liberar:[...liberar]})});
+    const j=await res.json();if(!j.ok)throw new Error(j.error||'No se pudo aplicar');
+    alert(`Listo: se movieron ${j.rutasMovidas} procesos. Si algo no te convence, usa “Deshacer la última”.`);
+    if(window.parent!==window)window.parent.postMessage({tipo:'reprogramar-aplicado'},location.origin);
+    mantener.clear();liberar.clear();cargar();
+  }catch(e){alert('No se pudo aplicar: '+e.message);}
+  finally{b.textContent='Aplicar reprogramación';}
+});
+document.getElementById('btnDeshacer').addEventListener('click',async()=>{
+  const h=await fetch(`${API}/historial`).then(r=>r.json()).catch(()=>({data:[]}));
+  const ult=(h.data||[]).find(x=>!x.deshecho_en);
+  if(!ult){alert('No hay ninguna reprogramación aplicada para deshacer.');return;}
+  if(!confirm(`Deshacer la reprogramación del ${fHora(ult.creado_en)} hecha por ${ult.usuario||'—'} (${ult.rutas} procesos movidos)?`))return;
+  const j=await fetch(`${API}/deshacer`,{method:'POST',headers:sesion()}).then(r=>r.json());
+  if(!j.ok){alert(j.error||'No se pudo deshacer');return;}
+  alert(`Listo: se restauraron ${j.rutasRestauradas} procesos.`);
+  if(window.parent!==window)window.parent.postMessage({tipo:'reprogramar-aplicado'},location.origin);
+  cargar();
+});
+cargar();
+</script>
+</body>
+</html>

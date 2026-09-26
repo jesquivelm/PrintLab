@@ -3177,60 +3177,6 @@ async function saveDP() {
   }
 }
 
-async function autoSeqCapacidad() {
-  try {
-    const res = await fetch(`${API}/gantt-capacidad`);
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'Error al calcular capacidad finita.');
-    const sinHorario = data.data.sinHorario || [];
-    if (sinHorario.length) {
-      const lista = sinHorario.map(x => '• ' + displayProcessName(x.proceso) + (x.maquina ? ': ' + x.maquina : '')).join('\n');
-      if (!confirm('Estos procesos o máquinas no tienen horario en la Cadena de Procesos. Se van a programar con 8 horas, de lunes a viernes de 7:00 a 15:00:\n\n' + lista + '\n\n¿Desea programar así?')) return;
-    }
-    const positions = data.data.positions || {};
-    let updatedCount = 0;
-    const repositioned = [];
-    orders.forEach(op => {
-      const pos = positions[op.id_ruta];
-      if (pos) {
-        op.inicio = pos.inicio; op.dur = pos.dur;
-        op.projectedStart = pos.projectedStart; op.projectedEnd = pos.projectedEnd;
-        op.maquina = pos.maquinaId || '';
-        op.capacityResourceId = null;
-        op.capacityResourceName = pos.resourceName || '';
-        op.schedule_mode = 'capacity';
-        updatedCount++;
-        repositioned.push(op);
-      }
-    });
-    configureTimelineHorizon();
-    render();
-    if (data.data.bottlenecks?.length) {
-      const bnNames = data.data.bottlenecks.map(b => `${b.machineName} (${b.utilizationPct}%)`).join(', ');
-      showCenterMessage(`⚠ Cuellos de botella: ${bnNames}`);
-    } else {
-      showCenterMessage(`✓ ${updatedCount} rutas re-secuenciadas por capacidad finita.`);
-    }
-    (async () => {
-      const BATCH = 20;
-      let failures = 0;
-      for (let i = 0; i < repositioned.length; i += BATCH) {
-        const slice = repositioned.slice(i, i + BATCH);
-        const results = await Promise.allSettled(slice.map(o => apiPatch(`${API}/gantt/mover`, {
-          id_ruta: o.id_ruta, inicio: o.inicio, id_maquina: o.maquina,
-          planned_start_at: o.projectedStart||null, planned_end_at: o.projectedEnd||null,
-          route_payload_updates: { scheduleMode:'capacity', capacityResourceId:o.capacityResourceId||null, capacityResourceName:o.capacityResourceName||'' }
-        })));
-        failures += results.filter(r => r.status === 'rejected').length;
-      }
-      await loadFromAPI();
-      if (failures > 0) showError(`${failures} rutas no se pudieron guardar. Volvé a intentar Cap. Finita.`);
-    })().catch(e => showError('Error al guardar: ' + e.message));
-  } catch (e) {
-    showError('Error en capacidad finita: ' + e.message);
-  }
-}
-
 // ── USER SESSION ─────────────────────────────────────────────
 const SESSION_STORAGE_KEY = 'erp-user-session';
 function readUserSession() {
@@ -3332,7 +3278,6 @@ function capacidadPreviewData() {
 }
 function renderCapacidadPreview() {
   const body = document.getElementById('cfDrawerBody');
-  const d = capacidadPreviewData();
   const criticas = orders.filter(o => o.alerta);
   const conflictos = detectAllConflicts();
   const alertasFecha = detectScheduleAlerts();
@@ -3355,19 +3300,18 @@ function renderCapacidadPreview() {
         <span class="cf-kpi-hint">la producción planificada termina después de la entrega prometida${fueraFecha.tight.length ? ` · ${fueraFecha.tight.length} más quedan justas` : ''}</span>
       </button>
     </div>`;
-  const filas = d.lista.length ? d.lista.map((op, i) => `
-    <div class="cf-fila">
-      <span class="cf-fila-num">${i + 1}</span>
-      <div class="cf-fila-main">
-        <div class="cf-fila-title">${esc(op.id)} · ${esc(op.cliente || 'Sin cliente')}</div>
-        <div class="cf-fila-sub">${esc(op.proceso)} · ${esc(op.maquina || 'Sin máquina')} · ${op.dur}h${op.fecha_compromiso ? ` · entrega ${esc(String(op.fecha_compromiso).slice(0, 10))}` : ''}</div>
-      </div>
-    </div>`).join('') : `<div class="cal-pop-empty">No hay rutas pendientes para reprogramar.</div>`;
-  const nota = d.total > d.lista.length ? `<div class="cf-nota">Y ${d.total - d.lista.length} ruta(s) más después de estas.</div>` : '';
   body.innerHTML = `${kpis}
-    <div class="cf-secc-title">Qué va a hacer la reprogramación</div>
-    <div class="cf-explicacion">Reordena ${d.total} ruta(s) pendiente(s) por fecha de entrega (la más urgente primero), respetando los horarios de cada calendario y la secuencia de la orden. Los procesos sin horario configurado se programarían de lunes a viernes de 7:00 a 15:00.</div>
-    <div class="cf-lista">${filas}</div>${nota}`;
+    <div class="cf-secc-title">Cómo decide la reprogramación</div>
+    <div class="cf-explicacion">
+      <ol style="margin:0;padding-left:18px;display:grid;gap:6px">
+        <li><b>Solo programa los procesos con “Activo en Gantt”</b> en Costos → Procesos del Cálculo, en ese orden (hoy: Impresión → Rebobinado → Empaque).</li>
+        <li><b>Órdenes que aún no pasan Aprobaciones</b> quedan en espera: la fecha se da después de aprobar.</li>
+        <li><b>Primero respeta lo fijo</b>: lo que está en marcha, lo movido a mano en el Gantt y las órdenes con bloqueo suave.</li>
+        <li><b>Luego acomoda el resto</b>: urgentes, Clase A y regulares, cada grupo por su fecha objetivo (fecha del cliente menos el buffer).</li>
+        <li><b>Usa el horario de cada máquina o proceso</b>, descuenta feriados y mantenimientos, y rellena huecos para que las máquinas no queden paradas.</li>
+        <li><b>Nada cambia hasta que lo apruebes</b>: primero ves el antes y el después, y cada reprogramación aplicada se puede deshacer.</li>
+      </ol>
+    </div>`;
 }
 function verCriticasDetalle() {
   const criticas = orders.filter(o => o.alerta);
@@ -3424,9 +3368,10 @@ function verConflictosDetalle() {
   }, 30);
 }
 function closeConfOverlay() { document.getElementById('confOverlay').classList.remove('open'); }
-async function confirmarCapacidadFinita() {
+// Nunca reprograma sin mostrar antes qué cambia: abre la vista previa del Reprogramador.
+function confirmarCapacidadFinita() {
   closeDrawerCapacidad();
-  await autoSeqCapacidad();
+  abrirReprogramador(() => loadFromAPI());
 }
 
 // ── POLLING ──────────────────────────────────────────────────
@@ -3470,7 +3415,7 @@ loadFromAPI();
   </div>
   <div class="drawer-footer sg-drawer-footer">
     <a class="cal-pop-config-link" href="/planificacion/capacidad" onclick="return navShellAware(event,'/planificacion/capacidad')">Abrir análisis completo de Capacidad →</a>
-    <button type="button" class="cal-pop-add-btn cf-run-btn" id="cfRunBtn" onclick="confirmarCapacidadFinita()">⚡ Reprogramar ahora</button>
+    <button type="button" class="cal-pop-add-btn cf-run-btn" id="cfRunBtn" onclick="confirmarCapacidadFinita()">👁 Ver cómo quedaría</button>
   </div>
 </aside>
 
@@ -3490,5 +3435,6 @@ loadFromAPI();
   </div>
 </div>
 
+<script src="/planificacion/reprogramar-overlay.js?v=20260926"></script>
 </body>
 </html>
