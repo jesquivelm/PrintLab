@@ -86,6 +86,7 @@ let searchTerm='';
 let drawerOrder=null;
 let drawerPriority='normal';
 let drawerBuffer=2;
+let drawerBufferInicial=2; // para guardar el buffer en la orden solo si lo cambian en Estimar
 let drawerResult=null;
 const flowCache={};
 
@@ -550,7 +551,9 @@ function openDrawer(code){
   const tier=String(order.customerTier||order.clientTier||'').toUpperCase();
   const guardada={urgente:'urgent',clase_a:'premium',normal:'normal'}[order.prioridad];
   setPriority(guardada&&order.prioridad!=='normal'?guardada:(tier==='A'?'premium':'normal'));
-  if(order.bufferDias!=null)document.getElementById('bufferSlider').value=order.bufferDias;
+  // Buffer: el propio de la orden si se fijó en Estimar; si no, el de Costos.
+  document.getElementById('bufferSlider').value=order.bufferDias!=null?order.bufferDias:(order.bufferCostos??2);
+  drawerBufferInicial=Number(document.getElementById('bufferSlider').value);
   updateBuffer();
   document.getElementById('btnSetDate').textContent=order.fechaForzada?`Fecha forzada: ${order.fechaForzada} · cambiar`:'Establecer fecha en orden';
   document.getElementById('lockToggle').checked=!!order.fechaComprometidaBloqueada;
@@ -977,7 +980,7 @@ async function setDateInOrder(){
     const est=await fetch(`${API}/planificacion/${encodeURIComponent(drawerOrder.orderCode)}/estimacion`,{
       method:'PATCH',
       headers:Object.assign({'Content-Type':'application/json'},sessionHeader()),
-      body:JSON.stringify({prioridad:{urgent:'urgente',premium:'clase_a',normal:'normal'}[drawerPriority]||'normal',bufferDias:bufferDays,fechaForzada:dateInputValue(committedEnd)})
+      body:JSON.stringify({prioridad:{urgent:'urgente',premium:'clase_a',normal:'normal'}[drawerPriority]||'normal',bufferDias:(drawerOrder.bufferDias!=null||bufferDays!==drawerBufferInicial)?bufferDays:null,fechaForzada:dateInputValue(committedEnd)})
     });
     const estData=await est.json().catch(()=>({}));
     if(!est.ok||estData.ok===false)throw new Error(estData.error||'No fue posible guardar la fecha forzada.');

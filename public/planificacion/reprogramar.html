@@ -143,6 +143,7 @@ function pintar(){
   const sinHorario=(r.sinHorario||[]);
   document.getElementById('contenido').innerHTML=`
     <div class="tiles">${tiles}</div>
+    ${(r.sinPersonas||[]).length?`<div class="card" style="border-color:var(--warn)"><b style="color:var(--warn)">⚠ Sin personas disponibles: ${r.sinPersonas.map(esc).join(', ')}</b><div class="hint">Se programa una orden a la vez. Indica cuántas personas trabajan en Costos → Procesos del Cálculo → Editar.</div></div>`:''}
     ${sinHorario.length?`<div class="card" style="border-color:var(--crit)"><b style="color:var(--crit)">⚠ Procesos sin horario</b><div class="hint">No se pueden programar hasta que tengan horario: ${sinHorario.map(s=>esc(s.proceso+(s.maquina?' · '+s.maquina:''))).join(', ')}.</div></div>`:''}
     <div class="card">
       <h2>Antes y después</h2>
