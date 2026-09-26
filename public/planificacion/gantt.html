@@ -95,6 +95,16 @@ html[data-theme="dark"] .aviso-sin-horario{color:#fcd34d;background:rgba(146,64,
 .task-bar:hover{filter:brightness(1.07);z-index:20;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 .task-bar.is-done{cursor:default;opacity:.8;background-image:linear-gradient(90deg,rgba(255,255,255,.18),rgba(255,255,255,0))}
 /* Pausa dentro de una barra: fuera de turno, domingo, feriado o mantenimiento. */
+/* Barra partida por turnos: solo se pinta el horario de trabajo de la máquina o proceso;
+   fuera de turno queda vacío, unido por una línea fina para ver que es la misma orden. */
+.task-bar.partida{background:transparent!important;border-color:transparent!important;padding:0;overflow:visible}
+.task-bar.partida:hover{box-shadow:none;filter:none}
+.task-enlace{position:absolute;left:0;right:0;top:50%;border-top:2px dotted;opacity:.55;pointer-events:none}
+.task-tramo{position:absolute;top:0;bottom:0;border-radius:6px;border:2px solid;overflow:hidden;display:flex;flex-direction:column;justify-content:center;padding:0 6px;min-width:3px;box-sizing:border-box}
+.task-bar.partida:hover .task-tramo{filter:brightness(1.07);box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.task-bar.partida.conflict-machine{outline:none;animation:none}
+.task-bar.partida.conflict-machine .task-tramo{border-color:#E24B4A!important}
+.task-bar.partida .task-lbl,.task-bar.partida .task-cliente,.task-bar.partida .task-sub{transform:none}
 .task-pausa{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 4px,rgba(255,255,255,.15) 4px 8px);pointer-events:none;border-left:1px dashed rgba(255,255,255,.8);border-right:1px dashed rgba(255,255,255,.8)}
 .tt-pausas{margin-top:6px;padding-top:6px;border-top:1px solid rgba(0,0,0,.08);font-size:11px}
 .tt-pausas div{margin:2px 0}
@@ -802,12 +812,13 @@ const API = '/api/planificacion';
 let HOURS = [];
 let SLOTS = 15;
 let DAYS = [];
-let zoomLevel = 'week';
+// Por defecto 5 días: lo que Planeación necesita ver de un vistazo.
+let zoomLevel = '5day';
 const ZOOM_CONFIG = {
   day:    { label: '1 día',   hours: 24,  slotW: 160, granularity: 'halfhour' },
   '3day': { label: '3 días',  hours: 72,  slotW: 80,  granularity: 'hour'     },
-  week:   { label: '1 sem',   hours: 168, slotW: 9,   granularity: 'day'      },
-  '2week':{ label: '15 días', hours: 360, slotW: 4,   granularity: 'day'      }
+  '5day': { label: '5 días',  hours: 120, slotW: 11,  granularity: 'day'      },
+  week:   { label: '1 sem',   hours: 168, slotW: 8,   granularity: 'day'      }
 };
 
 // Los únicos procesos que aparecen en el Gantt — en este orden exacto
@@ -983,7 +994,7 @@ function setZoom(level) {
 }
 
 // Zoom con Ctrl+rueda del mouse sobre el Gantt (del más detallado al más amplio)
-const ZOOM_ORDER = ['day', '3day', 'week', '2week'];
+const ZOOM_ORDER = ['day', '3day', '5day', 'week'];
 document.addEventListener('wheel', (e) => {
   if (!e.target.closest || !e.target.closest('.gantt-wrap')) return;
   if (!e.ctrlKey) return;
@@ -1567,6 +1578,18 @@ function taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlerts
   const customColor = op.terminado ? '' : String(op.route_payload?.colorHex || '').trim();
   const c = customColor ? { bg: customColor, bd: customColor, tx: '#fff' } : baseColor;
   const pausas = op.terminado ? [] : pausasDeBarra(op);
+  // Tramos de trabajo = la barra menos sus pausas (fuera de turno, domingo, feriado…).
+  const tramos = [];
+  if (pausas.length) {
+    let cursor = 0;
+    pausas.slice().sort((x, y) => x.izq - y.izq).forEach(pz => {
+      if (pz.izq > cursor) tramos.push({ izq: cursor, ancho: pz.izq - cursor });
+      cursor = Math.max(cursor, pz.izq + pz.ancho);
+    });
+    if (cursor < 100) tramos.push({ izq: cursor, ancho: 100 - cursor });
+  }
+  const partida = tramos.length > 1;
+  const tramoTexto = partida ? tramos.reduce((m, t) => t.ancho > m.ancho ? t : m, tramos[0]) : null;
   const routeArg = String(op.id_ruta).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   let chainClass = '';
   if (activeChainIds) {
@@ -1578,8 +1601,9 @@ function taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlerts
     else if (sequenceConflictRutas.has(op.id_ruta)) conflictClass = ' conflict-sequence';
   }
   const scheduleAlert = scheduleAlertsMap ? scheduleAlertsMap.get(op.id) : detectScheduleAlerts().find(e => e.orderCode === op.id);
-  const scheduleClass = scheduleAlert
-    ? (scheduleAlert.type === 'late' ? ' conflict-machine' : ' conflict-sequence') : '';
+  // Solo se marca en rojo la que atrasa su fecha comprometida; "negociar" se ve en
+  // Seguimiento y en la reprogramación, no en el tablero.
+  const scheduleClass = scheduleAlert && scheduleAlert.type === 'late' ? ' conflict-machine' : '';
   const modeLabel = op.manual_lock ? 'Fijo' : op.schedule_mode === 'backward' ? 'Atrás' : op.schedule_mode === 'forward' ? 'Adelante' : '';
   const isRunning = op.estado === 'RUN' || op.estado === 'SETUP';
   const isLate = scheduleAlert?.type === 'late';
@@ -1597,6 +1621,30 @@ function taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlerts
   // En "1 sem" y "15 días" cada barra ocupa su ancho real: un ancho mínimo forzado hacía
   // que trabajos cortos seguidos parecieran encimados.
   const vistaDias = ZOOM_CONFIG[zoomLevel].granularity === 'day';
+
+  const pxTexto = partida ? estPx * tramoTexto.ancho / 100 : estPx;
+  const contenido = pxTexto < 36
+      ? ''
+      : pxTexto < 70
+        ? `<div class="task-lbl" style="color:${c.tx};font-size:10px">${op.id}</div>`
+        : `<div class="task-cliente" style="color:${c.tx}">${op.cliente}</div>
+           <div class="task-lbl" style="color:${c.tx}">${op.id} · ${op.articulo}${op.manual_lock?' [Fijo]':''}</div>
+           <div class="task-sub" style="color:${c.tx}">${op.proceso}${op.colores > 0 ? ' · '+op.colores+'C' : ''}${modeLabel?`<span class="task-mode-pill">${modeLabel}</span>`:''}</div>`;
+  if (partida) {
+    return `<div class="task-bar partida${chainClass}${conflictClass}${scheduleClass}${runningClass}"
+    id="bar-${op.id_ruta}" data-id="${op.id}" data-ruta="${op.id_ruta}"
+    style="left:${pct(op.inicio)};width:${pct(op.dur)};min-width:0"
+    draggable="true"
+    onmouseenter="showTT(event,'${routeArg}')" onmouseleave="hideTT()"
+    oncontextmenu="openColorMenu(event,'${routeArg}')"
+    ondragstart="dragStart(event,'${routeArg}')" ondragend="dragEnd(event)"
+    onclick="openDP('${routeArg}')"
+    title="${op.id} · ${op.cliente} · ${op.proceso} · ${(Number(op.horas_trabajo) || op.dur).toFixed(1)} h de trabajo">
+    <div class="task-enlace" style="border-color:${c.bd}"></div>
+    ${tramos.map(t => `<div class="task-tramo" style="left:${t.izq}%;width:${t.ancho}%;background:${c.bg};border-color:${c.bd}">${t === tramoTexto ? contenido : ''}</div>`).join('')}
+    ${op.manual_lock ? '<div class="task-lock-icon" title="Fija: el Reprogramador no la mueve">🔒</div>' : ''}
+  </div>`;
+  }
 
   return `<div class="task-bar${chainClass}${conflictClass}${scheduleClass}${runningClass}${op.terminado ? ' is-done' : ''}"
     id="bar-${op.id_ruta}"
@@ -2124,8 +2172,8 @@ function renderGantt() {
     <div class="zoom-group">
       <button class="btn zoom-btn${zoomLevel==='day'?' zoom-active':''}"    data-zoom="day"   onclick="setZoom('day')">1 día</button>
       <button class="btn zoom-btn${zoomLevel==='3day'?' zoom-active':''}"   data-zoom="3day"  onclick="setZoom('3day')">3 días</button>
+      <button class="btn zoom-btn${zoomLevel==='5day'?' zoom-active':''}"   data-zoom="5day"  onclick="setZoom('5day')">5 días</button>
       <button class="btn zoom-btn${zoomLevel==='week'?' zoom-active':''}"   data-zoom="week"  onclick="setZoom('week')">1 sem</button>
-      <button class="btn zoom-btn${zoomLevel==='2week'?' zoom-active':''}"  data-zoom="2week" onclick="setZoom('2week')">15 días</button>
     </div>
     <div style="display:flex;align-items:center;gap:5px;margin-left:8px;border-left:1px solid #555;padding-left:10px">
       <input
@@ -2193,12 +2241,9 @@ function renderGantt() {
     html += `
     <div class="proceso-hdr" style="border-top-color:${proc.color}">
       <div class="proceso-hdr-lbl" style="color:${proc.color}">
-        <span style="font-size:14px">${proc.icono}</span>
         ${displayProcessName(proc.nombre)}
-        <span style="font-weight:400;font-size:10px;color:#bbb;margin-left:4px">(${assignedMachines.length}/${proc.maquinas.length})</span>
       </div>
       <div class="proceso-hdr-timeline">
-        <span class="proceso-empty-note">${assignedMachines.length ? 'Recursos con órdenes' : 'Sin recursos asignados'}</span>
         ${hiddenCount > 0 || expanded
           ? `<button type="button" class="proceso-toggle" onclick='toggleProcessMachines(${JSON.stringify(procKey)})'>${expanded?'Ocultar vacías':`Ver todas (${proc.maquinas.length})`}</button>`
           : ''}
@@ -2260,8 +2305,7 @@ function renderGantt() {
     <span class="leg-item"><span class="leg-dot" style="background:#E24B4A"></span>Alerta</span>
     <span class="leg-item"><span class="leg-dot" style="background:#b8c2cf"></span>Terminado</span>
     <span class="leg-item"><span class="leg-dot" style="background:transparent;border:2px solid #E24B4A"></span>Borde rojo: atrasa su fecha comprometida</span>
-    <span class="leg-item"><span class="leg-dot" style="background:transparent;border:2px solid #f59e0b"></span>Borde naranja: negociar (después de la fecha del cliente)</span>
-    <span class="leg-item"><span class="leg-dot" style="background:repeating-linear-gradient(135deg,#378ADD 0 3px,#a9c9ee 3px 6px)"></span>Rayas: pausa (fuera de turno, domingo, feriado, mantenimiento)</span>
+    <span class="leg-item"><span style="display:inline-block;width:18px;border-top:2px dotted #378ADD;vertical-align:middle"></span>Misma orden en pausa (fuera de turno, domingo, feriado, mantenimiento)</span>
     <span class="leg-item" style="font-size:10px;color:#aaa;margin-left:auto">
       <span style="background:#06b6d4;padding:1px 5px;border-radius:3px;color:#fff">⬤</span> Cadena activa
     </span>

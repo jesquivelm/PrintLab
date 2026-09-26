@@ -21941,7 +21941,7 @@ app.get('/api/planificacion/procesos', async (req, res) => {
                    p.etiqueta AS process_name,
                    p.orden AS orden_secuencia,
                    p.color_gantt AS color_hex,
-                   '[P]' AS icono,
+                   ''::text AS icono,
                    p.proceso_paralelo AS es_paralelo,
                    p.gantt_habilitado AS activo,
                    p.calendario_id,
@@ -22053,7 +22053,7 @@ app.post('/api/planificacion/procesos', async (req, res) => {
                 icon_key AS icono,
                 is_parallel AS es_paralelo,
                 is_active AS activo
-        `, [processKey, nombre, Number(orden_secuencia), color_hex || '#378ADD', icono || '[P]', Boolean(es_paralelo), activo !== false, calendario_id || null]);
+        `, [processKey, nombre, Number(orden_secuencia), color_hex || '#378ADD', icono || '', Boolean(es_paralelo), activo !== false, calendario_id || null]);
         res.json({ ok: true, data: result.rows[0] });
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible crear el proceso de planificación.' });
@@ -22457,7 +22457,7 @@ app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
                        c.proceso_key AS id_proceso,
                        c.orden AS orden_secuencia,
                        c.color_gantt AS color_hex,
-                       '[P]' AS proceso_icono,
+                       ''::text AS proceso_icono,
                        COALESCE(pm.calendario_id, c.calendario_id) AS calendario_id,
                        rc.calendar_name AS calendario_nombre
                 FROM proceso_maquina pm
@@ -22536,7 +22536,7 @@ app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
                        c.etiqueta AS nombre,
                        c.orden AS orden_secuencia,
                        c.color_gantt AS color_hex,
-                       '[P]' AS icono,
+                       ''::text AS icono,
                        c.calendario_id,
                        rc.calendar_name AS calendario_nombre
                 FROM costo_proceso_defaults c
