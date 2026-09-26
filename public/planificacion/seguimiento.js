@@ -140,6 +140,11 @@ function orderStatus(o){
   if(procs.length&&procs.every(p=>p.status==='done'||p.status==='complete'))return'done';
   if(load.some(r=>r.isLate)||days!==null&&days<0)return'late';
   if(days!==null&&days<=2)return'risk';
+  // Riesgo de fecha: todavía no vence, pero la producción planificada termina
+  // después de la fecha de entrega (lo mismo que "Riesgo fecha" en la consola).
+  const due=deliveryDateKey(o.promisedDeliveryDate||o.scheduledDeliveryDate);
+  const prodEnd=deliveryDateKey(o.productionEndDate);
+  if(due&&prodEnd&&prodEnd>due)return'risk';
   // "En Producción" = la orden ya la liberó Planeación al Gantt y no ha
   // terminado — no depende de que una máquina esté trabajándola justo ahora.
   if(o.planningStatus==='EN_GANTT')return'running';
@@ -1394,12 +1399,13 @@ function buildCalendarBuckets(){
 }
 
 function calPlural(n,one,many){return`${n} ${n===1?one:many}`}
-function calDotMarkup(b){
+function calNeon(n,corner){return`<span class="cal-neon${corner?' is-corner':''}">${n>9?'9+':n}</span>`}
+// Tercera fila del cuadro: `tag` es el aviso del día (fin de semana / feriado).
+function calFootMarkup(b,tag,hoverText){
   const problems=b.late+b.risk;
-  const hover=`<span class="cal-deliv">${b.total?calPlural(b.total,'entrega','entregas'):'Sin entregas'}</span>`;
-  if(!problems)return`<div class="cal-status">${hover}</div>`;
-  const cls=b.late?'is-late':'is-risk';
-  return`<div class="cal-status has-dot"><span class="cal-dot ${cls}">${problems>9?'9+':problems}</span>${hover}</div>`;
+  const hover=`<span class="cal-foot-hover">${hoverText}</span>`;
+  if(tag)return`${problems?calNeon(problems,true):''}<div class="cal-foot"><span class="cal-foot-default">${tag}</span>${hover}</div>`;
+  return`<div class="cal-foot">${problems?`<span class="cal-foot-default">${calNeon(problems)}</span>`:''}${hover}</div>`;
 }
 function calTitle(b){
   const parts=[b.total?calPlural(b.total,'entrega','entregas'):'Sin entregas'];
@@ -1420,7 +1426,7 @@ function renderCalendarStrip(){
     tiles.push(`<button type="button" class="cal-alert-day is-overdue${sel}" data-cal-key="${CAL_OVERDUE_KEY}" title="${esc(calPlural(overdue.total,'orden pasó','órdenes pasaron')+' su fecha de entrega sin terminarse')}">
         <div class="cal-alert-day-label">Antes de hoy</div>
         <div class="cal-alert-day-date">Vencidas</div>
-        <div class="cal-status has-dot"><span class="cal-dot is-late">${overdue.total>9?'9+':overdue.total}</span><span class="cal-deliv">${calPlural(overdue.total,'orden','órdenes')}</span></div>
+        ${calFootMarkup({late:overdue.total,risk:0},'',calPlural(overdue.total,'orden','órdenes'))}
       </button>`);
   }
   for(let i=0;i<Math.min(dayCount,calFetchedDays);i++){
@@ -1440,16 +1446,15 @@ function renderCalendarStrip(){
     let title=calTitle(b);
     if(events.length){
       const names=[...new Set(events.map(e=>e.description||e.exceptionType))].join(', ');
-      tag=`<div class="cal-alert-day-tag">⚠ ${esc(names.length>18?names.slice(0,18)+'…':names)}</div>`;
+      tag=`<span class="cal-alert-day-tag">⚠ ${esc(names.length>16?names.slice(0,16)+'…':names)}</span>`;
       title+=` — ${names}`;
     }else if(isWeekend){
-      tag=`<div class="cal-alert-day-tag">Fin de semana</div>`;
+      tag=`<span class="cal-alert-day-tag">Fin de semana</span>`;
     }
     tiles.push(`<button type="button" class="${cls.join(' ')}" data-cal-key="${key}" title="${esc(title)}">
         <div class="cal-alert-day-label">${i===0?'Hoy':capitalise(dowLabel)}</div>
         <div class="cal-alert-day-date">${dateLabel}</div>
-        ${calDotMarkup(b)}
-        ${tag}
+        ${calFootMarkup(b,tag,b.total?calPlural(b.total,'entrega','entregas'):'Sin entregas')}
       </button>`);
   }
   const scroll=strip.scrollLeft;

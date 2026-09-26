@@ -1535,12 +1535,12 @@ function renderHeader() {
     </div>
   </div>
 
-  <div class="stats">
+  ${currentView==='seguimiento' ? '' /* Seguimiento ya trae sus propios contadores abajo del calendario */ : `<div class="stats">
     <div class="stat"><div class="stat-lbl">Órdenes activas</div><div class="stat-val">${uniqueOrderCount}</div></div>
     <div class="stat"><div class="stat-lbl">Pasos pendientes</div><div class="stat-val" style="color:#185FA5">${pendientes}</div></div>
     <div class="stat"><div class="stat-lbl">Conflictos</div><div class="stat-val" style="color:${allConflicts.length?'#E24B4A':'#1D9E75'}">${allConflicts.length}</div></div>
     <div class="stat"><div class="stat-lbl">Riesgo fecha</div><div class="stat-val" style="color:${lateAlerts.length?'#E24B4A':tightAlerts.length?'#BA7517':'#1D9E75'}">${lateAlerts.length + tightAlerts.length}</div></div>
-  </div>`;
+  </div>`}`;
 
   syncGanttUserName();
   applySeguimientoIcons();
