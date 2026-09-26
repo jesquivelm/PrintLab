@@ -85,8 +85,14 @@
                                 </div>
                             </article>
                             <article class="costs-section-card costs-section-card-plain costs-processes-card-plain">
-                                <div class="costs-section-head">
+                                <div class="costs-section-head costs-process-head">
                                     <h2 class="costs-section-title">Procesos del C&aacute;lculo</h2>
+                                    <label class="costs-buffer-field" title="Programación hacia atrás con colchón (buffer): cada orden se programa para terminar estos días hábiles antes de la fecha que pidió el cliente, para tener margen si algo cambia. Es el valor por defecto; cada orden puede tener el suyo en Estimar.">
+                                        <span>Buffer de programaci&oacute;n</span>
+                                        <input id="costosBufferProgramacionDias" type="number" min="0" max="30" step="1" inputmode="numeric">
+                                        <span class="costs-buffer-suffix">d&iacute;as</span>
+                                        <span class="costs-buffer-info" aria-hidden="true">i</span>
+                                    </label>
                                 </div>
                                 <div class="copy-popover-table-wrap costs-table-wrap costs-process-table-wrap costs-process-table-wrap-plain" aria-label="Orden y costos m&iacute;nimos por proceso">
                                     <table class="copy-popover-table costs-table costs-process-table">
@@ -95,32 +101,26 @@
                                             <col class="costs-process-col-process">
                                             <col class="costs-process-col-check">
                                             <col class="costs-process-col-check">
-                                            <col class="costs-process-col-check">
+                                            <col class="costs-process-col-check-wide">
+                                            <col class="costs-process-col-check-wide">
                                             <col class="costs-process-col-check-wide">
                                             <col class="costs-process-col-check">
-                                            <col class="costs-process-col-check">
-                                            <col class="costs-process-col-cost">
-                                            <col class="costs-process-col-cost">
+                                            <col class="costs-process-col-check-wide">
                                             <col class="costs-process-col-cost">
                                         </colgroup>
                                         <thead>
                                             <tr>
                                                 <th>N&deg;</th>
                                                 <th>Proceso</th>
-                                                 <th>Configuraci&oacute;n</th>
                                                 <th>Activo</th>
                                                 <th>Crear</th>
-                                                <th>Gantt</th>
-                                                 
-                                                 
-                                                 
-                                                 
-                                                <th>No Eliminar</th>
+                                                <th><span title="El proceso se programa (Gantt y reprogramación). Define desde d&oacute;nde y hasta d&oacute;nde se programa cada orden.">Activo en Gantt</span></th>
+                                                <th>Configuraci&oacute;n</th>
+                                                <th>No eliminar</th>
                                                 <th>Repetir</th>
-                                                <th>Bot&oacute;n Flotante</th>
-                                                <th>Costo M&iacute;nimo</th>
+                                                <th>Bot&oacute;n flotante</th>
+                                                <th>Costo m&iacute;nimo</th>
                                                 <th style="display:none"><span title="Tiempo extra en minutos que se suma al proceso, independiente del cálculo.">Tiempo Adicional</span></th>
-                                                <th><span title="Tiempo disponible del proceso durante el día en minutos. El Gantt usa este valor para la programación. Ej: 480 min = 8 horas.">Capacidad (min)</span></th>
                                             </tr>
                                         </thead>
                                         <tbody id="costosProcessDefaultsList"></tbody>

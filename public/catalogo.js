@@ -297,7 +297,7 @@ function resolveRouteConfig() {
                 { key: 'marca', label: 'Marca', type: 'text', tab: 'adicionales' },
                 { key: 'modelo', label: 'Modelo', type: 'text', tab: 'adicionales' },
                 { key: 'tipo', label: 'Tipo', type: 'select', options: [['', 'Sin Definir'], ['Convencional', 'Convencional'], ['Digital', 'Digital'], ['Hibrido', 'Híbrido']] },
-                { key: 'proceso_principal', label: 'Proceso Principal', type: 'text' },
+                { key: 'proceso_principal', label: 'Proceso Principal', type: 'select', options: [], help: 'Lista de procesos de Costos → Procesos del Cálculo. La máquina queda ligada a ese proceso para la programación (Gantt y reprogramación).' },
                 { key: 'subproceso', label: 'Subproceso', type: 'text' },
                 { key: 'factor_preparacion', label: 'Setup', type: 'number', step: '0.01', suffix: 'min', tab: 'adicionales' },
                 { key: 'factor_montaje_estacion', label: 'Montaje', type: 'number', step: '0.01', suffix: 'min', tab: 'adicionales' },
@@ -900,6 +900,17 @@ const routeState = new URLSearchParams(window.location.search);
 let selectedId = routeState.get('id') || '';
 let capabilitiesState = [];
 let machineCatalogOptions = [];
+// Procesos de Costos (Procesos del Cálculo) para el "Proceso Principal" de las máquinas.
+let procesosCostosOptions = [];
+async function loadProcesosCostosOptions() {
+    try {
+        const response = await fetch('/api/costos/procesos-lista');
+        const payload = response.ok ? await response.json() : {};
+        procesosCostosOptions = Array.isArray(payload.data) ? payload.data : [];
+    } catch (error) {
+        procesosCostosOptions = [];
+    }
+}
 let currentView = routeState.get('view') === 'detail' ? 'detail' : 'list';
 let searchTimer = null;
 let catalogAutosaveTimer = null;
@@ -1660,9 +1671,18 @@ function createInput(field, value) {
     if (field.type === 'select') {
         const select = document.createElement('select');
         select.name = field.key;
-        const options = field.key === 'machine_id'
+        let options = field.key === 'machine_id'
             ? [['', 'Sin máquina'], ...machineCatalogOptions.map((item) => [item.id, item.nombre])]
             : (field.options || []);
+        if (field.key === 'proceso_principal') {
+            // Procesos de Costos; si la máquina traía un texto viejo (p. ej. "Impresion"
+            // sin tilde) se selecciona el proceso equivalente.
+            const clave = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+            options = [['', 'Sin proceso'], ...procesosCostosOptions.map((p) => [p.etiqueta, p.etiqueta])];
+            const equivalente = procesosCostosOptions.find((p) => clave(p.etiqueta) === clave(value) || clave(p.proceso_key) === clave(value));
+            if (equivalente) value = equivalente.etiqueta;
+            else if (value) options.push([value, `${value} (no está en Costos)`]);
+        }
         options.forEach(([optionValue, optionLabel]) => {
             const option = document.createElement('option');
             option.value = optionValue;
@@ -2802,6 +2822,18 @@ function renderForm(item) {
     }
     if (page.inventoryKey === 'maquinas') {
         buildMachineTabbedForm(viewItem);
+        if (item.id) {
+            // El calendario de mantenimientos también vive dentro de cada máquina:
+            // el mantenimiento le quita horas a la programación de esa máquina.
+            const mantBox = document.createElement('div');
+            mantBox.className = 'machine-mant-inline';
+            mantBox.innerHTML = `<div><strong>Mantenimiento</strong><span>Las horas de mantenimiento se descuentan al programar esta máquina.</span></div>
+                <button type="button" class="catalog-secondary-button">🛠 Calendario de mantenimiento</button>`;
+            mantBox.querySelector('button').addEventListener('click', () => {
+                openMaintenanceModal(item.id).catch((err) => mantSetStatus(err.message, 'error'));
+            });
+            catalogForm.appendChild(mantBox);
+        }
         catalogForm.classList.add('inventory-form-maquinas');
         capabilitiesState = Array.isArray(item.capacidades) ? item.capacidades.map((capacity) => ({ ...capacity })) : [];
         openMachineModal(item);
@@ -3529,7 +3561,7 @@ catalogImportInput.addEventListener('change', () => {
 });
 
 document.addEventListener('click', (event) => {
-    if (!catalogMenuPanel?.hidden && !catalogMenuPanel.contains(event.target) && !catalogMenuToggle?.contains(event.target)) {
+    if (catalogMenuPanel && !catalogMenuPanel.hidden && !catalogMenuPanel.contains(event.target) && !catalogMenuToggle?.contains(event.target)) {
         toggleHeaderMenu(false);
     }
 });
@@ -3587,7 +3619,7 @@ ejecutarCatalogImportSapButton?.addEventListener('click', () => {
     });
 });
 
-Promise.all([loadHeaderConfig(), loadMachineOptions(), loadCatalog()]).catch((error) => {
+Promise.all([loadHeaderConfig(), loadMachineOptions(), loadProcesosCostosOptions()]).then(() => loadCatalog()).catch((error) => {
     catalogStatus.textContent = error.message;
 });
 
@@ -4123,8 +4155,9 @@ function onMaintenanceModalClick(event) {
     }
 }
 
-async function openMaintenanceModal() {
+async function openMaintenanceModal(maquinaId = null) {
     ensureMaintenanceModal();
+    if (maquinaId) mantSelId = String(maquinaId);
     mantMoveState = null;
     mantMonthCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     mantSetStatus('Cargando...');

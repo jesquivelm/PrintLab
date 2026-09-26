@@ -3878,3 +3878,11 @@ html[data-theme="dark"] .inventarios-sap-chip-texto {
     color: #93a9bd;
 }
 
+
+/* Procesos del Cálculo: buffer de programación junto al título */
+.costs-process-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.costs-buffer-field{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--app-text-muted,#60707f);cursor:help}
+.costs-buffer-field input{width:64px;height:34px;border-radius:10px;border:1px solid var(--app-border,#cfd8df);background:var(--app-surface,#fff);color:var(--app-text,#0f172a);text-align:center;font:inherit;font-weight:700}
+.costs-buffer-suffix{font-weight:500}
+.costs-buffer-info{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1px solid currentColor;font-size:11px;font-style:italic;font-family:Georgia,serif;opacity:.7}
+.costs-process-table th{white-space:normal;line-height:1.2}

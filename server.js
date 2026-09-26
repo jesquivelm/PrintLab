@@ -1753,6 +1753,7 @@ const DEFAULT_COSTS_CONFIG = {
         defaultTaxPct: 13,
         defaultBoxCost: 0,
         defaultCostoPulgadaLinealTroquel: 0,
+        bufferProgramacionDias: 2,
         processDefaults: [
             { key: 'macula', label: 'Merma', active: true, createEnabled: true, locked: true, repeatable: false, order: 5, minimumCost: 0, capacityMinutes: 480 },
             { key: 'troquel', label: 'Troquel', active: true, createEnabled: false, locked: true, repeatable: false, order: 10, minimumCost: 0, capacityMinutes: 480 },
@@ -2149,6 +2150,7 @@ async function initializeStartupSchemas() {
     await runStartupSchemaStep('No fue posible preparar el esquema de auditoría', () => ensureAuditSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de planificación', () => ensurePlanningSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de feriados', () => ensureFeriadosSchema());
+    await runStartupSchemaStep('No fue posible preparar el esquema de programación', () => ensureProgramacionSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de detención/anulación de órdenes', () => ensureOrdenDetencionSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de mediciones de espectrofotometría', () => ensureMedicionesEspectroSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de valores de producción por motivo', () => ensureValoresProduccionSchema());
@@ -3176,7 +3178,12 @@ function normalizeCostsConfigRecord(config) {
                 order: Number(row?.order || fallback.order || ((index + 1) * 10)),
                 minimumCost: Math.max(0, Number(row?.minimumCost || 0)),
                 timeBufferMinutes: Math.max(0, Number(row?.timeBufferMinutes ?? row?.bufferMinutes ?? fallback.timeBufferMinutes ?? 0)),
-                capacityMinutes: Math.max(0, Number(row?.capacityMinutes ?? row?.capacity ?? fallback.capacityMinutes ?? 480))
+                capacityMinutes: Math.max(0, Number(row?.capacityMinutes ?? row?.capacity ?? fallback.capacityMinutes ?? 480)),
+                // Programación: sin estos campos, guardar Costos borraba el horario del proceso.
+                colorGantt: String(row?.colorGantt || fallback.colorGantt || '#378ADD'),
+                procesoParalelo: row?.procesoParalelo === true || String(row?.procesoParalelo || '').trim().toLowerCase() === 'true',
+                calendarioId: row?.calendarioId ? String(row.calendarioId) : null,
+                personasDisponibles: Number(row?.personasDisponibles) > 0 ? Math.round(Number(row.personasDisponibles)) : null
             };
         }).filter(Boolean);
         fallbackRows.forEach((item, index) => {
@@ -3194,7 +3201,11 @@ function normalizeCostsConfigRecord(config) {
                 order: Number(item.order || ((index + 1) * 10)),
                 minimumCost: Math.max(0, Number(item.minimumCost || 0)),
                 timeBufferMinutes: Math.max(0, Number(item.timeBufferMinutes || 0)),
-                capacityMinutes: Math.max(0, Number(item.capacityMinutes || 480))
+                capacityMinutes: Math.max(0, Number(item.capacityMinutes || 480)),
+                colorGantt: String(item.colorGantt || '#378ADD'),
+                procesoParalelo: Boolean(item.procesoParalelo),
+                calendarioId: item.calendarioId || null,
+                personasDisponibles: null
             });
         });
         return normalized
@@ -3238,6 +3249,7 @@ function normalizeCostsConfigRecord(config) {
             defaultTaxPct: Math.max(0, Number(source?.general?.defaultTaxPct ?? DEFAULT_COSTS_CONFIG.general.defaultTaxPct ?? 0)),
             defaultBoxCost: Math.max(0, Number(source?.general?.defaultBoxCost ?? DEFAULT_COSTS_CONFIG.general.defaultBoxCost ?? 0)),
             defaultCostoPulgadaLinealTroquel: Math.max(0, Number(source?.general?.defaultCostoPulgadaLinealTroquel ?? DEFAULT_COSTS_CONFIG.general.defaultCostoPulgadaLinealTroquel ?? 0)),
+            bufferProgramacionDias: Math.max(0, Math.min(30, Math.round(Number(source?.general?.bufferProgramacionDias ?? DEFAULT_COSTS_CONFIG.general.bufferProgramacionDias ?? 2)))),
             processDefaults: normalizeProcessDefaults(source?.general?.processDefaults || DEFAULT_COSTS_CONFIG.general.processDefaults)
         },
         convencional: {
@@ -3430,6 +3442,7 @@ async function loadCostsConfig() {
                 defaultTaxPct: r.iva_defecto_pct,
                 defaultBoxCost: r.costo_caja,
                 defaultCostoPulgadaLinealTroquel: r.costo_pulgada_lineal_troquel_default,
+                bufferProgramacionDias: r.buffer_programacion_dias == null ? 2 : Number(r.buffer_programacion_dias),
                 processDefaults: procesos.rows.map((p) => ({
                     key: p.proceso_key,
                     label: p.etiqueta,
@@ -3445,7 +3458,8 @@ async function loadCostsConfig() {
                     capacityMinutes: p.capacidad_minutos,
                     colorGantt: p.color_gantt || '#378ADD',
                     procesoParalelo: Boolean(p.proceso_paralelo),
-                    calendarioId: p.calendario_id || null
+                    calendarioId: p.calendario_id || null,
+                    personasDisponibles: p.personas_disponibles == null ? null : Number(p.personas_disponibles)
                 }))
             },
             convencional: {
@@ -3729,9 +3743,11 @@ async function saveCostsConfig(config) {
             );
         };
 
+        await client.query(`UPDATE costo_general SET buffer_programacion_dias = $2 WHERE tenant_id = $1`, [tenantId, gen.bufferProgramacionDias ?? 2]);
+
         await replaceRows('costo_proceso_defaults',
-            ['proceso_key', 'etiqueta', 'activo', 'crear_habilitado', 'bloqueado', 'repetible', 'gantt_habilitado', 'visible_boton_flotante', 'orden', 'costo_minimo', 'tiempo_buffer_minutos', 'capacidad_minutos', 'color_gantt', 'proceso_paralelo', 'calendario_id'],
-            gen.processDefaults.map((p) => [p.key, p.label, p.active, p.createEnabled, p.locked, p.repeatable, p.ganttEnabled, p.visibleBotonFlotante, p.order, p.minimumCost, p.timeBufferMinutes, p.capacityMinutes, p.colorGantt || '#378ADD', Boolean(p.procesoParalelo), p.calendarioId || null])
+            ['proceso_key', 'etiqueta', 'activo', 'crear_habilitado', 'bloqueado', 'repetible', 'gantt_habilitado', 'visible_boton_flotante', 'orden', 'costo_minimo', 'tiempo_buffer_minutos', 'capacidad_minutos', 'color_gantt', 'proceso_paralelo', 'calendario_id', 'personas_disponibles'],
+            gen.processDefaults.map((p) => [p.key, p.label, p.active, p.createEnabled, p.locked, p.repeatable, p.ganttEnabled, p.visibleBotonFlotante, p.order, p.minimumCost, p.timeBufferMinutes, p.capacityMinutes, p.colorGantt || '#378ADD', Boolean(p.procesoParalelo), p.calendarioId || null, p.personasDisponibles || null])
         );
 
         await replaceRows('costo_deposito_tinta',
@@ -9692,7 +9708,7 @@ async function listLiveOrders() {
 async function loadPlanningReferenceMaps(client = null) {
     const executor = client || { query: pgQuery };
     const [processResult, profileResult] = await Promise.all([
-        executor.query(`SELECT * FROM production_process_definitions WHERE is_active = TRUE ORDER BY sequence_order`),
+        executor.query(`SELECT proceso_key AS process_key, etiqueta AS process_name, orden AS sequence_order, color_gantt AS color_hex FROM costo_proceso_defaults WHERE activo = TRUE ORDER BY orden`),
         executor.query(`SELECT * FROM production_machine_profiles WHERE is_active = TRUE ORDER BY process_name, machine_name`)
     ]);
 
@@ -22148,7 +22164,7 @@ app.delete('/api/planificacion/procesos/:id/maquinas/:asignacionId', async (req,
 app.get('/api/costos/procesos/maquinas', async (req, res) => {
     try {
         const result = await pgQuery(`
-            SELECT pm.id, pm.proceso_key, pm.proceso_id, pm.maquina_id, pm.calendario_id, m.nombre AS maquina_nombre, c.nombre AS calendario_nombre
+            SELECT pm.id, pm.proceso_key, pm.proceso_id, pm.maquina_id, pm.calendario_id, m.nombre AS maquina_nombre, c.calendar_name AS calendario_nombre
             FROM proceso_maquina pm
             JOIN maquina m ON m.id = pm.maquina_id
             LEFT JOIN resource_calendars c ON c.id = pm.calendario_id
@@ -22166,8 +22182,10 @@ app.post('/api/costos/procesos/:key/maquinas', async (req, res) => {
         if (!maquina_id) return res.status(400).json({ ok: false, error: 'Debes elegir una máquina.' });
         await pgQuery(`
             INSERT INTO proceso_maquina (proceso_key, maquina_id, calendario_id)
-            VALUES ($1, $2::uuid, $3::uuid)
+            SELECT $1, $2::uuid, $3::uuid
+             WHERE NOT EXISTS (SELECT 1 FROM proceso_maquina WHERE proceso_key = $1 AND maquina_id = $2::uuid)
         `, [req.params.key, maquina_id, calendario_id || null]);
+        invalidateFiniteCapacityCache();
         res.json({ ok: true });
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible asignar la máquina.' });
@@ -22358,19 +22376,19 @@ app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
                        m.id::text AS id_maquina,
                        m.nombre AS nombre_recurso,
                        m.nombre AS name,
-                       p.process_key,
-                       p.process_name AS proceso_nombre,
-                       p.id AS id_proceso,
-                       p.sequence_order AS orden_secuencia,
-                       p.color_hex,
-                       p.icon_key AS proceso_icono,
-                       pm.calendario_id,
+                       c.proceso_key AS process_key,
+                       c.etiqueta AS proceso_nombre,
+                       c.proceso_key AS id_proceso,
+                       c.orden AS orden_secuencia,
+                       c.color_gantt AS color_hex,
+                       '[P]' AS proceso_icono,
+                       COALESCE(pm.calendario_id, c.calendario_id) AS calendario_id,
                        rc.calendar_name AS calendario_nombre
                 FROM proceso_maquina pm
                 JOIN maquina m ON m.id = pm.maquina_id
-                JOIN production_process_definitions p ON p.id = pm.proceso_id
-                LEFT JOIN resource_calendars rc ON rc.id = pm.calendario_id
-                WHERE p.is_active = TRUE
+                JOIN costo_proceso_defaults c ON c.proceso_key = pm.proceso_key
+                LEFT JOIN resource_calendars rc ON rc.id = COALESCE(pm.calendario_id, c.calendario_id)
+                WHERE c.activo = TRUE AND c.gantt_habilitado = TRUE
                 ORDER BY orden_secuencia, nombre_recurso
             `),
             pgQuery(`
@@ -22419,9 +22437,9 @@ app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
                 LEFT JOIN production_resources cap_res ON cap_res.id::text = r.datos_extra->>'capacityResourceId'
                 LEFT JOIN orden_proceso opm ON opm.id = r.id
                 LEFT JOIN orden_proceso dep ON dep.id = r.depende_de_id
-                WHERE COALESCE(r.clave_proceso, '') <> 'acabados'
-                  AND lower(COALESCE(r.nombre_proceso, '')) <> 'acabados'
-                  AND NOT EXISTS (
+                JOIN costo_proceso_defaults cpd
+                  ON cpd.proceso_key = r.clave_proceso AND cpd.activo = TRUE AND cpd.gantt_habilitado = TRUE
+                WHERE NOT EXISTS (
                     SELECT 1
                     FROM flexo_orders ox
                     WHERE ox.order_code = o.order_code
@@ -22430,21 +22448,21 @@ app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
                         OR lower(COALESCE(ox.order_status, ox.raw_data->>'status','')) IN ('entregada','completada','cerrada','cancelada')
                       )
                 )
-                ORDER BY r.secuencia, r.nombre_maquina NULLS LAST, r.codigo_orden
+                ORDER BY cpd.orden, r.nombre_maquina NULLS LAST, r.codigo_orden
             `),
             pgQuery(`
-                SELECT p.id AS id_proceso,
-                       p.process_key,
-                       p.process_name AS nombre,
-                       p.sequence_order AS orden_secuencia,
-                       p.color_hex,
-                       p.icon_key AS icono,
-                       p.calendario_id,
+                SELECT c.proceso_key AS id_proceso,
+                       c.proceso_key AS process_key,
+                       c.etiqueta AS nombre,
+                       c.orden AS orden_secuencia,
+                       c.color_gantt AS color_hex,
+                       '[P]' AS icono,
+                       c.calendario_id,
                        rc.calendar_name AS calendario_nombre
-                FROM production_process_definitions p
-                LEFT JOIN resource_calendars rc ON rc.id = p.calendario_id
-                WHERE p.is_active = TRUE
-                ORDER BY p.sequence_order, p.process_name
+                FROM costo_proceso_defaults c
+                LEFT JOIN resource_calendars rc ON rc.id = c.calendario_id
+                WHERE c.activo = TRUE AND c.gantt_habilitado = TRUE
+                ORDER BY c.orden, c.etiqueta
             `)
         ]);
 
@@ -22988,6 +23006,20 @@ app.put('/api/planificacion/recursos/:id/competencias', async (req, res) => {
 // ── Feriados nacionales (dias_feriados) — usados por el scheduler y el retroceso ──
 // personalizado = true → lo agregó alguien desde la pantalla (no viene de la semilla
 // ni de la sincronización con date.nager.at); la pantalla lo destaca.
+// Programación: la tabla de Costos es la fuente única de procesos. Las máquinas se
+// ligan al proceso por proceso_key (antes solo por el id de la tabla vieja).
+async function ensureProgramacionSchema() {
+    await pgQuery(`ALTER TABLE costo_proceso_defaults ADD COLUMN IF NOT EXISTS personas_disponibles INTEGER`);
+    await pgQuery(`ALTER TABLE costo_general ADD COLUMN IF NOT EXISTS buffer_programacion_dias INTEGER NOT NULL DEFAULT 2`);
+    await pgQuery(`ALTER TABLE proceso_maquina ALTER COLUMN proceso_id DROP NOT NULL`);
+    await pgQuery(`
+        UPDATE proceso_maquina pm
+           SET proceso_key = p.process_key
+          FROM production_process_definitions p
+         WHERE p.id = pm.proceso_id AND (pm.proceso_key IS NULL OR pm.proceso_key = '')
+    `);
+}
+
 async function ensureFeriadosSchema() {
     await pgQuery(`ALTER TABLE dias_feriados ADD COLUMN IF NOT EXISTS personalizado BOOLEAN NOT NULL DEFAULT false`);
 }
@@ -23565,13 +23597,20 @@ function esFeriado(feriados, dateKey) {
 //   6. Turnos del calendario para ese día de semana
 //   7. Fallback: L–V, 07:00 + capacityMinutes del proceso
 //   (+ extraHoursPerDay del escenario se suma a la última franja)
+// Recursos programables — ÚNICA fuente: la tabla "Procesos del Cálculo" de Costos
+// (costo_proceso_defaults). Solo entran los procesos activos con el check "Activo
+// en Gantt". Las máquinas se ligan al proceso por proceso_key; el horario es el de
+// la máquina si tiene, si no el del proceso. Un proceso sin máquinas es un recurso
+// de personas: trabaja tantas órdenes a la vez como personas disponibles alcancen
+// para lo que pide cada orden (cantidad_personas del catálogo de cálculo).
 const SQL_RECURSOS_CADENA = `
     SELECT pm.id::text AS id,
            m.nombre AS resource_code,
            m.nombre AS resource_name,
            'machine' AS resource_type,
-           p.process_key,
-           p.process_name,
+           c.proceso_key AS process_key,
+           c.etiqueta AS process_name,
+           c.orden AS process_order,
            m.id AS maquina_id,
            (SELECT mp.id FROM production_machine_profiles mp
              WHERE mp.machine_id = m.id AND mp.is_active = TRUE
@@ -23579,34 +23618,123 @@ const SQL_RECURSOS_CADENA = `
            (SELECT mp.oee_target FROM production_machine_profiles mp
              WHERE mp.machine_id = m.id AND mp.is_active = TRUE
              ORDER BY mp.updated_at DESC LIMIT 1) AS oee_target,
-           pm.calendario_id AS calendar_id
+           COALESCE(pm.calendario_id, c.calendario_id) AS calendar_id,
+           1 AS capacity_units
     FROM proceso_maquina pm
     JOIN maquina m ON m.id = pm.maquina_id
-    JOIN production_process_definitions p ON p.id = pm.proceso_id
-    WHERE p.is_active = TRUE
+    JOIN costo_proceso_defaults c ON c.proceso_key = pm.proceso_key
+    WHERE c.activo = TRUE AND c.gantt_habilitado = TRUE AND COALESCE(m.activa, TRUE) = TRUE
     UNION ALL
-    SELECT 'proceso:' || p.id::text AS id,
-           p.process_name AS resource_code,
-           p.process_name AS resource_name,
+    SELECT 'proceso:' || c.proceso_key AS id,
+           c.etiqueta AS resource_code,
+           c.etiqueta AS resource_name,
            'process' AS resource_type,
-           p.process_key,
-           p.process_name,
+           c.proceso_key AS process_key,
+           c.etiqueta AS process_name,
+           c.orden AS process_order,
            NULL::uuid AS maquina_id,
            NULL::uuid AS machine_profile_id,
            NULL::numeric AS oee_target,
-           p.calendario_id AS calendar_id
-    FROM production_process_definitions p
-    WHERE p.is_active = TRUE
-      AND NOT EXISTS (SELECT 1 FROM proceso_maquina pm WHERE pm.proceso_id = p.id)
+           c.calendario_id AS calendar_id,
+           GREATEST(1, FLOOR(
+               COALESCE(c.personas_disponibles, 1)::numeric
+               / GREATEST(1, COALESCE((SELECT MAX(pc.cantidad_personas) FROM proceso_catalogo pc
+                                        WHERE LOWER(pc.categoria) = c.proceso_key AND pc.activo IS NOT FALSE), 1))
+           ))::int AS capacity_units
+    FROM costo_proceso_defaults c
+    WHERE c.activo = TRUE AND c.gantt_habilitado = TRUE
+      AND NOT EXISTS (SELECT 1 FROM proceso_maquina pm WHERE pm.proceso_key = c.proceso_key)
 `;
+
+// Procesos que se programan (check "Activo en Gantt"), en el orden de Costos.
+async function cargarProcesosProgramables() {
+    const { rows } = await pgQuery(`
+        SELECT proceso_key, etiqueta, orden, calendario_id, proceso_paralelo, color_gantt
+          FROM costo_proceso_defaults
+         WHERE activo = TRUE AND gantt_habilitado = TRUE
+         ORDER BY orden, etiqueta
+    `);
+    return rows.map((row) => ({ ...row, clave: canonicalProductionFlowKey(row.proceso_key) }));
+}
+
+// ── Mantenimiento de máquinas (inventario → Calendario de mantenimientos) ──
+// Misma regla que la pantalla (catalogo.js → mantCalcularOcurrencias): semanal o
+// bisemanal desde fecha_inicio en su día; mensual = n-ésimo día de la semana del mes
+// (5 = el último). Las excepciones desactivan o mueven una fecha puntual.
+// El mantenimiento arranca al inicio del turno de ese día y dura duracion_horas.
+function mantenimientoFechasPlan(plan, excepciones, desde, hasta) {
+    const inicio = capacityDateKey(plan.fecha_inicio);
+    if (!inicio) return new Set();
+    const fin = plan.fecha_fin ? capacityDateKey(plan.fecha_fin) : null;
+    const limite = fin && fin < hasta ? fin : hasta;
+    const jsDay = Number(plan.dia_semana) === 7 ? 0 : (Number(plan.dia_semana) || 1);
+    const fechas = new Set();
+    const utc = (k) => new Date(`${k}T00:00:00.000Z`);
+    const clave = (d) => d.toISOString().slice(0, 10);
+    if (plan.frecuencia === 'mensual') {
+        const semana = Number(plan.semana_mes) || 1;
+        const d0 = utc(inicio);
+        for (let y = d0.getUTCFullYear(), m = d0.getUTCMonth(), g = 0; g < 600; g += 1) {
+            let d;
+            if (semana === 5) {
+                d = new Date(Date.UTC(y, m + 1, 0));
+                d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() - jsDay + 7) % 7));
+            } else {
+                d = new Date(Date.UTC(y, m, 1));
+                d.setUTCDate(d.getUTCDate() + ((jsDay - d.getUTCDay() + 7) % 7) + (semana - 1) * 7);
+                if (d.getUTCMonth() !== m) d = null;
+            }
+            if (d) {
+                const k = clave(d);
+                if (k > limite) break;
+                if (k >= inicio) fechas.add(k);
+            }
+            m += 1; if (m > 11) { m = 0; y += 1; }
+            if (clave(new Date(Date.UTC(y, m, 1))) > limite) break;
+        }
+    } else {
+        const paso = plan.frecuencia === 'bisemanal' ? 14 : 7;
+        const d = utc(inicio);
+        d.setUTCDate(d.getUTCDate() + ((jsDay - d.getUTCDay() + 7) % 7));
+        for (let g = 0; g < 2000 && clave(d) <= limite; g += 1) {
+            fechas.add(clave(d));
+            d.setUTCDate(d.getUTCDate() + paso);
+        }
+    }
+    (excepciones || []).forEach((e) => {
+        const original = capacityDateKey(e.fecha_original);
+        if (!fechas.has(original)) return;
+        fechas.delete(original);
+        if (e.tipo === 'mover' && e.fecha_nueva) fechas.add(capacityDateKey(e.fecha_nueva));
+    });
+    return new Set([...fechas].filter((k) => k >= desde && k <= hasta));
+}
+
+// Map maquina_id → { fechas:Set<YYYY-MM-DD>, horas } para el rango pedido.
+async function cargarMantenimientos(desde, hasta) {
+    const [planes, excepciones] = await Promise.all([
+        pgQuery(`SELECT maquina_id::text, frecuencia, dia_semana, semana_mes, fecha_inicio, fecha_fin, duracion_horas
+                   FROM maquina_mantenimiento WHERE activo = TRUE`),
+        pgQuery(`SELECT maquina_id::text, fecha_original, tipo, fecha_nueva FROM maquina_mantenimiento_excepcion`)
+    ]);
+    const mapa = new Map();
+    for (const plan of planes.rows) {
+        const excs = excepciones.rows.filter((e) => e.maquina_id === plan.maquina_id);
+        mapa.set(plan.maquina_id, {
+            fechas: mantenimientoFechasPlan(plan, excs, desde, hasta),
+            horas: Math.max(0, Number(plan.duracion_horas || 0))
+        });
+    }
+    return mapa;
+}
+
 
 function disponibilidadRecursoEnDia(recurso, dateKey, contexto = {}) {
     const {
         turnosPorCalendario = new Map(),
         excepcionesPorCalendario = new Map(),
         feriados = null,
-        costsConfig = {},
-        procesoClave = ''
+        mantenimientos = null
     } = contexto;
 
     if (esFeriado(feriados, dateKey)) return [];
@@ -23649,11 +23777,16 @@ function disponibilidadRecursoEnDia(recurso, dateKey, contexto = {}) {
             .map((shift) => ({ startHour: Number(shift.start_hour), endHour: Number(shift.end_hour) }));
     }
 
-    if (!intervals.length && day >= 1 && day <= 5) {
-        const processDefault = procesoClave ? findCostProcessDefault(costsConfig, procesoClave) : null;
-        const capacityMin = Number(processDefault?.capacityMinutes || 480);
-        const hoursFromDefault = Math.max(1, capacityMin / 60);
-        intervals = [{ startHour: 7, endHour: Math.min(24, 7 + hoursFromDefault) }];
+    // Sin horario no hay disponibilidad: el recurso no se programa y se avisa
+    // (ya no se inventa un turno de lunes a viernes de 7:00 a 15:00).
+
+    // Mantenimiento de la máquina: ocupa el inicio del turno de ese día.
+    const mant = recurso.maquinaId && mantenimientos ? mantenimientos.get(String(recurso.maquinaId)) : null;
+    if (mant && mant.horas > 0 && mant.fechas.has(dateKey) && intervals.length) {
+        intervals = intervals.slice().sort((a, b) => a.startHour - b.startHour);
+        const mantFin = intervals[0].startHour + mant.horas;
+        intervals = intervals
+            .map((it) => ({ startHour: Math.max(it.startHour, Math.min(it.endHour, mantFin)), endHour: it.endHour }));
     }
 
     const extraHours = Math.max(0, Number(adjustment.extraHoursPerDay || 0));
@@ -23776,7 +23909,6 @@ async function recalcularCompromisos(codigoOrden) {
         pgQuery(`SELECT * FROM resource_calendar_exceptions WHERE is_active = TRUE`),
         pgQuery(SQL_RECURSOS_CADENA)
     ]);
-    const costsConfig = await loadCostsConfig();
     const turnosPorCalendario = new Map();
     (shiftsRes.rows || []).forEach((row) => {
         const k = String(row.calendar_id);
@@ -23808,7 +23940,8 @@ async function recalcularCompromisos(codigoOrden) {
         : String(anclaFecha).slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(anclaISO)) return { ok: false, motivo: 'fecha-entrega-invalida' };
     const anclaBase = restarDiasHabiles(new Date(`${anclaISO}T22:00:00.000Z`), plan.dias_buffer_entrega, feriados);
-    const contextoBase = { turnosPorCalendario, excepcionesPorCalendario, feriados, costsConfig };
+    const mantenimientos = await cargarMantenimientos(capacityAddDays(anclaISO, -400), anclaISO);
+    const contextoBase = { turnosPorCalendario, excepcionesPorCalendario, feriados, mantenimientos };
 
     let finSiguiente = anclaBase;
     const updates = [];
@@ -23818,8 +23951,8 @@ async function recalcularCompromisos(codigoOrden) {
         const calId = p.maquina_id
             ? (calPorProcesoMaquina.get(`${claveProceso}|${p.maquina_id}`) || null)
             : (calPorProceso.get(claveProceso) || null);
-        const recurso = { scenarioAdjustment: {}, calendarId: calId };
-        const ctx = { ...contextoBase, procesoClave: p.clave_proceso };
+        const recurso = { scenarioAdjustment: {}, calendarId: calId, maquinaId: p.maquina_id ? String(p.maquina_id) : '' };
+        const ctx = contextoBase;
         const finCompromiso = new Date(finSiguiente.getTime() - Math.max(0, Number(p.transicion_min || 0)) * 60000);
         const inicioCompromiso = restarHorasDisponibles(recurso, finCompromiso, Number(p.duracion_horas || 0), ctx) || finCompromiso;
         updates.push({ id: p.id, ini: inicioCompromiso, fin: finCompromiso });
@@ -24054,8 +24187,10 @@ async function runFiniteCapacityEngine(options = {}) {
     const horizonDate = capacityAddDays(fromDate, horizonDays - 1);
     const schedulingLimitDate = capacityAddDays(fromDate, Math.max(horizonDays, 365));
     const fromInstant = capacityDateAtHour(fromDate, 0);
-    const costsConfig = await loadCostsConfig();
     const feriados = await cargarFeriados();
+    const procesosProgramables = await cargarProcesosProgramables();
+    const ordenProceso = new Map(procesosProgramables.map((p) => [p.clave, Number(p.orden || 0)]));
+    const mantenimientos = await cargarMantenimientos(fromDate, schedulingLimitDate);
 
     const [routesRes, resourcesRes, calendarsRes, shiftsRes, exceptionsRes] = await Promise.all([
         pgQuery(`
@@ -24116,7 +24251,9 @@ async function runFiniteCapacityEngine(options = {}) {
         pgQuery(`SELECT * FROM resource_calendar_exceptions WHERE is_active = TRUE AND exception_date BETWEEN $1 AND $2`, [fromDate, schedulingLimitDate])
     ]);
 
-    const routes = routesRes.rows || [];
+    // Solo se programan los procesos con el check "Activo en Gantt" (Costos); el
+    // resto de la ruta (diseño, preprensa, aprobaciones…) no ocupa recursos aquí.
+    const routes = (routesRes.rows || []).filter((route) => ordenProceso.has(canonicalProductionFlowKey(route.process_key)));
     // El Gantt (gantt-agrupado) identifica cada ruta por el id VIEJO cuando la orden
     // viene migrada (datos_extra.migrado_de_route_id), para que /gantt/mover siguiera
     // funcionando con enlaces guardados de antes de la consolidación. Este motor arma
@@ -24161,7 +24298,7 @@ async function runFiniteCapacityEngine(options = {}) {
             || adjustmentByResource.get(normalizePlanningKey(row.resource_code))
             || adjustmentByResource.get(normalizePlanningKey(row.resource_name))
             || {};
-        const baseUnits = 1;
+        const baseUnits = Math.max(1, Number(row.capacity_units || 1));
         const capacityUnits = Math.max(0.1, Number(adjustment.capacityUnits ?? adjustment.units ?? baseUnits));
         const efficiencyFactor = Math.max(0.1, Math.min(1.5, Number(adjustment.efficiencyFactor ?? row.oee_target ?? 1)));
         const calendar = calendarById.get(String(row.calendar_id || '')) || null;
@@ -24224,10 +24361,12 @@ async function runFiniteCapacityEngine(options = {}) {
         });
     });
 
+    // Nada se programa en el pasado: si el horizonte empieza hoy, se arranca desde ahora.
+    const arranque = new Date(Math.max(fromInstant.getTime(), Date.now()));
     resources.forEach((resource) => {
         resource.lanes = Array.from({ length: resource.laneCount }, (_, index) => ({
             index,
-            availableAt: new Date(fromInstant)
+            availableAt: new Date(arranque)
         }));
     });
 
@@ -24239,8 +24378,7 @@ async function runFiniteCapacityEngine(options = {}) {
             turnosPorCalendario: shiftsByCalendar,
             excepcionesPorCalendario: exceptionsByCalendar,
             feriados,
-            costsConfig,
-            procesoClave: processKey
+            mantenimientos
         });
     }
 
@@ -24338,7 +24476,9 @@ async function runFiniteCapacityEngine(options = {}) {
     const routeSchedules = new Map();
     const orderSummaries = [];
     for (const orderRoutes of orderGroups) {
-        orderRoutes.sort((a, b) => Number(a.sequence_order || 0) - Number(b.sequence_order || 0));
+        orderRoutes.sort((a, b) =>
+            (ordenProceso.get(canonicalProductionFlowKey(a.process_key)) ?? 9999) - (ordenProceso.get(canonicalProductionFlowKey(b.process_key)) ?? 9999)
+            || Number(a.sequence_order || 0) - Number(b.sequence_order || 0));
         let previousEnd = new Date(fromInstant);
         const orderSummary = {
             orderCode: orderRoutes[0]?.order_code || '',
@@ -36143,9 +36283,38 @@ app.get('/api/inventario/troqueles/:codigo', async (req, res) => {
     }
 });
 
+// Procesos de Costos para elegir el "Proceso Principal" de una máquina.
+app.get('/api/costos/procesos-lista', async (req, res) => {
+    try {
+        const { rows } = await pgQuery(`SELECT proceso_key, etiqueta, gantt_habilitado FROM costo_proceso_defaults WHERE activo = TRUE ORDER BY orden`);
+        res.json({ ok: true, data: rows });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar los procesos.' });
+    }
+});
+
+// El "Proceso Principal" de la máquina la liga a ese proceso de Costos para la
+// programación (misma tabla proceso_maquina que usa Costos → Editar proceso).
+async function ligarMaquinaAProcesoPrincipal(maquinaId, procesoTexto) {
+    const clave = normalizePlanningKey(procesoTexto).replace(/-/g, '_');
+    if (!maquinaId || !clave) return;
+    const { rows } = await pgQuery(`SELECT proceso_key FROM costo_proceso_defaults WHERE proceso_key = $1 LIMIT 1`, [clave]);
+    if (!rows.length) return;
+    await pgQuery(`
+        INSERT INTO proceso_maquina (proceso_key, maquina_id)
+        SELECT $1, $2::uuid
+         WHERE NOT EXISTS (SELECT 1 FROM proceso_maquina WHERE proceso_key = $1 AND maquina_id = $2::uuid)
+    `, [clave, maquinaId]);
+    invalidateFiniteCapacityCache();
+}
+
 app.post('/api/inventario/:kind', async (req, res) => {
     try {
         const id = await saveInventory(req.params.kind, req.body || {});
+        if (req.params.kind === 'maquinas') {
+            const principal = (Array.isArray(req.body?.capacidades) ? req.body.capacidades : []).find((c) => c && c.activa !== false) || {};
+            await ligarMaquinaAProcesoPrincipal(id, principal.proceso).catch((e) => console.warn('[programacion] No se pudo ligar la máquina a su proceso:', e.message));
+        }
         const items = await listInventory(req.params.kind, { limit: 5000 });
         const record = items.find((item) => item.id === id) || null;
         res.json({ ok: true, id, item: record });
