@@ -3182,8 +3182,7 @@ function normalizeCostsConfigRecord(config) {
                 // Programación: sin estos campos, guardar Costos borraba el horario del proceso.
                 colorGantt: String(row?.colorGantt || fallback.colorGantt || '#378ADD'),
                 procesoParalelo: row?.procesoParalelo === true || String(row?.procesoParalelo || '').trim().toLowerCase() === 'true',
-                calendarioId: row?.calendarioId ? String(row.calendarioId) : null,
-                personasDisponibles: Number(row?.personasDisponibles) > 0 ? Math.round(Number(row.personasDisponibles)) : null
+                calendarioId: row?.calendarioId ? String(row.calendarioId) : null
             };
         }).filter(Boolean);
         fallbackRows.forEach((item, index) => {
@@ -3204,8 +3203,7 @@ function normalizeCostsConfigRecord(config) {
                 capacityMinutes: Math.max(0, Number(item.capacityMinutes || 480)),
                 colorGantt: String(item.colorGantt || '#378ADD'),
                 procesoParalelo: Boolean(item.procesoParalelo),
-                calendarioId: item.calendarioId || null,
-                personasDisponibles: null
+                calendarioId: item.calendarioId || null
             });
         });
         return normalized
@@ -3458,8 +3456,7 @@ async function loadCostsConfig() {
                     capacityMinutes: p.capacidad_minutos,
                     colorGantt: p.color_gantt || '#378ADD',
                     procesoParalelo: Boolean(p.proceso_paralelo),
-                    calendarioId: p.calendario_id || null,
-                    personasDisponibles: p.personas_disponibles == null ? null : Number(p.personas_disponibles)
+                    calendarioId: p.calendario_id || null
                 }))
             },
             convencional: {
@@ -3746,8 +3743,8 @@ async function saveCostsConfig(config) {
         await client.query(`UPDATE costo_general SET buffer_programacion_dias = $2 WHERE tenant_id = $1`, [tenantId, gen.bufferProgramacionDias ?? 2]);
 
         await replaceRows('costo_proceso_defaults',
-            ['proceso_key', 'etiqueta', 'activo', 'crear_habilitado', 'bloqueado', 'repetible', 'gantt_habilitado', 'visible_boton_flotante', 'orden', 'costo_minimo', 'tiempo_buffer_minutos', 'capacidad_minutos', 'color_gantt', 'proceso_paralelo', 'calendario_id', 'personas_disponibles'],
-            gen.processDefaults.map((p) => [p.key, p.label, p.active, p.createEnabled, p.locked, p.repeatable, p.ganttEnabled, p.visibleBotonFlotante, p.order, p.minimumCost, p.timeBufferMinutes, p.capacityMinutes, p.colorGantt || '#378ADD', Boolean(p.procesoParalelo), p.calendarioId || null, p.personasDisponibles || null])
+            ['proceso_key', 'etiqueta', 'activo', 'crear_habilitado', 'bloqueado', 'repetible', 'gantt_habilitado', 'visible_boton_flotante', 'orden', 'costo_minimo', 'tiempo_buffer_minutos', 'capacidad_minutos', 'color_gantt', 'proceso_paralelo', 'calendario_id'],
+            gen.processDefaults.map((p) => [p.key, p.label, p.active, p.createEnabled, p.locked, p.repeatable, p.ganttEnabled, p.visibleBotonFlotante, p.order, p.minimumCost, p.timeBufferMinutes, p.capacityMinutes, p.colorGantt || '#378ADD', Boolean(p.procesoParalelo), p.calendarioId || null])
         );
 
         await replaceRows('costo_deposito_tinta',
@@ -23031,7 +23028,8 @@ app.put('/api/planificacion/recursos/:id/competencias', async (req, res) => {
 // Programación: la tabla de Costos es la fuente única de procesos. Las máquinas se
 // ligan al proceso por proceso_key (antes solo por el id de la tabla vieja).
 async function ensureProgramacionSchema() {
-    await pgQuery(`ALTER TABLE costo_proceso_defaults ADD COLUMN IF NOT EXISTS personas_disponibles INTEGER`);
+    // Las personas vienen de la orden (del cálculo), no de un valor fijo en Costos.
+    await pgQuery(`ALTER TABLE costo_proceso_defaults DROP COLUMN IF EXISTS personas_disponibles`);
     await pgQuery(`ALTER TABLE costo_general ADD COLUMN IF NOT EXISTS buffer_programacion_dias INTEGER NOT NULL DEFAULT 2`);
     // Personas de Empaque: viven en la orden (empaque_operarios; la vigente la corrige
     // producción). Si falta, se trae del cálculo; y al producto, de su orden o cálculo.
@@ -23685,8 +23683,8 @@ function esFeriado(feriados, dateKey) {
 // (costo_proceso_defaults). Solo entran los procesos activos con el check "Activo
 // en Gantt". Las máquinas se ligan al proceso por proceso_key; el horario es el de
 // la máquina si tiene, si no el del proceso. Un proceso sin máquinas es un recurso
-// de personas: trabaja tantas órdenes a la vez como personas disponibles alcancen
-// para lo que pide cada orden (empaque_operarios de la orden).
+// estación de la línea (p. ej. Empaque): trabaja una orden a la vez, con las
+// personas que indica la orden (empaque_operarios, que viene del cálculo).
 const SQL_RECURSOS_CADENA = `
     SELECT pm.id::text AS id,
            m.nombre AS resource_code,
@@ -23720,8 +23718,8 @@ const SQL_RECURSOS_CADENA = `
            NULL::uuid AS machine_profile_id,
            NULL::numeric AS oee_target,
            c.calendario_id AS calendar_id,
-           -- Cada persona disponible es un carril; cada orden ocupa las que pide.
-           COALESCE(c.personas_disponibles, 0) AS capacity_units
+           -- Estación de la línea (p. ej. Empaque): una orden a la vez.
+           1 AS capacity_units
     FROM costo_proceso_defaults c
     WHERE c.activo = TRUE AND c.gantt_habilitado = TRUE
       AND NOT EXISTS (SELECT 1 FROM proceso_maquina pm WHERE pm.proceso_key = c.proceso_key)
@@ -24345,11 +24343,6 @@ async function runFiniteCapacityEngine(options = {}) {
     const ordenProceso = new Map(procesosProgramables.map((p) => [p.clave, Number(p.orden || 0)]));
     const mantenimientos = await cargarMantenimientos(fromDate, schedulingLimitDate);
     const horasExtra = await cargarHorasExtra(fromDate, schedulingLimitDate);
-    // Personas que pide cada proceso según el catálogo del cálculo (solo si la orden no las trae).
-    const personasCatalogo = new Map((await pgQuery(`
-        SELECT LOWER(categoria) AS clave, MAX(cantidad_personas)::float AS personas
-          FROM proceso_catalogo WHERE activo IS NOT FALSE AND cantidad_personas > 0 GROUP BY 1
-    `).catch(() => ({ rows: [] }))).rows.map((r) => [r.clave, r.personas]));
     const bufferDefecto = await pgQuery(`SELECT buffer_programacion_dias FROM costo_general LIMIT 1`)
         .then((r) => Math.max(0, Number(r.rows[0]?.buffer_programacion_dias ?? 2)))
         .catch(() => 2);
@@ -24398,6 +24391,12 @@ async function runFiniteCapacityEngine(options = {}) {
                    opl.fecha_forzada::text AS fecha_forzada,
                    CASE WHEN r.clave_proceso = 'empaque'
                         THEN COALESCE(NULLIF(o.empaque_operarios_vigente, 0), NULLIF(o.empaque_operarios, 0)) END AS personas_orden,
+                   -- Duración del proceso: la calculó la orden (vigente si producción la corrigió).
+                   CASE r.clave_proceso
+                        WHEN 'impresion'  THEN COALESCE(NULLIF(o.tiempo_total_impresion_min_vigente, 0), NULLIF(o.tiempo_total_impresion_min, 0)) / 60.0
+                        WHEN 'rebobinado' THEN COALESCE(NULLIF(o.rebobinado_tiempo_total_min_vigente, 0), NULLIF(o.rebobinado_tiempo_total_min, 0)) / 60.0
+                        WHEN 'empaque'    THEN NULLIF(o.empaque_horas, 0)
+                   END AS horas_orden,
                    opl.fecha_forzada_por,
                    COALESCE(opl.fecha_comprometida_bloqueada, FALSE) AS bloqueo_suave,
                    opl.bloqueo_comprometido_por,
@@ -24445,7 +24444,9 @@ async function runFiniteCapacityEngine(options = {}) {
     }
     // Solo se programan los procesos con el check "Activo en Gantt" (Costos); el
     // resto de la ruta (diseño, preprensa, aprobaciones…) no ocupa recursos aquí.
-    const routes = (routesRes.rows || []).filter((route) => ordenProceso.has(canonicalProductionFlowKey(route.process_key)));
+    const routes = (routesRes.rows || [])
+        .filter((route) => ordenProceso.has(canonicalProductionFlowKey(route.process_key)))
+        .map((route) => ({ ...route, duration_hours: route.horas_orden == null ? null : Number(route.horas_orden) }));
     // El Gantt (gantt-agrupado) identifica cada ruta por el id VIEJO cuando la orden
     // viene migrada (datos_extra.migrado_de_route_id), para que /gantt/mover siguiera
     // funcionando con enlaces guardados de antes de la consolidación. Este motor arma
@@ -24490,7 +24491,6 @@ async function runFiniteCapacityEngine(options = {}) {
             || adjustmentByResource.get(normalizePlanningKey(row.resource_code))
             || adjustmentByResource.get(normalizePlanningKey(row.resource_name))
             || {};
-        const sinPersonas = row.resource_type === 'process' && !(Number(row.capacity_units) > 0);
         const baseUnits = Math.max(1, Number(row.capacity_units || 1));
         const capacityUnits = Math.max(0.1, Number(adjustment.capacityUnits ?? adjustment.units ?? baseUnits));
         const efficiencyFactor = Math.max(0.1, Math.min(1.5, Number(adjustment.efficiencyFactor ?? row.oee_target ?? 1)));
@@ -24511,8 +24511,6 @@ async function runFiniteCapacityEngine(options = {}) {
             calendarId: calendar?.id ? String(calendar.id) : '',
             calendar,
             sinHorario: !calendar,
-            sinPersonas,
-            porPersonas: row.resource_type === 'process',
             capacityUnits,
             efficiencyFactor,
             scenarioAdjustment: adjustment,
@@ -24642,42 +24640,6 @@ async function runFiniteCapacityEngine(options = {}) {
         });
     }
 
-    // Recurso de personas (p. ej. Empaque): cada persona es un carril; la orden
-    // necesita k personas libres a la vez durante todo el trabajo.
-    function personasDeRuta(resource, route) {
-        const k = Math.round(Number(route.personas_orden) || personasCatalogo.get(canonicalProductionFlowKey(route.process_key)) || 1);
-        return Math.max(1, Math.min(resource.lanes.length, k));
-    }
-
-    function scheduleEnPersonas(resource, earliestAt, durationHours, processKey, k, commit = false) {
-        let cursor = new Date(Math.max(resource.lanes[0].availableAt.getTime(), earliestAt.getTime()));
-        for (let intento = 0; intento < 2000; intento += 1) {
-            const plan = simulateLane(resource, cursor, durationHours, processKey);
-            if (!plan) return null;
-            const choca = (l) => l.busy.some((b) => b.start < plan.end && b.end > plan.start);
-            const libres = resource.lanes.filter((l) => !choca(l));
-            if (libres.length >= k) {
-                if (commit) {
-                    libres.slice(0, k).forEach((l) => l.busy.push({ start: new Date(plan.start), end: new Date(plan.end) }));
-                    resource.totalLoadHours += Number(durationHours || 0) * k;
-                    resource.routeCount += 1;
-                    plan.segments.forEach((segment) => {
-                        resource.dailyLoad[segment.date] = Number(resource.dailyLoad[segment.date] || 0) + Number(segment.hours || 0) * k;
-                    });
-                }
-                return { ...plan, laneIndex: libres[0].index, personas: k };
-            }
-            // Esperar a que se libere la primera persona ocupada en ese lapso.
-            const siguiente = resource.lanes
-                .flatMap((l) => l.busy.filter((b) => b.start < plan.end && b.end > plan.start && b.end > cursor))
-                .map((b) => b.end.getTime())
-                .sort((a, b) => a - b)[0];
-            if (!siguiente) return null;
-            cursor = new Date(siguiente);
-        }
-        return null;
-    }
-
     // Primer espacio libre del carril desde earliestAt donde el trabajo cabe entero
     // sin encimarse con lo ya ocupado (rellena huecos: la máquina no queda libre).
     function scheduleLane(resource, lane, earliestAt, durationHours, processKey, commit = false) {
@@ -24803,17 +24765,8 @@ async function runFiniteCapacityEngine(options = {}) {
                 plan = simulateLane(recurso, ahora, Math.max(0.01, Number(route.duration_hours || 0.01)), canonicalProductionFlowKey(route.process_key));
             }
             if (!plan) continue; // fecha ya vencida y sin estar en marcha: se reprograma normal
-            if (recurso.porPersonas) {
-                const k = personasDeRuta(recurso, route);
-                const libres = recurso.lanes.filter((l) => !l.busy.some((b) => b.start < plan.end && b.end > plan.start));
-                (libres.length >= k ? libres.slice(0, k) : recurso.lanes.slice(0, k))
-                    .forEach((l) => l.busy.push({ start: new Date(plan.start), end: new Date(plan.end) }));
-                recurso.totalLoadHours += Number(route.duration_hours || 0) * k;
-                recurso.routeCount += 1;
-            } else {
-                const carril = recurso.lanes.find((l) => !l.busy.some((b) => b.start < plan.end && b.end > plan.start)) || recurso.lanes[0];
-                commitLane(recurso, carril, plan, route.duration_hours);
-            }
+            const carril = recurso.lanes.find((l) => !l.busy.some((b) => b.start < plan.end && b.end > plan.start)) || recurso.lanes[0];
+            commitLane(recurso, carril, plan, route.duration_hours);
             recurso.assignedRouteIds.push(String(route.id));
             routeSchedules.set(String(route.id), baseSchedule(route, {
                 resourceId: recurso.id,
@@ -24902,6 +24855,17 @@ async function runFiniteCapacityEngine(options = {}) {
             }
             const processKey = canonicalProductionFlowKey(route.process_key);
             const durationHours = Math.max(0, Number(route.duration_hours || 0));
+            const faltaDato = !(Number(route.duration_hours) > 0)
+                ? 'tiempo del proceso'
+                : (processKey === 'empaque' && !(Number(route.personas_orden) > 0) ? 'personas de empaque' : null);
+            if (!chainBlocked && faltaDato) {
+                const sinDato = baseSchedule(route, { resourceId: null, resourceCode: '', resourceName: `Falta en la orden: ${faltaDato}`, machineName: `Falta en la orden: ${faltaDato}`, projectedStart: null, projectedEnd: null, status: 'missing-data', missingData: faltaDato });
+                routeSchedules.set(String(route.id), sinDato);
+                orderSummary.routes.push(sinDato);
+                orderSummary.missingData = faltaDato;
+                chainBlocked = true;
+                continue;
+            }
             if (chainBlocked) {
                 const bloqueada = baseSchedule(route, { resourceId: null, resourceCode: '', resourceName: 'Bloqueado por el proceso anterior', machineName: 'Bloqueado por el proceso anterior', projectedStart: null, projectedEnd: null, status: 'blocked-dependency' });
                 routeSchedules.set(String(route.id), bloqueada);
@@ -24911,12 +24875,6 @@ async function runFiniteCapacityEngine(options = {}) {
             const earliestAt = new Date(previousEnd);
             let best = null;
             for (const resource of candidateResources(route)) {
-                if (resource.porPersonas) {
-                    const k = personasDeRuta(resource, route);
-                    const preview = scheduleEnPersonas(resource, earliestAt, durationHours || 0.01, processKey, k, false);
-                    if (preview && (!best || preview.end < best.preview.end)) best = { resource, lane: null, preview, personas: k };
-                    continue;
-                }
                 for (const lane of lanesForProcess(resource, processKey)) {
                     const preview = scheduleLane(resource, lane, earliestAt, durationHours || 0.01, processKey, false);
                     if (!preview) continue;
@@ -24931,9 +24889,7 @@ async function runFiniteCapacityEngine(options = {}) {
                 continue;
             }
             const queueAheadHours = best.resource.totalLoadHours;
-            const committed = best.resource.porPersonas
-                ? scheduleEnPersonas(best.resource, earliestAt, durationHours || 0.01, processKey, best.personas, true)
-                : scheduleLane(best.resource, best.lane, earliestAt, durationHours || 0.01, processKey, true);
+            const committed = scheduleLane(best.resource, best.lane, earliestAt, durationHours || 0.01, processKey, true);
             best.resource.assignedRouteIds.push(String(route.id));
             const waitHours = Math.max(0, (committed.start - earliestAt) / 3600000);
             best.resource.totalWaitHours += waitHours;
@@ -24946,7 +24902,7 @@ async function runFiniteCapacityEngine(options = {}) {
                 sinHorario: best.resource.sinHorario,
                 machineName: best.resource.resourceName,
                 resourceType: best.resource.resourceType,
-                personas: best.personas || null,
+                personas: route.personas_orden == null ? null : Number(route.personas_orden),
                 projectedStart: committed.start.toISOString(),
                 projectedEnd: committed.end.toISOString(),
                 waitHours: capacityRound(waitHours, 2),
@@ -24972,7 +24928,8 @@ async function runFiniteCapacityEngine(options = {}) {
         const clienteKey = fechaClave(orderSummary.promisedDate);
         let estado = 'sin-fecha';
         let fechaEstimada = null;
-        if (chainBlocked) estado = 'sin-programar';
+        if (orderSummary.missingData) estado = 'falta-dato';
+        else if (chainBlocked) estado = 'sin-programar';
         else if (finKey && clienteKey) {
             if (finKey > clienteKey) {
                 // Tarde: se entrega el siguiente día laborable después de terminar.
@@ -25064,7 +25021,6 @@ async function runFiniteCapacityEngine(options = {}) {
         resources: resourceResults,
         orders: orderSummaries,
         bottlenecks,
-        sinPersonas: resources.filter((resource) => resource.sinPersonas).map((resource) => resource.processName || resource.processKey),
         sinHorario: resources
             .filter((resource) => resource.sinHorario && !String(resource.id).startsWith('scenario-'))
             .map((resource) => ({ proceso: resource.processName || resource.processKey, maquina: resource.maquinaId ? resource.resourceName : '' })),
@@ -25155,6 +25111,7 @@ async function construirVistaPreviaReprogramacion(opciones = {}) {
             fijaPor: fija.map((r) => r.fixedBy).find(Boolean) || null,
             estadoOrden: o.planningStatus || o.orderStatus || '',
             enAprobacion: o.waitingApproval || null,
+            faltaDato: o.missingData || null,
             procesoActual: actual.proceso || null,
             procesoActualEstado: actual.estado || null,
             rutas: o.routes.map((r) => ({
@@ -25189,7 +25146,7 @@ async function construirVistaPreviaReprogramacion(opciones = {}) {
         aTiempo: cuenta((o) => o.estado === 'a-tiempo'),
         nuevasTarde: cuenta((o) => o.estado === 'tarde' && o.estadoAntes !== 'tarde'),
         fijas: cuenta((o) => o.fija),
-        sinPersonas: engine.sinPersonas || [],
+        faltaDato: cuenta((o) => o.estado === 'falta-dato'),
         enAprobacion: cuenta((o) => o.movimiento === 'en-aprobacion'),
         sinHorario: engine.sinHorario
     };
@@ -25270,10 +25227,11 @@ app.post('/api/planificacion/reprogramar/aplicar', async (req, res) => {
                 UPDATE orden_proceso
                    SET fecha_plan_inicio = $2::timestamptz, fecha_plan_fin = $3::timestamptz,
                        maquina_id = COALESCE($4::uuid, maquina_id),
+                       duracion_horas = COALESCE($5::numeric, duracion_horas),
                        datos_extra = COALESCE(datos_extra, '{}'::jsonb) || jsonb_build_object('scheduleMode', 'reprogramador'),
                        actualizado_en = NOW()
                  WHERE id = $1::uuid
-            `, [r.routeId, r.inicio, r.fin, maquinaPorRecurso.get(r.recurso) || null]);
+            `, [r.routeId, r.inicio, r.fin, maquinaPorRecurso.get(r.recurso) || null, r.horas > 0 ? r.horas : null]);
         }
         for (const o of vista.ordenes) {
             await pgQuery(`

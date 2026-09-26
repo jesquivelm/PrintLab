@@ -577,8 +577,7 @@ function normalizeProcessDefaults(value) {
             // Programación: se conservan al guardar (antes se perdían el horario y el color).
             colorGantt: row?.colorGantt || "#378ADD",
             procesoParalelo: booleanValue(row?.procesoParalelo, false),
-            calendarioId: row?.calendarioId || null,
-            personasDisponibles: numberValue(row?.personasDisponibles, 0) > 0 ? Math.round(numberValue(row.personasDisponibles, 0)) : null
+            calendarioId: row?.calendarioId || null
         };
     }).filter(Boolean);
     PROCESS_DEFAULTS.forEach((item, index) => {
@@ -3013,11 +3012,6 @@ window.openEditarProcesoModal = function(index) {
                     </select>
                 </div>
 
-                <div class="costs-modal-field">
-                    <label for="modal-proc-personas" style="font-size:12px;font-weight:600;color:var(--app-text-muted,#60707f);display:block;margin-bottom:4px;" title="Para procesos que hacen personas (sin máquina, p. ej. Empaque). Cada orden ocupa las personas que indica el catálogo del cálculo; con esto se sabe cuántas órdenes se trabajan a la vez.">Personas disponibles (procesos sin máquina)</label>
-                    <input type="number" id="modal-proc-personas" min="1" step="1" value="${escapeHtml(row.personasDisponibles || "")}" placeholder="${asignadas.length ? "No aplica: tiene máquina" : "Ej. 4"}"${asignadas.length ? " disabled" : ""} style="width:100%;height:40px;border-radius:12px;padding:0 12px;border:1px solid #cfd8df;background:var(--app-surface,#ffffff);color:var(--app-text,#0f172a);font-size:13px;">
-                </div>
-
                 <div class="costs-modal-field" style="border-top:1px solid var(--app-border,#e2e8f0);padding-top:14px;">
                     <label style="font-size:12px;font-weight:600;color:var(--app-text-muted,#60707f);display:block;margin-bottom:8px;">Máquinas Asignadas al Proceso</label>
                     ${!asignadas.length ? '<div style="font-size:12px;color:var(--app-text-muted,#64748b);padding:10px;background:var(--app-surface-soft,#f8fafc);border-radius:10px;border:1px dashed var(--app-border,#cbd5e1);">Sin máquinas asignadas actualmente.</div>' : `
@@ -3071,8 +3065,6 @@ window.guardarEditarProcesoModal = function(index) {
     const paraleloVal = Boolean(document.getElementById("modal-proc-paralelo")?.checked);
     const ganttVal = Boolean(document.getElementById("modal-proc-gantt")?.checked);
     const calendarioVal = document.getElementById("modal-proc-calendario")?.value || null;
-    const personasEl = document.getElementById("modal-proc-personas");
-    const personasVal = personasEl && !personasEl.disabled ? Math.round(Number(personasEl.value || 0)) : 0;
 
     if (labelVal) row.label = labelVal;
     if (orderVal > 0) row.order = orderVal;
@@ -3080,7 +3072,6 @@ window.guardarEditarProcesoModal = function(index) {
     row.procesoParalelo = paraleloVal;
     row.ganttEnabled = ganttVal;
     row.calendarioId = calendarioVal;
-    if (personasEl && !personasEl.disabled) row.personasDisponibles = personasVal > 0 ? personasVal : null;
 
     closeEditarProcesoModal();
     syncProcessDefaultOrders();

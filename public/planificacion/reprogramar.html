@@ -97,7 +97,7 @@ details summary{cursor:pointer;font-weight:700;margin-bottom:8px}
 <div class="tt" id="tt"></div>
 <script>
 const API='/api/planificacion/reprogramar';
-const ESTADO={ 'tarde':['b-tarde','⏰ Tarde'], 'sin-colchon':['b-sin-colchon','⚠ Sin colchón'], 'a-tiempo':['b-a-tiempo','✓ A tiempo'], 'en-aprobacion':['b-neutral','⏳ En aprobación'], 'sin-programar':['b-neutral','— Sin horario'], 'sin-fecha':['b-neutral','Sin fecha del cliente'] };
+const ESTADO={ 'tarde':['b-tarde','⏰ Tarde'], 'sin-colchon':['b-sin-colchon','⚠ Sin colchón'], 'a-tiempo':['b-a-tiempo','✓ A tiempo'], 'en-aprobacion':['b-neutral','⏳ En aprobación'], 'sin-programar':['b-neutral','— Sin horario'], 'sin-fecha':['b-neutral','Sin fecha del cliente'], 'falta-dato':['b-sin-colchon','⚠ Falta dato del cálculo'] };
 const MOTIVO={ 'bloqueo-suave':'Bloqueo suave', 'movida-a-mano':'Movida a mano en el Gantt', 'en-marcha':'En marcha', 'mantenida':'La mantuviste como está' };
 const PRIORIDAD={ forzada:'📌 Fecha forzada', urgente:'Urgente', clase_a:'Clase A', normal:'Regular' };
 const ESTADO_ORDEN={ PENDIENTE_VENTAS:'Pendiente de Ventas', PENDIENTE_PLANIFICACION:'Pendiente de Planeación', EN_GANTT:'Programada', EN_PRODUCCION:'En producción', COMPLETADA:'Completada' };
@@ -143,7 +143,7 @@ function pintar(){
   const sinHorario=(r.sinHorario||[]);
   document.getElementById('contenido').innerHTML=`
     <div class="tiles">${tiles}</div>
-    ${(r.sinPersonas||[]).length?`<div class="card" style="border-color:var(--warn)"><b style="color:var(--warn)">⚠ Sin personas disponibles: ${r.sinPersonas.map(esc).join(', ')}</b><div class="hint">Se programa una orden a la vez. Indica cuántas personas trabajan en Costos → Procesos del Cálculo → Editar.</div></div>`:''}
+    ${(r.faltaDato||0)?`<div class="card" style="border-color:var(--warn)"><b style="color:var(--warn)">⚠ ${r.faltaDato} órdenes sin programar: les falta un dato del cálculo</b><div class="hint">${o.filter(x=>x.faltaDato).map(x=>`<b>${esc(x.orderCode)}</b> (${esc(x.faltaDato)})`).join(', ')}. El tiempo y las personas vienen del cálculo de la orden; corrígelo ahí.</div></div>`:''}
     ${sinHorario.length?`<div class="card" style="border-color:var(--crit)"><b style="color:var(--crit)">⚠ Procesos sin horario</b><div class="hint">No se pueden programar hasta que tengan horario: ${sinHorario.map(s=>esc(s.proceso+(s.maquina?' · '+s.maquina:''))).join(', ')}.</div></div>`:''}
     <div class="card">
       <h2>Antes y después</h2>
