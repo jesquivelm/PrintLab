@@ -22429,12 +22429,28 @@ app.get('/api/planificacion/gantt/horarios', async (req, res) => {
             for (let dk = desde; dk <= hasta; dk = capacityAddDays(dk, 1)) {
                 const franjas = disponibilidadRecursoEnDia(recurso, dk, contexto);
                 const dia = { fecha: dk, franjas: franjas.map((f) => [capacityDateAtHour(dk, f.startHour).toISOString(), capacityDateAtHour(dk, f.endHour).toISOString()]) };
+                const dow = new Date(`${dk}T00:00:00.000Z`).getUTCDay();
+                const excepcion = recurso.calendarId ? excepcionesPorCalendario.get(recurso.calendarId)?.get(dk) : null;
+                const esFer = esFeriado(feriados, dk);
+                const turnoRegular = !esFer && !(excepcion && excepcion.override_start_hour == null)
+                    && (turnosPorCalendario.get(recurso.calendarId) || []).some((t) => Number(t.day_of_week) === dow && t.valid_from <= dk && (!t.valid_to || t.valid_to >= dk));
+                const extra = horasExtraDelDia(recurso, dk, horasExtra);
+                if (extra > 0) dia.horasExtra = extra;
+                if (esFer) dia.feriado = feriadoNombre(dk) || 'Feriado';
                 if (!franjas.length) {
-                    const excepcion = recurso.calendarId ? excepcionesPorCalendario.get(recurso.calendarId)?.get(dk) : null;
-                    if (esFeriado(feriados, dk)) dia.motivo = `feriado${feriadoNombre(dk) ? ` (${feriadoNombre(dk)})` : ''}`;
+                    // Cerrado: se pinta en rojo en el Gantt.
+                    dia.tipo = 'cerrado';
+                    if (esFer) dia.motivo = `feriado${feriadoNombre(dk) ? ` (${feriadoNombre(dk)})` : ''}`;
                     else if (excepcion) dia.motivo = excepcion.description || 'día cerrado en el calendario';
                     else if (!recurso.calendarId) dia.motivo = 'sin horario';
-                    else dia.motivo = new Date(`${dk}T00:00:00.000Z`).getUTCDay() === 0 ? 'domingo' : 'sin turno ese día';
+                    else dia.motivo = dow === 0 ? 'domingo' : 'sin turno ese día';
+                } else if (!turnoRegular) {
+                    // Día normalmente cerrado (feriado, domingo, sin turno) que se trabaja
+                    // por horas extra: se marca como permitido.
+                    dia.tipo = 'permitido';
+                    dia.motivo = `${esFer ? `feriado${feriadoNombre(dk) ? ` (${feriadoNombre(dk)})` : ''}` : dow === 0 ? 'domingo' : 'día sin turno'} con horas extra`;
+                } else {
+                    dia.tipo = 'normal';
                 }
                 const mant = recurso.maquinaId ? mantenimientos.get(recurso.maquinaId) : null;
                 if (mant && mant.horas > 0 && mant.fechas.has(dk)) dia.mantenimiento = mant.horas;

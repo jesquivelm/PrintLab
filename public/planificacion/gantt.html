@@ -54,7 +54,7 @@ body{font-family:system-ui,sans-serif;font-size:14px;color:#1a1a1a;background:#f
 .day-hdr-item{padding:6px 4px 4px;font-size:11px;font-weight:600;color:#445;border-right:1px solid #d8e0e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
 .time-hdr{display:flex;flex:1}
 .t-slot{flex:1;min-width:52px;padding:6px 4px;text-align:center;font-size:10px;color:#aaa;border-right:1px solid #e2e8f0}
-.g-row{display:flex;border-bottom:1px solid #d8e4ef;min-height:72px;align-items:stretch;position:relative;background:#fff}
+.g-row{display:flex;border-bottom:1px solid #d8e4ef;min-height:100px;align-items:stretch;position:relative;background:#fff}
 .g-row:hover{background:#f7fbff}
 .g-row.drag-over .timeline{outline:2px dashed #378ADD;outline-offset:-2px;background:rgba(55,138,221,0.04)}
 .res-lbl{width:190px;min-width:190px;padding:8px 12px;border-right:1px solid #d8e4ef;flex-shrink:0;display:flex;flex-direction:column;justify-content:center;gap:3px}
@@ -70,7 +70,7 @@ html[data-theme="dark"] .aviso-sin-horario{color:#fcd34d;background:rgba(146,64,
 .proceso-hdr-timeline{flex:1;padding:4px 10px;font-size:10px;color:#aaa;display:flex;align-items:center;gap:8px;justify-content:space-between}
 .proceso-empty-note{color:#bbb;font-size:10px}
 .proceso-toggle{font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #c4d4e4;background:#fff;color:#666;cursor:pointer}
-.timeline{flex:1;position:relative;display:flex;align-items:center;min-height:72px}
+.timeline{flex:1;position:relative;display:flex;align-items:center;min-height:100px;padding-top:12px}
 .grid-ln{position:absolute;top:0;bottom:0;width:1px;background:rgba(0,0,0,.08)}
 .day-sep{position:absolute;top:0;bottom:0;width:2px;background:rgba(0,0,0,.12);pointer-events:none;z-index:2}
 .now-line{position:absolute;top:0;bottom:0;width:1px;background:rgba(226,75,74,.55);z-index:60;pointer-events:none}
@@ -78,12 +78,12 @@ html[data-theme="dark"] .aviso-sin-horario{color:#fcd34d;background:rgba(146,64,
 /* ── TASK BARS (mejoradas) ── */
 .task-bar{
   position:absolute;
-  height:56px;
+  height:70px;
   border-radius:8px;
   display:flex;
   flex-direction:column;
   justify-content:center;
-  padding:0 28px 0 10px;
+  padding:0 10px;
   cursor:grab;
   border:2px solid transparent;
   overflow:hidden;
@@ -105,6 +105,18 @@ html[data-theme="dark"] .aviso-sin-horario{color:#fcd34d;background:rgba(146,64,
 .task-bar.partida.conflict-machine{outline:none;animation:none}
 .task-bar.partida.conflict-machine .task-tramo{border-color:#E24B4A!important}
 .task-bar.partida .task-lbl,.task-bar.partida .task-cliente,.task-bar.partida .task-sub{transform:none}
+/* Horario de cada máquina en su fila: fuera de turno sombreado; días cerrados (fin de
+   semana, feriado sin turno) en rojo; días normalmente cerrados que se trabajan con horas
+   extra, en verde como "permitido". */
+.fondo-dia{position:absolute;top:0;bottom:0;pointer-events:none;z-index:0}
+.fuera-turno{background:repeating-linear-gradient(135deg,rgba(100,116,139,.06) 0 6px,rgba(100,116,139,.12) 6px 12px)}
+.dia-cerrado{background:rgba(226,75,74,.11);box-shadow:inset 2px 0 0 rgba(226,75,74,.45)}
+.dia-permitido{background:rgba(22,163,74,.07);box-shadow:inset 0 3px 0 #16a34a}
+.fondo-lbl{position:absolute;top:3px;left:6px;font-size:10px;font-weight:700;white-space:nowrap;pointer-events:auto;display:flex;align-items:center;gap:6px}
+.dia-cerrado .fondo-lbl{color:#b42318}
+.dia-permitido .fondo-lbl{color:#15803d}
+.fondo-lbl button{font:inherit;font-size:10px;font-weight:700;border:1px solid currentColor;background:#fff;color:inherit;border-radius:999px;padding:0 6px;cursor:pointer;line-height:16px}
+.res-horario{font-size:10.5px;color:#475569;font-weight:600}
 .gantt-aviso{margin:0 0 8px;padding:10px 14px;border-radius:10px;background:#fdecec;border:1px solid #f5b5b5;color:#7f1d1d;font-size:13px}
 html[data-theme="dark"] .gantt-aviso{background:rgba(226,75,74,.12);border-color:rgba(226,75,74,.4);color:#fecaca}
 .task-pausa{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 4px,rgba(255,255,255,.15) 4px 8px);pointer-events:none;border-left:1px dashed rgba(255,255,255,.8);border-right:1px dashed rgba(255,255,255,.8)}
@@ -113,8 +125,20 @@ html[data-theme="dark"] .gantt-aviso{background:rgba(226,75,74,.12);border-color
 .btn.terminados-on{background:#eef2f7;border-color:#94a3b8}
 .task-bar.dragging{opacity:0.4;cursor:grabbing}
 .task-bar.drag-target{outline:2.5px dashed rgba(255,255,255,.7);outline-offset:-3px}
-.task-bar.chain-active{box-shadow:0 0 0 3px rgba(6,182,212,.6),0 0 20px rgba(6,182,212,.3);z-index:30;filter:brightness(1.08);border-color:#06b6d4!important}
-.task-bar.chain-dim{opacity:0.4}
+/* Orden seleccionada: sus procesos se levantan con una luz que palpita detrás (del color
+   del proceso); el resto pasa a gris translúcido para cederle el protagonismo. */
+.task-bar.chain-active{z-index:30;transform:translateY(-3px);animation:luzCadena 1.6s ease-in-out infinite}
+.task-bar.partida.chain-active{animation:none}
+.task-bar.partida.chain-active .task-tramo{animation:luzCadena 1.6s ease-in-out infinite}
+@keyframes luzCadena{0%,100%{box-shadow:0 0 0 2px var(--luz,#06b6d4),0 0 8px 1px var(--luz,#06b6d4)}50%{box-shadow:0 0 0 3px var(--luz,#06b6d4),0 0 22px 7px var(--luz,#06b6d4)}}
+.task-bar.chain-dim{opacity:.32;filter:grayscale(.9)}
+.task-bar.chain-dim:hover{opacity:.6}
+/* Texto girado cuando la barra es angosta: se lee de abajo hacia arriba. */
+.task-vert{display:flex;flex-direction:row;gap:2px;height:100%;align-items:center;justify-content:center;overflow:hidden}
+.task-vert span{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-height:100%;font-size:10px;line-height:1.05;font-weight:700}
+.task-vert span+span{font-weight:500;opacity:.9}
+.task-bar.vertical{padding:3px 1px;justify-content:center;align-items:center}
+.task-tramo.vertical{padding:3px 1px}
 .task-cliente{font-size:9.5px;opacity:0.85;overflow:hidden;text-overflow:ellipsis;line-height:1.2;font-weight:500}
 .task-lbl{font-size:11.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
 /* El texto de una barra larga acompaña al desplazarse: siempre se sabe qué orden es. */
@@ -819,8 +843,9 @@ let zoomLevel = '5day';
 const ZOOM_CONFIG = {
   day:    { label: '1 día',   hours: 24,  slotW: 160, granularity: 'halfhour' },
   '3day': { label: '3 días',  hours: 72,  slotW: 80,  granularity: 'hour'     },
-  '5day': { label: '5 días',  hours: 120, slotW: 11,  granularity: 'day'      },
-  week:   { label: '1 sem',   hours: 168, slotW: 8,   granularity: 'day'      }
+  // Barras 3 veces más largas que antes para que el texto se lea.
+  '5day': { label: '5 días',  hours: 120, slotW: 33,  granularity: 'day'      },
+  week:   { label: '1 sem',   hours: 168, slotW: 24,  granularity: 'day'      }
 };
 
 // Los únicos procesos que aparecen en el Gantt — en este orden exacto
@@ -867,7 +892,11 @@ function toggleTheme() {
     });
   }
 })();
-const ROUTE_COLORS = ['#378ADD','#1D9E75','#BA7517','#E24B4A','#639922','#8B5CF6','#0EA5E9','#F59E0B','#64748B',''];
+// '' = color del proceso (Costos). El resto: paleta amplia para marcar órdenes a mano.
+const ROUTE_COLORS = ['',
+  '#378ADD','#1D4ED8','#0EA5E9','#06B6D4','#14B8A6','#1D9E75','#16A34A','#639922','#84CC16','#EAB308',
+  '#F59E0B','#BA7517','#EA580C','#E24B4A','#DC2626','#BE185D','#EC4899','#D946EF','#8B5CF6','#6D28D9',
+  '#4F46E5','#78350F','#64748B','#334155','#0F172A'];
 
 // Pipeline process definitions — el orden importa, manejado por pipelineProcessOrder
 const PIPELINE_PROCESSES_BASE = [
@@ -1594,6 +1623,83 @@ function colorDeProceso(op) {
   return { bg: hex, bd: '#' + osc(r) + osc(g) + osc(b), tx: luz > 0.62 ? '#1f2937' : '#fff' };
 }
 
+// Texto de una barra según el ancho disponible (px): horizontal si cabe; si no, girado
+// en dos líneas (orden y producto) o en una sola con lo que entre.
+function etiquetaBarra(op, c, px, modeLabel) {
+  const prod = escHtml(op.articulo || '');
+  if (px >= 130) return `<div class="task-cliente" style="color:${c.tx}">${escHtml(op.cliente || '')}</div>
+           <div class="task-lbl" style="color:${c.tx}">${escHtml(op.id)} · ${prod}${op.manual_lock ? ' [Fijo]' : ''}</div>
+           <div class="task-sub" style="color:${c.tx}">${escHtml(op.proceso)}${op.colores > 0 ? ' · ' + op.colores + 'C' : ''}${modeLabel ? `<span class="task-mode-pill">${modeLabel}</span>` : ''}</div>`;
+  if (px >= 26) return `<div class="task-vert" style="color:${c.tx}"><span>${escHtml(op.id)}</span><span>${prod}</span></div>`;
+  if (px >= 11) return `<div class="task-vert" style="color:${c.tx}"><span>${escHtml(op.id)} · ${prod}</span></div>`;
+  return '';
+}
+
+// Horario del recurso de una fila (misma fuente que el Reprogramador).
+function horarioDeFila(maquinaId, procesoKey) {
+  const h = window._horarios || {};
+  const clave = String(procesoKey || '').toLowerCase();
+  return (maquinaId && (h[`m:${maquinaId}|${clave}`] || h[`m:${maquinaId}`])) || h[`p:${clave}`] || null;
+}
+const _DIAS_CORTOS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const _SEMANA = [1, 2, 3, 4, 5, 6, 0];
+// "Lun–Sáb 06:00–14:00" a partir de los días normales del horario.
+function resumenHorario(rec) {
+  if (!rec) return '';
+  const porDia = new Map();
+  rec.dias.filter(d => d.tipo === 'normal' && d.franjas.length).forEach(d => {
+    const dow = new Date(d.fecha + 'T12:00:00').getDay();
+    if (!porDia.has(dow)) porDia.set(dow, d.franjas.map(([a, b]) => `${_hhmm(_ms(a))}–${_hhmm(_ms(b))}`).join(', '));
+  });
+  const grupos = [];
+  _SEMANA.filter(d => porDia.has(d)).forEach(d => {
+    const ult = grupos[grupos.length - 1];
+    if (ult && ult.horas === porDia.get(d) && _SEMANA.indexOf(ult.fin) === _SEMANA.indexOf(d) - 1) ult.fin = d;
+    else grupos.push({ ini: d, fin: d, horas: porDia.get(d) });
+  });
+  return grupos.map(g => `${_DIAS_CORTOS[g.ini]}${g.fin !== g.ini ? '–' + _DIAS_CORTOS[g.fin] : ''} ${g.horas}`).join(' · ');
+}
+// Fondo de la fila: fuera de turno, días cerrados y días permitidos con horas extra.
+function fondoHorario(rec, maquinaId, procesoKey) {
+  if (!rec) return '';
+  const base = ganttBaseDate().getTime();
+  const slotUnit = window._ganttSlotUnit || 1;
+  const finTablero = base + SLOTS * slotUnit * 3600000;
+  const caja = (a, b, cls, contenido = '') => {
+    const ini = Math.max(a, base), fin = Math.min(b, finTablero);
+    if (fin <= ini) return '';
+    return `<div class="fondo-dia ${cls}" style="left:${pct((ini - base) / 3600000 / slotUnit)};width:${pct((fin - ini) / 3600000 / slotUnit)}">${contenido}</div>`;
+  };
+  return rec.dias.map(d => {
+    const ini = new Date(d.fecha + 'T00:00:00').getTime(), fin = ini + 86400000;
+    if (fin <= base || ini >= finTablero) return '';
+    if (d.tipo === 'cerrado') {
+      const puede = maquinaId || procesoKey;
+      return caja(ini, fin, 'dia-cerrado', `<span class="fondo-lbl">⛔ ${escHtml(d.motivo || 'Cerrado')}${puede ? `<button type="button" onclick="event.stopPropagation();trabajarDia('${escHtml(maquinaId || '')}','${escHtml(procesoKey || '')}','${d.fecha}','${escHtml(d.motivo || '')}')">+ trabajar este día</button>` : ''}</span>`);
+    }
+    const tramos = d.franjas.map(([a, b]) => [_ms(a), _ms(b)]).sort((x, y) => x[0] - y[0]);
+    let html = '', cursor = ini;
+    tramos.forEach(([a, b]) => { html += caja(cursor, a, 'fuera-turno'); cursor = Math.max(cursor, b); });
+    html += caja(cursor, fin, 'fuera-turno');
+    if (d.tipo === 'permitido') {
+      html += caja(tramos[0][0], tramos[tramos.length - 1][1], 'dia-permitido', `<span class="fondo-lbl">✓ Permitido: ${escHtml(d.motivo)} (${_hhmm(tramos[0][0])}–${_hhmm(tramos[tramos.length - 1][1])})</span>`);
+    }
+    return html;
+  }).join('');
+}
+// Registrar horas extra para trabajar un día cerrado (feriado, domingo) en esa máquina.
+async function trabajarDia(maquinaId, procesoKey, fecha, motivo) {
+  const dia = new Date(fecha + 'T12:00:00');
+  const horas = Number(prompt(`Horas extra para trabajar el ${dia.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' })} (${motivo}):`, '8'));
+  if (!(horas > 0)) return;
+  const r = await fetch(`${API}/horas-extra`, { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
+    body: JSON.stringify({ maquina_id: maquinaId || null, proceso_key: maquinaId ? null : procesoKey, fecha_desde: fecha, fecha_hasta: fecha, dias_semana: [dia.getDay()], horas, motivo: `Trabajar ${motivo}` }) })
+    .then(x => x.json()).catch(e => ({ ok: false, error: e.message }));
+  if (!r.ok) { alert(r.error || 'No se pudieron guardar las horas extra.'); return; }
+  alert('Listo: ese día queda permitido con horas extra. Para que la programación lo use, pulsa ⚡ Capacidad Finita y aplica.');
+  loadFromAPI();
+}
+
 // ── TASK BAR HTML ────────────────────────────────────────────
 function taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlertsMap) {
   // Color del proceso definido en Costos (Impresión, Rebobinado, Empaque…). Gris si ya
@@ -1650,17 +1756,12 @@ function taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlerts
   const vistaDias = ZOOM_CONFIG[zoomLevel].granularity === 'day';
 
   const pxTexto = partida ? estPx * tramoTexto.ancho / 100 : estPx;
-  const contenido = pxTexto < 36
-      ? ''
-      : pxTexto < 70
-        ? `<div class="task-lbl" style="color:${c.tx};font-size:10px">${op.id}</div>`
-        : `<div class="task-cliente" style="color:${c.tx}">${op.cliente}</div>
-           <div class="task-lbl" style="color:${c.tx}">${op.id} · ${op.articulo}${op.manual_lock?' [Fijo]':''}</div>
-           <div class="task-sub" style="color:${c.tx}">${op.proceso}${op.colores > 0 ? ' · '+op.colores+'C' : ''}${modeLabel?`<span class="task-mode-pill">${modeLabel}</span>`:''}</div>`;
+  const contenido = etiquetaBarra(op, c, pxTexto, modeLabel);
+  const vertical = pxTexto < 130 && pxTexto >= 11 ? ' vertical' : '';
   if (partida) {
     return `<div class="task-bar partida${chainClass}${conflictClass}${scheduleClass}${runningClass}"
     id="bar-${op.id_ruta}" data-id="${op.id}" data-ruta="${op.id_ruta}"
-    style="left:${pct(op.inicio)};width:${pct(op.dur)};min-width:0"
+    style="left:${pct(op.inicio)};width:${pct(op.dur)};min-width:0;--luz:${c.bg}"
     draggable="true"
     onmouseenter="showTT(event,'${routeArg}')" onmouseleave="hideTT()"
     oncontextmenu="openColorMenu(event,'${routeArg}')"
@@ -1668,16 +1769,16 @@ function taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlerts
     onclick="openDP('${routeArg}')"
     title="${op.id} · ${op.cliente} · ${op.proceso} · ${(Number(op.horas_trabajo) || op.dur).toFixed(1)} h de trabajo">
     <div class="task-enlace" style="border-color:${c.bd}"></div>
-    ${tramos.map(t => `<div class="task-tramo" style="left:${t.izq}%;width:${t.ancho}%;background:${c.bg};border-color:${c.bd}">${t === tramoTexto ? contenido : ''}</div>`).join('')}
+    ${tramos.map(t => `<div class="task-tramo${t === tramoTexto ? vertical : ''}" style="left:${t.izq}%;width:${t.ancho}%;background:${c.bg};border-color:${c.bd}">${t === tramoTexto ? contenido : ''}</div>`).join('')}
     ${op.manual_lock ? '<div class="task-lock-icon" title="Fija: el Reprogramador no la mueve">🔒</div>' : ''}
   </div>`;
   }
 
-  return `<div class="task-bar${chainClass}${conflictClass}${scheduleClass}${runningClass}${op.terminado ? ' is-done' : ''}"
+  return `<div class="task-bar${chainClass}${conflictClass}${scheduleClass}${runningClass}${op.terminado ? ' is-done' : ''}${vertical}"
     id="bar-${op.id_ruta}"
     data-id="${op.id}"
     data-ruta="${op.id_ruta}"
-    style="left:${pct(op.inicio)};width:${pct(op.dur)};background:${c.bg};border-color:${c.bd};${vistaDias && isNarrow ? 'padding:0;min-width:4px;border-width:1px' : isVeryNarrow ? 'padding:0 4px;min-width:24px' : ''}"
+    style="left:${pct(op.inicio)};width:${pct(op.dur)};background:${c.bg};border-color:${c.bd};--luz:${c.bg};${pxTexto < 130 ? 'min-width:4px;' : ''}${pxTexto < 26 ? 'border-width:1px;' : ''}"
     draggable="${op.terminado ? 'false' : 'true'}"
     onmouseenter="showTT(event,'${routeArg}')"
     onmouseleave="hideTT()"
@@ -1692,17 +1793,7 @@ function taskBar(op, machineConflictRutas, sequenceConflictRutas, scheduleAlerts
     ${op.manual_lock ? '<div class="task-lock-icon" title="Fija: el Reprogramador no la mueve">🔒</div>' : ''}
     ${isLate ? '<div class="task-late-icon" title="Fuera de fecha prometida">⚠</div>' : ''}
     ${hasProgress ? `<div class="task-progress-track"><div class="task-progress-fill" style="width:${progressPct}%;background:rgba(255,255,255,.55)"></div></div>` : ''}
-    ${!isVeryNarrow && !(vistaDias && isNarrow) ? `<button type="button" class="task-config-btn" onclick="event.stopPropagation();openDP('${routeArg}')" title="Configurar">⋯</button>` : ''}
-    ${vistaDias && isNarrow
-      ? ''
-      : isVeryNarrow
-      ? `<div style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.5);margin:auto"></div>`
-      : isNarrow
-        ? `<div class="task-lbl" style="color:${c.tx};font-size:10px">${op.id}</div>`
-        : `<div class="task-cliente" style="color:${c.tx}">${op.cliente}</div>
-           <div class="task-lbl" style="color:${c.tx}">${op.id} · ${op.articulo}${op.manual_lock?' [Fijo]':''}</div>
-           <div class="task-sub" style="color:${c.tx}">${op.proceso}${op.colores > 0 ? ' · '+op.colores+'C' : ''}${modeLabel?`<span class="task-mode-pill">${modeLabel}</span>`:''}</div>`
-    }
+    ${contenido}
   </div>`;
 }
 
@@ -2200,10 +2291,8 @@ function renderGantt() {
     const previa = orders.find(x => x.id_ruta === o.dep_ruta_id);
     return previa && !previa.terminado && _ms(o.fecha_plan_inicio_iso) < _ms(previa.fecha_plan_fin_iso) - 60000;
   }).map(o => o.id))];
-  const terminadoAntes = window._terminadoAntes || [];
   const avisos = [];
   if (fueraDeOrden.length) avisos.push(`⛔ <b>${fueraDeOrden.length} órdenes guardadas con un proceso antes que el anterior</b> (${fueraDeOrden.slice(0, 8).join(', ')}${fueraDeOrden.length > 8 ? '…' : ''}). Son fechas viejas: pulsa <b>⚡ Capacidad Finita</b> y aplica para reprogramarlas en orden.`);
-  if (terminadoAntes.length) avisos.push(`⚠ <b>${terminadoAntes.length} órdenes con un proceso terminado antes que el anterior</b> (${terminadoAntes.join(', ')}): revisa el estado en la orden.`);
   if (window._horariosError) avisos.push(`⚠ No se pudo leer el horario de las máquinas (${escHtml(window._horariosError)}): las barras se muestran sin los cortes de turno.`);
 
   let html = `
@@ -2302,10 +2391,11 @@ function renderGantt() {
         <div class="res-lbl">
           <span class="res-name">${m.nombre_recurso}</span>
           ${machineSub ? `<span class="res-sub">${machineSub}</span>` : ''}
-          ${!m.calendario_id ? `<span class="aviso-sin-horario" title="Esta máquina no tiene horario en la Cadena de Procesos. Se programa con 8 horas de lunes a viernes, de 7:00 a 15:00.">Sin horario · usa 8 horas</span>` : ''}
+          ${(() => { const rh = resumenHorario(horarioDeFila(mid, proc.process_key)); return rh ? `<span class="res-horario" title="Horario de trabajo">🕒 ${escHtml(rh)}</span>` : `<span class="aviso-sin-horario" title="Sin horario no se programa: asígnale un calendario en Costos o en la máquina.">Sin horario: no se programa</span>`; })()}
           ${mOps.length > 0 ? `<span class="res-count">${mOps.length} orden${mOps.length>1?'es':''}</span>` : ''}
         </div>
         <div class="timeline" data-machine="${mid}">
+          ${fondoHorario(horarioDeFila(mid, proc.process_key), mid, proc.process_key)}
           <div class="drop-hint"></div>
           ${HOURS.map((_, i) => `<div class="grid-ln" style="left:${pct(i)}"></div>`).join('')}
           ${DAYS.filter(d => d.slot > 0).map(d => `<div class="day-sep" style="left:${pct(d.slot)}"></div>`).join('')}
@@ -2319,10 +2409,11 @@ function renderGantt() {
       <div class="g-row" data-machine="" style="border-left:3px solid ${proc.color}">
         <div class="res-lbl">
           <span class="res-name">${proc.maquinas.length ? 'Sin Máquina Asignada' : displayProcessName(proc.nombre)}</span>
-          ${!proc.maquinas.length && !proc.calendario_nombre ? `<span class="aviso-sin-horario" title="Este proceso no tiene horario en la Cadena de Procesos. Se programa con 8 horas de lunes a viernes, de 7:00 a 15:00.">Sin horario · usa 8 horas</span>` : ''}
+          ${(() => { if (proc.maquinas.length) return ''; const rh = resumenHorario(horarioDeFila('', proc.process_key)); return rh ? `<span class="res-horario" title="Horario de trabajo">🕒 ${escHtml(rh)}</span>` : `<span class="aviso-sin-horario" title="Sin horario no se programa: asígnale un calendario en Costos.">Sin horario: no se programa</span>`; })()}
           ${opsDelProceso.length > 0 ? `<span class="res-count">${opsDelProceso.length} orden${opsDelProceso.length>1?'es':''}</span>` : ''}
         </div>
         <div class="timeline" data-machine="">
+          ${proc.maquinas.length ? '' : fondoHorario(horarioDeFila('', proc.process_key), '', proc.process_key)}
           <div class="drop-hint"></div>
           ${HOURS.map((_, i) => `<div class="grid-ln" style="left:${pct(i)}"></div>`).join('')}
           ${DAYS.filter(d => d.slot > 0).map(d => `<div class="day-sep" style="left:${pct(d.slot)}"></div>`).join('')}
@@ -2416,6 +2507,7 @@ function drawArrows() {
     {id:'arr-normal',color:'#7c8594'},
     {id:'arr-active',color:'#06b6d4'},
     {id:'arr-dim',   color:'#d0d0d0'},
+    {id:'arr-cadena', color:'#0f172a'},
   ].forEach(({id,color}) => {
     const marker = document.createElementNS('http://www.w3.org/2000/svg','marker');
     marker.setAttribute('id',id); marker.setAttribute('markerWidth','10');
@@ -2435,29 +2527,42 @@ function drawArrows() {
     if (!srcBar || !dstBar) return;
     const sRect = srcBar.getBoundingClientRect();
     const dRect = dstBar.getBoundingClientRect();
-    const x1 = sRect.right  - ganttRect.left;
-    const y1 = sRect.top    - ganttRect.top + sRect.height / 2;
-    const x2 = dRect.left   - ganttRect.left;
-    const y2 = dRect.top    - ganttRect.top + dRect.height / 2;
-
-    let arrowClass = 'arr-normal';
-    if (activeChainIds) {
-      arrowClass = (activeChainIds.has(srcId) && activeChainIds.has(dstId)) ? 'arr-active' : 'arr-dim';
+    // Sale del FIN del proceso (borde derecho, a media altura) y llega al INICIO del
+    // siguiente (borde izquierdo). Recorrido en ángulos rectos: a la derecha, baja a la
+    // fila del siguiente y entra por la izquierda. Si el siguiente empieza justo donde
+    // termina el anterior (o antes en pantalla), rodea por el hueco entre filas.
+    const x1 = sRect.right - ganttRect.left;
+    const y1 = sRect.top - ganttRect.top + sRect.height / 2;
+    const x2 = dRect.left - ganttRect.left;
+    const y2 = dRect.top - ganttRect.top + dRect.height / 2;
+    const g = 12;
+    let d;
+    if (x2 - x1 >= 2 * g) {
+      const xm = x1 + g;
+      d = `M${x1},${y1} H${xm} V${y2} H${x2 - 2}`;
+    } else {
+      const abajo = y2 >= y1;
+      const yEntre = abajo ? (sRect.bottom - ganttRect.top + dRect.top - ganttRect.top) / 2 : (sRect.top - ganttRect.top + dRect.bottom - ganttRect.top) / 2;
+      d = `M${x1},${y1} H${x1 + g} V${yEntre} H${x2 - g} V${y2} H${x2 - 2}`;
     }
-
+    const color = '#0f172a';
+    const halo = document.createElementNS('http://www.w3.org/2000/svg','path');
+    halo.setAttribute('d', d); halo.setAttribute('fill', 'none');
+    halo.setAttribute('stroke', '#fff'); halo.setAttribute('stroke-width', '5');
+    halo.setAttribute('stroke-linejoin', 'round'); halo.setAttribute('opacity', '0.9');
+    svg.appendChild(halo);
     const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const cx1 = x1 + dx * 0.4;
-    const cx2 = x2 - dx * 0.4;
-    path.setAttribute('d', `M${x1},${y1} C${cx1},${y1} ${cx2},${y2} ${x2},${y2}`);
+    path.setAttribute('d', d);
     path.setAttribute('fill','none');
-    path.setAttribute('stroke', arrowClass==='arr-active' ? '#06b6d4' : arrowClass==='arr-dim' ? '#d0d0d0' : '#7c8594');
-    path.setAttribute('stroke-width', arrowClass==='arr-active' ? '2.5' : '1.5');
-    path.setAttribute('stroke-dasharray', arrowClass==='arr-normal' ? '5 3' : 'none');
-    path.setAttribute('marker-end', `url(#${arrowClass})`);
-    path.setAttribute('opacity', arrowClass==='arr-dim' ? '0.35' : '0.9');
+    path.setAttribute('stroke', color);
+    path.setAttribute('stroke-width', '2');
+    path.setAttribute('stroke-linejoin', 'round');
+    path.setAttribute('marker-end', 'url(#arr-cadena)');
     svg.appendChild(path);
+    const punto = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    punto.setAttribute('cx', x1); punto.setAttribute('cy', y1); punto.setAttribute('r', '3.5');
+    punto.setAttribute('fill', color); punto.setAttribute('stroke', '#fff'); punto.setAttribute('stroke-width', '1.5');
+    svg.appendChild(punto);
   });
 }
 
@@ -3188,25 +3293,24 @@ function renderDPInfo() {
       <div class="dp-lbl">Color</div>
       <div class="dp-color-row">
         ${ROUTE_COLORS.map(color => `
-          <label title="${color||'Color por estado'}">
+          <label title="${color||'Color del proceso (Costos)'}">
             <input type="radio" name="dp-color" value="${color}" ${String(op.route_payload?.colorHex||'')===color?'checked':''}>
-            <span class="dp-color-swatch" style="background:${color||'linear-gradient(135deg,#378ADD 0 50%,#1D9E75 50% 100%)'}"></span>
+            <span class="dp-color-swatch" style="background:${color||`conic-gradient(${(procesos||[]).map(p=>p.color).join(',')||'#378ADD,#1D9E75'})`}"></span>
           </label>
         `).join('')}
       </div>
     </div>
     <div class="dp-field">
-      <div class="dp-lbl">Bloqueo manual</div>
-      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#46515d">
+      <div class="dp-lbl">Fijar</div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#46515d" title="La reprogramación (Capacidad Finita) no lo mueve de donde está. Si el proceso anterior de la orden todavía no termina antes, se ignora para no romper el orden.">
         <input type="checkbox" id="dp-lock" ${op.manual_lock?'checked':''}>
-        Mantener fijo este proceso al optimizar
+        Fijar este proceso: la reprogramación no lo mueve${op.manual_lock && op.bloqueo_por ? ` <span style="color:#94a3b8">(lo fijó ${escHtml(op.bloqueo_por)})</span>` : ''}
       </label>
     </div>
     <div class="dp-field">
-      <div class="dp-lbl">Bloqueo de orden</div>
-      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#46515d">
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#46515d;margin-top:6px" title="Fija todos los procesos de la orden (Impresión, Rebobinado, Empaque) tal como se ven ahora en el tablero.">
         <input type="checkbox" id="dp-lock-order" ${chainOps.every(i=>i.manual_lock)?'checked':''}>
-        Mantener fija toda la orden ${escHtml(op.id)}
+        Fijar toda la orden ${escHtml(op.id)} (todos sus procesos)
       </label>
     </div>
     <div class="dp-section">Planificación</div>
