@@ -876,10 +876,10 @@ function getPipelineProc(processKey) {
   return found || getPIPELINE_PROCESSES()[0];
 }
 
-// Inicio del eje del Gantt: hoy a las 6:00 (inicio del turno).
+// Inicio del eje del Gantt: la hora actual (sin mostrar horas que ya pasaron).
 function ganttBaseDate() {
   const base = new Date();
-  base.setHours(6, 0, 0, 0);
+  base.setMinutes(0, 0, 0);
   return base;
 }
 
@@ -1020,7 +1020,8 @@ async function loadFromAPI() {
       clave_proceso: r.clave_proceso || '',
       maquina:     r.maquina,
       inicio:      Math.max(0, horasDesdeBase(r.fecha_plan_inicio)),
-      dur:         Math.max(0.25, horasDesdeBase(r.fecha_plan_fin) - Math.max(0, horasDesdeBase(r.fecha_plan_inicio))),
+      // Duración real (el ancho mínimo de la barra es solo visual, en el CSS).
+      dur:         Math.max(0.01, horasDesdeBase(r.fecha_plan_fin) - Math.max(0, horasDesdeBase(r.fecha_plan_inicio))),
       horas_trabajo: parseFloat(r.dur),
       plan_inicio: r.fecha_plan_inicio,
       plan_fin:    r.fecha_plan_fin,
@@ -1153,40 +1154,34 @@ function detectAllConflicts() {
       for (let j = i + 1; j < group.length; j++) {
         const b = group[j], bEnd = b.inicio + b.dur;
         if (a.id_ruta === b.id_ruta) continue;
-        if (a.inicio < bEnd && aEnd > b.inicio) {
+        if (a.inicio < bEnd - 0.01 && aEnd - 0.01 > b.inicio) {
           conflicts.push({ type:'machine', ruta_a:a.id_ruta, ruta_b:b.id_ruta,
-            message:`Máquina ${a.maquina}: "${a.id}" y "${b.id}" se superponen`});
+            message:`Máquina ${(machines.find(m => String(m._matchId) === String(a.maquina)) || {}).nombre_recurso || a.maquina}: "${a.id}" y "${b.id}" se superponen`});
         }
       }
     }
   });
 
-  // Conflictos de secuencia: solo entre rutas de la misma orden
+  // Conflictos de secuencia: cada proceso contra el ANTERIOR de su orden, en el
+  // orden de Costos (Impresión → Rebobinado → Empaque). Antes se comparaban todos
+  // los pares de la orden y salían "conflictos" que no existían.
+  const ordenDe = (op) => { const p = procesos.findIndex(x => x.process_key === op.clave_proceso || normalizeProcessKey(x.nombre) === op.proceso_key); return p < 0 ? 999 : p; };
   const byOrder = new Map();
   relevant.forEach(o => {
     if (!byOrder.has(o.id)) byOrder.set(o.id, []);
     byOrder.get(o.id).push(o);
   });
   byOrder.forEach(group => {
-    for (let i = 0; i < group.length; i++) {
-      const a = group[i], aEnd = a.inicio + a.dur;
-      for (let j = i + 1; j < group.length; j++) {
-        const b = group[j], bEnd = b.inicio + b.dur;
-        if (b.dep_ruta_id === a.id_ruta || (b.dep === a.id && b.id_ruta !== a.id_ruta)) {
-          if (b.inicio < aEnd) {
-            conflicts.push({ type:'sequence', ruta_a:a.id_ruta, ruta_b:b.id_ruta,
-              message:`Orden ${a.id}: "${b.proceso}" empieza antes de que "${a.proceso}" termine`});
-          }
-        }
-        if (a.dep_ruta_id === b.id_ruta || (a.dep === b.id && a.id_ruta !== b.id_ruta)) {
-          if (a.inicio < bEnd) {
-            conflicts.push({ type:'sequence', ruta_a:b.id_ruta, ruta_b:a.id_ruta,
-              message:`Orden ${b.id}: "${a.proceso}" empieza antes de que "${b.proceso}" termine`});
-          }
-        }
+    const lista = group.slice().sort((x, y) => ordenDe(x) - ordenDe(y) || x.inicio - y.inicio);
+    for (let i = 1; i < lista.length; i++) {
+      const previo = lista[i - 1], actual = lista[i];
+      if (actual.inicio < previo.inicio + previo.dur - 0.01) {
+        conflicts.push({ type:'sequence', ruta_a:previo.id_ruta, ruta_b:actual.id_ruta,
+          message:`Orden ${actual.id}: "${actual.proceso}" empieza antes de que termine "${previo.proceso}"`});
       }
     }
   });
+
   return conflicts;
 }
 
@@ -1796,8 +1791,7 @@ function renderPipeline() {
   });
 
   // Today range: start_turn_hour 0-24 = today 6am to tomorrow 6am
-  const todayBase = new Date();
-  todayBase.setHours(6, 0, 0, 0);
+  const todayBase = ganttBaseDate();
 
   // Filter: only routes that are the "current process" for their order
   // A route is "current" if: prev process is COMPLETED (or no prev) AND this process is NOT COMPLETED
@@ -2259,8 +2253,7 @@ function drawNowLine() {
   if (!ganttEl) return;
 
   const slotUnit = window._ganttSlotUnit || 1;
-  const base = new Date();
-  base.setHours(6, 0, 0, 0);
+  const base = ganttBaseDate();
   const nowMs = Date.now();
   const baseMs = base.getTime();
   const hoursSinceBase = (nowMs - baseMs) / 3600000;
@@ -2471,8 +2464,7 @@ function openMoveModal(movedOp, dropStart, dropMaq, issues) {
   modal.className = 'modal-overlay';
   modal.style.zIndex = '900';
 
-  const baseDate = new Date();
-  baseDate.setHours(6, 0, 0, 0);
+  const baseDate = ganttBaseDate();
   const dropDate = new Date(baseDate.getTime() + dropStart * slotUnit * 3600000);
   const dateStr = dropDate.toISOString().slice(0, 10);
   const hourVal = Math.floor(dropStart);
@@ -2515,8 +2507,7 @@ function openMoveModal(movedOp, dropStart, dropMaq, issues) {
     const minVal = parseInt(modal.querySelector('#move-min')?.value || '0');
     if (!dateVal) return dropStart;
     const chosen = new Date(dateVal + 'T06:00:00');
-    const baseD = new Date();
-    baseD.setHours(6, 0, 0, 0);
+    const baseD = ganttBaseDate();
     const dayOffset = Math.round((chosen - baseD) / 86400000);
     return dayOffset * (24 / slotUnit) + hourVal + minVal / 60;
   }
@@ -3396,26 +3387,28 @@ function capacidadPreviewData() {
 }
 function renderCapacidadPreview() {
   const body = document.getElementById('cfDrawerBody');
-  const criticas = orders.filter(o => o.alerta);
+  // Todo por ORDEN (no por proceso) y desde el resultado del Reprogramador.
   const conflictos = detectAllConflicts();
+  const ordenesConConflicto = new Set(conflictos.flatMap(c => [c.ruta_a, c.ruta_b]).map(r => (orders.find(o => o.id_ruta === r) || {}).id).filter(Boolean));
   const alertasFecha = detectScheduleAlerts();
-  const fueraFecha = { late: alertasFecha.filter(a => a.type === 'late'), tight: alertasFecha.filter(a => a.type === 'tight') };
+  const tarde = alertasFecha.filter(a => a.type === 'late');
+  const justas = alertasFecha.filter(a => a.type === 'tight');
   const kpis = `
     <div class="cf-kpis">
-      <button type="button" class="cf-kpi ${criticas.length ? 'cf-kpi-crit' : 'cf-kpi-ok'}" ${criticas.length ? `onclick="verCriticasDetalle()"` : 'disabled'} title="Órdenes marcadas como críticas por su fecha de entrega frente a la carga de la máquina">
-        <span class="cf-kpi-num">${criticas.length}</span>
-        <span class="cf-kpi-lbl">▲ Críticas</span>
-        <span class="cf-kpi-hint">órdenes que no alcanzan su fecha de entrega con la carga actual</span>
+      <button type="button" class="cf-kpi ${tarde.length ? 'cf-kpi-crit' : 'cf-kpi-ok'}" ${tarde.length ? `onclick="verFueraDeFechaDetalle('late')"` : 'disabled'} title="Órdenes que, con la programación guardada, terminan después de la fecha que pidió el cliente">
+        <span class="cf-kpi-num">${tarde.length}</span>
+        <span class="cf-kpi-lbl">⏰ Tarde</span>
+        <span class="cf-kpi-hint">órdenes que terminan después de la fecha del cliente</span>
       </button>
-      <button type="button" class="cf-kpi ${conflictos.length ? 'cf-kpi-warn' : 'cf-kpi-ok'}" ${conflictos.length ? `onclick="verConflictosDetalle()"` : 'disabled'} title="Choques de programa: dos procesos quieren la misma máquina al mismo tiempo, o una secuencia quedó antes de su anterior">
-        <span class="cf-kpi-num">${conflictos.length}</span>
+      <button type="button" class="cf-kpi ${justas.length ? 'cf-kpi-warn' : 'cf-kpi-ok'}" ${justas.length ? `onclick="verFueraDeFechaDetalle('tight')"` : 'disabled'} title="Llegan a la fecha del cliente pero se comen el buffer (colchón)">
+        <span class="cf-kpi-num">${justas.length}</span>
+        <span class="cf-kpi-lbl">⚠ Sin colchón</span>
+        <span class="cf-kpi-hint">llegan a la fecha del cliente, pero sin margen</span>
+      </button>
+      <button type="button" class="cf-kpi ${conflictos.length ? 'cf-kpi-warn' : 'cf-kpi-ok'}" ${conflictos.length ? `onclick="verConflictosDetalle()"` : 'disabled'} title="Dos órdenes en la misma máquina al mismo tiempo, o un proceso que empieza antes de que termine el anterior">
+        <span class="cf-kpi-num">${ordenesConConflicto.size}</span>
         <span class="cf-kpi-lbl">⊗ Conflictos</span>
-        <span class="cf-kpi-hint">choques de máquina o de secuencia; el listado muestra las órdenes con problema</span>
-      </button>
-      <button type="button" class="cf-kpi ${fueraFecha.late.length ? 'cf-kpi-crit' : fueraFecha.tight.length ? 'cf-kpi-warn' : 'cf-kpi-ok'}" ${fueraFecha.late.length + fueraFecha.tight.length ? `onclick="verFueraDeFechaDetalle()"` : 'disabled'} title="Órdenes cuya producción planificada termina después de la entrega prometida, o con menos de una hora de margen">
-        <span class="cf-kpi-num">${fueraFecha.late.length}</span>
-        <span class="cf-kpi-lbl">⏰ Fuera de fecha</span>
-        <span class="cf-kpi-hint">la producción planificada termina después de la entrega prometida${fueraFecha.tight.length ? ` · ${fueraFecha.tight.length} más quedan justas` : ''}</span>
+        <span class="cf-kpi-hint">órdenes encimadas en una máquina o fuera de secuencia</span>
       </button>
     </div>`;
   body.innerHTML = `${kpis}
@@ -3445,17 +3438,22 @@ function verCriticasDetalle() {
   document.getElementById('confOverlayBody').innerHTML = criticas.length > 30 ? `${filas}<div class="cf-nota">Y ${criticas.length - 30} más.</div>` : filas;
   overlay.classList.add('open');
 }
-function verFueraDeFechaDetalle() {
-  const alertas = detectScheduleAlerts().sort((a, b) => a.slack - b.slack);
+function verFueraDeFechaDetalle(tipo) {
+  const alertas = detectScheduleAlerts().filter(a => !tipo || a.type === tipo);
   if (!alertas.length) return;
-  const filas = alertas.map(a => `
-    <div class="conflict-group" style="margin-bottom:8px">
-      <div class="conflict-group-header"><div class="conflict-group-title">${a.type === 'late' ? '⏰' : '⌛'} ${esc(a.orderCode)}</div></div>
-      <div style="padding:0 12px 10px;font-size:12px;color:${a.type === 'late' ? '#c43a39' : '#a3691a'}">${esc(a.message)}</div>
-    </div>`).join('');
+  const fDia = v => v ? new Date(String(v).slice(0, 10) + 'T12:00:00').toLocaleDateString('es', { weekday:'short', day:'2-digit', month:'short' }) : '—';
+  const filas = alertas.map(a => {
+    const op = orders.find(o => o.id === a.orderCode) || {};
+    return { codigo: a.orderCode, cliente: op.cliente || '', cliente_fecha: op.fecha_entrega_prometida, estimada: op.fecha_entrega_estimada };
+  }).sort((x, y) => String(x.estimada || '').localeCompare(String(y.estimada || '')));
   const overlay = document.getElementById('confOverlay');
-  overlay.querySelector('.gcal-modal-title').textContent = `Fuera de fecha (${alertas.length})`;
-  document.getElementById('confOverlayBody').innerHTML = filas;
+  overlay.querySelector('.gcal-modal-title').textContent = `${tipo === 'tight' ? 'Sin colchón' : 'Tarde'} (${alertas.length} órdenes)`;
+  document.getElementById('confOverlayBody').innerHTML = `
+    <div style="font-size:12px;color:#60707f;margin-bottom:8px">${tipo === 'tight' ? 'Llegan a la fecha del cliente, pero sin el margen del buffer.' : 'Terminan después de la fecha que pidió el cliente: hay que avisar al vendedor con la entrega estimada.'}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;color:#1f2b3d">
+      <thead><tr style="text-align:left;font-size:11px;color:#7a8a9c;text-transform:uppercase"><th style="padding:6px">Orden</th><th style="padding:6px">Cliente</th><th style="padding:6px">Fecha del cliente</th><th style="padding:6px">Entrega estimada</th></tr></thead>
+      <tbody>${filas.map(f => `<tr style="border-top:1px solid #eef2f7"><td style="padding:6px;font-weight:700">${esc(f.codigo)}</td><td style="padding:6px">${esc(f.cliente)}</td><td style="padding:6px">${fDia(f.cliente_fecha)}</td><td style="padding:6px;font-weight:700;color:${tipo === 'tight' ? '#a16207' : '#c43a39'}">${fDia(f.estimada)}</td></tr>`).join('')}</tbody>
+    </table>`;
   overlay.classList.add('open');
 }
 function verConflictosDetalle() {

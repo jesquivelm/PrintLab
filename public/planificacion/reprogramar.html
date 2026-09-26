@@ -72,6 +72,14 @@ details summary{cursor:pointer;font-weight:700;margin-bottom:8px}
 .res-fill{height:100%;background:var(--accent);border-radius:999px}
 .empty{padding:14px;color:var(--text2);font-size:13px}
 @media (max-width:720px){.res-row{grid-template-columns:110px 1fr 50px}}
+.ayuda summary{font-size:15px}
+.ayuda-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:12px}
+.ayuda h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);margin:0 0 8px}
+.ayuda ol{margin:0;padding-left:18px;display:grid;gap:8px;font-size:13px}
+.ayuda dl{margin:0;display:grid;grid-template-columns:150px 1fr;gap:6px 12px;font-size:13px}
+.ayuda dt{font-weight:700}
+.ayuda dd{margin:0;color:var(--text2)}
+@media (max-width:860px){.ayuda-grid{grid-template-columns:1fr}.ayuda dl{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -86,6 +94,43 @@ details summary{cursor:pointer;font-weight:700;margin-bottom:8px}
       <button class="btn" id="btnRecalcular" type="button">↻ Recalcular con mis cambios</button>
     </div>
   </header>
+  <details class="card ayuda" id="ayuda">
+    <summary>❓ ¿Cómo decide el reprogramador? <span class="muted small">— léelo antes de aplicar</span></summary>
+    <div class="ayuda-grid">
+      <div>
+        <h3>Los pasos, en orden</h3>
+        <ol>
+          <li><b>Toma las órdenes pendientes</b>: no entregadas, no detenidas y no anuladas.</li>
+          <li><b>Solo programa los procesos con “Activo en Gantt”</b> (Costos → Procesos del Cálculo), en ese orden: hoy Impresión → Rebobinado → Empaque. Ningún proceso empieza antes de que termine el anterior de su orden.</li>
+          <li><b>Aparta las órdenes en aprobación</b>: si todavía tienen Diseño, Preprensa o Aprobaciones pendientes, no se programan (la fecha se da después de aprobar).</li>
+          <li><b>Respeta lo fijo</b>: lo que está en marcha, lo movido a mano en el Gantt (🔒), lo que tiene bloqueo suave y lo que tú marques como <i>Mantener</i>. Eso no se mueve; lo demás se acomoda alrededor.</li>
+          <li><b>Acomoda el resto por prioridad</b>: primero las de fecha forzada, luego Urgentes, Clase A y Regulares. Dentro de cada grupo, la que tiene la fecha objetivo más cercana va primero.</li>
+          <li><b>Coloca cada proceso en el primer hueco libre</b> de su máquina o estación, dentro de su horario, sin encimar trabajos y rellenando huecos para que no queden paradas.</li>
+          <li><b>Te muestra el resultado sin guardar nada.</b> Solo al pulsar “Aplicar” cambia la programación; queda registrado a tu nombre y se puede deshacer.</li>
+        </ol>
+      </div>
+      <div>
+        <h3>Qué significa cada término</h3>
+        <dl>
+          <dt>Fecha del cliente</dt><dd>La que pidió el cliente; vive en la orden y el reprogramador nunca la cambia.</dd>
+          <dt>Buffer (colchón)</dt><dd>Días de margen antes de la fecha del cliente. Sale de Costos, salvo que se ajuste en Estimar para esa orden.</dd>
+          <dt>Fecha objetivo</dt><dd>Fecha del cliente menos el buffer (sin contar domingos ni feriados). Es la meta para terminar producción.</dd>
+          <dt>Tiempo de cada proceso</dt><dd>El que calculó la orden (Impresión, Rebobinado, Empaque); si producción lo corrigió, el valor vigente.</dd>
+          <dt>Horario</dt><dd>El turno del proceso o de la máquina (Calendarios), menos feriados y mantenimientos, más horas extra vigentes.</dd>
+          <dt>✓ A tiempo</dt><dd>Termina antes de la fecha objetivo. Se entrega en la fecha del cliente.</dd>
+          <dt>⚠ Sin colchón</dt><dd>Termina después de la fecha objetivo pero antes de la del cliente: llega, sin margen.</dd>
+          <dt>⏰ Tarde</dt><dd>Termina después de la fecha del cliente. La entrega estimada es el siguiente día laborable: hay que avisar al vendedor.</dd>
+          <dt>Entrega estimada</dt><dd>La fecha que se le puede dar al cliente con esta programación.</dd>
+          <dt>Se adelanta / se atrasa</dt><dd>Comparación entre cuándo termina hoy (lo guardado) y cuándo terminaría si aplicas.</dd>
+          <dt>🔒 Fija</dt><dd>No se mueve en esta corrida (en marcha, movida a mano, bloqueo suave o mantenida por ti).</dd>
+          <dt>Bloqueo suave</dt><dd>Se marca en Estimar cuando la fecha ya se prometió. Se respeta, salvo que marques <i>Liberar</i>.</dd>
+          <dt>Fecha forzada</dt><dd>“Esta orden sale en esta fecha”: se programa antes que las demás.</dd>
+          <dt>⏳ En aprobación</dt><dd>Aún no pasa Diseño/Preprensa/Aprobaciones; se programará cuando se apruebe.</dd>
+          <dt>Falta dato del cálculo</dt><dd>La orden no trae el tiempo o las personas del proceso; no se programa hasta corregirlo.</dd>
+        </dl>
+      </div>
+    </div>
+  </details>
   <div id="contenido"><div class="loading">Calculando la programación…</div></div>
 </div>
 <div class="bar">
