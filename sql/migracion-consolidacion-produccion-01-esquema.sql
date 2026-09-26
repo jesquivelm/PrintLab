@@ -116,6 +116,7 @@ CREATE TABLE IF NOT EXISTS dias_feriados (
     nombre        TEXT NOT NULL,
     recurrente    BOOLEAN NOT NULL DEFAULT false,
     activo        BOOLEAN NOT NULL DEFAULT true,
+    personalizado BOOLEAN NOT NULL DEFAULT false,  -- agregado a mano desde la pantalla
     creado_en     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (fecha)
 );

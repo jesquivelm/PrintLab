@@ -1014,6 +1014,7 @@ const DEFAULT_GENERAL_CONFIG = {
         seguimientoModoClaro: '\u2600',
         seguimientoModoOscuro: '\u263E',
         seguimientoRefrescar: '\u21BB',
+        seguimientoAgregar: '+',
         floatingSave: '/assets/bootstrap/icons-floatingSave.svg',
         tableActions: '\u22EF',
         lineMenu: '\u22EF',
@@ -2147,6 +2148,7 @@ async function initializeStartupSchemas() {
     await runStartupSchemaStep('No fue posible preparar el esquema de notificaciones', () => ensureNotificationsSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de auditoría', () => ensureAuditSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de planificación', () => ensurePlanningSchema());
+    await runStartupSchemaStep('No fue posible preparar el esquema de feriados', () => ensureFeriadosSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de detención/anulación de órdenes', () => ensureOrdenDetencionSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de mediciones de espectrofotometría', () => ensureMedicionesEspectroSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de valores de producción por motivo', () => ensureValoresProduccionSchema());
@@ -16095,7 +16097,7 @@ app.get('/api/config/general/icons/:version/:file', async (req, res) => {
 
 app.post('/api/config/general/icon', async (req, res) => {
     try {
-        const orderIconKeys = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit', 'orderCreationSummary', 'planningRefresh', 'planningProcessFlip', 'planningOpenGantt', 'planningEstimate', 'planningExpand', 'dashboardBusinessPartners', 'dashboardProducts', 'dashboardQuotes', 'dashboardNotifications', 'dashboardInventory', 'dashboardOrders', 'dashboardProduction', 'dashboardCosts', 'dashboardReports', 'dashboardSettings', 'dashboardPlanning', 'produccionCreacionOrden', 'produccionSolicitudVendedor', 'produccionPlanificacion', 'produccionDiseno', 'produccionPreprensa', 'produccionTintas', 'produccionVistoBueno', 'produccionSellos', 'produccionImpresion', 'produccionBarniz', 'produccionLaminado', 'produccionEstampado', 'produccionEmbozado', 'produccionTroquelado', 'produccionNumerado', 'produccionRebobinado', 'produccionEmpaque', 'produccionModoClaro', 'produccionModoOscuro', 'produccionHistorial', 'produccionVerOrden', 'produccionCambiarOperario', 'produccionEventosOrden', 'produccionEditarValor', 'produccionSuspenderProduccion', 'produccionControlAprobaciones', 'orderVendedor', 'orderVendedorHombre', 'orderVendedorMujer', 'orderMotivoVersiones', 'orderMotivoTintas', 'dashboardCapacitacion']);
+        const orderIconKeys = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit', 'orderCreationSummary', 'planningRefresh', 'planningProcessFlip', 'planningOpenGantt', 'planningEstimate', 'planningExpand', 'dashboardBusinessPartners', 'dashboardProducts', 'dashboardQuotes', 'dashboardNotifications', 'dashboardInventory', 'dashboardOrders', 'dashboardProduction', 'dashboardCosts', 'dashboardReports', 'dashboardSettings', 'dashboardPlanning', 'produccionCreacionOrden', 'produccionSolicitudVendedor', 'produccionPlanificacion', 'produccionDiseno', 'produccionPreprensa', 'produccionTintas', 'produccionVistoBueno', 'produccionSellos', 'produccionImpresion', 'produccionBarniz', 'produccionLaminado', 'produccionEstampado', 'produccionEmbozado', 'produccionTroquelado', 'produccionNumerado', 'produccionRebobinado', 'produccionEmpaque', 'produccionModoClaro', 'produccionModoOscuro', 'produccionHistorial', 'produccionVerOrden', 'produccionCambiarOperario', 'produccionEventosOrden', 'produccionEditarValor', 'produccionSuspenderProduccion', 'produccionControlAprobaciones', 'seguimientoModoClaro', 'seguimientoModoOscuro', 'seguimientoRefrescar', 'seguimientoAgregar', 'orderVendedor', 'orderVendedorHombre', 'orderVendedorMujer', 'orderMotivoVersiones', 'orderMotivoTintas', 'dashboardCapacitacion']);
         const iconKey = String(req.body?.key || '').trim();
         const iconValue = String(req.body?.value || '').trim();
         const general = req.body?.general && typeof req.body.general === 'object' && !Array.isArray(req.body.general)
@@ -22984,10 +22986,16 @@ app.put('/api/planificacion/recursos/:id/competencias', async (req, res) => {
 });
 
 // ── Feriados nacionales (dias_feriados) — usados por el scheduler y el retroceso ──
+// personalizado = true → lo agregó alguien desde la pantalla (no viene de la semilla
+// ni de la sincronización con date.nager.at); la pantalla lo destaca.
+async function ensureFeriadosSchema() {
+    await pgQuery(`ALTER TABLE dias_feriados ADD COLUMN IF NOT EXISTS personalizado BOOLEAN NOT NULL DEFAULT false`);
+}
+
 app.get('/api/planificacion/feriados', async (req, res) => {
     try {
         const { rows } = await pgQuery(
-            `SELECT id, fecha::text AS fecha, nombre, recurrente, activo
+            `SELECT id, fecha::text AS fecha, nombre, recurrente, activo, personalizado
                FROM dias_feriados ORDER BY recurrente DESC, fecha`
         );
         res.json({ ok: true, data: rows });
@@ -23004,10 +23012,10 @@ app.post('/api/planificacion/feriados', async (req, res) => {
             return res.status(400).json({ ok: false, error: 'fecha (YYYY-MM-DD) y nombre son requeridos.' });
         }
         const { rows } = await pgQuery(
-            `INSERT INTO dias_feriados (fecha, nombre, recurrente, activo)
-             VALUES ($1::date, $2, $3, $4)
-             ON CONFLICT (fecha) DO UPDATE SET nombre = EXCLUDED.nombre, recurrente = EXCLUDED.recurrente, activo = EXCLUDED.activo
-             RETURNING id, fecha::text AS fecha, nombre, recurrente, activo`,
+            `INSERT INTO dias_feriados (fecha, nombre, recurrente, activo, personalizado)
+             VALUES ($1::date, $2, $3, $4, true)
+             ON CONFLICT (fecha) DO UPDATE SET nombre = EXCLUDED.nombre, recurrente = EXCLUDED.recurrente, activo = EXCLUDED.activo, personalizado = true
+             RETURNING id, fecha::text AS fecha, nombre, recurrente, activo, personalizado`,
             [fecha, nombre, req.body?.recurrente !== false, req.body?.activo !== false]
         );
         res.json({ ok: true, data: rows[0] });
@@ -23025,7 +23033,7 @@ app.put('/api/planificacion/feriados/:id', async (req, res) => {
                 recurrente = COALESCE($4, recurrente),
                 activo = COALESCE($5, activo)
               WHERE id = $1
-              RETURNING id, fecha::text AS fecha, nombre, recurrente, activo`,
+              RETURNING id, fecha::text AS fecha, nombre, recurrente, activo, personalizado`,
             [
                 req.params.id,
                 /^\d{4}-\d{2}-\d{2}$/.test(String(req.body?.fecha || '').slice(0, 10)) ? String(req.body.fecha).slice(0, 10) : null,

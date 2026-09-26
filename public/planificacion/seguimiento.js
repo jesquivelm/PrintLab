@@ -1399,13 +1399,20 @@ function buildCalendarBuckets(){
 }
 
 function calPlural(n,one,many){return`${n} ${n===1?one:many}`}
-function calNeon(n,corner){return`<span class="cal-neon${corner?' is-corner':''}">${n>9?'9+':n}</span>`}
+// Pastilla neón: roja si hay órdenes atrasadas; morada con las entregas del día
+// cuando todas van al día.
+function calNeon(n,tone,corner){return`<span class="cal-neon is-${tone}${corner?' is-corner':''}">${n>9?'9+':n}</span>`}
+function calPill(b,corner){
+  if(b.late)return calNeon(b.late,'late',corner);
+  if(b.total)return calNeon(b.total,'ok',corner);
+  return'';
+}
 // Tercera fila del cuadro: `tag` es el aviso del día (fin de semana / feriado).
 function calFootMarkup(b,tag,hoverText){
-  const problems=b.late+b.risk;
   const hover=`<span class="cal-foot-hover">${hoverText}</span>`;
-  if(tag)return`${problems?calNeon(problems,true):''}<div class="cal-foot"><span class="cal-foot-default">${tag}</span>${hover}</div>`;
-  return`<div class="cal-foot">${problems?`<span class="cal-foot-default">${calNeon(problems)}</span>`:''}${hover}</div>`;
+  if(tag)return`${calPill(b,true)}<div class="cal-foot"><span class="cal-foot-default">${tag}</span>${hover}</div>`;
+  const pill=calPill(b,false);
+  return`<div class="cal-foot">${pill?`<span class="cal-foot-default">${pill}</span>`:''}${hover}</div>`;
 }
 function calTitle(b){
   const parts=[b.total?calPlural(b.total,'entrega','entregas'):'Sin entregas'];
@@ -1426,7 +1433,7 @@ function renderCalendarStrip(){
     tiles.push(`<button type="button" class="cal-alert-day is-overdue${sel}" data-cal-key="${CAL_OVERDUE_KEY}" title="${esc(calPlural(overdue.total,'orden pasó','órdenes pasaron')+' su fecha de entrega sin terminarse')}">
         <div class="cal-alert-day-label">Antes de hoy</div>
         <div class="cal-alert-day-date">Vencidas</div>
-        ${calFootMarkup({late:overdue.total,risk:0},'',calPlural(overdue.total,'orden','órdenes'))}
+        ${calFootMarkup({total:overdue.total,late:overdue.total,risk:0},'',calPlural(overdue.total,'orden','órdenes'))}
       </button>`);
   }
   for(let i=0;i<Math.min(dayCount,calFetchedDays);i++){

@@ -634,6 +634,7 @@ html[data-theme="dark"] .gcal-btn:hover{background:rgba(56,189,248,.08)}
 .sg-drawer .drawer-body{flex:1;overflow-y:auto;padding:20px}
 .sg-drawer .drawer-footer{padding:14px 20px;border-top:1px solid #e8eef5;background:#f7fbff;flex-shrink:0}
 .sg-drawer{width:min(560px,100vw)}
+#calDrawer{width:min(780px,100vw)} /* 220px más que los otros cajones: la tabla de feriados necesita holgura */
 .sg-drawer-wide{width:min(680px,100vw)}
 .sg-drawer-body{padding:20px;scrollbar-width:thin;scrollbar-color:rgba(11,129,184,.42) transparent}
 .sg-drawer-embed{padding:0;overflow:hidden}
@@ -663,7 +664,7 @@ html[data-theme="dark"] .sg-drawer-overlay{background:rgba(0,0,0,.55)}
 .cal-pop-pill{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;background:rgba(24,95,165,.09);color:#185FA5;white-space:nowrap}
 .cal-pop-pill-off{background:#eef1f5;color:#8b9bab}
 .cal-pop-pill-warn{background:rgba(186,117,23,.12);color:#a3691a}
-.cf-kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.cf-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
 .cf-kpi{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:12px;border:1px solid #e4ebf3;background:#fbfdff;cursor:pointer;text-align:left;transition:border-color .15s,box-shadow .15s,transform .15s;font-family:inherit}
 .cf-kpi:hover:not(:disabled){border-color:#9fc2e2;box-shadow:0 4px 14px rgba(24,95,165,.12);transform:translateY(-1px)}
 .cf-kpi:disabled{cursor:default;opacity:.85}
@@ -1518,8 +1519,6 @@ function renderHeader() {
     <div class="toolbar">
       <span class="badge info" style="font-weight:500">👤 <span id="ganttUserName"></span></span>
       <span class="badge ok">● ${enRun} en ejecución</span>
-      ${lateAlerts.length > 0 ? `<span class="badge crit">⏰ ${lateAlerts.length} fuera de fecha</span>` : ''}
-      ${tightAlerts.length > 0 ? `<span class="badge warn">⌛ ${tightAlerts.length} justas</span>` : ''}
       <div class="cf-wrap" id="cfCalendariosWrap">
         <button class="btn cf-trigger" id="cfCalendariosBtn" onclick="toggleCalendariosPopover(this)" title="Calendarios, turnos y feriados">⚙ Calendarios <span class="cf-caret">▾</span></button>
       </div>
@@ -3336,6 +3335,8 @@ function renderCapacidadPreview() {
   const d = capacidadPreviewData();
   const criticas = orders.filter(o => o.alerta);
   const conflictos = detectAllConflicts();
+  const alertasFecha = detectScheduleAlerts();
+  const fueraFecha = { late: alertasFecha.filter(a => a.type === 'late'), tight: alertasFecha.filter(a => a.type === 'tight') };
   const kpis = `
     <div class="cf-kpis">
       <button type="button" class="cf-kpi ${criticas.length ? 'cf-kpi-crit' : 'cf-kpi-ok'}" ${criticas.length ? `onclick="verCriticasDetalle()"` : 'disabled'} title="Órdenes marcadas como críticas por su fecha de entrega frente a la carga de la máquina">
@@ -3347,6 +3348,11 @@ function renderCapacidadPreview() {
         <span class="cf-kpi-num">${conflictos.length}</span>
         <span class="cf-kpi-lbl">⊗ Conflictos</span>
         <span class="cf-kpi-hint">choques de máquina o de secuencia; el listado muestra las órdenes con problema</span>
+      </button>
+      <button type="button" class="cf-kpi ${fueraFecha.late.length ? 'cf-kpi-crit' : fueraFecha.tight.length ? 'cf-kpi-warn' : 'cf-kpi-ok'}" ${fueraFecha.late.length + fueraFecha.tight.length ? `onclick="verFueraDeFechaDetalle()"` : 'disabled'} title="Órdenes cuya producción planificada termina después de la entrega prometida, o con menos de una hora de margen">
+        <span class="cf-kpi-num">${fueraFecha.late.length}</span>
+        <span class="cf-kpi-lbl">⏰ Fuera de fecha</span>
+        <span class="cf-kpi-hint">la producción planificada termina después de la entrega prometida${fueraFecha.tight.length ? ` · ${fueraFecha.tight.length} más quedan justas` : ''}</span>
       </button>
     </div>`;
   const filas = d.lista.length ? d.lista.map((op, i) => `
@@ -3375,6 +3381,19 @@ function verCriticasDetalle() {
   const overlay = document.getElementById('confOverlay');
   overlay.querySelector('.gcal-modal-title').textContent = `Órdenes Críticas (${criticas.length})`;
   document.getElementById('confOverlayBody').innerHTML = criticas.length > 30 ? `${filas}<div class="cf-nota">Y ${criticas.length - 30} más.</div>` : filas;
+  overlay.classList.add('open');
+}
+function verFueraDeFechaDetalle() {
+  const alertas = detectScheduleAlerts().sort((a, b) => a.slack - b.slack);
+  if (!alertas.length) return;
+  const filas = alertas.map(a => `
+    <div class="conflict-group" style="margin-bottom:8px">
+      <div class="conflict-group-header"><div class="conflict-group-title">${a.type === 'late' ? '⏰' : '⌛'} ${esc(a.orderCode)}</div></div>
+      <div style="padding:0 12px 10px;font-size:12px;color:${a.type === 'late' ? '#c43a39' : '#a3691a'}">${esc(a.message)}</div>
+    </div>`).join('');
+  const overlay = document.getElementById('confOverlay');
+  overlay.querySelector('.gcal-modal-title').textContent = `Fuera de fecha (${alertas.length})`;
+  document.getElementById('confOverlayBody').innerHTML = filas;
   overlay.classList.add('open');
 }
 function verConflictosDetalle() {
