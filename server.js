@@ -23161,7 +23161,7 @@ app.get('/api/planificacion/calendarios', async (req, res) => {
 // qué se le viene encima aunque no haya hecho ninguna preparación manual.
 app.get('/api/planificacion/calendarios/proximos-eventos', async (req, res) => {
     try {
-        const dias = Math.min(30, Math.max(1, Number(req.query.dias) || 4));
+        const dias = Math.min(92, Math.max(1, Number(req.query.dias) || 4));
         const today = capacityDateKey(new Date());
         const endDate = capacityDateKey(capacityAddDays(today, dias - 1));
         const [exceptionsRes, calendarsRes] = await Promise.all([
